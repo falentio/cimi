@@ -6,3 +6,17 @@
 - package/utils are only for utilities that can be shared across apps or packages
 - TDD whenever possible
 - Sociable Unit testing rather than solitaire unit testing. so we only mock repository.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in GitHub Issues for `falentio/cimi`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the canonical labels `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Domain documentation uses a single-context layout. See `docs/agents/domain.md`.

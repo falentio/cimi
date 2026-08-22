@@ -1,8 +1,13 @@
 import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
+  defaultPackage: 'apps/frontend',
+  check: {
+    fmt: true,
+    lint: true,
+  },
   staged: {
-    '*': 'vp check --fix',
+    '*.{js,ts,tsx,mjs,cjs,astro}': 'vp check --fix',
   },
   fmt: {
     ignorePatterns: [
@@ -31,6 +36,9 @@ export default defineConfig({
     },
   },
   run: {
-    cache: true,
+    cache: {
+      tasks: true,
+      scripts: true,
+    },
   },
 })

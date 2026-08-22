@@ -77,15 +77,15 @@ apps/frontend/
 
 ## Packages
 
-| Package | npm name | Purpose | Key exports |
-|---------|----------|---------|-------------|
-| `packages/contract` | `@cimi/contract` | oRPC contract — single source for API shapes | `packages/contract/src/contract.ts:1` → `contract.system.health`; `src/contract/system/query/health.ts`; `src/orpc/meta.ts` |
-| `packages/db` | `@cimi/db` | control (sqlite/drizzle) + analytics (duckdb) | `packages/db/src/index.ts:1` → `createDb`, `schema`, `migrateControlDb`, `createAnalyticsDb` |
-| `packages/auth` | `@cimi/auth` | better-auth wrapper | `packages/auth/src/server.ts`, `src/client.ts`, `src/first-user-admin.ts` |
-| `packages/guard` | `@cimi/guard` | authz guards | `packages/guard/src/guard.ts`, `src/index.ts` |
-| `packages/client` | `@cimi/client` | typed oRPC client for frontend | `packages/client/src/index.ts` (wraps `@orpc/client` + `@orpc/openapi-client`) |
-| `packages/utils` | `@cimi/utils` | cross-cutting only | `packages/utils/src/index.ts:1` → `createSingleton`, `loadConfig`, `ConfigError` |
-| `packages/testing` | `@cimi/testing` | shared test helpers | `packages/testing/src/index.ts` → `temp-dir`, `orpc-error` helpers |
+| Package             | npm name         | Purpose                                       | Key exports                                                                                                                 |
+| ------------------- | ---------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `packages/contract` | `@cimi/contract` | oRPC contract — single source for API shapes  | `packages/contract/src/contract.ts:1` → `contract.system.health`; `src/contract/system/query/health.ts`; `src/orpc/meta.ts` |
+| `packages/db`       | `@cimi/db`       | control (sqlite/drizzle) + analytics (duckdb) | `packages/db/src/index.ts:1` → `createDb`, `schema`, `migrateControlDb`, `createAnalyticsDb`                                |
+| `packages/auth`     | `@cimi/auth`     | better-auth wrapper                           | `packages/auth/src/server.ts`, `src/client.ts`, `src/first-user-admin.ts`                                                   |
+| `packages/guard`    | `@cimi/guard`    | authz guards                                  | `packages/guard/src/guard.ts`, `src/index.ts`                                                                               |
+| `packages/client`   | `@cimi/client`   | typed oRPC client for frontend                | `packages/client/src/index.ts` (wraps `@orpc/client` + `@orpc/openapi-client`)                                              |
+| `packages/utils`    | `@cimi/utils`    | cross-cutting only                            | `packages/utils/src/index.ts:1` → `createSingleton`, `loadConfig`, `ConfigError`                                            |
+| `packages/testing`  | `@cimi/testing`  | shared test helpers                           | `packages/testing/src/index.ts` → `temp-dir`, `orpc-error` helpers                                                          |
 
 ### packages/utils — Allowed vs. forbidden
 
@@ -133,7 +133,7 @@ When creating a new package `packages/<name>` or app `apps/<name>`:
   "exports": { ".": "./src/index.ts" },
   "scripts": { "typecheck": "tsc -p tsconfig.json", "test": "vitest run" },
   "dependencies": { "@cimi/utils": "workspace:*" /* add only needed @cimi/* */ },
-  "devDependencies": { "@types/node": "catalog:", "typescript": "catalog:", "vitest": "catalog:" }
+  "devDependencies": { "@types/node": "catalog:", "typescript": "catalog:", "vitest": "catalog:" },
 }
 ```
 
@@ -142,7 +142,7 @@ When creating a new package `packages/<name>` or app `apps/<name>`:
 {
   "extends": "../../tsconfig.base.json",
   "include": ["src"],
-  "compilerOptions": { "types": ["node"] }
+  "compilerOptions": { "types": ["node"] },
 }
 ```
 
@@ -187,13 +187,13 @@ If a proposed import violates this direction, the placement is wrong — move th
 
 ## Config Files
 
-| File | Purpose |
-|------|---------|
-| `tsconfig.base.json` | single compiler config, strict |
-| `tsconfig.json` (root) | includes `vite.config.ts` only |
-| `vite.config.ts` | `vite-plus` fmt/lint + `ignorePatterns` |
-| `.gitignore` | ignores `rybbit/`, build outputs |
-| `pnpm-workspace.yaml` | workspace members |
+| File                   | Purpose                                 |
+| ---------------------- | --------------------------------------- |
+| `tsconfig.base.json`   | single compiler config, strict          |
+| `tsconfig.json` (root) | includes `vite.config.ts` only          |
+| `vite.config.ts`       | `vite-plus` fmt/lint + `ignorePatterns` |
+| `.gitignore`           | ignores `rybbit/`, build outputs        |
+| `pnpm-workspace.yaml`  | workspace members                       |
 
 ## Anti-Patterns
 

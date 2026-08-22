@@ -9,10 +9,10 @@ Leading word: **placement**. Every file decision is a placement decision. Anchor
 
 ## Branches
 
-| Branch | Trigger | Pointer |
-|--------|---------|---------|
+| Branch             | Trigger                                                     | Pointer                       |
+| ------------------ | ----------------------------------------------------------- | ----------------------------- |
 | A — Place new code | new file, new package/app, refactor, "where does X belong?" | `references/directory-map.md` |
-| B — Lookup | read-only question about existing layout | `references/directory-map.md` |
+| B — Lookup         | read-only question about existing layout                    | `references/directory-map.md` |
 
 Inline what every branch needs; disclose what only some branches need behind the pointer above.
 

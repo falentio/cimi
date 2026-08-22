@@ -7,11 +7,15 @@ allowBuilds:
   esbuild: true
   sharp: true
 
+overrides:
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.9
+  vitest: 4.1.10
+
 catalog:
   vite-plus: ^0.2.9
-  vite: ^8.1.5
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.9
   typescript: ^6.0.2
-  vitest: ^4.1.10
+  vitest: 4.1.10
   '@types/node': ^24.13.3
   valibot: ^1.4.2
   hono: ^4.13.3

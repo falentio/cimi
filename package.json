@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "scripts": {
+    "prepare": "vp config --no-agent"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
