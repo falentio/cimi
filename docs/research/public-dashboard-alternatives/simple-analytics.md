@@ -1,0 +1,136 @@
+# Simple Analytics: Public Dashboard and Shared Access Research
+
+## Scope and method
+
+Research for [Cimi issue #8](https://github.com/falentio/cimi/issues/8). This report covers only public or shared dashboard access and the data reachable through those surfaces: link and token semantics, authentication, exposed data, filters and time ranges, exports, indexing, revocation, rate limits, caching, and privacy controls.
+
+Sources were reviewed on 2026-08-23. The sources are Simple Analytics documentation, the official documentation repository, official privacy/compliance pages, and first-party dashboard/API responses. No secondary articles were used. Live observations are point-in-time behavior checks, not promises about undocumented future behavior.
+
+Status labels:
+
+- **Documented fact**: stated by Simple Analytics documentation or first-party product page.
+- **Observed fact**: returned by an official public endpoint during this research.
+- **Cimi inference**: an implication for Cimi, not a Simple Analytics statement.
+- **Unavailable**: not specified in the reviewed primary sources.
+
+## Executive finding
+
+**Documented and observed fact:** Simple Analytics has a per-website `public` visibility mode. The official public example is an open dashboard at `https://dashboard.simpleanalytics.com/simpleanalytics.com`; its dashboard API response reported `isLoggedIn: false` and `isPublic: true` ([public dashboard](https://dashboard.simpleanalytics.com/simpleanalytics.com), [public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00), [Admin API](https://docs.simpleanalytics.com/api/admin)).
+
+**Documented fact:** Simple Analytics also supports authenticated team sharing. Teams users can be invited to all or selected websites and custom views; Viewers have read-only access to dashboards, goals, and events ([team roles](https://docs.simpleanalytics.com/explained/team-roles)). The vendor's own open dashboard says a customer can either make a dashboard public or share it through email access without making it public ([official open dashboard](https://dashboard.simpleanalytics.com/open)).
+
+**Cimi inference:** The public mechanism is a hostname/path-based public resource, not a documented random bearer token. The example URL contains the website hostname and no token or expiry value. Anyone who can reach a public hostname can use the public dashboard and API surfaces; URL secrecy is not a documented security boundary.
+
+**Important exposure finding:** The documented Stats API returns aggregate data without credentials for public websites, and the public example's dashboard API exposes aggregate lists and time series. During this review, the official public example also returned a raw CSV export without credentials when requested with selected fields. The latter conflicts with the Export API page's general authentication instructions and must be treated as an observed public-site behavior, not as a documented guarantee for every public website ([Stats API](https://docs.simpleanalytics.com/api/stats), [Export API](https://docs.simpleanalytics.com/api/export-data-points), [observed public CSV endpoint](https://simpleanalytics.com/api/export/datapoints?version=6&format=csv&hostname=simpleanalytics.com&start=2026-08-01&end=2026-08-02&fields=added_iso,path&type=pageviews)).
+
+## Access model
+
+| Question | Evidence and conclusion | Status |
+| --- | --- | --- |
+| What is shared? | Visibility is attached to a website. The Admin API accepts a `public` boolean when adding a website, and team developers are documented as able to change website visibility between public and private ([Admin API](https://docs.simpleanalytics.com/api/admin), [team roles](https://docs.simpleanalytics.com/explained/team-roles)). | **Documented fact** |
+| What does a public link look like? | The official public dashboard uses `https://dashboard.simpleanalytics.com/<hostname>`; the official JSON API uses `https://simpleanalytics.com/<hostname>.json?...` ([public dashboard](https://dashboard.simpleanalytics.com/simpleanalytics.com), [Stats API example](https://docs.simpleanalytics.com/api/stats)). | **Observed and documented fact** |
+| Is there a link token? | No token, signed URL, expiry, password, or per-link permission is described in the reviewed public-dashboard, API, team-role, or custom-view documentation. The public example path is hostname-based and has no token. | **Unavailable; Cimi inference is that no documented token model exists** |
+| Is public access authenticated? | The public dashboard loaded with `isLoggedIn: false`; the public Stats API documentation says public websites can return JSON without credentials. The public dashboard links to login, but login is not required for the public website surface ([public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00), [Stats API](https://docs.simpleanalytics.com/api/stats)). | **Observed/documented fact** |
+| How is restricted sharing done? | Teams supports email invitations, website/custom-view selection, roles, and read-only Viewers. This is account/team access, not an anonymous public link ([team roles](https://docs.simpleanalytics.com/explained/team-roles)). | **Documented fact** |
+| Is a public custom view documented? | Custom views can merge websites, apply permanent filters, and give others access to a limited subset; they require the Team subscription. The page does not state that a custom view can be published through a separate anonymous link ([custom views](https://docs.simpleanalytics.com/custom-views)). | **Partial fact; public-link behavior unavailable** |
+
+## Scope of data exposed
+
+### Dashboard surface
+
+The unauthenticated public example's `dataType=info` response included the website/view name, hostname, timezone, public flag, account-configured annotations, and a list of goals. The same response marked the viewer as not logged in and the view role as `readonly` ([public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00)).
+
+The public histogram response included total pageviews and visitors, daily time-series values, and the requested date range ([public histogram API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=histogram&path=&limit=&today=2026-08-23T00&start=2026-07-25&end=2026-08-23&interval=day)). The public data response included top paths, referrers, UTM sources/mediums/campaigns/contents, countries, device types, and browsers ([public data API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=data&path=&limit=50&today=2026-08-23T00&start=2026-07-25&end=2026-08-23)). The key-stats response included pageviews, visitors, and time on page plus period-over-period comparison ([public key-stats API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=key-stats&path=&limit=&today=2026-08-23T00&start=2026-07-25&end=2026-08-23)).
+
+**Documented fact:** The Stats API is the aggregate API for dashboard statistics. Its documented fields include pageviews, visitors, histogram, pages, countries, referrers, UTM dimensions, browser names, OS names, device types, and seconds on page ([Stats API](https://docs.simpleanalytics.com/api/stats)).
+
+The public example also had accessible Goals and Events routes. The Events page stated that it found events and linked to the raw export feature ([public Goals route](https://dashboard.simpleanalytics.com/goals/simpleanalytics.com), [public Events route](https://dashboard.simpleanalytics.com/events/simpleanalytics.com), [Events Explorer documentation](https://docs.simpleanalytics.com/events-explorer)). Whether every public website exposes goals, events, or custom metadata in exactly this way is not specified.
+
+### Aggregate versus row-level data
+
+**Documented fact:** Simple Analytics describes the Export API as exporting raw datapoints without sampling. It supports selected fields such as timestamps, hostname/path, referrer, UTM values, device/browser/OS values, screen and viewport dimensions, page-load linkage fields, and user-defined metadata ([Export API](https://docs.simpleanalytics.com/api/export-data-points)).
+
+**Observed fact:** An unauthenticated request to the official public `simpleanalytics.com` export endpoint returned `200 text/csv` and a CSV containing one row per selected pageview with `added_iso` and `path` columns ([observed public CSV endpoint](https://simpleanalytics.com/api/export/datapoints?version=6&format=csv&hostname=simpleanalytics.com&start=2026-08-01&end=2026-08-02&fields=added_iso,path&type=pageviews)). This demonstrates that at least one public website's data access is not limited to the rendered aggregate dashboard.
+
+**Documentation mismatch:** The Export API page says the feature requires `Api-Key` and `User-Id` headers, while the general API page says authentication depends on a website's public setting ([Export API](https://docs.simpleanalytics.com/api/export-data-points), [Simple Analytics APIs](https://docs.simpleanalytics.com/api)). The live public example permitted the request without either header. The behavior for a different public website, a private website, event exports, and the effect of changing visibility is **unavailable** in the reviewed sources.
+
+## Filters and time ranges
+
+**Documented fact:** The public Stats API accepts `start`, `end`, `timezone`, `interval`, and `limit`. It documents filters for page/path, country, referrer, UTM dimensions, browser, OS, device type, and exact metadata values. Trailing path wildcards are supported; contains searches require authentication even for public websites, allow only one path pattern, restrict fields, forbid events, and are rate limited ([Stats API](https://docs.simpleanalytics.com/api/stats), [API helpers](https://docs.simpleanalytics.com/api/helpers)).
+
+**Observed fact:** The public dashboard UI offered Today, Week, Month, 3 months, and 1 year periods, plus hourly, daily, weekly, monthly, and yearly chart intervals. Its generated links carried filters such as `referral`, `device`, `browser`, `country`, and path-specific routes ([public dashboard](https://dashboard.simpleanalytics.com/simpleanalytics.com), [filtered public dashboard example](https://dashboard.simpleanalytics.com/simpleanalytics.com?period=month&interval=day&country=US)).
+
+**Documented fact:** Embed charts also accept explicit start/end dates, timezone, page paths, data types, and presentation settings. The chart documentation says public website statistics can be embedded and page lists can be restricted with `data-pages` ([embed chart](https://docs.simpleanalytics.com/embed-chart-on-your-site)).
+
+**Unavailable behavior:** The reviewed documentation does not specify a public-share-specific maximum lookback, minimum aggregation threshold, filter allowlist distinct from the normal dashboard, or whether a public owner's configured filters are immutable to the viewer. The public example response reported `limitLookBackDays: null`, but that is a site-specific live value, not a product-wide rule ([public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00)).
+
+## Exports and machine access
+
+| Surface | Access and scope | Status |
+| --- | --- | --- |
+| Stats JSON | Public websites can return JSON without credentials. Queries can select aggregate fields, date ranges, intervals, paths, and dimensions; CORS is allowed from any website by default ([Stats API](https://docs.simpleanalytics.com/api/stats)). | **Documented fact** |
+| Dashboard API | The public example loaded dashboard API requests without a login and returned info, histogram, data-list, and key-stats payloads ([public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00)). | **Observed fact; endpoint contract otherwise undocumented** |
+| Raw CSV export | The Export API documents raw, selected-field, date-range exports and hourly export constraints. It documents API authentication, but the public `simpleanalytics.com` endpoint returned CSV without credentials during this review ([Export API](https://docs.simpleanalytics.com/api/export-data-points), [observed public CSV endpoint](https://simpleanalytics.com/api/export/datapoints?version=6&format=csv&hostname=simpleanalytics.com&start=2026-08-01&end=2026-08-02&fields=added_iso,path&type=pageviews)). | **Documented contract conflicts with observed public-site behavior** |
+| Export link secrecy | Export URLs contain the hostname, date range, format, type, and fields. No export-link token, expiry, or rotation mechanism is documented. | **Documented URL shape; token/expiry unavailable** |
+
+## Indexing and robots behavior
+
+**Observed fact:** The official dashboard `robots.txt` disallows `/api/`, `/login`, `/websites`, and selected account paths, but it does not disallow `/simpleanalytics.com` or the other public dashboard path pattern ([dashboard robots.txt](https://dashboard.simpleanalytics.com/robots.txt)). The same response is served from the `simpleanalytics.com` host ([Simple Analytics robots.txt](https://simpleanalytics.com/robots.txt)).
+
+**Observed fact:** The public dashboard HTML has a canonical URL, Open Graph metadata, a description saying it is a live website-analytics dashboard, and no `meta[name="robots"]` element in the captured document head ([public dashboard HTML](https://dashboard.simpleanalytics.com/simpleanalytics.com)). Its public API response reported `hideInSearchEngines: false` ([public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00)).
+
+**Inference and limit:** These signals make crawling/indexing technically possible for the reviewed public example, but they do not prove that a search engine indexed it. No public-dashboard indexing guarantee, `noindex` control documentation, or documented semantics for `hideInSearchEngines` was found. The setting's owner-facing configuration and behavior after a public-to-private change are **unavailable**.
+
+## Revocation and rotation
+
+**Documented fact:** Website visibility is represented as public/private, and Developers can modify that visibility ([Admin API](https://docs.simpleanalytics.com/api/admin), [team roles](https://docs.simpleanalytics.com/explained/team-roles)). Making a website private is therefore the documented control that should stop ordinary public access.
+
+**Unavailable behavior:** The reviewed sources do not specify:
+
+- whether changing private/public invalidates existing sessions immediately;
+- whether JSON, dashboard, event, and CSV endpoints change at the same time;
+- whether CDN, browser, social-image, or search-engine copies are purged;
+- whether a public hostname can be changed or rotated without moving the website;
+- any expiring link, token rotation, password, or per-recipient revocation mechanism; or
+- how email-invited users are removed or how existing sessions are invalidated.
+
+**Cimi inference:** Cimi should model public access revocation as an explicit server-side policy check on every dashboard and data endpoint, not as deletion of an opaque URL. If bearer links are required, Cimi needs separate expiry, rotation, and per-link revocation semantics; Simple Analytics does not document those semantics.
+
+## Rate limits and caching
+
+**Documented fact:** Simple Analytics specifically rate-limits Stats API path-contains searches. On HTTP `429`, clients must wait for the seconds in `Retry-After` ([Stats API](https://docs.simpleanalytics.com/api/stats)). No numerical quota is given there.
+
+**Documented fact:** The Export API says it streams data directly from the database and that export size does not matter to the service, while still recommending that callers select only the needed fields ([Export API](https://docs.simpleanalytics.com/api/export-data-points)). This is a performance statement, not a documented public-share quota.
+
+**Unavailable behavior:** No general rate limit, burst limit, concurrency limit, bot policy, or retry contract for public dashboard pages, public dashboard API requests, public Stats JSON, or public CSV exports was found.
+
+**Observed fact:** The captured public dashboard API response included `Vary: Accept-Encoding` and normal date/content headers. It did not include `Cache-Control`, `ETag`, `Age`, or `Expires` in the captured response. No caching policy or freshness guarantee is documented, so this observation must not be treated as a stable cache contract ([public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00)).
+
+## Privacy controls and privacy posture
+
+**Documented fact:** Simple Analytics says it does not set cookies or similar storage, collect or hash IP addresses, or create IDs for users, browsers, or devices. It describes the data as aggregate and says its "visitors" metric is unique pageviews rather than people tracked across sessions ([data collection](https://docs.simpleanalytics.com/data-collection), [unique visits](https://docs.simpleanalytics.com/explained/unique-visits), [compliance](https://docs.simpleanalytics.com/compliance)).
+
+**Documented collection controls:** Owners can omit referrers, UTM codes, country/timezone, session IDs, time-on-page, scroll depth, user-agent, screen/viewport dimensions, or language through `data-ignore-metrics`; DNT visits are excluded by default unless `data-collect-dnt="true"` is set ([ignore metrics](https://docs.simpleanalytics.com/ignore-metrics), [DNT](https://docs.simpleanalytics.com/dnt)). These controls reduce collection at ingestion; the docs do not describe them as public-dashboard redaction controls.
+
+**Documented metadata guardrail:** Metadata is attached to events or pageviews and can appear in goals, Events Explorer, and exports. Simple Analytics prohibits email addresses, identifiers, and other personal data in metadata ([metadata](https://docs.simpleanalytics.com/metadata)). The reviewed sources do not explicitly state whether every metadata field is visible in every public dashboard or public API response.
+
+**Documented sharing control:** Team custom views can use permanent filters to exclude pages or provide access to only a subset of website data; they require the Team subscription ([custom views](https://docs.simpleanalytics.com/custom-views)). Team membership can also be scoped to selected websites/custom views and read-only Viewer access ([team roles](https://docs.simpleanalytics.com/explained/team-roles)).
+
+**Observed but undocumented controls:** The public dashboard API returned `hideTopPages: false` and `hideInSearchEngines: false`. No reviewed official documentation explains how to set these values, which plans have them, whether they apply to API/export endpoints, or whether they are stable public controls ([public dashboard API response](https://dashboard.simpleanalytics.com/api/dashboard?view=simpleanalytics.com&dataType=info&path=&limit=&today=2026-08-23T00)). Treat both behaviors as **unavailable for implementation purposes** until verified through an owner-facing official specification.
+
+**Cimi inference:** Simple Analytics' privacy posture limits the sensitivity of the collected visitor data, but public sharing still reveals whatever aggregate dimensions, paths, referrers, events, goals, metadata, and possibly raw datapoints the public endpoints return. Cimi should not equate "no visitor identity" with "safe to publish every dimension"; public sharing needs an explicit field and endpoint allowlist.
+
+## Cimi-relevant conclusions
+
+1. **Use separate access modes.** Model anonymous public access, authenticated team access, and private owner access as different policies. Simple Analytics documents all three concepts, but only the public mode is hostname-based ([team roles](https://docs.simpleanalytics.com/explained/team-roles), [Admin API](https://docs.simpleanalytics.com/api/admin)).
+2. **Do not use a guessable hostname path as a bearer secret.** The observed public URL and Stats API identify the site by hostname, not a random token ([public dashboard](https://dashboard.simpleanalytics.com/simpleanalytics.com), [Stats API](https://docs.simpleanalytics.com/api/stats)).
+3. **Make public scope narrower than authenticated scope.** Aggregate dashboard data is documented, but the public example also exposed goals/events and permitted raw CSV access. Cimi should explicitly exclude raw rows, metadata, identifiers, and sensitive paths unless a separate policy permits them ([public Events route](https://dashboard.simpleanalytics.com/events/simpleanalytics.com), [Export API](https://docs.simpleanalytics.com/api/export-data-points)).
+4. **Specify date and filter ceilings.** Simple Analytics documents query filters and date parameters but does not document a public-link-specific lookback or immutable filter policy ([Stats API](https://docs.simpleanalytics.com/api/stats)).
+5. **Define revocation and cache semantics before shipping.** Public/private switching exists, but invalidation, caching, search copies, and token rotation are not documented ([team roles](https://docs.simpleanalytics.com/explained/team-roles), [dashboard robots.txt](https://dashboard.simpleanalytics.com/robots.txt)).
+6. **Treat rate limits as part of the contract.** Simple Analytics documents only a specific contains-search `429` behavior, not general public dashboard quotas ([Stats API](https://docs.simpleanalytics.com/api/stats)).
+
+## Primary source register
+
+- [Simple Analytics documentation repository](https://github.com/simpleanalytics/docs) - official documentation source; the current published pages above are the canonical citations used in this report.
+- [Simple Analytics public scripts repository](https://github.com/simpleanalytics/scripts) - official open-source collection scripts. It is not evidence that the dashboard/account application is open source; the dashboard HTML points to a separate deployed dashboard commit ([deployed commit link](https://github.com/simpleanalytics/dashboard/commit/c40eb3b80fc477bdb6e38407a80f69549fd52df1)).
+- [Official privacy policy](https://www.simpleanalytics.com/privacy-policy) - first-party privacy statement. The current technical privacy claims used above are cited to the newer [data collection](https://docs.simpleanalytics.com/data-collection) and [compliance](https://docs.simpleanalytics.com/compliance) pages because the privacy policy itself is dated 2021.

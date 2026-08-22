@@ -1,0 +1,169 @@
+---
+resource: funnel
+status: draft
+version: 1.0.0
+updated: 2026-08-23
+---
+
+# Funnel Resource
+
+## 1. Overview & Lifecycle
+
+**Audience:** Both
+
+A Funnel is a persisted ordered conversion definition with two to ten action steps. Each step matches one pageview or standard Event Kind/name with optional bounded scalar filters.
+
+```text
+active -> archived
+```
+
+## 2. Base Schema
+
+**Audience:** Both
+
+| Field | Schema | Description |
+| --- | --- | --- |
+| `id` | `nanoid` | Funnel identifier. |
+| `siteId` | `nanoid` | Site scope. |
+| `name` | `string256` | Display name. |
+| `steps` | `funnelStepList` | Ordered list of 2-10 action matchers. |
+| `status` | `funnelStatus` | Active or archived. |
+| `createdAt` / `updatedAt` | `coercedDate` | Lifecycle timestamps. |
+
+## 3. Endpoint Quick Index
+
+**Audience:** FE
+
+| # | Procedure | Method | Path | Auth | CQRS |
+| --- | --- | --- | --- | --- | --- |
+| Q1 | `listFunnels` | GET | `/listFunnels` | authenticated | query |
+| Q2 | `getFunnel` | GET | `/getFunnel` | authenticated | query |
+| Q3 | `getFunnelReport` | GET | `/getFunnelReport` | authenticated | query |
+| C1 | `createFunnel` | POST | `/createFunnel` | admin | command |
+| C2 | `updateFunnel` | POST | `/updateFunnel` | admin | command |
+| C3 | `archiveFunnel` | POST | `/archiveFunnel` | admin | command |
+
+## 4. Queries
+
+### Q1: `GET /listFunnels` — `listFunnels`
+
+**Audience:** Both
+
+**Purpose:** List persisted Funnel definitions.
+
+**Behavior:** Cursor pagination is ordered by `createdAt` plus Funnel ID. Definitions are returned without query plans or raw Event data.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
+
+### Q2: `GET /getFunnel` — `getFunnel`
+
+**Audience:** Both
+
+**Purpose:** Return one Funnel definition after Site authorization.
+
+**Behavior:** Inaccessible IDs return `NOT_FOUND`.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404).
+
+### Q3: `GET /getFunnelReport` — `getFunnelReport`
+
+**Audience:** Both
+
+**Purpose:** Report step conversion through ordered actions.
+
+**Behavior:** Evaluate steps in order within one Analytics Session. A step is the first matching action after the prior step; repeated actions do not move a Session backward. Return counts and rates for each step, with bounded date/filter inputs.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
+
+## 5. Commands
+
+### C1: `POST /createFunnel` — `createFunnel`
+
+**Audience:** Both
+
+**Purpose:** Persist a validated ordered Funnel.
+
+**Behavior:** Require 2-10 distinct ordered action steps. Return 201. No MVP command idempotency guarantee.
+
+**Events Emitted:** None in MVP.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `CONFLICT` (409).
+
+### C2: `POST /updateFunnel` — `updateFunnel`
+
+**Audience:** Both
+
+**Purpose:** Update a Funnel definition.
+
+**Behavior:** Owner or Administrator only. Preserve enough definition history to keep prior reports interpretable. Return 200.
+
+**Events Emitted:** None in MVP.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `CONFLICT` (409).
+
+### C3: `POST /archiveFunnel` — `archiveFunnel`
+
+**Audience:** Both
+
+**Purpose:** Archive a Funnel without deleting historical reports.
+
+**Behavior:** Archiving is monotonic. Return 204.
+
+**Events Emitted:** None in MVP.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409).
+
+## 6. Business Rules
+
+| Rule | Enforcement Point | Affected Procedures |
+| --- | --- | --- |
+| Steps are ordered and same-Session. | Report query. | Q3 |
+| Each step is evaluated after the prior step. | Funnel evaluator. | Q3 |
+| Definitions are bounded to 2-10 steps. | Contract validation. | C1-C2 |
+| No cross-Session user journey is inferred. | Report query. | Q3 |
+
+## 7. Authorization Matrix
+
+| Auth Level | Meaning | Procedures |
+| --- | --- | --- |
+| `authenticated` | Site member. | Q1-Q3 |
+| `admin` | Site-management role. | C1-C3 |
+
+## 8. Event Catalog
+
+**Audience:** BE
+
+No domain event channel is required by the MVP contract.
+
+## 9. Edge Cases
+
+**Audience:** Both
+
+- **Same action matches multiple steps** — One Event can advance only the next matching step; it cannot satisfy multiple steps unless the definition explicitly has separate ordered occurrences.
+- **Session boundary between steps** — The Funnel attempt stops; no cross-Session continuation.
+- **Archived definition** — Historical report remains available; new configuration lists mark it archived.
+
+## 10. Error Code Catalog
+
+| Code | HTTP | Trigger |
+| --- | ---: | --- |
+| `BAD_REQUEST` | 400 | Step count, action, filter, or range invalid. |
+| `FORBIDDEN` | 403 | Caller lacks Site-management/report scope. |
+| `NOT_FOUND` | 404 | Site or Funnel is inaccessible. |
+| `QUERY_LIMIT_EXCEEDED` | 422 | Report exceeds bounded execution. |
+
+## 11. Related Resources & Dependencies
+
+### Depends On
+
+| Resource | Integration Point |
+| --- | --- |
+| `site` | Scope and ownership. |
+| `event-report` | Standard action matching. |
+| `analytics-session` | Same-Session ordering. |
+
+### Used By
+
+| Resource | Integration Point |
+| --- | --- |
+| `traffic-report` | Conversion summary. |

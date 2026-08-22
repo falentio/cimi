@@ -1,0 +1,44 @@
+# Visitor Identity Alternatives: Synthesis
+
+Research for Cimi issue [#5](https://github.com/falentio/cimi/issues/5), checked 2026-08-22. The candidate reports in this directory contain the source-by-source evidence.
+
+## Comparison
+
+| Alternative | Anonymous identity | Session boundary | Explicit identity | Privacy posture | Deletion shape |
+| --- | --- | --- | --- | --- | --- |
+| Plausible | Site-scoped daily server hash of request signals; no durable browser ID | 30 minutes inactivity | No documented identified-user/linking model | Anonymous aggregate measurement; no cookies or persistent visitor storage | Site reset/deletion; individual visitor deletion is not a product concept |
+| Umami | Server-derived hash from source, IP, user agent, and rotating salt; no durable anonymous browser ID | 30-minute visit within a longer salt-derived session bucket | `identify()` links Sessions to a website-scoped Distinct ID without merging Sessions | Cookie-free default; explicit identity and session data change the privacy analysis | Session deletion and site/account deletion; no documented anonymous self-service deletion |
+| Matomo | First-party cookie Visitor ID by default; privacy-limited `config_id` fallback is daily and short-lived | 30 minutes inactivity, plus campaign/midnight boundaries | User ID links across Sessions, browsers, and devices | Strong configurable consent modes; persistent User IDs remain personal data even when pseudonymized | Specific Visit deletion plus report reprocessing; retention purges raw logs but may leave reports |
+| PostHog | Persistent anonymous `distinct_id` in cookie/localStorage by default; cookieless server hash available | 30 minutes inactivity and 24-hour maximum by default | `identify()`/`alias()` link past and future events and create/update person profiles | Explicit opt-out/opt-in and cookieless modes; persistent IDs and profiles are personal-data risks | Asynchronous person/event/recording deletion with completion status |
+| Rybbit | Server-derived IP/user-agent hash; optional daily salt; identified browser IDs also persist in localStorage | 30 minutes inactivity | `identify()` creates aliases and backfills browser history; current source differs between 30-day browser and full-history dashboard paths | Anonymous default is privacy-oriented, but identification, traits, IP, and storage have separate caveats | Admin user deletion exists; source/docs have gaps around bot data, site events, and retention wording |
+| Databuddy | Persistent `localStorage` anonymous ID plus `sessionStorage` Session ID | 30 minutes inactivity | `identify()` stores a persistent profile ID, aliases, and bounded traits | Current SDK honors GPC/DNT and supports opt-out; older privacy claims conflict with current identity features | Project/account deletion; no documented visitor-level deletion workflow |
+| Simple Analytics | No user/browser/device identity; unique pageviews are referrer-based | In-memory page-load ID, not a conventional cross-load Session | No documented identified-user, alias, or trait-profile model | Strongest minimization; no cookies, storage, fingerprinting, or IP hashing; DNT suppresses by default | Account/team/site deletion with backup/log window; no per-visitor deletion concept |
+
+## Cross-product findings
+
+1. **Cookieless does not have one meaning.** Plausible, Umami, and Simple Analytics avoid durable browser identity. Databuddy and Rybbit can avoid cookies while retaining browser storage. PostHog offers both persistent and server-hash modes. Cimi must define whether “cookieless” also forbids local/session storage and durable anonymous linkage.
+2. **Anonymous is an analytics state, not automatically an absence of personal data.** Request-derived hashes, persistent IDs, IP/user-agent inputs, URLs, traits, and explicit IDs can all create privacy obligations even when the UI calls the record anonymous.
+3. **Thirty-minute inactivity is the dominant Session convention.** PostHog additionally caps Sessions at 24 hours; Matomo adds campaign and local-midnight boundaries; Simple Analytics intentionally has only page-load linkage.
+4. **Explicit identity is an opt-in boundary.** Umami, Matomo, PostHog, Rybbit, and Databuddy require caller-supplied identity. Plausible and Simple Analytics do not offer a comparable feature. Stable opaque application IDs are safer than emails, but a stable opaque ID can still be personal data.
+5. **Linking policies differ materially.** PostHog associates past and future events; Rybbit backfills a bounded or full-history window depending on the path; Umami links Sessions without merging them; Matomo links User ID activity across devices; Plausible and Simple Analytics do not link identities. Cimi must make the attribution boundary explicit.
+6. **Logout/reset is not erasure.** Every identity-capable alternative separates stopping future association from deleting stored events, profiles, aliases, Sessions, and replay. Cimi needs distinct contracts for unlink, opt-out, and deletion.
+7. **Deletion is asynchronous or incomplete in practice.** PostHog exposes queued deletion status; Plausible deletes site data asynchronously; Matomo reprocesses reports after Visit deletion; Rybbit and Databuddy have source-level coverage gaps. Cimi should define completion, derived aggregate invalidation, backups, and retry behavior.
+8. **Retention is multidimensional.** Event data, Session rows, profiles/traits, replay, raw logs, derived reports, salts, exports, and backups commonly have different lifetimes. Cimi’s 12-month configurable operating-envelope default should not be treated as one universal lifetime without deciding these categories.
+9. **Consent is not determined by cookie use alone.** Plausible, Umami, and Simple Analytics publish no-consent positions for their minimized modes. Matomo and PostHog expose explicit consent/opt-out controls. Rybbit and Databuddy distinguish anonymous collection from identified profiles. Cimi should make the default technical behavior privacy-preserving without making a universal legal claim.
+
+## Decision pressure for Cimi
+
+- The closest privacy-minimal baseline is Plausible plus Umami: server-derived Site-scoped pseudonyms, no durable anonymous browser ID, 30-minute Sessions, and explicit identification as a separate feature.
+- The closest identity-capable baseline is a constrained combination of Umami/Rybbit semantics: explicit Site-scoped opaque ID, separate aliases, traits with limits, and no automatic inference from Cimi authentication.
+- The strongest deletion baseline is PostHog’s state-machine approach: distinguish local reset, opt-out, deletion requested, deletion processing, and deletion complete; include event and replay data and expose completion.
+- Simple Analytics is the useful negative reference: if Cimi chooses durable Visitors, it is intentionally more identity-bearing than the most privacy-minimal alternative and must say why.
+
+## Primary reports
+
+- [Umami](./umami.md)
+- [Matomo](./matomo.md)
+- [PostHog](./posthog.md)
+- [Plausible](./plausible.md)
+- [Rybbit](./rybbit.md)
+- [Databuddy](./databuddy.md)
+- [Simple Analytics](./simple-analytics.md)

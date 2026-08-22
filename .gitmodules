@@ -1,3 +1,21 @@
 [submodule "rybbit"]
 	path = rybbit
 	url = https://github.com/rybbit-io/rybbit
+[submodule "docs/research/vendor/umami"]
+	path = docs/research/vendor/umami
+	url = https://github.com/umami-software/umami.git
+[submodule "docs/research/vendor/matomo"]
+	path = docs/research/vendor/matomo
+	url = https://github.com/matomo-org/matomo.git
+[submodule "docs/research/vendor/posthog"]
+	path = docs/research/vendor/posthog
+	url = https://github.com/PostHog/posthog.git
+[submodule "docs/research/vendor/plausible"]
+	path = docs/research/vendor/plausible
+	url = https://github.com/plausible/analytics.git
+[submodule "docs/research/vendor/databuddy"]
+	path = docs/research/vendor/databuddy
+	url = https://github.com/databuddy-analytics/Databuddy.git
+[submodule "docs/research/vendor/simple-analytics"]
+	path = docs/research/vendor/simple-analytics
+	url = https://github.com/simpleanalytics/scripts.git

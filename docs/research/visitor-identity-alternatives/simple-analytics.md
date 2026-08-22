@@ -1,0 +1,59 @@
+# Simple Analytics: Visitor Identity Research
+
+## Scope and version context
+
+Research for [Cimi issue #5](https://github.com/falentio/cimi/issues/5), using only Simple Analytics documentation, its official public scripts repository, and its official privacy policy. Sources were reviewed on 2026-08-22.
+
+- The current docs pages reviewed generally show `Published: 2026-08-13`; the `/metrics` page is older and shows `Published: 2026-07-28`.
+- The official scripts repository `main` pointed to commit [`c14b694`](https://github.com/simpleanalytics/scripts/commit/c14b69456bcd6a758067a6fac0541e1a43e10cbb) on 2026-08-17. Its `package.json` reports version `9.0.0` ([source](https://github.com/simpleanalytics/scripts/blob/c14b69456bcd6a758067a6fac0541e1a43e10cbb/package.json)).
+- Current data-collection, events, and export docs call the short-lived value a **page-load ID** and retain `session_id` only for compatibility. The older `/metrics` page still describes it as a session ID. This terminology difference is material for Cimi's model.
+
+## Executive finding
+
+**Documented fact:** Simple Analytics does not identify or track a person across visits. Its dashboard's "visitors" are **unique pageviews**, detected from the referrer, not people tracked across sessions ([unique visits](https://docs.simpleanalytics.com/explained/unique-visits)). It states that it never creates an ID for a user, browser, or device ([data collection](https://docs.simpleanalytics.com/data-collection)).
+
+**Cimi inference:** Simple Analytics is an aggregate/pageview-and-event model, not a visitor identity system. It can link related events during one page load, but it is not evidence for a durable anonymous identity, identified-user model, or anonymous-to-identified merge model.
+
+## Identity and linking model
+
+| Cimi concept | Simple Analytics equivalent | Persistence and linking | Status |
+| --- | --- | --- | --- |
+| Visitor | Dashboard "visitor" means a unique pageview. A pageview is unique when direct or externally referred; internal navigation, reloads, and browser back/forward are not unique. ([unique visits](https://docs.simpleanalytics.com/explained/unique-visits)) | No person is followed across sessions; the referrer is used for classification rather than a visitor identifier. ([unique visits](https://docs.simpleanalytics.com/explained/unique-visits)) | **Documented; not an individual identity.** |
+| Session | Current terminology: a random, in-memory **page-load ID**. SPA History API route changes share it; reload, full navigation, or closing the page resets it. The exported `session_id` is a legacy name. ([data collection](https://docs.simpleanalytics.com/data-collection), [events](https://docs.simpleanalytics.com/events), [export API](https://docs.simpleanalytics.com/api/export-data-points)) | Nothing is stored on the device to carry it across page loads. ([events](https://docs.simpleanalytics.com/events)) | **Documented; shorter-lived than Cimi's likely conventional session.** |
+| Anonymous identity | None. Simple Analytics says it never creates an ID for a user, browser, or device. ([data collection](https://docs.simpleanalytics.com/data-collection)) | No cross-page-load or cross-device anonymous key is documented. | **Not provided.** |
+| Identified user | No visitor-facing identify, alias/merge, or profile API was found in the reviewed official docs or scripts. The documented `User-Id` is an account/API authentication header, not a website visitor ID. ([API authentication](https://docs.simpleanalytics.com/api/authenticate)) | No anonymous-to-identified linking semantics are documented. | **Unavailable in reviewed primary sources.** |
+| Trait | Event/pageview metadata, not a user profile. Metadata is attached to datapoints and may be exported; Simple Analytics prohibits personal data such as email addresses and identifiers. ([metadata](https://docs.simpleanalytics.com/metadata)) | No trait history, profile lifetime, or identity-level update/delete behavior is documented. | **Datapoint metadata only; no user traits model documented.** |
+
+The older `/metrics` page says the session ID links multiple events and pages in a SPA, but also says it is not stored on the device and resets on navigation for non-SPAs. The newer pages explicitly narrow the term to one actual page load ([older metrics](https://docs.simpleanalytics.com/metrics), [current data collection](https://docs.simpleanalytics.com/data-collection)). Cimi should use the newer page-load semantics when evaluating the current service, while treating `session_id` as a compatibility field rather than a durable session identity.
+
+## Cookies, storage, and implementation evidence
+
+- **No browser persistence:** Simple Analytics says it sets no cookies and uses no similar technologies, including local storage, session cookies, fingerprinting, or IP-address hashing ([data collection](https://docs.simpleanalytics.com/data-collection)). It also says it does not collect or store IP addresses ([compliance FAQ](https://docs.simpleanalytics.com/compliance-faq)).
+- **In-memory IDs:** In the version-9.0.0 source, `default.js` defines a UUID generator and assigns generated values to `page_id` and `session_id` in the in-memory `payload`; it sends those values with pageview/event requests. The file contains no cookie, local-storage, or session-storage operation ([source at commit `c14b694`](https://raw.githubusercontent.com/simpleanalytics/scripts/c14b69456bcd6a758067a6fac0541e1a43e10cbb/src/default.js)). This corroborates the docs; source inspection of this file alone is not a claim about undocumented server internals.
+- **Page/event linkage:** The source creates a new `page_id` when page-view state changes and a per-event UUID for event requests; the documented purpose is to link requests belonging to a page or page load, not to identify a person ([source](https://raw.githubusercontent.com/simpleanalytics/scripts/c14b69456bcd6a758067a6fac0541e1a43e10cbb), [metrics](https://docs.simpleanalytics.com/metrics)).
+- **No time-based session rule documented:** The reviewed sources specify reset triggers, but do not specify an inactivity timeout, maximum duration, or server-side session TTL. This fact is **unavailable**, not something Cimi should infer from the word "session."
+
+## Privacy and consent
+
+- **Simple Analytics' stated position:** It says that no cookies, fingerprinting, IP addresses, device identifiers, or visitor identification are used, and therefore claims that consent is not required for its analytics ([compliance](https://docs.simpleanalytics.com/compliance), [unique visits](https://docs.simpleanalytics.com/explained/unique-visits)). This is the vendor's compliance position, not an independent legal determination for Cimi.
+- **DNT behavior:** By default, the script does not collect visits when Do Not Track is enabled. A customer can explicitly enable collection with `data-collect-dnt="true"` ([DNT](https://docs.simpleanalytics.com/dnt), [source](https://raw.githubusercontent.com/simpleanalytics/scripts/c14b69456bcd6a758067a6fac0541e1a43e10cbb/src/default.js)).
+- **Data minimization:** The documented collected fields include page URL parts, referrer, UTM values, time zone, browser/device information, dimensions, language, and short-lived linkage IDs. The service says those metrics are not linked to one specific visitor ([data collection](https://docs.simpleanalytics.com/data-collection)).
+- **Metadata guardrail:** Customers may add metadata to events and pageviews, but the official docs expressly prohibit personal data, including email addresses and identifiers, and warn that an account may be suspended ([metadata](https://docs.simpleanalytics.com/metadata)).
+- **Privacy notice:** The compliance FAQ says a customer does not need to include Simple Analytics in its privacy policy, while still encouraging transparency ([compliance FAQ](https://docs.simpleanalytics.com/compliance-faq)). Cimi should not transfer that conclusion to a different implementation that adds identity or personal data.
+
+## Retention and deletion semantics
+
+- **Analytics retention:** Simple Analytics says it retains customer data only while the account is active and in line with the subscription plan ([data security and ownership](https://docs.simpleanalytics.com/data-security-and-ownership)). No separate retention period for page-load IDs, event IDs, or individual datapoints is documented.
+- **Account/team deletion:** Deleting an account deletes the account's personal data. Teams are kept by default; deleting a team deletes its websites and analytics data. ([delete account](https://docs.simpleanalytics.com/delete-account))
+- **Logical versus permanent deletion:** The security page says data is deleted immediately when the account is deleted but permanently deleted after 90 days ([data security and ownership](https://docs.simpleanalytics.com/data-security-and-ownership)). The deletion page specifies that error logs and database backups are kept for 90 days, and that a hash of a deleted website's domain is retained to prevent domain relinking ([delete account](https://docs.simpleanalytics.com/delete-account)).
+- **Historical privacy-policy context:** The official privacy policy is labeled "Privacy Policy v2," dated 21 January 2021. It says visitor data is deleted when the account is deleted, backups may remain for up to 90 days, and then are permanently deleted ([official privacy policy](https://www.simpleanalytics.com/privacy-policy)). The current account-deletion docs are the better source for current team/account scope.
+- **Per-visitor deletion:** No per-visitor deletion endpoint, visitor lookup key, or visitor-specific retention/deletion workflow is documented. Given the documented absence of a visitor identity, Cimi should treat per-visitor deletion as **unavailable in the reviewed sources**, not as an implied feature.
+
+## Implications and questions for Cimi
+
+1. **Choose the entity model explicitly.** If Cimi follows Simple Analytics, its canonical entities would be pageviews, page loads, events, and aggregate dimensions, not a durable `Visitor` record.
+2. **Do not call `session_id` a conventional session without qualification.** The current semantics are page-load scoped; Cimi needs a separate decision if it requires continuity across reloads, browser restarts, or inactivity windows.
+3. **Do not infer identity linking from event metadata.** Simple Analytics metadata is datapoint-scoped and forbids identifiers; anonymous-to-identified linking, aliasing, and trait updates are not documented.
+4. **Set Cimi's privacy invariant before implementation.** Decide whether Cimi will prohibit cookies, local/session storage, IP collection, fingerprinting, device IDs, and identifying metadata, and whether DNT must suppress collection by default.
+5. **Define deletion scope and guarantees.** Decide whether deletion means account/team analytics deletion, logical deletion with a backup window, or per-visitor erasure. Simple Analytics documents the first two, not the third.
+6. **Questions still requiring a Cimi decision:** Is aggregate analytics sufficient? Is a durable logged-in identity required? What is the maximum permitted page-load/session lifetime? Are traits allowed at all? What retention and backup window is acceptable? Which jurisdictions' consent and erasure rules will govern Cimi's own implementation?
