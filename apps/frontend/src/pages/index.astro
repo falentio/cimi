@@ -1,0 +1,11 @@
+---
+import "../styles/global.css";
+import HealthStatus from "../components/HealthStatus.tsx";
+---
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Cimi</title></head>
+  <body class="cimi-page">
+    <h1>Cimi — Web Analytics</h1>
+    <HealthStatus client:only="react" />
+  </body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "name": "@cimi/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cimi/auth": "workspace:*",
+    "@cimi/contract": "workspace:*",
+    "@cimi/db": "workspace:*",
+    "@cimi/utils": "workspace:*",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/valibot": "catalog:",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@cimi/testing": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

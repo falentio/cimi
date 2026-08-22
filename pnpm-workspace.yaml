@@ -1,0 +1,40 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+
+catalog:
+  vite-plus: ^0.2.9
+  vite: ^8.1.5
+  typescript: ^6.0.2
+  vitest: ^4.1.10
+  '@types/node': ^24.13.3
+  valibot: ^1.4.2
+  hono: ^4.13.3
+  '@orpc/contract': ^1.14.8
+  '@orpc/server': ^1.14.8
+  '@orpc/client': ^1.14.8
+  '@orpc/openapi': ^1.14.8
+  '@orpc/openapi-client': ^1.14.8
+  '@orpc/valibot': ^1.14.8
+  better-auth: ^1.7.1
+  drizzle-orm: ^0.45.2
+  drizzle-kit: ^0.31.5
+  better-sqlite3: ^12.11.1
+  '@types/better-sqlite3': ^7.6.13
+  '@duckdb/node-api': 1.5.5-r.4
+  astro: ^7.2.4
+  '@astrojs/node': ^11.1.4
+  '@astrojs/check': ^0.9.10
+  '@astrojs/react': ^6.0.4
+  react: ^19.2.8
+  react-dom: ^19.2.8
+  '@types/react': ^19.2.18
+  '@types/react-dom': ^19.2.4
+  tailwindcss: ^4.3.3
+  '@tailwindcss/vite': ^4.3.3
+  '@cloudflare/kumo': ^2.12.0
