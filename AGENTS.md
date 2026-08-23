@@ -6,6 +6,12 @@
 - package/utils are only for utilities that can be shared across apps or packages
 - TDD whenever possible
 - Sociable Unit testing rather than solitaire unit testing. so we only mock repository.
+- Always run test/lint/fmt as a narrow, not broad, so we save much compute.
+
+### Narrow lint and format fixes
+
+Use `@lint-fmt-fixer` for focused lint and format fixes on known files. See
+`docs/agents/lint-format.md` for the direct `vp` workflow and reusable fixes.
 
 ## Agent skills
 

@@ -13,19 +13,19 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@v1
         with:
-          node-version-file: package.json
-          cache: pnpm
+          node-version: '24.16.0'
+          cache: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Check (format, lint, typecheck)
-        run: pnpm exec vp check
+        run: vp check
 
       - name: Typecheck workspaces
-        run: pnpm exec vp run -r typecheck
+        run: vp run -r typecheck
 
       - name: Test
-        run: pnpm exec vp run -r test
+        run: vp run -r test
