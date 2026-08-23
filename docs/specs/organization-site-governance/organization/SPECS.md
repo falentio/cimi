@@ -54,9 +54,9 @@ Organizations are active after creation. A Personal Organization is provisioned 
 
 **Purpose:** List Organizations in which the authenticated User has persisted membership.
 
-**Behavior:** Return only current memberships. Use opaque cursor pagination ordered by `createdAt` plus Organization ID. The active Organization is not used as an authorization source.
+**Behavior:** Return only current memberships. Use zero-based live offset pagination ordered by `createdAt` plus Organization ID, with `nextOffset`, `hasMore`, and `totalCount`. The active Organization is not used as an authorization source.
 
-**Errors:** `UNAUTHORIZED` (401), `BAD_REQUEST` (400 for invalid cursor), `INTERNAL_SERVER_ERROR` (500).
+**Errors:** `UNAUTHORIZED` (401), `BAD_REQUEST` (400 for invalid offset, limit, or sort), `INTERNAL_SERVER_ERROR` (500).
 
 ### Q2: `GET /getOrganization` — `getOrganization`
 

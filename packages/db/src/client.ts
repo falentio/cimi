@@ -11,8 +11,19 @@ export interface CreateDbOptions {
 export function createDb(options: CreateDbOptions) {
   const sqlite = new Database(options.path)
   sqlite.pragma('journal_mode = WAL')
+  sqlite.pragma('synchronous = FULL')
   sqlite.pragma('foreign_keys = ON')
+  sqlite.pragma('busy_timeout = 5000')
+  sqlite.pragma('wal_autocheckpoint = 1000')
   return drizzle(sqlite, { schema })
 }
 
 export type Db = ReturnType<typeof createDb>
+
+const closedDatabases = new WeakSet<Db>()
+
+export function closeDb(db: Db): void {
+  if (closedDatabases.has(db)) return
+  db.$client.close()
+  closedDatabases.add(db)
+}

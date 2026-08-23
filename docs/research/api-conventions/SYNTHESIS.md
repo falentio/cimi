@@ -10,7 +10,7 @@ Decision record for Cimi issue [#10](https://github.com/falentio/cimi/issues/10)
 - Better Auth `/api/auth/*` remains a separate protocol surface and is not folded into the Cimi RPC contract.
 - OpenAPI paths are explicit per procedure. They represent RPC operations and are not inferred REST resource routes.
 
-The current repository establishes this shape in `packages/contract/src/orpc/index.ts`, `packages/contract/src/orpc/meta.ts`, `packages/contract/src/contract/system/query/health.ts`, and `apps/api/src/index.ts`.
+The current repository establishes this shape in `packages/contract/src/orpc/index.ts`, `packages/contract/src/orpc/meta.ts`, `packages/contract/src/contract/health/query/health.ts`, and `apps/api/src/index.ts`.
 
 ## Procedure Naming and Versioning
 
@@ -44,10 +44,10 @@ The current repository establishes this shape in `packages/contract/src/orpc/ind
 
 ## Time, Filters, and Pagination
 
-- RPC query intervals use UTC instants with `from` inclusive and `to` exclusive boundaries. Invalid, reversed, missing, or overlong ranges fail validation rather than becoming all-time queries.
+- Analytical query intervals use inclusive Site-local calendar dates resolved through the Site Reporting Timezone and converted internally to half-open instants. Invalid, reversed, missing, or overlong ranges fail validation rather than becoming all-time queries.
 - Filters are typed per procedure and drawn from an explicit allowlist. Different fields combine with AND; repeated values within one field combine with OR. Unknown fields and operators fail validation.
 - Public Query filters are a narrower server-enforced allowlist and never inherit authenticated filters automatically.
-- Paginated procedures use opaque cursors, an explicit sort direction, and a stable `createdAt` tie-breaker. Cursor/filter/sort mismatches fail validation. Offset pagination is not a Cimi contract.
+- Paginated procedures use zero-based live offsets, bounded limits, allowlisted sorting, and a stable ID tie-breaker. Pages expose `nextOffset`, `hasMore`, and `totalCount`; live-page drift is documented rather than hidden behind an opaque cursor.
 
 ## Research Basis
 

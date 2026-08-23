@@ -128,7 +128,7 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 ### Event clock boundaries
 
-**Given** an Event more than five minutes in the future, older than raw retention, or later than Receipt Time by more than the late-arrival threshold
+**Given** an Event more than five minutes in the future, older than raw retention, or more than fifteen minutes behind Receipt Time
 
 **When** ingestion validates and journals the Event
 

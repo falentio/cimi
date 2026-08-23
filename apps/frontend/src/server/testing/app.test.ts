@@ -16,12 +16,18 @@ test('system health reports live control and analytics stores', async () => {
   expect(res.status).toBe(200)
   const body = (await res.json()) as {
     status: string
-    controlDatabase: boolean
-    analyticsDatabase: boolean
+    controlStore: string
+    analyticsStore: string
+    cleanupPending: boolean
+    version: string
+    checkedAt: string
   }
-  expect(body.status).toBe('ok')
-  expect(body.controlDatabase).toBe(true)
-  expect(body.analyticsDatabase).toBe(true)
+  expect(body.status).toBe('healthy')
+  expect(body.controlStore).toBe('ready')
+  expect(body.analyticsStore).toBe('ready')
+  expect(body.cleanupPending).toBe(false)
+  expect(body.version).toBe('0.0.1')
+  expect(body.checkedAt).toMatch(/T/)
 })
 
 test('auth sign-up route is mounted and sets a session cookie', async () => {
@@ -41,5 +47,6 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
 })
 
 afterAll(async () => {
+  await app.close()
   await rm(tempDir, { recursive: true, force: true })
 })

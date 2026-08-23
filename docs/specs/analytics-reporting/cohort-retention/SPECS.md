@@ -11,7 +11,7 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-A Cohort Retention definition groups Visitors/Identified Users by their first qualifying action and measures whether they perform a selected repeated action in later UTC periods.
+A Cohort Retention definition groups Visitors/Identified Users by their first qualifying action and measures whether they perform a selected repeated action in later Site-local periods.
 
 ```text
 active -> archived
@@ -30,7 +30,8 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 | `name` | `string256` | Display name. |
 | `entryAction` | `cohortAction` | First qualifying action. |
 | `retentionAction` | `cohortAction` | Repeated action. |
-| `period` | `retentionPeriod` | UTC day, week, or month. |
+| `identityKind` | `identityKind` | Visitor or Identified User subject for the cohort. |
+| `period` | `retentionPeriod` | Site-local day, week, or month. |
 | `status` | `cohortStatus` | Active or archived. |
 
 ## 3. Endpoint Quick Index
@@ -54,7 +55,7 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 
 **Purpose:** List saved cohort definitions.
 
-**Behavior:** Use opaque cursors ordered by `createdAt` plus Cohort ID. Return definitions without raw member lists.
+**Behavior:** Use zero-based live offset pages ordered by `createdAt` plus Cohort ID. Return `nextOffset`, `hasMore`, and `totalCount`; definitions never include raw member lists.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
@@ -72,9 +73,9 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 
 **Audience:** Both
 
-**Purpose:** Return cohort size and retained counts/rates for each bounded UTC period.
+**Purpose:** Return cohort size and retained counts/rates for each bounded Site-local period.
 
-**Behavior:** A Visitor/Identified User enters once at the first qualifying action. Retention counts a later qualifying repeated action in each period. The same identity may count once per period. Limit output to twelve periods and enforce all query filters before computing membership.
+**Behavior:** The selected Visitor or Identified User enters once at the first qualifying action. Retention counts a later qualifying repeated action in each Site-local period. The same identity may count once per period. Limit output to twelve periods, apply explicitly scoped filters before computing membership, and allow an explicit previous-period comparison.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
 

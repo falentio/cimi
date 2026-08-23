@@ -8,13 +8,14 @@ import { contract } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import type { Auth } from '@cimi/auth/server'
 import type { AnalyticsDb } from '@cimi/db'
-import { systemHealthHandler } from './health.ts'
+import { systemHealthHandler, type HealthLifecycle } from './health.ts'
 
 export interface CreateApiAppDependencies {
   db: Db
   auth: Auth
   analytics: AnalyticsDb
   baseUrl?: string | undefined
+  lifecycle?: HealthLifecycle | undefined
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): Hono {

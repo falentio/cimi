@@ -11,6 +11,7 @@
     "./migrate": "./src/migrate.ts"
   },
   "scripts": {
+    "benchmark": "node benchmarks/storage-benchmark.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
