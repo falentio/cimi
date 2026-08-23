@@ -1,10 +1,18 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { SCollectionPolicyUpdateFields } from '../contract/collection-policy/schema.ts'
-import { SEventReportFilter } from '../contract/event-report/schema.ts'
+import { SEventReportFilter, SEventTimeseries } from '../contract/event-report/schema.ts'
+import { SDeletionStatusOutput } from '../contract/identity-profile/query/get-deletion-status.ts'
 import { SProfile } from '../contract/identity-profile/schema.ts'
 import { SPublicDashboardQueryFields } from '../contract/public-dashboard/schema.ts'
-import { SPageItems, SRate, SReportInput, SGranularReportInput } from './index.ts'
+import { STrafficOverview } from '../contract/traffic-report/schema.ts'
+import {
+  MAX_MINUTE_REPORT_BUCKETS,
+  SPageItems,
+  SRate,
+  SReportInput,
+  SGranularReportInput,
+} from './index.ts'
 
 describe('shared report schemas', () => {
   it('rejects reversed report and comparison ranges', () => {
@@ -52,6 +60,58 @@ describe('shared report schemas', () => {
         granularity: 'minute',
       }).success,
     ).toBe(true)
+    expect(
+      v.safeParse(SGranularReportInput, {
+        fromDate: '2026-08-01',
+        toDate: '2026-08-02',
+        granularity: 'minute',
+      }).success,
+    ).toBe(false)
+  })
+
+  it('bounds minute report output to the shared one-day response ceiling', () => {
+    const freshness = {
+      projectedAcceptanceSequence: 10,
+      occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
+      status: 'current' as const,
+    }
+    const metricBuckets = Array.from({ length: MAX_MINUTE_REPORT_BUCKETS }, (_, index) => ({
+      at: new Date(Date.parse('2026-08-01T00:00:00Z') + index * 60_000).toISOString(),
+      value: 0,
+      complete: true,
+    }))
+    const eventBuckets = metricBuckets.map(({ at, complete }) => ({ at, count: 0, complete }))
+
+    expect(
+      v.safeParse(STrafficOverview, {
+        fromDate: '2026-08-01',
+        toDate: '2026-08-01',
+        visitors: 0,
+        sessions: 0,
+        pageviews: 0,
+        bounceRate: 0,
+        pagesPerSession: 0,
+        averageSessionDurationSeconds: 0,
+        trend: metricBuckets,
+        ...freshness,
+      }).success,
+    ).toBe(true)
+    expect(
+      v.safeParse(SEventTimeseries, {
+        fromDate: '2026-08-01',
+        toDate: '2026-08-01',
+        buckets: eventBuckets,
+        ...freshness,
+      }).success,
+    ).toBe(true)
+    expect(
+      v.safeParse(SEventTimeseries, {
+        fromDate: '2026-08-01',
+        toDate: '2026-08-01',
+        buckets: [...eventBuckets, { at: '2026-08-02T06:00:00Z', count: 0, complete: true }],
+        ...freshness,
+      }).success,
+    ).toBe(false)
   })
 
   it('enforces public date and field allowlists', () => {
@@ -65,6 +125,16 @@ describe('shared report schemas', () => {
       filters: [{ scope: 'event', field: 'pagePath', operator: 'equals', values: ['/'] }],
     }
     expect(v.safeParse(SPublicDashboardQueryFields, query).success).toBe(true)
+    expect(
+      v.safeParse(SPublicDashboardQueryFields, {
+        ...query,
+        metric: 'events',
+        dimension: 'region',
+        filters: [
+          { scope: 'session', field: 'utmSource', operator: 'equals', values: ['newsletter'] },
+        ],
+      }).success,
+    ).toBe(true)
     expect(
       v.safeParse(SPublicDashboardQueryFields, {
         ...query,
@@ -162,6 +232,28 @@ describe('shared report schemas', () => {
         status: 'deleting',
         traits: { plan: 'pro' },
         aliases: ['alias-1'],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('exposes independent derived and backup cleanup status', () => {
+    const status = {
+      status: 'deleted',
+      updatedAt: '2026-08-01T00:00:00Z',
+      derivedCleanup: {
+        status: 'complete',
+        updatedAt: '2026-08-01T00:01:00Z',
+      },
+      backupCleanup: {
+        status: 'pending',
+        updatedAt: '2026-08-01T00:01:00Z',
+      },
+    }
+    expect(v.safeParse(SDeletionStatusOutput, status).success).toBe(true)
+    expect(
+      v.safeParse(SDeletionStatusOutput, {
+        ...status,
+        backupCleanup: { status: 'unknown', updatedAt: status.updatedAt },
       }).success,
     ).toBe(false)
   })

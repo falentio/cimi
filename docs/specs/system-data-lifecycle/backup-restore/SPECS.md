@@ -11,7 +11,7 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-Backup and Restore exposes the open-source operator lifecycle through admin RPC procedures while preserving a single consistent snapshot across SQLite control data and DuckDB analytics data.
+Backup and Restore exposes the open-source operator lifecycle through admin RPC procedures while preserving SQLite control and acceptance data as the authoritative recovery artifact. DuckDB analytics data is derived and rebuilt from the restored SQLite journal.
 
 ```text
 none -> creating -> available
@@ -20,7 +20,7 @@ creating -> failed
 restoring -> failed
 ```
 
-Backup and restore operate under quiescence. They never accept arbitrary filesystem paths from clients.
+Backup creation uses write quiescence while preserving analytics reads; restore uses read/write quiescence until structural readiness. They never accept arbitrary filesystem paths from clients.
 
 ## 2. Base Schema
 
@@ -53,7 +53,7 @@ Backup and restore operate under quiescence. They never accept arbitrary filesys
 
 **Purpose:** List configured backup manifests and statuses.
 
-**Behavior:** Use opaque cursors ordered by `createdAt` plus Backup ID. Never return credentials, arbitrary paths, or raw storage errors.
+**Behavior:** Use zero-based live offset pages ordered by `createdAt` plus Backup ID. Return `nextOffset`, `hasMore`, and `totalCount`; never return credentials, arbitrary paths, or raw storage errors.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `BAD_REQUEST` (400), `INTERNAL_SERVER_ERROR` (500).
 
@@ -73,9 +73,9 @@ Backup and restore operate under quiescence. They never accept arbitrary filesys
 
 **Audience:** Both
 
-**Purpose:** Create a consistent backup of the configured control and analytics data directory.
+**Purpose:** Create a consistent backup of the configured SQLite control and acceptance data.
 
-**Behavior:** Installation admin only. Quiesce writes, flush pending accepted-for-processing work according to the ingestion boundary, capture SQLite and DuckDB consistently, then resume. Return 202 with operation status. No client filesystem destination is accepted.
+**Behavior:** Installation admin only. Enter read-only maintenance: continue analytics reads, reject collection and lifecycle mutations, capture the SQLite control and acceptance state plus its retention manifest, then resume. DuckDB need not be included because it is rebuildable from the authoritative journal. Return 202 with operation status. No client filesystem destination is accepted.
 
 **Events Emitted:** None in MVP.
 
@@ -85,9 +85,9 @@ Backup and restore operate under quiescence. They never accept arbitrary filesys
 
 **Audience:** Both
 
-**Purpose:** Restore an operator-selected configured backup manifest.
+**Purpose:** Restore an operator-selected configured SQLite backup manifest and rebuild analytical state.
 
-**Behavior:** Installation admin only. Require explicit confirmation, quiesce writes and reads, validate manifest compatibility, restore both stores as one lifecycle operation, and keep the instance in recovery state until health checks pass. Return 202. A failed restore must not report ready or silently continue with mixed store generations.
+**Behavior:** Installation admin only. Require explicit confirmation, quiesce writes and reads, validate manifest compatibility, restore SQLite, recreate DuckDB, replay accepted records, and keep the instance in recovery state until projection and structural health checks pass. Return 202. The instance may become ready before retention/deletion cleanup of historical backup payloads completes; that cleanup status is separate and must be visible. A failed restore must not report ready or silently continue with incomplete analytical state.
 
 **Events Emitted:** None in MVP.
 
@@ -97,10 +97,10 @@ Backup and restore operate under quiescence. They never accept arbitrary filesys
 
 | Rule | Enforcement Point | Affected Procedures |
 | --- | --- | --- |
-| Control and analytics stores restore as one generation. | Quiesce and manifest validation. | C1-C2 |
+| SQLite is the authoritative generation; DuckDB is rebuilt before readiness. | Quiesce, replay, and health checks. | C1-C2 |
 | Clients cannot select arbitrary filesystem paths. | Input schema and operator config. | C1-C2 |
 | Restore requires explicit confirmation and admin scope. | Command guard. | C2 |
-| Health remains degraded until post-restore checks pass. | Lifecycle state. | Q2, C2 |
+| Health remains degraded until post-restore checks pass; cleanup may remain pending after readiness. | Lifecycle state. | Q2, C2 |
 | Storage pressure causes explicit failure, not silent deletion. | Operation executor. | C1-C2 |
 
 ## 7. Authorization Matrix
@@ -119,10 +119,10 @@ No domain event channel is required by the MVP contract; operation status is pol
 
 **Audience:** Both
 
-- **Concurrent backup and restore** — Reject the second operation with `CONFLICT`.
+- **Concurrent lifecycle operation** — Reject a backup, restore, upgrade, retention mutation, or destructive cleanup that overlaps the installation-wide lifecycle lock with `CONFLICT`.
 - **Backup created under newer schema** — Reject as `INCOMPATIBLE_BACKUP` before mutating either store.
-- **Restore interrupted** — Keep installation unavailable/recovering and require operator remediation; never advertise partial readiness.
-- **Expired data in backup** — Restore follows the manifest's recorded retention boundary and reruns retention before returning ready.
+- **Restore interrupted** — Keep installation unavailable/recovering, persist the safe checkpoint, and resume automatically on startup; never advertise partial readiness. Require operator remediation only if automatic recovery fails.
+- **Expired or deleted data in backup** — Restore follows the manifest's recorded retention boundary, rebuilds DuckDB from the restored SQLite generation, and starts retention/deletion cleanup after structural readiness. Historical payloads may be temporarily queryable under the documented restore-time privacy exception.
 
 ## 10. Error Code Catalog
 
@@ -151,3 +151,11 @@ No domain event channel is required by the MVP contract; operation status is pol
 | --- | --- |
 | `health` | Readiness status. |
 | Operators | Recovery and migration workflow. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Client-selected arbitrary filesystem paths or unmanaged cloud destinations.
+- Multi-node distributed backup orchestration or hosted recovery services.
+- Treating DuckDB copies as the authoritative recovery source.

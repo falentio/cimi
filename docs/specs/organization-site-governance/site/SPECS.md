@@ -30,6 +30,8 @@ Deletion is blocked or quiesced according to retention and recovery rules; it ne
 | `name` | `string256` | Display name. |
 | `hostname` | `hostname` | Canonical site hostname. |
 | `ingestionIdentifier` | `publicIdentifier` | Non-secret collection selector. |
+| `reportingTimezone` | `ianaTimezone` | Site timezone for report dates, buckets, and comparisons. Defaults to UTC. |
+| `weekStartsOn` | `weekStart` | Explicit first weekday for Site-local weekly periods. Defaults to Monday. |
 | `createdAt` / `updatedAt` | `coercedDate` | Lifecycle timestamps. |
 
 The Ingestion Identifier is never a read or management credential.
@@ -55,7 +57,7 @@ The Ingestion Identifier is never a read or management credential.
 
 **Purpose:** List Sites visible through persisted Organization membership.
 
-**Behavior:** Use opaque cursors ordered by `createdAt` plus Site ID. Never return Sites from the active Organization merely because it is selected in navigation.
+**Behavior:** Use zero-based live offset pages ordered by `createdAt` plus Site ID. Return `nextOffset`, `hasMore`, and `totalCount`; never return Sites from the active Organization merely because it is selected in navigation.
 
 **Errors:** `UNAUTHORIZED` (401), `BAD_REQUEST` (400), `INTERNAL_SERVER_ERROR` (500).
 
@@ -89,7 +91,7 @@ The Ingestion Identifier is never a read or management credential.
 
 **Purpose:** Update mutable Site metadata and collection-facing settings.
 
-**Behavior:** Owner or Administrator only. Site Organization and Ingestion Identifier are not changed by this procedure. Version V2 is the stable current procedure; future incompatible changes use a new procedure.
+**Behavior:** Owner or Administrator only. Site Organization and Ingestion Identifier are not changed by this procedure. `reportingTimezone` and `weekStartsOn` are explicit Site reporting settings. `updateSiteV2` intentionally supersedes the pre-release `updateSite` contract after incompatible input and behavior changes; no unversioned alias is exposed. Future incompatible changes use a new versioned procedure.
 
 **Events Emitted:** None in MVP.
 
@@ -175,3 +177,11 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `event-ingestion` | Ingestion Identifier selects Site. |
 | All analytics resources | Site scope. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Site transfer between Organizations in v1.
+- DNS, hosted-domain verification, billing, or subscription management.
+- Public analytics disclosure beyond the separate `public-dashboard` resource.

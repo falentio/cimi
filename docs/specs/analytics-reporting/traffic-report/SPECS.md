@@ -22,10 +22,10 @@ This resource is stateless. It never mutates Events, identity, or Session bounda
 | Field | Schema | Description |
 | --- | --- | --- |
 | `siteId` | `nanoid` | Site scope. |
-| `from` / `to` | `utcInstant` | Half-open query interval. |
-| `granularity` | `trafficGranularity` | Bounded bucket size valid for the interval. |
-| `filters` | `trafficFilterAllowlist` | Typed dimensions only. |
-| `sort` / `cursor` | `querySort` / `opaqueCursor` | Used by breakdown lists. |
+| `fromDate` / `toDate` | `siteDate` | Inclusive Site-local calendar range resolved through `reportingTimezone`. |
+| `granularity` | `trafficGranularity` | Procedure-specific bucket valid for the range. |
+| `filters` | `trafficFilterPredicate` | Bounded JSON predicates with explicit scope. |
+| `sort` / `offset` / `limit` | `querySort` / `nonNegativeInteger` / `pageSize` | Used by live breakdown pages. |
 
 ## 3. Endpoint Quick Index
 
@@ -44,7 +44,7 @@ This resource is stateless. It never mutates Events, identity, or Session bounda
 
 **Purpose:** Provide Visitors, Sessions, pageviews, bounce rate, pages per Session, duration, and trend buckets.
 
-**Behavior:** Require persisted Site scope. Use server-derived Session boundaries and Session-entry attribution. Empty intervals return zero-valued buckets with the requested shape. Invalid or absent time ranges never become all-time queries.
+**Behavior:** Require persisted Site scope. Resolve the inclusive Site-local date range through the Site Reporting Timezone, use server-derived Session boundaries and Session-entry attribution, and fill every requested bucket with zero values. Minute trends use one inclusive Site-local calendar date and return at most 1,800 buckets. Current partial buckets carry `complete: false`; analytical reports may include an explicit previous-period comparison. Invalid or absent date ranges never become all-time queries.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
 
@@ -54,7 +54,7 @@ This resource is stateless. It never mutates Events, identity, or Session bounda
 
 **Purpose:** Return bounded breakdowns for pages, entry/exit pages, referrer/channels/UTM, device, browser, OS, and coarse geography.
 
-**Behavior:** Use explicit sort and opaque cursor with `createdAt` plus a stable dimension tie-breaker where row timestamps are unavailable. Different filters combine with AND; repeated values combine with OR. Sensitive query strings, raw IP, and Identified User/Traits are not dimensions.
+**Behavior:** Use zero-based live offset pages with an allowlisted sort and a canonical dimension-value tie-breaker. Return `nextOffset`, `hasMore`, and `totalCount`; concurrent ingestion may shift later pages. Different filters combine with AND; repeated values combine with OR. Profile filters may use approved trait keys for authenticated reports, but trait values and identity fields are not returned as dimensions.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
 
@@ -97,7 +97,7 @@ No events are emitted by read-only reports.
 | --- | ---: | --- |
 | `FORBIDDEN` | 403 | Caller lacks persisted Site scope. |
 | `NOT_FOUND` | 404 | Site is inaccessible. |
-| `BAD_REQUEST` | 400 | Invalid time, granularity, filter, sort, or cursor. |
+| `BAD_REQUEST` | 400 | Invalid date, granularity, filter, sort, offset, or limit. |
 | `QUERY_LIMIT_EXCEEDED` | 422 | Bounded execution budget would be exceeded. |
 
 ## 11. Related Resources & Dependencies
@@ -116,3 +116,11 @@ No events are emitted by read-only reports.
 | --- | --- |
 | `public-dashboard` | Separate aggregate disclosure contract. |
 | Frontend dashboard | Authenticated traffic analysis. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Public access; aggregate public disclosure belongs to `public-dashboard`.
+- Arbitrary SQL, custom dashboard expressions, or unrestricted warehouse access.
+- Live visitor feeds and real-time operator telemetry.

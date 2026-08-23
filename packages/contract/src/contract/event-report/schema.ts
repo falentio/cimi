@@ -2,6 +2,7 @@ import * as v from 'valibot'
 import {
   SDate,
   SDateTime,
+  MAX_MINUTE_REPORT_BUCKETS,
   SEventKind,
   SFiniteNumber,
   SGranularity,
@@ -85,7 +86,7 @@ const SEventTimeseriesPeriod = v.strictObject(
         v.array(
           v.strictObject({ at: SDateTime, count: SNonNegativeInteger, complete: v.boolean() }),
         ),
-        v.maxLength(100),
+        v.maxLength(MAX_MINUTE_REPORT_BUCKETS),
       ),
     }),
     SReportFreshness,

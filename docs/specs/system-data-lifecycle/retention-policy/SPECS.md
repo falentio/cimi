@@ -13,7 +13,7 @@ updated: 2026-08-23
 
 Retention Policy defines how long Cimi keeps collected and derived analytics data. The effective policy is an installation default plus an optional Site override.
 
-The default first-release retention is twelve months and is configurable. Replay, if later enabled, has a shorter policy. Retention never silently expands storage beyond the configured boundary.
+The default first-release retention is twelve months and is configurable. The acceptance journal, deduplication state, and replay/rebuild source cover the full configured raw-event retention window; transient projector work may be cleaned after successful materialization. Retention never silently expands storage beyond the configured boundary.
 
 ## 2. Base Schema
 
@@ -88,7 +88,7 @@ No domain event channel is required by the MVP contract.
 
 - **Site override cleared** — Effective policy falls back to the installation default.
 - **Policy shortened** — Mark deletion work pending; do not block the command while scanning all storage.
-- **Backup contains expired data** — Backup semantics must state whether restoration rehydrates expired rows; the backup/restore resource is responsible for the explicit rule.
+- **Backup contains expired data** — Restoration may temporarily rehydrate expired rows from the historical backup generation; the backup/restore resource exposes cleanup status and applies the effective policy asynchronously after readiness.
 
 ## 10. Error Code Catalog
 
@@ -116,3 +116,11 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | All analytics resources | Data availability horizon. |
 | `backup-restore` | Recovery policy. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Hosted billing-plan retention entitlements or commercial quota enforcement.
+- External backup-provider lifecycle and multi-installation retention coordination.
+- Silent deletion outside the effective Site or installation policy.

@@ -29,6 +29,7 @@ The effective policy is installation defaults plus an optional Site override. Ch
 | `captureQueryStrings` | `boolean` | Whether approved query metadata may be captured. |
 | `urlPolicy` | `urlPolicy` | Path, referrer, query, and sensitive-value rules. |
 | `propertyPolicy` | `propertyPolicy` | Scalar shape, reserved names, and size limits. |
+| `profileFilterKeys` | `boundedTraitKeyRegistry` | Explicit Site-approved Identified User trait keys usable by authenticated filters. |
 | `exclusions` | `collectionExclusions` | Site, path, IP-derived, country, and caller-independent exclusions. |
 
 ## 3. Endpoint Quick Index
@@ -60,7 +61,7 @@ The effective policy is installation defaults plus an optional Site override. Ch
 
 **Purpose:** Update Site collection and privacy settings.
 
-**Behavior:** Owner or Administrator only. Validate policy combinations before commit. The policy is evaluated before identity/session assignment on subsequent ingestion. Return 200.
+**Behavior:** Owner or Administrator only. Validate policy combinations before commit. The policy is evaluated before identity/session assignment on subsequent ingestion. `profileFilterKeys` is the bounded registry for authenticated profile filters and changing it does not rewrite historical traits. Return 200.
 
 **Events Emitted:** None in MVP.
 
@@ -119,3 +120,11 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `event-ingestion` | Pre-storage exclusion and sanitization. |
 | `identity-profile` | Consent and identity policy. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Raw IP persistence or IP-based Visitor identity.
+- Broad autocapture of form values, copied text, input changes, or arbitrary request metadata.
+- Session Replay or other opt-in collection capabilities not selected for the first release.

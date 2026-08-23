@@ -64,7 +64,9 @@ Public Query output contains only approved aggregate metric/dimension values and
 
 **Purpose:** Return approved aggregate analytics for an open public dashboard URL.
 
-**Behavior:** Resolve only the current Public Dashboard Identifier. Enforce one-hour granularity, a maximum 90-day half-open range, approved metrics/dimensions/filters, and `k=5` suppression. Suppressed or empty results use the normal response shape with no explanation of the underlying cohort size. Exclude raw rows, Event IDs, Visitor/Session IDs, Identified Users, Traits, raw IP, replay, GSC/integration data, sensitive URL/query values, and exports. Cache for five minutes. Apply 360 requests per Site per minute and 600 requests per IP per minute; return `429` with `Retry-After` when exceeded.
+**Behavior:** Resolve only the current Public Dashboard Identifier. Enforce one-hour granularity, a maximum 90-day inclusive Site-local date range, approved metrics/dimensions/filters, and `k=5` suppression. Suppressed or empty results use the normal response shape with no explanation of the underlying cohort size. Exclude raw rows, Event IDs, Visitor/Session IDs, Identified Users, Traits, profile filters, raw IP, replay, GSC/integration data, sensitive URL/query values, comparisons, and exports. Cache for five minutes. Apply 360 requests per Site per minute and 600 requests per IP per minute; return `429` with `Retry-After` when exceeded.
+
+The approved first-release catalog is intentionally finite: metrics are `visitors`, `sessions`, `pageviews`, `events`, and `bounce_rate`; dimensions are `time`, `page`, `referrer`, `utm`, `device`, `browser`, `os`, `country`, `region`, `city`, and `event_name`. Public filters may select only approved aggregate Event and Session fields, including the bounded UTM, country, region, and city fields; profile filters are never public.
 
 **Errors:** `NOT_FOUND` (404 for disabled/rotated/unknown identifier), `BAD_REQUEST` (400), `TOO_MANY_REQUESTS` (429), `QUERY_LIMIT_EXCEEDED` (422).
 
@@ -163,3 +165,11 @@ No domain event channel is required by the MVP contract.
 | Resource | Integration Point |
 | --- | --- |
 | Public dashboard frontend | Open aggregate view. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Private recipient sharing, viewer credentials, or per-recipient access lists.
+- Authenticated analytics passthrough, raw rows, identity/profile filters, or arbitrary SQL.
+- CSV/JSON/PDF exports, GSC/integration data, and public Goal/Funnel/Cohort definitions.

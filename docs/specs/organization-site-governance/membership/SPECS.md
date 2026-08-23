@@ -45,7 +45,7 @@ Membership states are `active` and absent. An Owner cannot be removed or demoted
 
 **Purpose:** List active memberships for an Organization.
 
-**Behavior:** Require persisted membership. Return opaque cursor pages ordered by `createdAt` plus `userId`; do not reveal whether a non-member queried a valid Organization.
+**Behavior:** Require persisted membership. Return zero-based live offset pages ordered by `createdAt` plus `userId`, with `nextOffset`, `hasMore`, and `totalCount`; do not reveal whether a non-member queried a valid Organization.
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400), `INTERNAL_SERVER_ERROR` (500).
 
@@ -140,3 +140,11 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `site` | Organization and Site authorization. |
 | All authenticated analytics resources | Persisted scope guard. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Authentication/session protocol mechanics owned by Better Auth.
+- Ownership transfer, billing membership, or cross-Organization invitations.
+- Site-specific authorization rules beyond the persisted membership guard.

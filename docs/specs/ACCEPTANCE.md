@@ -168,6 +168,14 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **Then** status never moves backward, deleted profile data is not returned, and backup cleanup is reported separately from active-store completion
 
+### Separate deletion cleanup status
+
+**Given** a deleted profile whose active-store and derived cleanup has completed while an older backup still contains its historical payload
+
+**When** `getDeletionStatus` is queried
+
+**Then** the response reports `derivedCleanup.status` as `complete`, `backupCleanup.status` as `pending`, and an `updatedAt` timestamp for each cleanup status without returning deleted profile data
+
 ## Reporting
 
 ### Site-local date boundaries
@@ -185,6 +193,14 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 **When** the timeseries query runs
 
 **Then** empty buckets return zero and incomplete buckets carry `complete: false`
+
+### Minute report range and response bound
+
+**Given** a report requested with minute granularity
+
+**When** its inclusive `fromDate` and `toDate` span more than one Site-local calendar date or its response would contain more than 1,800 buckets
+
+**Then** the request or response is rejected by the contract rather than widening the range or returning an unbounded series
 
 ### Offset pagination
 

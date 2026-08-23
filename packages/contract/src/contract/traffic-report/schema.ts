@@ -2,6 +2,7 @@ import * as v from 'valibot'
 import {
   SDate,
   SDateTime,
+  MAX_MINUTE_REPORT_BUCKETS,
   SId,
   SNonNegativeInteger,
   SNonNegativeNumber,
@@ -28,7 +29,7 @@ const STrafficOverviewPeriod = v.strictObject(
       bounceRate: SRate,
       pagesPerSession: SNonNegativeNumber,
       averageSessionDurationSeconds: SNonNegativeNumber,
-      trend: v.pipe(v.array(SMetricPoint), v.maxLength(100)),
+      trend: v.pipe(v.array(SMetricPoint), v.maxLength(MAX_MINUTE_REPORT_BUCKETS)),
     }),
     SReportFreshness,
   ]),

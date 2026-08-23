@@ -16,7 +16,12 @@ Installation represents the self-hosted instance bootstrap and operating-envelop
 ```text
 uninitialized -> ready
 ready -> maintenance
+ready -> degraded
+ready -> recovering
 maintenance -> ready
+maintenance -> recovering
+recovering -> ready
+recovering -> degraded
 ```
 
 ## 2. Base Schema
@@ -25,9 +30,11 @@ maintenance -> ready
 
 | Field | Schema | Description |
 | --- | --- | --- |
-| `status` | `installationStatus` | `uninitialized`, `ready`, or `maintenance`. |
+| `status` | `installationStatus` | `uninitialized`, `ready`, `degraded`, `maintenance`, or `recovering`. |
 | `defaultRetention` | `retentionPolicy` | Installation default. |
 | `dataDirectoryReady` | `boolean` | Configured mounted data directory readiness. |
+| `activeOperation` | `lifecycleOperationStatus` | Safe phase and operation status, when backup, restore, upgrade, or cleanup is active. |
+| `cleanupPending` | `boolean` | Historical retention/deletion work remains after structural readiness. |
 | `updatedAt` | `coercedDate` | Status timestamp. |
 
 ## 3. Endpoint Quick Index
@@ -47,7 +54,7 @@ maintenance -> ready
 
 **Purpose:** Return instance readiness, effective default policy summary, and maintenance state.
 
-**Behavior:** Return bounded operator-safe diagnostics only. Do not return filesystem paths, credentials, raw SQL, or host secrets.
+**Behavior:** Return bounded operator-safe diagnostics only: lifecycle phase, component state, safe progress, last safe sequence, cleanup status, and safe error code. Do not return filesystem paths, credentials, raw SQL, or host secrets.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `INTERNAL_SERVER_ERROR` (500).
 
@@ -92,6 +99,7 @@ No domain event channel is required by the MVP contract.
 - **Concurrent initialization** — One transaction wins; other calls return the resulting ready state.
 - **Missing mounted data directory** — Return a typed unavailable/conflict error; never create an unbounded alternate location.
 - **Restore in progress** — Reject initialization as a lifecycle conflict.
+- **Interrupted lifecycle operation** — Startup resumes from durable operation state and remains `recovering` until the operation and health checks complete.
 
 ## 10. Error Code Catalog
 
@@ -117,3 +125,11 @@ No domain event channel is required by the MVP contract.
 | Resource | Integration Point |
 | --- | --- |
 | `health` | Readiness summary. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Hosted billing, subscriptions, commercial plans, or entitlement management.
+- Cluster orchestration, distributed workers, or required sidecars.
+- Operator telemetry beyond the bounded local lifecycle and readiness contract.

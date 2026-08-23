@@ -1,0 +1,1825 @@
+{
+  "formatVersion": 1,
+  "generatedAt": "2026-08-23T09:39:10.897Z",
+  "config": {
+    "rows": 20000,
+    "repeats": 3,
+    "queryRepeats": 5,
+    "threads": 1,
+    "memoryLimit": "512MB",
+    "maxTempDirectorySize": "1GB",
+    "engines": [
+      "sqlite-direct",
+      "duckdb-direct",
+      "sqlite-outbox-duckdb",
+      "sqlite-sync-duckdb"
+    ],
+    "batchSizes": [
+      1000
+    ],
+    "mixedRows": 1000,
+    "mixedBatchSize": 1000,
+    "readers": 2,
+    "mixedQueries": 20,
+    "dbDir": "/tmp/cimi-production-parity-1gb-data",
+    "output": "/tmp/cimi-production-parity-1gb.json"
+  },
+  "environment": {
+    "node": "v25.9.0",
+    "platform": "linux",
+    "arch": "x64",
+    "kernel": "Linux f4e5af72-87ae-4a08-8d4c-e4a914f29ec6 6.17.0-1011-oracle #11~24.04.1-Ubuntu SMP Fri Apr 10 02:28:06 UTC 2026 x86_64 GNU/Linux",
+    "visibleCpus": 1,
+    "visibleMemoryBytes": 202591854592,
+    "cgroupCpuMax": "100000 100000",
+    "cgroupMemoryMax": "1073741824",
+    "cgroupMemoryCurrent": "443723776"
+  },
+  "runs": [
+    {
+      "engine": "sqlite-direct",
+      "batchSize": 1000,
+      "repeat": 1,
+      "versions": {
+        "sqlite": "3.53.2"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 5.344942000000003,
+          "p50": 8.221100000000007,
+          "p95": 15.343465999999978,
+          "p99": 30.28904400000002,
+          "max": 30.28904400000002,
+          "mean": 10.036173150000003
+        },
+        "rowsPerSecond": 99639.57228059578
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.0032850000000053114,
+          "p50": 0.004186000000004242,
+          "p95": 0.005598999999961052,
+          "p99": 0.012048999999990428,
+          "max": 0.0922310000000266,
+          "mean": 0.004392858000000104
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.1016290000000026,
+            "p50": 1.1960219999999708,
+            "p95": 1.4274980000000141,
+            "p99": 1.4274980000000141,
+            "max": 1.4274980000000141,
+            "mean": 1.2384197999999969
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.106046000000049,
+            "p50": 1.1211079999999924,
+            "p95": 1.1810900000000402,
+            "p99": 1.1810900000000402,
+            "max": 1.1810900000000402,
+            "mean": 1.1288620000000151
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.13864300000000185,
+            "p50": 0.14063599999997223,
+            "p95": 0.16246899999998732,
+            "p99": 0.16246899999998732,
+            "max": 0.16246899999998732,
+            "mean": 0.14555499999999028
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.3747650000000249,
+            "p50": 0.3875939999999787,
+            "p95": 0.42142599999999675,
+            "p99": 0.42142599999999675,
+            "max": 0.42142599999999675,
+            "mean": 0.39234160000000884
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 14.90166800000003,
+            "p50": 14.90166800000003,
+            "p95": 14.90166800000003,
+            "p99": 14.90166800000003,
+            "max": 14.90166800000003,
+            "mean": 14.90166800000003
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 0.11223100000000841,
+            "p50": 0.11554599999999482,
+            "p95": 0.13442600000001903,
+            "p99": 0.3868229999999926,
+            "max": 0.3868229999999926,
+            "mean": 0.12698720000000208
+          },
+          "checksums": [
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-direct-batch-1000-repeat-1/backups/control.sqlite.backup",
+          "durationMs": 12.352212000000009,
+          "bytes": 4861952,
+          "totalPages": 1187,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 10.80796399999997,
+        "maintenanceMs": 16.30568199999999,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 0.5879010000000449,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-direct-batch-1000-repeat-1/control.sqlite": 3731456
+      }
+    },
+    {
+      "engine": "sqlite-direct",
+      "batchSize": 1000,
+      "repeat": 2,
+      "versions": {
+        "sqlite": "3.53.2"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 5.088098000000002,
+          "p50": 6.982551000000001,
+          "p95": 13.622809999999959,
+          "p99": 13.748102000000017,
+          "max": 13.748102000000017,
+          "mean": 7.990147299999992
+        },
+        "rowsPerSecond": 125154.13827226951
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.0033950000000686487,
+          "p50": 0.004077000000052067,
+          "p95": 0.005958999999961634,
+          "p99": 0.011046000000078493,
+          "max": 0.09123999999997068,
+          "mean": 0.004484607999999412
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.1908339999999953,
+            "p50": 1.53760699999998,
+            "p95": 1.8024720000000798,
+            "p99": 1.8024720000000798,
+            "max": 1.8024720000000798,
+            "mean": 1.4850098000000116
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.1047539999999572,
+            "p50": 1.1155599999999595,
+            "p95": 1.1488809999999603,
+            "p99": 1.1488809999999603,
+            "max": 1.1488809999999603,
+            "mean": 1.1205419999999777
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.13996499999996104,
+            "p50": 0.15244399999994585,
+            "p95": 0.16971999999998388,
+            "p99": 0.16971999999998388,
+            "max": 0.16971999999998388,
+            "mean": 0.15332499999997254
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.39979299999993145,
+            "p50": 0.40623200000004545,
+            "p95": 0.4190610000000561,
+            "p99": 0.4190610000000561,
+            "max": 0.4190610000000561,
+            "mean": 0.40778640000000904
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 14.450277000000028,
+            "p50": 14.450277000000028,
+            "p95": 14.450277000000028,
+            "p99": 14.450277000000028,
+            "max": 14.450277000000028,
+            "mean": 14.450277000000028
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 0.11335399999995843,
+            "p50": 0.11498600000004444,
+            "p95": 0.16192899999998644,
+            "p99": 0.31879800000001524,
+            "max": 0.31879800000001524,
+            "mean": 0.12916257499998948
+          },
+          "checksums": [
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-direct-batch-1000-repeat-2/backups/control.sqlite.backup",
+          "durationMs": 10.944725000000062,
+          "bytes": 4861952,
+          "totalPages": 1187,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 11.319248000000016,
+        "maintenanceMs": 15.903676000000019,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 0.4848729999999932,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-direct-batch-1000-repeat-2/control.sqlite": 3731456
+      }
+    },
+    {
+      "engine": "sqlite-direct",
+      "batchSize": 1000,
+      "repeat": 3,
+      "versions": {
+        "sqlite": "3.53.2"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 4.655754999999999,
+          "p50": 7.232724999999959,
+          "p95": 13.396571999999992,
+          "p99": 13.455843000000073,
+          "max": 13.455843000000073,
+          "mean": 7.813701000000014
+        },
+        "rowsPerSecond": 127980.32584046895
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.0035149999999930515,
+          "p50": 0.004235999999991691,
+          "p95": 0.0051170000000411164,
+          "p99": 0.007771000000047934,
+          "max": 0.08422999999993408,
+          "mean": 0.0044709639999995264
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.1146889999999985,
+            "p50": 1.1670780000000605,
+            "p95": 1.3088050000000067,
+            "p99": 1.3088050000000067,
+            "max": 1.3088050000000067,
+            "mean": 1.1865902000000006
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.094186000000036,
+            "p50": 1.0970109999999522,
+            "p95": 1.139707000000044,
+            "p99": 1.139707000000044,
+            "max": 1.139707000000044,
+            "mean": 1.1086146000000325
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.1397940000000517,
+            "p50": 0.1476670000000695,
+            "p95": 0.15331500000002052,
+            "p99": 0.15331500000002052,
+            "max": 0.15331500000002052,
+            "mean": 0.14646440000003622
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.3840589999999793,
+            "p50": 0.40215699999998833,
+            "p95": 0.4048400000000356,
+            "p99": 0.4048400000000356,
+            "max": 0.4048400000000356,
+            "mean": 0.396578199999999
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 14.380530000000022,
+            "p50": 14.380530000000022,
+            "p95": 14.380530000000022,
+            "p99": 14.380530000000022,
+            "max": 14.380530000000022,
+            "mean": 14.380530000000022
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 0.11410499999999502,
+            "p50": 0.11665899999991325,
+            "p95": 0.12958900000000995,
+            "p99": 0.3448190000000295,
+            "max": 0.3448190000000295,
+            "mean": 0.12616984999999659
+          },
+          "checksums": [
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-direct-batch-1000-repeat-3/backups/control.sqlite.backup",
+          "durationMs": 12.471343999999931,
+          "bytes": 4861952,
+          "totalPages": 1187,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 12.030378000000042,
+        "maintenanceMs": 17.18627200000003,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 0.55619200000001,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-direct-batch-1000-repeat-3/control.sqlite": 3731456
+      }
+    },
+    {
+      "engine": "duckdb-direct",
+      "batchSize": 1000,
+      "repeat": 1,
+      "versions": {
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 4.70804499999997,
+          "p50": 5.1273780000000215,
+          "p95": 6.340286999999989,
+          "p99": 8.361234999999965,
+          "max": 8.361234999999965,
+          "mean": 5.3969524500000094
+        },
+        "rowsPerSecond": 185289.75551748625
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.22929999999996653,
+          "p50": 0.2894340000000284,
+          "p95": 0.3782289999999193,
+          "p99": 0.43390499999986787,
+          "max": 2.9006259999998747,
+          "mean": 0.3040346449999954
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 2.0897939999999835,
+            "p50": 2.309310000000096,
+            "p95": 2.8257220000000416,
+            "p99": 2.8257220000000416,
+            "max": 2.8257220000000416,
+            "mean": 2.437791000000016
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.7921670000000631,
+            "p50": 1.963030000000117,
+            "p95": 2.1133679999998094,
+            "p99": 2.1133679999998094,
+            "max": 2.1133679999998094,
+            "mean": 1.9826625999999579
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9762359999999717,
+            "p50": 1.0618269999999939,
+            "p95": 1.1034709999998995,
+            "p99": 1.1034709999998995,
+            "max": 1.1034709999998995,
+            "mean": 1.038880399999971
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.574773999999934,
+            "p50": 1.7026200000000244,
+            "p95": 1.8992299999999886,
+            "p99": 1.8992299999999886,
+            "max": 1.8992299999999886,
+            "mean": 1.698653400000012
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 6.264111999999841,
+            "p50": 6.264111999999841,
+            "p95": 6.264111999999841,
+            "p99": 6.264111999999841,
+            "max": 6.264111999999841,
+            "mean": 6.264111999999841
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 0.94423699999993,
+            "p50": 1.554012000000057,
+            "p95": 1.760768999999982,
+            "p99": 6.360527999999931,
+            "max": 6.360527999999931,
+            "mean": 1.7909460749999937
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-1/backups/analytics.duckdb.copy",
+          "durationMs": 47.709630999999945,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 52.74775499999987,
+        "maintenanceMs": 9.54346600000008,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 7.958278000000064,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-1/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-1/tmp": 0
+      }
+    },
+    {
+      "engine": "duckdb-direct",
+      "batchSize": 1000,
+      "repeat": 2,
+      "versions": {
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 4.753827000000001,
+          "p50": 5.103653000000122,
+          "p95": 5.723952999999938,
+          "p99": 8.111992999999984,
+          "max": 8.111992999999984,
+          "mean": 5.321345349999968
+        },
+        "rowsPerSecond": 187922.40199182075
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.21550000000002,
+          "p50": 0.26527600000008533,
+          "p95": 0.34756400000014764,
+          "p99": 0.3901180000000295,
+          "max": 5.053996000000097,
+          "mean": 0.281524117000004
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.5665819999999258,
+            "p50": 2.4241950000000543,
+            "p95": 2.4964359999999033,
+            "p99": 2.4964359999999033,
+            "max": 2.4964359999999033,
+            "mean": 2.115095399999973
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.7686710000000403,
+            "p50": 1.915414999999939,
+            "p95": 2.1368039999999837,
+            "p99": 2.1368039999999837,
+            "max": 2.1368039999999837,
+            "mean": 1.9402316000000155
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9630660000000262,
+            "p50": 1.0150059999998575,
+            "p95": 1.049739000000045,
+            "p99": 1.049739000000045,
+            "max": 1.049739000000045,
+            "mean": 1.0066849999999703
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4106419999998252,
+            "p50": 1.4565519999998742,
+            "p95": 1.658681000000115,
+            "p99": 1.658681000000115,
+            "max": 1.658681000000115,
+            "mean": 1.5146509999999125
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 7.15534700000012,
+            "p50": 7.15534700000012,
+            "p95": 7.15534700000012,
+            "p99": 7.15534700000012,
+            "max": 7.15534700000012,
+            "mean": 7.15534700000012
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 0.9608419999999569,
+            "p50": 1.5647989999999936,
+            "p95": 1.8057980000000953,
+            "p99": 7.262149999999792,
+            "max": 7.262149999999792,
+            "mean": 1.8479771249999657
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-2/backups/analytics.duckdb.copy",
+          "durationMs": 43.861293999999816,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 53.09498500000018,
+        "maintenanceMs": 9.672774000000118,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 9.107088000000203,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-2/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-2/tmp": 0
+      }
+    },
+    {
+      "engine": "duckdb-direct",
+      "batchSize": 1000,
+      "repeat": 3,
+      "versions": {
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 4.551285999999891,
+          "p50": 5.21952999999985,
+          "p95": 6.224929999999858,
+          "p99": 6.8141639999998915,
+          "max": 6.8141639999998915,
+          "mean": 5.344195799999966
+        },
+        "rowsPerSecond": 187118.89261243131
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.22631600000022445,
+          "p50": 0.2630530000001272,
+          "p95": 0.3059290000001056,
+          "p99": 0.3803130000001147,
+          "max": 5.825619999999617,
+          "mean": 0.2743030679999988
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4384250000002794,
+            "p50": 2.2943860000000313,
+            "p95": 2.6393339999999625,
+            "p99": 2.6393339999999625,
+            "max": 2.6393339999999625,
+            "mean": 2.041031800000019
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4498929999999746,
+            "p50": 1.907933999999841,
+            "p95": 2.064444999999978,
+            "p99": 2.064444999999978,
+            "max": 2.064444999999978,
+            "mean": 1.7819673999999395
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9653389999998581,
+            "p50": 1.0048799999999574,
+            "p95": 1.0492380000000594,
+            "p99": 1.0492380000000594,
+            "max": 1.0492380000000594,
+            "mean": 1.0075740000000224
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4825929999997243,
+            "p50": 1.5735109999995984,
+            "p95": 1.7481889999999112,
+            "p99": 1.7481889999999112,
+            "max": 1.7481889999999112,
+            "mean": 1.5871865999998591
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 7.387432999999874,
+            "p50": 7.387432999999874,
+            "p95": 7.387432999999874,
+            "p99": 7.387432999999874,
+            "max": 7.387432999999874,
+            "mean": 7.387432999999874
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 0.9550640000002204,
+            "p50": 1.5752440000001116,
+            "p95": 1.807839999999942,
+            "p99": 7.487545999999838,
+            "max": 7.487545999999838,
+            "mean": 1.8802135249999765
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-3/backups/analytics.duckdb.copy",
+          "durationMs": 42.428869000000304,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 53.53804600000012,
+        "maintenanceMs": 8.904537999999775,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 8.990209999999934,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-3/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/duckdb-direct-batch-1000-repeat-3/tmp": 0
+      }
+    },
+    {
+      "engine": "sqlite-outbox-duckdb",
+      "batchSize": 1000,
+      "repeat": 1,
+      "versions": {
+        "sqlite": "3.53.2",
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 7.569461000000047,
+          "p50": 8.428909000000203,
+          "p95": 10.476776999999856,
+          "p99": 14.517320000000382,
+          "max": 14.517320000000382,
+          "mean": 8.848208600000088
+        },
+        "rowsPerSecond": 113017.22701248137
+      },
+      "materialization": {
+        "pendingRows": 20000,
+        "durationMs": 111.51588500000025
+      },
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.003505000000131986,
+          "p50": 0.004938000000038301,
+          "p95": 0.0070500000001629815,
+          "p99": 0.011235999999826163,
+          "max": 0.17387699999972028,
+          "mean": 0.005383828999998968
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.84733099999994,
+            "p50": 2.2954580000000533,
+            "p95": 3.2803180000000793,
+            "p99": 3.2803180000000793,
+            "max": 3.2803180000000793,
+            "mean": 2.4783886000000166
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.5128689999996823,
+            "p50": 2.036290999999892,
+            "p95": 2.4362049999999726,
+            "p99": 2.4362049999999726,
+            "max": 2.4362049999999726,
+            "mean": 1.9467617999999676
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9510969999996632,
+            "p50": 1.0051000000003114,
+            "p95": 1.0798350000000028,
+            "p99": 1.0798350000000028,
+            "max": 1.0798350000000028,
+            "mean": 1.0052426000000196
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.5088030000001709,
+            "p50": 1.577187999999751,
+            "p95": 1.678211999999803,
+            "p99": 1.678211999999803,
+            "max": 1.678211999999803,
+            "mean": 1.575154399999974
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 10.061690999999882,
+            "p50": 10.061690999999882,
+            "p95": 10.061690999999882,
+            "p99": 10.061690999999882,
+            "max": 10.061690999999882,
+            "mean": 10.061690999999882
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 1.1086290000002919,
+            "p50": 1.6025759999997717,
+            "p95": 5.460039999999935,
+            "p99": 9.279971999999816,
+            "max": 9.279971999999816,
+            "mean": 2.1810434499999927
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": {
+          "rows": 1000
+        },
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-1/backups/control.sqlite.backup",
+          "durationMs": 12.272869999999784,
+          "bytes": 4763648,
+          "totalPages": 1163,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        },
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-1/backups/analytics.duckdb.copy",
+          "durationMs": 45.54337200000009,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 53.68157599999995,
+        "maintenanceMs": 9.686566000000312,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 8.66053299999976,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-1/control.sqlite": 4763648,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-1/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-1/tmp": 0
+      }
+    },
+    {
+      "engine": "sqlite-outbox-duckdb",
+      "batchSize": 1000,
+      "repeat": 2,
+      "versions": {
+        "sqlite": "3.53.2",
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 7.758462000000236,
+          "p50": 8.622515999999905,
+          "p95": 9.714710000000196,
+          "p99": 15.310555000000022,
+          "max": 15.310555000000022,
+          "mean": 8.928991650000011
+        },
+        "rowsPerSecond": 111994.72899047886
+      },
+      "materialization": {
+        "pendingRows": 20000,
+        "durationMs": 99.18228200000021
+      },
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.0035149999998793646,
+          "p50": 0.004246999999850232,
+          "p95": 0.005237999999735621,
+          "p99": 0.010264999999890279,
+          "max": 0.0769270000000688,
+          "mean": 0.0045865660000081335
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4195560000002843,
+            "p50": 2.347549000000072,
+            "p95": 2.9053819999999178,
+            "p99": 2.9053819999999178,
+            "max": 2.9053819999999178,
+            "mean": 2.23135199999997
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.441558000000441,
+            "p50": 1.880591000000095,
+            "p95": 2.0037309999997888,
+            "p99": 2.0037309999997888,
+            "max": 2.0037309999997888,
+            "mean": 1.822879600000033
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9493449999999939,
+            "p50": 1.0158480000000054,
+            "p95": 1.0358470000001034,
+            "p99": 1.0358470000001034,
+            "max": 1.0358470000001034,
+            "mean": 0.9982861999999841
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4559810000000653,
+            "p50": 1.547121000000061,
+            "p95": 1.584317999999712,
+            "p99": 1.584317999999712,
+            "max": 1.584317999999712,
+            "mean": 1.5221847999999227
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 10.588238000000274,
+            "p50": 10.588238000000274,
+            "p95": 10.588238000000274,
+            "p99": 10.588238000000274,
+            "max": 10.588238000000274,
+            "mean": 10.588238000000274
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 0.958810000000085,
+            "p50": 1.569054000000051,
+            "p95": 2.864310000000387,
+            "p99": 13.34430199999997,
+            "max": 13.34430199999997,
+            "mean": 2.2036190000000375
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": {
+          "rows": 1000
+        },
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-2/backups/control.sqlite.backup",
+          "durationMs": 12.295955000000049,
+          "bytes": 4763648,
+          "totalPages": 1163,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        },
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-2/backups/analytics.duckdb.copy",
+          "durationMs": 76.34663300000011,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 53.40407000000005,
+        "maintenanceMs": 8.304086999999981,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 8.33924100000013,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-2/control.sqlite": 4763648,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-2/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-2/tmp": 0
+      }
+    },
+    {
+      "engine": "sqlite-outbox-duckdb",
+      "batchSize": 1000,
+      "repeat": 3,
+      "versions": {
+        "sqlite": "3.53.2",
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 7.753342999999859,
+          "p50": 8.332760999999664,
+          "p95": 10.20540099999971,
+          "p99": 16.401648999999907,
+          "max": 16.401648999999907,
+          "mean": 8.89179944999994
+        },
+        "rowsPerSecond": 112463.17526875922
+      },
+      "materialization": {
+        "pendingRows": 20000,
+        "durationMs": 102.74857799999972
+      },
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.00350700000035431,
+          "p50": 0.0041959999998653075,
+          "p95": 0.005358999999771186,
+          "p99": 0.010575999999673513,
+          "max": 0.06868600000052538,
+          "mean": 0.0044958009999973
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.6664250000003449,
+            "p50": 2.751567999999679,
+            "p95": 3.243990999999369,
+            "p99": 3.243990999999369,
+            "max": 3.243990999999369,
+            "mean": 2.5041521999997713
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.526850000000195,
+            "p50": 1.9534040000007735,
+            "p95": 2.5237480000005235,
+            "p99": 2.5237480000005235,
+            "max": 2.5237480000005235,
+            "mean": 1.9572258000003786
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9621139999999286,
+            "p50": 1.0134039999993547,
+            "p95": 1.100746999999501,
+            "p99": 1.100746999999501,
+            "max": 1.100746999999501,
+            "mean": 1.021665999999641
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.5310159999999087,
+            "p50": 1.5596210000003339,
+            "p95": 2.268406000000141,
+            "p99": 2.268406000000141,
+            "max": 2.268406000000141,
+            "mean": 1.7106955999999627
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 11.315682999999808,
+            "p50": 11.315682999999808,
+            "p95": 11.315682999999808,
+            "p99": 11.315682999999808,
+            "max": 11.315682999999808,
+            "mean": 11.315682999999808
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 1.0806860000002416,
+            "p50": 1.5574980000001233,
+            "p95": 2.417956000000231,
+            "p99": 9.245850999999675,
+            "max": 9.245850999999675,
+            "mean": 1.961393249999992
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": {
+          "rows": 1000
+        },
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-3/backups/control.sqlite.backup",
+          "durationMs": 12.213839000000007,
+          "bytes": 4763648,
+          "totalPages": 1163,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        },
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-3/backups/analytics.duckdb.copy",
+          "durationMs": 38.97801899999922,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 53.024357999999665,
+        "maintenanceMs": 9.267423999999664,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 8.397249999999985,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-3/control.sqlite": 4763648,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-3/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-outbox-duckdb-batch-1000-repeat-3/tmp": 0
+      }
+    },
+    {
+      "engine": "sqlite-sync-duckdb",
+      "batchSize": 1000,
+      "repeat": 1,
+      "versions": {
+        "sqlite": "3.53.2",
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 10.136766999999963,
+          "p50": 12.814139999999497,
+          "p95": 19.830463000000236,
+          "p99": 20.03042000000005,
+          "max": 20.03042000000005,
+          "mean": 13.698911649999946
+        },
+        "rowsPerSecond": 72998.4998479791
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.23029200000019046,
+          "p50": 0.2875999999996566,
+          "p95": 0.36573000000043976,
+          "p99": 0.4079550000005838,
+          "max": 2.284350999999333,
+          "mean": 0.3007460709999941
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4648059999999532,
+            "p50": 2.6121039999998175,
+            "p95": 2.693287999999484,
+            "p99": 2.693287999999484,
+            "max": 2.693287999999484,
+            "mean": 2.203355399999782
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.523243999999977,
+            "p50": 2.041269000000284,
+            "p95": 2.2243600000001607,
+            "p99": 2.2243600000001607,
+            "max": 2.2243600000001607,
+            "mean": 1.9566032000002451
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9550340000005235,
+            "p50": 1.0367990000004284,
+            "p95": 1.328045000000202,
+            "p99": 1.328045000000202,
+            "max": 1.328045000000202,
+            "mean": 1.0673937999999907
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4888609999998152,
+            "p50": 1.5939520000001721,
+            "p95": 1.617708999999195,
+            "p99": 1.617708999999195,
+            "max": 1.617708999999195,
+            "mean": 1.5729761999999028
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 25.891171999999642,
+            "p50": 25.891171999999642,
+            "p95": 25.891171999999642,
+            "p99": 25.891171999999642,
+            "max": 25.891171999999642,
+            "mean": 25.891171999999642
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 1.071151999999529,
+            "p50": 1.5836059999992358,
+            "p95": 1.9703600000002552,
+            "p99": 6.185970000000452,
+            "max": 6.185970000000452,
+            "mean": 1.8238887000000887
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-1/backups/control.sqlite.backup",
+          "durationMs": 12.485374999999294,
+          "bytes": 4861952,
+          "totalPages": 1187,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        },
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-1/backups/analytics.duckdb.copy",
+          "durationMs": 43.210887000000184,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 66.09407900000042,
+        "maintenanceMs": 28.144646000000648,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 10.13699699999961,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-1/control.sqlite": 3731456,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-1/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-1/tmp": 0
+      }
+    },
+    {
+      "engine": "sqlite-sync-duckdb",
+      "batchSize": 1000,
+      "repeat": 2,
+      "versions": {
+        "sqlite": "3.53.2",
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 9.86184299999968,
+          "p50": 12.590758000000278,
+          "p95": 19.91697600000043,
+          "p99": 20.430813999999373,
+          "max": 20.430813999999373,
+          "mean": 13.579814849999957
+        },
+        "rowsPerSecond": 73638.70649532479
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.2354510000004666,
+          "p50": 0.2745210000002771,
+          "p95": 0.3132999999997992,
+          "p99": 0.38039300000036746,
+          "max": 0.8924179999994521,
+          "mean": 0.2800725849999999
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4976360000000568,
+            "p50": 2.497338000000127,
+            "p95": 7.518293000000085,
+            "p99": 7.518293000000085,
+            "max": 7.518293000000085,
+            "mean": 3.1599951999998668
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.9215750000003027,
+            "p50": 2.006185000000187,
+            "p95": 2.0644439999996393,
+            "p99": 2.0644439999996393,
+            "max": 2.0644439999996393,
+            "mean": 1.9992824000000837
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.9547439999996641,
+            "p50": 0.9853410000005169,
+            "p95": 1.0149860000001354,
+            "p99": 1.0149860000001354,
+            "max": 1.0149860000001354,
+            "mean": 0.9893847999999708
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.427636999999777,
+            "p50": 1.5549529999998413,
+            "p95": 1.5804019999995944,
+            "p99": 1.5804019999995944,
+            "max": 1.5804019999995944,
+            "mean": 1.5288707999998223
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 21.952304999999797,
+            "p50": 21.952304999999797,
+            "p95": 21.952304999999797,
+            "p99": 21.952304999999797,
+            "max": 21.952304999999797,
+            "mean": 21.952304999999797
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 1.09487800000079,
+            "p50": 1.5805529999997816,
+            "p95": 2.033516999999847,
+            "p99": 7.08758299999954,
+            "max": 7.08758299999954,
+            "mean": 1.8700376249999635
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-2/backups/control.sqlite.backup",
+          "durationMs": 13.94131600000037,
+          "bytes": 4861952,
+          "totalPages": 1187,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        },
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-2/backups/analytics.duckdb.copy",
+          "durationMs": 40.2924550000007,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 66.96729700000014,
+        "maintenanceMs": 26.787825999999768,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 10.190920000000006,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-2/control.sqlite": 3731456,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-2/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-2/tmp": 0
+      }
+    },
+    {
+      "engine": "sqlite-sync-duckdb",
+      "batchSize": 1000,
+      "repeat": 3,
+      "versions": {
+        "sqlite": "3.53.2",
+        "duckdb": "v1.5.5"
+      },
+      "acceptance": {
+        "batches": 20,
+        "rows": 20000,
+        "batchLatencyMs": {
+          "count": 20,
+          "min": 9.75336900000002,
+          "p50": 12.112755000000107,
+          "p95": 19.787656999999854,
+          "p99": 22.526946000000862,
+          "max": 22.526946000000862,
+          "mean": 13.933204700000124
+        },
+        "rowsPerSecond": 71770.99752219897
+      },
+      "materialization": null,
+      "deduplication": {
+        "lookups": 1000,
+        "latencyMs": {
+          "count": 1000,
+          "min": 0.22019799999998213,
+          "p50": 0.255301000000145,
+          "p95": 0.2917569999999614,
+          "p99": 0.3561259999996764,
+          "max": 10.747011999999813,
+          "mean": 0.27212092999999277
+        }
+      },
+      "queries": {
+        "timeseries": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4405969999997978,
+            "p50": 2.3201660000004267,
+            "p95": 2.480341000000408,
+            "p99": 2.480341000000408,
+            "max": 2.480341000000408,
+            "mean": 2.0227120000003196
+          },
+          "checksum": "afa58d6f"
+        },
+        "unique-by-kind": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.7005159999998796,
+            "p50": 1.8069900000000416,
+            "p95": 1.8863719999999375,
+            "p99": 1.8863719999999375,
+            "max": 1.8863719999999375,
+            "mean": 1.7942278000000442
+          },
+          "checksum": "dee5b544"
+        },
+        "filtered-breakdown": {
+          "latencyMs": {
+            "count": 5,
+            "min": 0.957908000000316,
+            "p50": 0.9870810000002166,
+            "p95": 1.0369680000003427,
+            "p99": 1.0369680000003427,
+            "max": 1.0369680000003427,
+            "mean": 0.9963444000000891
+          },
+          "checksum": "89314143"
+        },
+        "offset-page": {
+          "latencyMs": {
+            "count": 5,
+            "min": 1.4626729999999952,
+            "p50": 1.5012409999999363,
+            "p95": 1.5212320000000545,
+            "p99": 1.5212320000000545,
+            "max": 1.5212320000000545,
+            "mean": 1.4930467999998656
+          },
+          "checksum": "1bd8dfa8"
+        }
+      },
+      "mixedLoad": {
+        "writer": {
+          "batches": 1,
+          "rows": 1000,
+          "latencyMs": {
+            "count": 1,
+            "min": 24.163273999999547,
+            "p50": 24.163273999999547,
+            "p95": 24.163273999999547,
+            "p99": 24.163273999999547,
+            "max": 24.163273999999547,
+            "mean": 24.163273999999547
+          }
+        },
+        "readers": {
+          "count": 2,
+          "queries": 40,
+          "latencyMs": {
+            "count": 40,
+            "min": 1.056760000000395,
+            "p50": 1.5843079999995098,
+            "p95": 1.9557379999996556,
+            "p99": 6.571912999999768,
+            "max": 6.571912999999768,
+            "mean": 1.8374051499999724
+          },
+          "checksums": [
+            "c52de9c1",
+            "967af307"
+          ]
+        },
+        "projector": null,
+        "errors": [],
+        "rowsAfterDrain": 21000
+      },
+      "backups": [
+        {
+          "kind": "sqlite-online-backup",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-3/backups/control.sqlite.backup",
+          "durationMs": 13.838830000000598,
+          "bytes": 4861952,
+          "totalPages": 1187,
+          "remainingPages": 0,
+          "rowsAfterRestore": 21000
+        },
+        {
+          "kind": "duckdb-checkpoint-copy",
+          "path": "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-3/backups/analytics.duckdb.copy",
+          "durationMs": 42.367355000000316,
+          "bytes": 1847296,
+          "rowsAfterRestore": 21000
+        }
+      ],
+      "retention": {
+        "deleteMs": 65.61633699999948,
+        "maintenanceMs": 28.119567000000643,
+        "remainingRows": 16776
+      },
+      "recovery": {
+        "durationMs": 11.290293999999449,
+        "rowsAfterReopen": 16776
+      },
+      "files": {
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-3/control.sqlite": 3731456,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-3/analytics.duckdb": 2895872,
+        "/tmp/cimi-production-parity-1gb-data/sqlite-sync-duckdb-batch-1000-repeat-3/tmp": 0
+      }
+    }
+  ]
+}

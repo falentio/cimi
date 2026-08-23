@@ -51,7 +51,7 @@ active -> archived
 
 **Purpose:** List persisted Funnel definitions.
 
-**Behavior:** Cursor pagination is ordered by `createdAt` plus Funnel ID. Definitions are returned without query plans or raw Event data.
+**Behavior:** Zero-based live offset pagination is ordered by `createdAt` plus Funnel ID. Return `nextOffset`, `hasMore`, and `totalCount`; definitions are returned without query plans or raw Event data.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
@@ -71,7 +71,7 @@ active -> archived
 
 **Purpose:** Report step conversion through ordered actions.
 
-**Behavior:** Evaluate steps in order within one Analytics Session. A step is the first matching action after the prior step; repeated actions do not move a Session backward. Return counts and rates for each step, with bounded date/filter inputs.
+**Behavior:** Evaluate steps in order within one Analytics Session. A step is the first matching action after the prior step; repeated actions do not move a Session backward. The Funnel definition selects Visitor or Identified User identity context. Return counts, `rateFromEntry`, and `rateFromPrevious` for each step, with Site-local date and explicitly scoped filters. Analytical reports may include an explicit previous-period comparison.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
 
@@ -160,10 +160,18 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `site` | Scope and ownership. |
 | `event-report` | Standard action matching. |
-| `analytics-session` | Same-Session ordering. |
+| `event-ingestion` | Shared server-authoritative Analytics Session boundaries. |
 
 ### Used By
 
 | Resource | Integration Point |
 | --- | --- |
 | `traffic-report` | Conversion summary. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Cross-Session journey continuation or inferred identity merging.
+- More than ten steps, arbitrary SQL, or unbounded path exploration.
+- Public Funnel definitions, raw member lists, or exports.

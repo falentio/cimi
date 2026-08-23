@@ -2,6 +2,10 @@ import * as v from 'valibot'
 import { SCreated, SDateTime, SId, SScalarMap } from '../../schema/index.ts'
 
 export const SProfileStatus = v.picklist(['active', 'deletion-requested', 'deleting', 'deleted'])
+export const SDeletionCleanupStatus = v.strictObject({
+  status: v.picklist(['not-required', 'pending', 'complete']),
+  updatedAt: SDateTime,
+})
 export const SProfileTraits = v.pipe(
   SScalarMap,
   v.check((value) => Object.keys(value).length <= 64, 'Expected at most 64 traits.'),

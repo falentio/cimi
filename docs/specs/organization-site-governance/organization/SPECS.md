@@ -175,3 +175,11 @@ No domain event channel is required by the MVP contract. State changes remain tr
 | --- | --- |
 | `site` | Organization ownership. |
 | All protected resources | Scope authorization. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Better Auth authentication or membership implementation details.
+- Hosted billing, subscriptions, plans, or organization entitlements.
+- Cross-Organization Site transfer or cascade deletion of owned Sites.

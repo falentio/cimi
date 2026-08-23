@@ -54,7 +54,7 @@ Archived Goals stop appearing in new configuration lists but remain interpretabl
 
 **Purpose:** List active and archived Goal definitions in Site scope.
 
-**Behavior:** Use opaque cursors sorted by `createdAt` plus Goal ID. Return definitions, never raw query plans.
+**Behavior:** Use zero-based live offset pages sorted by `createdAt` plus Goal ID. Return `nextOffset`, `hasMore`, and `totalCount`; never return raw query plans.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
@@ -72,9 +72,9 @@ Archived Goals stop appearing in new configuration lists but remain interpretabl
 
 **Audience:** Both
 
-**Purpose:** Count Goal conversions and conversion rate over a UTC half-open range.
+**Purpose:** Count Goal conversions and Session conversion rate over an inclusive Site-local calendar range.
 
-**Behavior:** One matching action counts at most once per Session. Report filters are typed and apply to the same Site/Session model as traffic reports. Archived definitions remain reportable.
+**Behavior:** One matching action counts at most once per Session. The Goal definition selects Visitor or Identified User identity context, while `conversionRate` is converted Sessions divided by eligible Sessions. Report filters use explicit scope and apply to the same Site/Session model as traffic reports. Archived definitions remain reportable and analytical reports may include an explicit previous-period comparison.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
 
@@ -162,7 +162,7 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `site` | Scope and ownership. |
 | `event-report` | Standard action semantics. |
-| `analytics-session` | Per-Session conversion counting. |
+| `event-ingestion` | Shared server-authoritative Analytics Session boundaries. |
 
 ### Used By
 
@@ -170,3 +170,11 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `traffic-report` | Conversion summary. |
 | `public-dashboard` | Only if a Goal metric is explicitly approved. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Multi-step journeys, arbitrary conversion expressions, or cross-Session conversion inference.
+- Public Goal definitions or raw member-level conversion lists.
+- Arbitrary SQL and unbounded report execution.

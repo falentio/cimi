@@ -51,7 +51,7 @@ pending -> revoked
 
 **Purpose:** List pending and historical invitations for an Organization.
 
-**Behavior:** Return token-free records with opaque cursor pagination. Expired pending invitations are reported as expired on read and cannot be accepted.
+**Behavior:** Return token-free records with zero-based live offset pagination and `nextOffset`, `hasMore`, and `totalCount`. Expired pending invitations are reported as expired on read and cannot be accepted.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
@@ -147,3 +147,11 @@ No domain event channel is required by the MVP contract.
 | Resource | Integration Point |
 | --- | --- |
 | `membership` | Accept creates membership. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Email, SMS, or external notification delivery.
+- Owner-role invitations or automatic Organization creation.
+- Hosted invitation pages, billing entitlements, or cross-Organization Site transfer.

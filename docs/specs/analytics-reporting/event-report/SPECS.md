@@ -22,10 +22,10 @@ This resource is stateless and read-only.
 | Field | Schema | Description |
 | --- | --- | --- |
 | `siteId` | `nanoid` | Site scope. |
-| `from` / `to` | `utcInstant` | Half-open query interval. |
+| `fromDate` / `toDate` | `siteDate` | Inclusive Site-local calendar range resolved through `reportingTimezone`. |
 | `eventKind` | `eventKind` | One of the standard kinds. |
 | `filters` | `eventFilterAllowlist` | Typed event/name/property filters. |
-| `sort` / `cursor` | `querySort` / `opaqueCursor` | Stable event list continuation. |
+| `sort` / `offset` / `limit` | `querySort` / `nonNegativeInteger` / `pageSize` | Stable live event-list pages. |
 
 ## 3. Endpoint Quick Index
 
@@ -56,7 +56,7 @@ This resource is stateless and read-only.
 
 **Purpose:** Return bounded time buckets for Event counts and selected standard dimensions.
 
-**Behavior:** Bucket size must be valid for the requested range. Empty buckets are returned with zero values. A missing or invalid time range fails rather than widening the query.
+**Behavior:** Bucket size must be valid for the requested range. Minute reports use one inclusive Site-local calendar date and return at most 1,800 buckets. Empty buckets are returned with zero values. A missing or invalid time range fails rather than widening the query.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
 
@@ -66,7 +66,7 @@ This resource is stateless and read-only.
 
 **Purpose:** Explore accepted Events for debugging and product behavior analysis.
 
-**Behavior:** Use opaque cursor pagination sorted by `createdAt` descending with Event ID tie-breaker. The cursor is bound to Site, time, kind, filters, and sort. Return only bounded typed fields. Duplicate Event IDs appear once.
+**Behavior:** Use zero-based live offset pagination sorted by an allowlisted field with Event ID as the final tie-breaker. Return `nextOffset`, `hasMore`, and `totalCount`; concurrent ingestion may shift later pages. Return only bounded typed fields. Duplicate Event IDs appear once.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
 
@@ -109,7 +109,7 @@ No events are emitted by read-only reports.
 **Audience:** Both
 
 - **Duplicate Event ID** — Report once according to the accepted Event record.
-- **Same `createdAt` values** — Event ID tie-breaker makes cursor traversal complete and deterministic.
+- **Same `createdAt` values** — Event ID tie-breaker makes offset ordering deterministic, while later pages may still shift under live ingestion.
 - **Deleted profile** — Remove profile fields from output and recompute affected aggregates.
 - **Unsupported specialized field** — Return `BAD_REQUEST`; do not silently ignore the filter.
 
@@ -119,7 +119,7 @@ No events are emitted by read-only reports.
 | --- | ---: | --- |
 | `FORBIDDEN` | 403 | Caller lacks persisted Site scope. |
 | `NOT_FOUND` | 404 | Site is inaccessible. |
-| `BAD_REQUEST` | 400 | Invalid Event Kind, range, filter, sort, or cursor. |
+| `BAD_REQUEST` | 400 | Invalid Event Kind, range, filter, sort, offset, or limit. |
 | `QUERY_LIMIT_EXCEEDED` | 422 | Bounded query budget would be exceeded. |
 
 ## 11. Related Resources & Dependencies
@@ -137,3 +137,11 @@ No events are emitted by read-only reports.
 | Resource | Integration Point |
 | --- | --- |
 | `goal` / `funnel` / `cohort-retention` | Standard action matching. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Arbitrary Event fields, nested property queries, raw warehouse SQL, or unsanitized diagnostics.
+- Public Event-row access; Public Query has a separate aggregate catalog.
+- Session Replay, raw IP, and hidden identity-field exploration.

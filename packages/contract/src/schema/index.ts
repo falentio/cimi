@@ -95,6 +95,7 @@ export const SNonNegativeNumber = v.pipe(SFiniteNumber, v.minValue(0))
 export const SRate = v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(1))
 export const SPageItems = <T extends v.GenericSchema>(schema: T) =>
   v.pipe(v.array(schema), v.maxLength(100))
+export const MAX_MINUTE_REPORT_BUCKETS = 1_800
 export const SScalar = v.union([
   v.pipe(v.string(), v.maxLength(512)),
   v.pipe(v.number(), v.finite()),

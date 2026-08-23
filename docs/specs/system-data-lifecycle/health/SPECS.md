@@ -11,7 +11,7 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-Health reports whether the application and its embedded control/analytics stores are ready for the operating envelope. It is a read-only liveness/readiness contract, not a detailed operator console.
+Health reports whether the application and its embedded control/analytics stores are ready for the operating envelope. It is a read-only liveness/readiness contract, not a detailed operator console. Overall lifecycle state and store state are separate: SQLite may remain available for durable acceptance while DuckDB is degraded or unavailable.
 
 The current contract is `system.health`; its explicit OpenAPI route is `GET /system/health`.
 
@@ -24,6 +24,7 @@ The current contract is `system.health`; its explicit OpenAPI route is `GET /sys
 | `status` | `healthStatus` | Overall readiness. |
 | `controlStore` | `storeHealth` | SQLite/control readiness. |
 | `analyticsStore` | `storeHealth` | DuckDB/analytics readiness. |
+| `cleanupPending` | `boolean` | Historical retention/deletion cleanup remains after structural readiness. |
 | `version` | `string256` | Application version. |
 | `checkedAt` | `coercedDate` | Server check time. |
 
@@ -43,7 +44,7 @@ The current contract is `system.health`; its explicit OpenAPI route is `GET /sys
 
 **Purpose:** Determine whether the application can serve its basic contract.
 
-**Behavior:** Do not include secrets, paths, raw SQL errors, or analytics data. Distinguish healthy, degraded, and unavailable backing stores. A degraded result is not silently reported healthy.
+**Behavior:** Do not include secrets, paths, raw SQL errors, or analytics data. Distinguish healthy, degraded, recovering, maintenance, and unavailable lifecycle/store states. A healthy SQLite store with unavailable DuckDB is degraded and may accept Events, but analytics queries are unavailable or stale. A ready restore with pending historical cleanup reports `cleanupPending` rather than silently claiming a clean generation.
 
 **Errors:** `INTERNAL_SERVER_ERROR` (500 when the health check itself cannot produce a response).
 
@@ -76,6 +77,7 @@ No events are emitted.
 
 - **Analytics store unavailable** — Return degraded/unavailable status without exposing provider internals.
 - **During restore** — Report quiesced/recovering state, not healthy.
+- **Cleanup after restore** — Readiness may return while `cleanupPending` is true; lifecycle status and report freshness expose the remaining work.
 
 ## 10. Error Code Catalog
 
@@ -97,3 +99,11 @@ No events are emitted.
 | Resource | Integration Point |
 | --- | --- |
 | Operator and deployment checks | Readiness. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- A full operator console, host metrics, log aggregation, or analytics reporting.
+- Credentials, filesystem paths, raw provider errors, or cluster administration.
+- Hosted monitoring, billing, or mandatory external telemetry services.

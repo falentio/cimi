@@ -14,7 +14,7 @@ The current repository establishes this shape in `packages/contract/src/orpc/ind
 
 ## Procedure Naming and Versioning
 
-- Cimi uses RPC operation names as stable HTTP operations and does not impose REST-style resource/action naming. Initial procedures are unversioned; a breaking successor may be named `updateSiteV2`, then `updateSiteV3`.
+- Cimi uses RPC operation names as stable HTTP operations and does not impose REST-style resource/action naming. Initial procedures are unversioned; `updateSiteV2` is the explicit first-release successor to the pre-release `updateSite` contract after incompatible changes, and future breaking successors may be named `updateSiteV3`.
 - A procedure version is introduced only for an incompatible input, output, or behavior change. Additive compatible changes remain on the existing procedure.
 - Old versions remain callable while supported and are explicitly deprecated before removal.
 - Each versioned procedure has its own contract, handler, OpenAPI route metadata, error declarations, and acceptance scenarios.

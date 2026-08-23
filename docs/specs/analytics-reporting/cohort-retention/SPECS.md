@@ -174,3 +174,11 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `traffic-report` | Retention summary. |
 | `public-dashboard` | Only if an approved aggregate retention metric is later included. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Unbounded cohort periods, arbitrary SQL predicates, or raw cohort member lists.
+- Cross-Site identity membership or inferred Identified User linkage.
+- Public cohort definitions or identity-level retention disclosure.

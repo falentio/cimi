@@ -17,7 +17,7 @@ An Identity Profile represents one explicit Site-scoped Identified User with bou
 active -> deletion-requested -> deleting -> deleted
 ```
 
-Deletion is asynchronous and must invalidate or recompute affected derived results, including profile listings, cohorts, Goals, Funnels, and retention reports.
+Deletion is asynchronous and must invalidate or recompute affected derived results, including profile listings, cohorts, Goals, Funnels, and retention reports. Identity Redaction removes profile, alias, trait, and identity linkage through a SQLite overlay without rewriting accepted Event sequence history; retained non-personal Event activity may continue anonymously.
 
 ## 2. Base Schema
 
@@ -52,7 +52,7 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 **Purpose:** Explore explicit Identified User profiles within a Site.
 
-**Behavior:** Require persisted Site scope. Use opaque cursors ordered by `createdAt` plus `identifiedUserId`. Do not expose raw IP, hidden identity fingerprints, or unapproved trait values.
+**Behavior:** Require persisted Site scope. Use zero-based live offset pages ordered by `createdAt` plus `identifiedUserId`, returning `nextOffset`, `hasMore`, and `totalCount`. Do not expose raw IP, hidden identity fingerprints, or unapproved trait values.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
@@ -72,7 +72,7 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 **Purpose:** Report asynchronous deletion progress without returning deleted data.
 
-**Behavior:** Status is monotonic. Completion means active profile data and required derived results are invalidated; backups follow the documented backup deletion boundary.
+**Behavior:** Status is monotonic. Return independent `derivedCleanup` and `backupCleanup` objects, each with `status` (`not-required`, `pending`, or `complete`) and `updatedAt`. Completion means active profile data and required derived results are invalidated, the Identity Redaction overlay is durable, and retained eligible Event activity is no longer linked to the profile. Historical backups follow the documented backup deletion boundary and may remain `pending` after derived cleanup is complete.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404).
 
@@ -96,7 +96,7 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 **Purpose:** Request asynchronous hard deletion of one Site-scoped Identified User.
 
-**Behavior:** Owner or Administrator only in v1. Mark the profile deleting, prevent new trait writes, enqueue deletion of profile/alias links and derived results, and return 202 with status. `clearIdentity` or opt-out does not count as deletion.
+**Behavior:** Owner or Administrator only in v1. Mark the profile deleting, prevent new trait writes, append the Identity Redaction intent, enqueue deletion of profile/alias links and derived results, and return 202 with status. Eligible retained Events are reclassified as anonymous after the overlay is applied. `clearIdentity` or opt-out does not count as deletion.
 
 **Events Emitted:** None in MVP.
 
@@ -133,6 +133,7 @@ No domain event channel is required by the MVP contract.
 - **Identify after opt-out** — Apply the effective collection policy; do not create or mutate identity while collection is disabled.
 - **Trait contains email/name** — Treat it as caller-supplied personal data; accept only when policy permits and expose only to authenticated Site members.
 - **Deletion during reporting** — Reports exclude deleting/deleted profile data and converge as derived invalidation completes.
+- **Redacted historical Event** — The Event remains eligible for anonymous Site analytics only when its remaining fields are not personal; Identified User-specific reports exclude it.
 
 ## 10. Error Code Catalog
 
@@ -160,3 +161,11 @@ No domain event channel is required by the MVP contract.
 | --- | --- |
 | `traffic-report`, `event-report` | Profile filtering and attribution. |
 | `goal`, `funnel`, `cohort-retention` | Identified behavior and deletion-aware results. |
+
+## 12. Out of Scope
+
+**Audience:** Both
+
+- Linking an Identified User to a Better Auth User or inferred email identity.
+- Cross-Site identity graphs, raw IP identity, or device fingerprinting.
+- End-user self-service deletion workflows outside the Site administrator command.
