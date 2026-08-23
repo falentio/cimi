@@ -6,7 +6,7 @@ export default function HealthStatus() {
   const [state, setState] = useState<string>('loading')
   useEffect(() => {
     const client = createClient({ baseUrl: '' })
-    client.system
+    client.health
       .health()
       .then((r) => setState(r.status))
       .catch(() => setState('error'))

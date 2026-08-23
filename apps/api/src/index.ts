@@ -18,11 +18,12 @@ export interface CreateApiAppDependencies {
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): Hono {
+  // Resource handlers are added incrementally; health is the only implemented route today.
   const router = implement(contract).router({
-    system: {
-      health: implement(contract).system.health.handler(async () => systemHealthHandler(deps)),
+    health: {
+      health: implement(contract).health.health.handler(async () => systemHealthHandler(deps)),
     },
-  })
+  } as never)
 
   const openAPIHandler = new OpenAPIHandler(router, {
     interceptors: [
