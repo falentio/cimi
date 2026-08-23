@@ -23,7 +23,11 @@ what each entry means.
 - `Analytics Session` metrics use server-authoritative Session boundaries. A repeated matching Event does not create another conversion within the same Session.
 - `Visitor` metrics use the Site-scoped Anonymous Identity projection. `Identified User` metrics use the explicit Site-scoped opaque application ID.
 - Profile filters are authenticated-only and limited to Site collection-policy-approved trait keys. Public Query never evaluates profile filters.
-- The coarse query horizon remains pending [Freeze the canonical query horizon and retention envelope](https://github.com/falentio/cimi/issues/25). Effective retention and bounded execution remain applicable to every metric.
+- There is no independent coarse query horizon. Effective Retention is the data-availability horizon for each requested dependency; the full current and comparison windows must be covered, and unavailable history is rejected rather than clamped or partially returned.
+
+## Query Admission
+
+Authenticated admission uses projection-checkpoint-aligned cardinality statistics and fails closed when statistics are stale or a requested range contains a known Projection Gap. Fact-Work is an additive estimate based on fact cardinality, normalized bucket work, metrics, dimensions, filters, and distinct-count operations. The fixed family budgets are 25M units for aggregate reports, 10M for breakdowns, 1M for row lists, and 10M for stateful Goal/Funnel/Cohort reports. Public Query shares the aggregate budget. `QUERY_LIMIT_EXCEEDED` is returned before execution; no post-admission wall-clock timeout is part of the contract.
 
 ## Metric Definitions
 

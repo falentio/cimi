@@ -84,9 +84,17 @@ _Avoid_: auth session, visit without bounds
 An inclusive pair of Site-local calendar dates resolved through the Site's Reporting Timezone. Internally it becomes a half-open interval from the first local midnight through the midnight after the final date.
 _Avoid_: all-time query, timestamp range
 
+**Effective Retention**:
+The current installation/Site retention cutoff for one requested data dependency. A report must have complete coverage for every requested dependency across its full current and comparison windows; effective retention is a data-availability horizon, not an automatic range clamp.
+_Avoid_: partial history, query duration cap
+
 **Query Bucket**:
 A Site-local reporting period such as minute, hour, day, week, month, or year. A procedure declares its supported buckets and invalid range/bucket combinations are rejected rather than silently changed.
 _Avoid_: arbitrary interval, chart bucket without a calendar
+
+**Fact-Work Budget**:
+A fixed per-procedure bound on estimated analytical work before execution. It accounts for fact cardinality, buckets, metrics, dimensions, filters, and distinct-count operations; an uncertain or over-budget report is rejected rather than partially evaluated.
+_Avoid_: returned-row count, database-specific cost
 
 **Metric Grain**:
 The domain unit counted by a metric: Event, Analytics Session, Visitor, or Identified User. A metric's grain determines its denominator and whether values across buckets or dimensions are additive.
@@ -201,7 +209,7 @@ A random Site-specific identifier used in an open public dashboard URL. It is di
 _Avoid_: API key, ingestion secret
 
 **Public Query**:
-A dedicated aggregate analytics query governed by the Public Dashboard contract: an approved filter and metric catalog, one-hour granularity, a bounded time window, small-cohort suppression, and public-specific rate limits. It is not an authenticated analytics query with its authorization removed.
+A dedicated aggregate analytics query governed by the Public Dashboard contract: an approved filter and metric catalog, one-hour granularity, a maximum 90-day window further bounded by Effective Retention, small-cohort suppression, and public-specific rate limits. It is not an authenticated analytics query with its authorization removed.
 _Avoid_: public API passthrough, unrestricted report query
 
 **RPC Procedure**:

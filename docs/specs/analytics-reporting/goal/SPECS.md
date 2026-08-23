@@ -122,6 +122,7 @@ Archived Goals stop appearing in new configuration lists but remain interpretabl
 | --- | --- | --- |
 | One Goal matches one action plus scalar filters. | Contract validation. | C1-C2 |
 | A Session contributes at most one conversion per Goal. | Report query. | Q3 |
+| Goal reports inherit the global Effective Retention and Fact-Work admission rules; no separate coarse duration cap applies. | Query admission. | Q3 |
 | No arbitrary predicates or SQL. | Contract and query planner. | All |
 
 ## 7. Authorization Matrix

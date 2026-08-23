@@ -121,6 +121,7 @@ active -> archived
 | Each step is evaluated after the prior step. | Funnel evaluator. | Q3 |
 | Definitions are bounded to 2-10 steps. | Contract validation. | C1-C2 |
 | No cross-Session user journey is inferred. | Report query. | Q3 |
+| Funnel reports inherit the global Effective Retention and Fact-Work admission rules; no separate coarse duration cap applies. | Query admission. | Q3 |
 
 ## 7. Authorization Matrix
 

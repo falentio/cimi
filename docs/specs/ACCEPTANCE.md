@@ -186,6 +186,14 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **Then** the query resolves the range to Site-local calendar boundaries, uses the requested procedure granularity, and rejects invalid or over-bounded ranges instead of widening them
 
+### Effective retention coverage
+
+**Given** an authenticated report or comparison whose requested range is older than the effective retention of one required data dependency
+
+**When** the report is admitted
+
+**Then** the complete report is rejected with `QUERY_LIMIT_EXCEEDED`; the range is not clamped and no partial history is returned
+
 ### Empty and incomplete buckets
 
 **Given** a valid timeseries range containing no Events in one or more buckets or an asynchronously incomplete current bucket
@@ -234,6 +242,14 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **Then** the response returns the current and comparison periods separately with their own metrics and freshness metadata; raw lists and Public Query reject comparison input
 
+### Fact-Work preflight
+
+**Given** a report whose projection-checkpoint-aligned cardinality statistics are stale, contain a relevant Projection Gap, or produce Fact-Work above the fixed family budget
+
+**When** the report is admitted
+
+**Then** it returns `QUERY_LIMIT_EXCEEDED` before execution rather than running with an uncertain or over-budget plan
+
 ### Goal conversion semantics
 
 **Given** a Goal with an explicit Visitor or Identified User identity kind and a matching action repeated in one Analytics Session
@@ -278,7 +294,7 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 ### Public query bounds
 
-**Given** a public query outside the 90-day range, with a non-hour granularity, or using a private/profile filter
+**Given** a public query outside the 90-day range or effective retention, with a non-hour granularity, using a private/profile filter, or exceeding the shared aggregate Fact-Work budget
 
 **When** the request is validated
 

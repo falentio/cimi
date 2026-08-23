@@ -21,11 +21,13 @@ Cross-resource Given/When/Then acceptance scenarios live in [`ACCEPTANCE.md`](./
 - Contract schemas are strict. Unknown input keys fail validation.
 - Errors are declared in oRPC contracts, mapped centrally to HTTP statuses, and expose safe `code`, `status`, and `message` fields.
 - Query inputs use inclusive Site-local `fromDate` and `toDate` calendar dates. The Reporting Timezone and explicit Week Start resolve them to internal half-open intervals; invalid ranges never become all-time queries.
+- Authenticated coarse reports have no independent duration cap. Effective Retention is the data-availability horizon, every requested dependency must cover the complete current and comparison windows, and older or partial ranges are rejected rather than clamped.
 - Filters are bounded JSON predicates with explicit `event`, `session`, `visitor`, or `profile` scope. They use allowlisted fields/operators, AND across filters, and OR across repeated values within one field.
 - Paginated queries use zero-based live `offset` and `limit` values with allowlisted sorting, `nextOffset`, `hasMore`, and `totalCount`. Pages may shift while new data is ingested.
 - Analytical metrics declare their Event, Session, Visitor, or Identified User grain, denominator, additivity, and supported filter scope. Visitor and Identified User values are not silently coalesced.
 - Timeseries use procedure-specific buckets. Bounded ranges fill empty buckets with zero values and mark incomplete current buckets explicitly. Minute reports use one inclusive Site-local calendar date and return at most 1,800 buckets; hourly ranges cover at most 30 days.
 - Analytical reports may request an explicit previous-period comparison. Current and previous ranges are returned separately; raw lists, configuration reads, and Public Query do not use comparison output.
+- Query admission is preflight-only and fail-closed: projection-checkpoint-aligned cardinality statistics feed additive Fact-Work estimates, stale/gapped ranges or over-budget requests return `QUERY_LIMIT_EXCEEDED`, and no post-admission wall-clock timeout is part of the contract.
 - The canonical metric definitions, grains, denominators, additivity, and filter scopes are recorded in the [analytics metric catalog](analytics-reporting/METRICS.md). Public Query uses the narrower catalog stated in the `public-dashboard` specification.
 - Ordinary commands have no MVP idempotency guarantee. Event ingestion is the exception and deduplicates stable Event IDs.
 - Event ingestion accepts a strict single-event envelope up to 64 KiB, plus a separate non-atomic batch contract for one Site with at most 100 Events and 256 KiB serialized. Batch rate accounting counts Events, not requests.

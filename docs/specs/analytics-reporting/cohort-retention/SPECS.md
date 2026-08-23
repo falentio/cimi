@@ -125,6 +125,7 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 | Repeated action is counted once per identity per period. | Retention evaluator. | Q3 |
 | Period output is bounded to twelve periods. | Contract and query planner. | Q3 |
 | Deletion invalidates profile and derived cohort membership. | Deletion lifecycle. | Q3 |
+| Cohort reports inherit the global Effective Retention and Fact-Work admission rules; the twelve-period output bound remains an additional structural limit. | Query admission. | Q3 |
 
 ## 7. Authorization Matrix
 

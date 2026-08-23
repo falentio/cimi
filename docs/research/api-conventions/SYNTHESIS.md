@@ -44,7 +44,7 @@ The current repository establishes this shape in `packages/contract/src/orpc/ind
 
 ## Time, Filters, and Pagination
 
-- Analytical query intervals use inclusive Site-local calendar dates resolved through the Site Reporting Timezone and converted internally to half-open instants. Invalid, reversed, missing, or overlong ranges fail validation rather than becoming all-time queries.
+- Analytical query intervals use inclusive Site-local calendar dates resolved through the Site Reporting Timezone and converted internally to half-open instants. There is no independent coarse duration cap: Effective Retention must cover every requested dependency across the complete current and comparison windows, and unavailable, over-budget, stale-statistics, or gapped ranges fail with `QUERY_LIMIT_EXCEEDED` rather than becoming all-time or partial queries.
 - Filters are typed per procedure and drawn from an explicit allowlist. Different fields combine with AND; repeated values within one field combine with OR. Unknown fields and operators fail validation.
 - Public Query filters are a narrower server-enforced allowlist and never inherit authenticated filters automatically.
 - Paginated procedures use zero-based live offsets, bounded limits, allowlisted sorting, and a stable ID tie-breaker. Pages expose `nextOffset`, `hasMore`, and `totalCount`; live-page drift is documented rather than hidden behind an opaque cursor.

@@ -89,6 +89,7 @@ Pageviews emit once for initial document load and once per actual SPA route tran
 | Server owns Session boundaries. | Session resolver. | C1 |
 | Accepted-for-processing requires durable journal acceptance but is not analytics-store commit. | Acceptance journal and recovery pipeline. | C1, C2 |
 | Occurrence Time is bounded; Receipt Time is always retained. | Timestamp validator. | C1, C2 |
+| Occurrence Time governs analytical retention; Receipt Time governs acceptance-journal, deduplication, and replay retention. | Retention resolver. | C1, C2 |
 | Rate protection uses Site and transient source-IP buckets; numeric thresholds are installation settings, not API quotas. | Ingestion guard. | C1, C2 |
 | Identity deletion applies a durable redaction overlay without rewriting accepted Event sequence history. | Identity lifecycle and replay. | C1, C2 |
 
