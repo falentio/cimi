@@ -9,7 +9,16 @@ export const SSiteUpdateV2Output = SSite
 export type SSiteUpdateV2Output = v.InferOutput<typeof SSiteUpdateV2Output>
 
 export const updateSiteV2 = oc
-  .route({ method: 'POST', path: '/updateSiteV2' })
+  .route({
+    method: 'POST',
+    path: '/updateSiteV2',
+    operationId: 'updateSiteV2',
+    summary: 'Update a site',
+    description:
+      'Update mutable Site metadata and collection-facing settings without changing its Organization or Ingestion Identifier.',
+    tags: ['site'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SSiteUpdateV2Input)

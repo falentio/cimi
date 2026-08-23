@@ -9,7 +9,16 @@ export const SSiteRotateIngestionOutput = SSite
 export type SSiteRotateIngestionOutput = v.InferOutput<typeof SSiteRotateIngestionOutput>
 
 export const rotateIngestionIdentifier = oc
-  .route({ method: 'POST', path: '/rotateIngestionIdentifier' })
+  .route({
+    method: 'POST',
+    path: '/rotateIngestionIdentifier',
+    operationId: 'rotateIngestionIdentifier',
+    summary: 'Rotate ingestion identifier',
+    description:
+      'Revoke the current collection selector and issue a new non-secret Ingestion Identifier.',
+    tags: ['site'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SSiteRotateIngestionInput)

@@ -9,8 +9,16 @@ export const SBackupCreateOutput = SBackup
 export type SBackupCreateOutput = v.InferOutput<typeof SBackupCreateOutput>
 
 export const createBackup = oc
-  .route({ method: 'POST', path: '/createBackup' })
+  .route({
+    method: 'POST',
+    path: '/createBackup',
+    operationId: 'createBackup',
+    summary: 'Create a backup',
+    description: 'Create a consistent backup of configured data for operator recovery.',
+    tags: ['backup-restore'],
+    successStatus: 202,
+  })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, INSUFFICIENT_STORAGE: {} })
+  .errors({ ...ECommand, INSUFFICIENT_STORAGE: { status: 507 } })
   .input(SBackupCreateInput)
   .output(SBackupCreateOutput)

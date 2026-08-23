@@ -9,7 +9,16 @@ export const SSiteCreateOutput = SSite
 export type SSiteCreateOutput = v.InferOutput<typeof SSiteCreateOutput>
 
 export const createSite = oc
-  .route({ method: 'POST', path: '/createSite' })
+  .route({
+    method: 'POST',
+    path: '/createSite',
+    operationId: 'createSite',
+    summary: 'Create a site',
+    description:
+      'Create a Site in an Organization and generate a fresh non-secret Ingestion Identifier.',
+    tags: ['site'],
+    successStatus: 201,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SSiteCreateInput)

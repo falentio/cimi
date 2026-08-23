@@ -14,7 +14,15 @@ export const SInvitationListOutput = v.strictObject({
 export type SInvitationListOutput = v.InferOutput<typeof SInvitationListOutput>
 
 export const listInvitations = oc
-  .route({ method: 'GET', path: '/listInvitations' })
+  .route({
+    method: 'GET',
+    path: '/listInvitations',
+    operationId: 'listInvitations',
+    summary: 'List invitations',
+    description: 'List token-free invitation records for an Organization.',
+    tags: ['invitation'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ERead)
   .input(SInvitationListInput)

@@ -9,8 +9,17 @@ export const SSiteDeleteOutput = v.strictObject({ accepted: v.literal(true) })
 export type SSiteDeleteOutput = v.InferOutput<typeof SSiteDeleteOutput>
 
 export const deleteSite = oc
-  .route({ method: 'POST', path: '/deleteSite' })
+  .route({
+    method: 'POST',
+    path: '/deleteSite',
+    operationId: 'deleteSite',
+    summary: 'Delete a site',
+    description:
+      'Quiesce and delete a Site and its Site-scoped configuration through the asynchronous lifecycle.',
+    tags: ['site'],
+    successStatus: 202,
+  })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, CONFLICT: {} })
+  .errors({ ...ECommand, CONFLICT: { status: 409 } })
   .input(SSiteDeleteInput)
   .output(SSiteDeleteOutput)

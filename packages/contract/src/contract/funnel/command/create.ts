@@ -11,7 +11,15 @@ export const SFunnelCreateOutput = SFunnel
 export type SFunnelCreateOutput = v.InferOutput<typeof SFunnelCreateOutput>
 
 export const createFunnel = oc
-  .route({ method: 'POST', path: '/createFunnel' })
+  .route({
+    method: 'POST',
+    path: '/createFunnel',
+    operationId: 'createFunnel',
+    summary: 'Create a funnel',
+    description: 'Persist a validated ordered Funnel definition for a Site.',
+    tags: ['funnel'],
+    successStatus: 201,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SFunnelCreateInput)

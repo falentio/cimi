@@ -13,8 +13,16 @@ export type SOrganizationEnsurePersonalOutput = v.InferOutput<
 >
 
 export const ensurePersonalOrganization = oc
-  .route({ method: 'POST', path: '/ensurePersonalOrganization' })
+  .route({
+    method: 'POST',
+    path: '/ensurePersonalOrganization',
+    operationId: 'ensurePersonalOrganization',
+    summary: 'Ensure personal organization',
+    description: "Idempotently obtain the current user's Personal Organization.",
+    tags: ['organization'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
-  .errors({ ...ERead, CONFLICT: {} })
+  .errors({ ...ERead, CONFLICT: { status: 409 } })
   .input(SOrganizationEnsurePersonalInput)
   .output(SOrganizationEnsurePersonalOutput)

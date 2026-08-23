@@ -9,8 +9,15 @@ export const SInvitationRevokeOutput = v.strictObject({ revoked: v.literal(true)
 export type SInvitationRevokeOutput = v.InferOutput<typeof SInvitationRevokeOutput>
 
 export const revokeInvitation = oc
-  .route({ method: 'POST', path: '/revokeInvitation' })
+  .route({
+    method: 'POST',
+    path: '/revokeInvitation',
+    operationId: 'revokeInvitation',
+    summary: 'Revoke an invitation',
+    description: 'Revoke a pending Organization invitation without exposing its bearer token.',
+    tags: ['invitation'],
+  })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, INVITATION_CONSUMED: {} })
+  .errors({ ...ECommand, INVITATION_CONSUMED: { status: 409 } })
   .input(SInvitationRevokeInput)
   .output(SInvitationRevokeOutput)

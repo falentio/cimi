@@ -9,7 +9,15 @@ export const SProfileGetOutput = SProfile
 export type SProfileGetOutput = v.InferOutput<typeof SProfileGetOutput>
 
 export const getProfile = oc
-  .route({ method: 'GET', path: '/getProfile' })
+  .route({
+    method: 'GET',
+    path: '/getProfile',
+    operationId: 'getProfile',
+    summary: 'Get a profile',
+    description: 'Return one Site-scoped profile and its bounded identity history.',
+    tags: ['identity-profile'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(ERead)
   .input(SProfileGetInput)

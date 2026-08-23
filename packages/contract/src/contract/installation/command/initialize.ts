@@ -9,7 +9,15 @@ export const SInstallationInitializeOutput = SInstallation
 export type SInstallationInitializeOutput = v.InferOutput<typeof SInstallationInitializeOutput>
 
 export const initializeInstallation = oc
-  .route({ method: 'POST', path: '/initializeInstallation' })
+  .route({
+    method: 'POST',
+    path: '/initializeInstallation',
+    operationId: 'initializeInstallation',
+    summary: 'Initialize installation',
+    description:
+      'Establish installation metadata and defaults, or return the existing installation state.',
+    tags: ['installation'],
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SInstallationInitializeInput)

@@ -13,8 +13,22 @@ export const SPublicDashboardQueryOutput = v.strictObject({
 export type SPublicDashboardQueryOutput = v.InferOutput<typeof SPublicDashboardQueryOutput>
 
 export const queryPublicDashboard = oc
-  .route({ method: 'GET', path: '/queryPublicDashboard' })
+  .route({
+    method: 'GET',
+    path: '/queryPublicDashboard',
+    operationId: 'queryPublicDashboard',
+    summary: 'Query public dashboard',
+    description:
+      'Return approved aggregate dashboard analytics using the current public identifier.',
+    tags: ['public-dashboard'],
+    successStatus: 200,
+  })
   .meta({ auth: 'public' })
-  .errors({ BAD_REQUEST: {}, NOT_FOUND: {}, TOO_MANY_REQUESTS: {}, QUERY_LIMIT_EXCEEDED: {} })
+  .errors({
+    BAD_REQUEST: { status: 400 },
+    NOT_FOUND: { status: 404 },
+    TOO_MANY_REQUESTS: { status: 429 },
+    QUERY_LIMIT_EXCEEDED: { status: 422 },
+  })
   .input(SPublicDashboardQueryInput)
   .output(SPublicDashboardQueryOutput)

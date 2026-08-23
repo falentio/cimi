@@ -14,7 +14,16 @@ export const SSiteListOutput = v.strictObject({
 export type SSiteListOutput = v.InferOutput<typeof SSiteListOutput>
 
 export const listSites = oc
-  .route({ method: 'GET', path: '/listSites' })
+  .route({
+    method: 'GET',
+    path: '/listSites',
+    operationId: 'listSites',
+    summary: 'List sites',
+    description:
+      'List Sites visible through persisted Organization membership using opaque cursors.',
+    tags: ['site'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(ERead)
   .input(SSiteListInput)

@@ -9,7 +9,17 @@ export const SSiteUpdateOutput = SSite
 export type SSiteUpdateOutput = v.InferOutput<typeof SSiteUpdateOutput>
 
 export const updateSite = oc
-  .route({ method: 'POST', path: '/updateSite' })
+  .route({
+    method: 'POST',
+    path: '/updateSite',
+    operationId: 'updateSite',
+    summary: 'Update a site',
+    description:
+      'Legacy Site update procedure. Use updateSiteV2 for the stable current Site contract.',
+    tags: ['site'],
+    deprecated: true,
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SSiteUpdateInput)

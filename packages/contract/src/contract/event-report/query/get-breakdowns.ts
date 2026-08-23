@@ -11,7 +11,15 @@ export const SEventBreakdownsOutput = SEventBreakdowns
 export type SEventBreakdownsOutput = v.InferOutput<typeof SEventBreakdownsOutput>
 
 export const getEventBreakdowns = oc
-  .route({ method: 'GET', path: '/getEventBreakdowns' })
+  .route({
+    method: 'GET',
+    path: '/getEventBreakdowns',
+    operationId: 'getEventBreakdowns',
+    summary: 'Get event breakdowns',
+    description: 'Provide bounded reports for standard Event dimensions.',
+    tags: ['event-report'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SEventBreakdownsInput)

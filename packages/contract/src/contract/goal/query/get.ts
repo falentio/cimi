@@ -9,7 +9,15 @@ export const SGoalGetOutput = SGoal
 export type SGoalGetOutput = v.InferOutput<typeof SGoalGetOutput>
 
 export const getGoal = oc
-  .route({ method: 'GET', path: '/getGoal' })
+  .route({
+    method: 'GET',
+    path: '/getGoal',
+    operationId: 'getGoal',
+    summary: 'Get a goal',
+    description: 'Return one Goal definition after Site authorization.',
+    tags: ['goal'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SGoalGetInput)

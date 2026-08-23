@@ -9,8 +9,17 @@ export const SMembershipChangeRoleOutput = SMembership
 export type SMembershipChangeRoleOutput = v.InferOutput<typeof SMembershipChangeRoleOutput>
 
 export const changeMemberRole = oc
-  .route({ method: 'POST', path: '/changeMemberRole' })
+  .route({
+    method: 'POST',
+    path: '/changeMemberRole',
+    operationId: 'changeMemberRole',
+    summary: 'Change a member role',
+    description:
+      "Change an existing Organization member's role without changing membership ownership rules.",
+    tags: ['membership'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, OWNER_PROTECTED: {} })
+  .errors({ ...ECommand, OWNER_PROTECTED: { status: 409 } })
   .input(SMembershipChangeRoleInput)
   .output(SMembershipChangeRoleOutput)

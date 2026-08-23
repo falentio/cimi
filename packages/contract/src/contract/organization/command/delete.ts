@@ -9,8 +9,20 @@ export const SOrganizationDeleteOutput = v.strictObject({ deleted: v.literal(tru
 export type SOrganizationDeleteOutput = v.InferOutput<typeof SOrganizationDeleteOutput>
 
 export const deleteOrganization = oc
-  .route({ method: 'POST', path: '/deleteOrganization' })
+  .route({
+    method: 'POST',
+    path: '/deleteOrganization',
+    operationId: 'deleteOrganization',
+    summary: 'Delete an organization',
+    description:
+      'Delete an empty, non-personal Organization after the owner-only lifecycle checks pass.',
+    tags: ['organization'],
+  })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, ORGANIZATION_NOT_EMPTY: {}, PERSONAL_ORGANIZATION_PROTECTED: {} })
+  .errors({
+    ...ECommand,
+    ORGANIZATION_NOT_EMPTY: { status: 409 },
+    PERSONAL_ORGANIZATION_PROTECTED: { status: 409 },
+  })
   .input(SOrganizationDeleteInput)
   .output(SOrganizationDeleteOutput)

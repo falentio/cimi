@@ -14,8 +14,16 @@ export const SInvitationAcceptOutput = v.strictObject({
 export type SInvitationAcceptOutput = v.InferOutput<typeof SInvitationAcceptOutput>
 
 export const acceptInvitation = oc
-  .route({ method: 'POST', path: '/acceptInvitation' })
+  .route({
+    method: 'POST',
+    path: '/acceptInvitation',
+    operationId: 'acceptInvitation',
+    summary: 'Accept an invitation',
+    description:
+      'Consume an invitation token and create the invitation-defined Organization membership.',
+    tags: ['invitation'],
+  })
   .meta({ auth: 'authenticated' })
-  .errors({ ...ERead, CONFLICT: {} })
+  .errors({ ...ERead, CONFLICT: { status: 409 } })
   .input(SInvitationAcceptInput)
   .output(SInvitationAcceptOutput)

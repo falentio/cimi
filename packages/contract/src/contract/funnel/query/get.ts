@@ -9,7 +9,15 @@ export const SFunnelGetOutput = SFunnel
 export type SFunnelGetOutput = v.InferOutput<typeof SFunnelGetOutput>
 
 export const getFunnel = oc
-  .route({ method: 'GET', path: '/getFunnel' })
+  .route({
+    method: 'GET',
+    path: '/getFunnel',
+    operationId: 'getFunnel',
+    summary: 'Get a funnel',
+    description: 'Return one Funnel definition after Site authorization.',
+    tags: ['funnel'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SFunnelGetInput)

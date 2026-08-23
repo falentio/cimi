@@ -14,7 +14,16 @@ export const SGoalListOutput = v.strictObject({
 export type SGoalListOutput = v.InferOutput<typeof SGoalListOutput>
 
 export const listGoals = oc
-  .route({ method: 'GET', path: '/listGoals' })
+  .route({
+    method: 'GET',
+    path: '/listGoals',
+    operationId: 'listGoals',
+    summary: 'List goals',
+    description:
+      'List active and archived Goal definitions visible within the authorized Site scope.',
+    tags: ['goal'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SGoalListInput)

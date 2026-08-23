@@ -9,7 +9,16 @@ export const SRetentionPolicyUpdateOutput = SRetentionPolicyResult
 export type SRetentionPolicyUpdateOutput = v.InferOutput<typeof SRetentionPolicyUpdateOutput>
 
 export const updateRetentionPolicy = oc
-  .route({ method: 'POST', path: '/updateRetentionPolicy' })
+  .route({
+    method: 'POST',
+    path: '/updateRetentionPolicy',
+    operationId: 'updateRetentionPolicy',
+    summary: 'Update retention policy',
+    description:
+      'Set or clear installation or Site retention values; lifecycle deletion remains asynchronous.',
+    tags: ['retention-policy'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SRetentionPolicyUpdateInput)

@@ -11,7 +11,15 @@ export const SEventTimeseriesOutput = SEventTimeseries
 export type SEventTimeseriesOutput = v.InferOutput<typeof SEventTimeseriesOutput>
 
 export const getEventTimeseries = oc
-  .route({ method: 'GET', path: '/getEventTimeseries' })
+  .route({
+    method: 'GET',
+    path: '/getEventTimeseries',
+    operationId: 'getEventTimeseries',
+    summary: 'Get event timeseries',
+    description: 'Return bounded time buckets containing accepted Event counts.',
+    tags: ['event-report'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SEventTimeseriesInput)

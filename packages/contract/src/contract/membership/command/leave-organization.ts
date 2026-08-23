@@ -9,8 +9,16 @@ export const SMembershipLeaveOutput = v.strictObject({ left: v.literal(true) })
 export type SMembershipLeaveOutput = v.InferOutput<typeof SMembershipLeaveOutput>
 
 export const leaveOrganization = oc
-  .route({ method: 'POST', path: '/leaveOrganization' })
+  .route({
+    method: 'POST',
+    path: '/leaveOrganization',
+    operationId: 'leaveOrganization',
+    summary: 'Leave an organization',
+    description:
+      'Allow the current member to leave an Organization unless ownership protection prevents it.',
+    tags: ['membership'],
+  })
   .meta({ auth: 'authenticated' })
-  .errors({ ...ERead, OWNER_PROTECTED: {} })
+  .errors({ ...ERead, OWNER_PROTECTED: { status: 409 } })
   .input(SMembershipLeaveInput)
   .output(SMembershipLeaveOutput)

@@ -9,7 +9,14 @@ export const SGoalArchiveOutput = v.strictObject({ archived: v.literal(true) })
 export type SGoalArchiveOutput = v.InferOutput<typeof SGoalArchiveOutput>
 
 export const archiveGoal = oc
-  .route({ method: 'POST', path: '/archiveGoal' })
+  .route({
+    method: 'POST',
+    path: '/archiveGoal',
+    operationId: 'archiveGoal',
+    summary: 'Archive a goal',
+    description: 'Archive a Goal definition while preserving its historical meaning.',
+    tags: ['goal'],
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SGoalArchiveInput)

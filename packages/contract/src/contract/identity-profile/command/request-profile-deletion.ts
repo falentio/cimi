@@ -12,7 +12,15 @@ export const SRequestProfileDeletionOutput = v.strictObject({
 export type SRequestProfileDeletionOutput = v.InferOutput<typeof SRequestProfileDeletionOutput>
 
 export const requestProfileDeletion = oc
-  .route({ method: 'POST', path: '/requestProfileDeletion' })
+  .route({
+    method: 'POST',
+    path: '/requestProfileDeletion',
+    operationId: 'requestProfileDeletion',
+    summary: 'Request profile deletion',
+    description: 'Request asynchronous hard deletion of a Site-scoped identity profile.',
+    tags: ['identity-profile'],
+    successStatus: 202,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SRequestProfileDeletionInput)

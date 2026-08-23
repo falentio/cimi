@@ -11,7 +11,15 @@ export const SCohortUpdateOutput = SCohort
 export type SCohortUpdateOutput = v.InferOutput<typeof SCohortUpdateOutput>
 
 export const updateCohort = oc
-  .route({ method: 'POST', path: '/updateCohort' })
+  .route({
+    method: 'POST',
+    path: '/updateCohort',
+    operationId: 'updateCohort',
+    summary: 'Update a cohort',
+    description: 'Update an existing cohort retention definition.',
+    tags: ['cohort-retention'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SCohortUpdateInput)

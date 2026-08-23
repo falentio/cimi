@@ -9,8 +9,16 @@ export const SMembershipRemoveOutput = v.strictObject({ removed: v.literal(true)
 export type SMembershipRemoveOutput = v.InferOutput<typeof SMembershipRemoveOutput>
 
 export const removeMember = oc
-  .route({ method: 'POST', path: '/removeMember' })
+  .route({
+    method: 'POST',
+    path: '/removeMember',
+    operationId: 'removeMember',
+    summary: 'Remove a member',
+    description:
+      'Remove another member from an Organization while protecting the owner membership.',
+    tags: ['membership'],
+  })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, OWNER_PROTECTED: {} })
+  .errors({ ...ECommand, OWNER_PROTECTED: { status: 409 } })
   .input(SMembershipRemoveInput)
   .output(SMembershipRemoveOutput)

@@ -14,7 +14,15 @@ export const SMembershipListOutput = v.strictObject({
 export type SMembershipListOutput = v.InferOutput<typeof SMembershipListOutput>
 
 export const listMembers = oc
-  .route({ method: 'GET', path: '/listMembers' })
+  .route({
+    method: 'GET',
+    path: '/listMembers',
+    operationId: 'listMembers',
+    summary: 'List organization members',
+    description: 'List active memberships for an authorized Organization.',
+    tags: ['membership'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(ERead)
   .input(SMembershipListInput)

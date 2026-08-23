@@ -12,14 +12,22 @@ export const SOrganizationListOutput = v.strictObject({
 export type SOrganizationListOutput = v.InferOutput<typeof SOrganizationListOutput>
 
 export const listOrganizations = oc
-  .route({ method: 'GET', path: '/listOrganizations' })
+  .route({
+    method: 'GET',
+    path: '/listOrganizations',
+    operationId: 'listOrganizations',
+    summary: 'List organizations',
+    description: 'List Organizations with persisted membership for the current user.',
+    tags: ['organization'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: {},
-    FORBIDDEN: {},
-    NOT_FOUND: {},
-    BAD_REQUEST: {},
-    INTERNAL_SERVER_ERROR: {},
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    INTERNAL_SERVER_ERROR: { status: 500 },
   })
   .input(SOrganizationListInput)
   .output(SOrganizationListOutput)

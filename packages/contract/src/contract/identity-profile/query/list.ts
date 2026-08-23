@@ -14,7 +14,15 @@ export const SProfileListOutput = v.strictObject({
 export type SProfileListOutput = v.InferOutput<typeof SProfileListOutput>
 
 export const listProfiles = oc
-  .route({ method: 'GET', path: '/listProfiles' })
+  .route({
+    method: 'GET',
+    path: '/listProfiles',
+    operationId: 'listProfiles',
+    summary: 'List profiles',
+    description: 'Explore explicit Site-scoped identity profiles.',
+    tags: ['identity-profile'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(ERead)
   .input(SProfileListInput)

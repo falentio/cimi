@@ -14,7 +14,15 @@ export const SFunnelListOutput = v.strictObject({
 export type SFunnelListOutput = v.InferOutput<typeof SFunnelListOutput>
 
 export const listFunnels = oc
-  .route({ method: 'GET', path: '/listFunnels' })
+  .route({
+    method: 'GET',
+    path: '/listFunnels',
+    operationId: 'listFunnels',
+    summary: 'List funnels',
+    description: 'List persisted Funnel definitions visible within the authorized Site scope.',
+    tags: ['funnel'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SFunnelListInput)

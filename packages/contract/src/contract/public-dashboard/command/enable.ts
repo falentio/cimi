@@ -9,7 +9,15 @@ export const SPublicDashboardEnableOutput = SPublicDashboardConfig
 export type SPublicDashboardEnableOutput = v.InferOutput<typeof SPublicDashboardEnableOutput>
 
 export const enablePublicDashboard = oc
-  .route({ method: 'POST', path: '/enablePublicDashboard' })
+  .route({
+    method: 'POST',
+    path: '/enablePublicDashboard',
+    operationId: 'enablePublicDashboard',
+    summary: 'Enable public dashboard',
+    description: 'Enable public aggregate access and return the rotated dashboard identifier.',
+    tags: ['public-dashboard'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SPublicDashboardEnableInput)

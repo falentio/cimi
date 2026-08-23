@@ -11,7 +11,15 @@ export type SGoalReportInput = v.InferOutput<typeof SGoalReportInput>
 export type SGoalReportOutput = v.InferOutput<typeof SGoalReportOutput>
 
 export const getGoalReport = oc
-  .route({ method: 'GET', path: '/getGoalReport' })
+  .route({
+    method: 'GET',
+    path: '/getGoalReport',
+    operationId: 'getGoalReport',
+    summary: 'Get a goal report',
+    description: 'Count Goal conversions and calculate the conversion rate for a bounded period.',
+    tags: ['goal'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SGoalReportInput)

@@ -9,7 +9,15 @@ export const SCollectionPolicyGetOutput = PSafePolicy
 export type SCollectionPolicyGetOutput = v.InferOutput<typeof SCollectionPolicyGetOutput>
 
 export const getCollectionPolicy = oc
-  .route({ method: 'GET', path: '/getCollectionPolicy' })
+  .route({
+    method: 'GET',
+    path: '/getCollectionPolicy',
+    operationId: 'getCollectionPolicy',
+    summary: 'Get collection policy',
+    description: 'Return the effective collection policy and any Site-level override.',
+    tags: ['collection-policy'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ERead)
   .input(SCollectionPolicyGetInput)

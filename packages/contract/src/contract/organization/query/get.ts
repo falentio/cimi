@@ -9,7 +9,15 @@ export const SOrganizationGetOutput = SOrganization
 export type SOrganizationGetOutput = v.InferOutput<typeof SOrganizationGetOutput>
 
 export const getOrganization = oc
-  .route({ method: 'GET', path: '/getOrganization' })
+  .route({
+    method: 'GET',
+    path: '/getOrganization',
+    operationId: 'getOrganization',
+    summary: 'Get an organization',
+    description: 'Return one Organization after persisted membership authorization.',
+    tags: ['organization'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(ERead)
   .input(SOrganizationGetInput)

@@ -12,7 +12,16 @@ export const SInvitationCreateOutput = v.strictObject({
 export type SInvitationCreateOutput = v.InferOutput<typeof SInvitationCreateOutput>
 
 export const createInvitation = oc
-  .route({ method: 'POST', path: '/createInvitation' })
+  .route({
+    method: 'POST',
+    path: '/createInvitation',
+    operationId: 'createInvitation',
+    summary: 'Create an invitation',
+    description:
+      'Create a seven-day, single-use Organization invitation and return its bearer token once.',
+    tags: ['invitation'],
+    successStatus: 201,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SInvitationCreateInput)

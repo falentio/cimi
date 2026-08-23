@@ -11,7 +11,15 @@ export const STrafficOverviewOutput = STrafficOverview
 export type STrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput>
 
 export const getTrafficOverview = oc
-  .route({ method: 'GET', path: '/getTrafficOverview' })
+  .route({
+    method: 'GET',
+    path: '/getTrafficOverview',
+    operationId: 'getTrafficOverview',
+    summary: 'Get traffic overview',
+    description: 'Provide aggregate traffic and Session metrics for an authorized Site.',
+    tags: ['traffic-report'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(STrafficOverviewInput)

@@ -9,7 +9,15 @@ export const SEventListOutput = SEventPageResult
 export type SEventListOutput = v.InferOutput<typeof SEventListOutput>
 
 export const listEvents = oc
-  .route({ method: 'GET', path: '/listEvents' })
+  .route({
+    method: 'GET',
+    path: '/listEvents',
+    operationId: 'listEvents',
+    summary: 'List events',
+    description: 'Explore accepted Events for debugging and analysis with cursor pagination.',
+    tags: ['event-report'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SEventListInput)

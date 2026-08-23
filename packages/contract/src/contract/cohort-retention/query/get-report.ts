@@ -11,7 +11,15 @@ export type SCohortReportInput = v.InferOutput<typeof SCohortReportInput>
 export type SCohortReportOutput = v.InferOutput<typeof SCohortReportOutput>
 
 export const getRetentionReport = oc
-  .route({ method: 'GET', path: '/getRetentionReport' })
+  .route({
+    method: 'GET',
+    path: '/getRetentionReport',
+    operationId: 'getRetentionReport',
+    summary: 'Get a retention report',
+    description: 'Return cohort size and retained counts and rates by bounded UTC period.',
+    tags: ['cohort-retention'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SCohortReportInput)

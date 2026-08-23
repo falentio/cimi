@@ -11,7 +11,15 @@ export const STrafficBreakdownsOutput = STrafficBreakdown
 export type STrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOutput>
 
 export const getTrafficBreakdowns = oc
-  .route({ method: 'GET', path: '/getTrafficBreakdowns' })
+  .route({
+    method: 'GET',
+    path: '/getTrafficBreakdowns',
+    operationId: 'getTrafficBreakdowns',
+    summary: 'Get traffic breakdowns',
+    description: 'Return bounded traffic dimension breakdowns for an authorized Site.',
+    tags: ['traffic-report'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(STrafficBreakdownsInput)

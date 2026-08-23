@@ -11,7 +11,15 @@ export const SEventOverviewOutput = SEventOverview
 export type SEventOverviewOutput = v.InferOutput<typeof SEventOverviewOutput>
 
 export const getEventOverview = oc
-  .route({ method: 'GET', path: '/getEventOverview' })
+  .route({
+    method: 'GET',
+    path: '/getEventOverview',
+    operationId: 'getEventOverview',
+    summary: 'Get event overview',
+    description: 'Report event counts and unique Session and Visitor context by Event Kind.',
+    tags: ['event-report'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SEventOverviewInput)

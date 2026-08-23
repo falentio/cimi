@@ -11,7 +11,15 @@ export const SGoalUpdateOutput = SGoal
 export type SGoalUpdateOutput = v.InferOutput<typeof SGoalUpdateOutput>
 
 export const updateGoal = oc
-  .route({ method: 'POST', path: '/updateGoal' })
+  .route({
+    method: 'POST',
+    path: '/updateGoal',
+    operationId: 'updateGoal',
+    summary: 'Update a goal',
+    description: 'Update mutable fields of an existing Goal definition.',
+    tags: ['goal'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SGoalUpdateInput)

@@ -9,7 +9,14 @@ export const SPublicDashboardDisableOutput = v.strictObject({ disabled: v.litera
 export type SPublicDashboardDisableOutput = v.InferOutput<typeof SPublicDashboardDisableOutput>
 
 export const disablePublicDashboard = oc
-  .route({ method: 'POST', path: '/disablePublicDashboard' })
+  .route({
+    method: 'POST',
+    path: '/disablePublicDashboard',
+    operationId: 'disablePublicDashboard',
+    summary: 'Disable public dashboard',
+    description: 'Disable public aggregate access and invalidate the current dashboard identifier.',
+    tags: ['public-dashboard'],
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SPublicDashboardDisableInput)

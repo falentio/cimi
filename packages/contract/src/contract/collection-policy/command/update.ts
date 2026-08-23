@@ -9,7 +9,15 @@ export const SCollectionPolicyUpdateOutput = PSafePolicy
 export type SCollectionPolicyUpdateOutput = v.InferOutput<typeof SCollectionPolicyUpdateOutput>
 
 export const updateCollectionPolicy = oc
-  .route({ method: 'POST', path: '/updateCollectionPolicy' })
+  .route({
+    method: 'POST',
+    path: '/updateCollectionPolicy',
+    operationId: 'updateCollectionPolicy',
+    summary: 'Update collection policy',
+    description: 'Update Site collection and privacy settings.',
+    tags: ['collection-policy'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SCollectionPolicyUpdateInput)

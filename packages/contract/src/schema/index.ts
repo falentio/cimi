@@ -39,27 +39,27 @@ export const SCreated = v.strictObject({
 })
 
 export const ERead = {
-  UNAUTHORIZED: {},
-  FORBIDDEN: {},
-  NOT_FOUND: {},
-  BAD_REQUEST: {},
-  INTERNAL_SERVER_ERROR: {},
+  UNAUTHORIZED: { status: 401 },
+  FORBIDDEN: { status: 403 },
+  NOT_FOUND: { status: 404 },
+  BAD_REQUEST: { status: 400 },
+  INTERNAL_SERVER_ERROR: { status: 500 },
 } as const
 
 export const EQuery = {
   ...ERead,
-  QUERY_LIMIT_EXCEEDED: {},
+  QUERY_LIMIT_EXCEEDED: { status: 422 },
 } as const
 
 export const ECommand = {
   ...ERead,
-  CONFLICT: {},
+  CONFLICT: { status: 409 },
 } as const
 
 export const EIngestion = {
-  BAD_REQUEST: {},
-  NOT_FOUND: {},
-  PAYLOAD_TOO_LARGE: {},
-  TOO_MANY_REQUESTS: {},
-  INTERNAL_SERVER_ERROR: {},
+  BAD_REQUEST: { status: 400 },
+  NOT_FOUND: { status: 404 },
+  PAYLOAD_TOO_LARGE: { status: 413 },
+  TOO_MANY_REQUESTS: { status: 429 },
+  INTERNAL_SERVER_ERROR: { status: 500 },
 } as const

@@ -14,7 +14,15 @@ export const SCohortListOutput = v.strictObject({
 export type SCohortListOutput = v.InferOutput<typeof SCohortListOutput>
 
 export const listCohorts = oc
-  .route({ method: 'GET', path: '/listCohorts' })
+  .route({
+    method: 'GET',
+    path: '/listCohorts',
+    operationId: 'listCohorts',
+    summary: 'List cohorts',
+    description: 'List saved cohort definitions visible within the authorized Site scope.',
+    tags: ['cohort-retention'],
+    successStatus: 200,
+  })
   .meta({ auth: 'authenticated' })
   .errors(EQuery)
   .input(SCohortListInput)

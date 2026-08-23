@@ -12,7 +12,15 @@ export const SBackupListOutput = v.strictObject({
 export type SBackupListOutput = v.InferOutput<typeof SBackupListOutput>
 
 export const listBackups = oc
-  .route({ method: 'GET', path: '/listBackups' })
+  .route({
+    method: 'GET',
+    path: '/listBackups',
+    operationId: 'listBackups',
+    summary: 'List backups',
+    description: 'List configured backup manifests and their current statuses.',
+    tags: ['backup-restore'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ERead)
   .input(SBackupListInput)

@@ -9,7 +9,16 @@ export const SCollectEventOutput = SAcceptedEvent
 export type SCollectEventOutput = v.InferOutput<typeof SCollectEventOutput>
 
 export const collectEvent = oc
-  .route({ method: 'POST', path: '/collectEvent' })
+  .route({
+    method: 'POST',
+    path: '/collectEvent',
+    operationId: 'collectEvent',
+    summary: 'Collect an event',
+    description:
+      'Accept one telemetry Event for processing using the event identifier for deduplication.',
+    tags: ['event-ingestion'],
+    successStatus: 202,
+  })
   .meta({ auth: 'public' })
   .errors(EIngestion)
   .input(SCollectEventInput)

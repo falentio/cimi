@@ -9,7 +9,14 @@ export const SFunnelArchiveOutput = v.strictObject({ archived: v.literal(true) }
 export type SFunnelArchiveOutput = v.InferOutput<typeof SFunnelArchiveOutput>
 
 export const archiveFunnel = oc
-  .route({ method: 'POST', path: '/archiveFunnel' })
+  .route({
+    method: 'POST',
+    path: '/archiveFunnel',
+    operationId: 'archiveFunnel',
+    summary: 'Archive a funnel',
+    description: 'Archive a Funnel definition without deleting historical reports.',
+    tags: ['funnel'],
+  })
   .meta({ auth: 'admin' })
   .errors(ECommand)
   .input(SFunnelArchiveInput)

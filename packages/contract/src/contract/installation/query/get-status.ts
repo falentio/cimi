@@ -9,7 +9,15 @@ export const SInstallationStatusOutput = SInstallation
 export type SInstallationStatusOutput = v.InferOutput<typeof SInstallationStatusOutput>
 
 export const getInstallationStatus = oc
-  .route({ method: 'GET', path: '/getInstallationStatus' })
+  .route({
+    method: 'GET',
+    path: '/getInstallationStatus',
+    operationId: 'getInstallationStatus',
+    summary: 'Get installation status',
+    description: 'Return installation readiness and maintenance state.',
+    tags: ['installation'],
+    successStatus: 200,
+  })
   .meta({ auth: 'admin' })
   .errors(ERead)
   .input(SInstallationStatusInput)
