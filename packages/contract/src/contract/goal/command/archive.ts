@@ -5,7 +5,7 @@ import { SGoalIdentityFields } from '../schema.ts'
 
 export const SGoalArchiveInput = SGoalIdentityFields
 export type SGoalArchiveInput = v.InferOutput<typeof SGoalArchiveInput>
-export const SGoalArchiveOutput = v.strictObject({ archived: v.literal(true) })
+export const SGoalArchiveOutput = v.void()
 export type SGoalArchiveOutput = v.InferOutput<typeof SGoalArchiveOutput>
 
 export const archiveGoal = oc
@@ -16,6 +16,7 @@ export const archiveGoal = oc
     summary: 'Archive a goal',
     description: 'Archive a Goal definition while preserving its historical meaning.',
     tags: ['goal'],
+    successStatus: 204,
   })
   .meta({ auth: 'admin' })
   .errors(ECommand)

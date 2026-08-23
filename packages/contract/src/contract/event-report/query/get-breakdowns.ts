@@ -1,10 +1,24 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SQueryInput } from '../../../schema/index.ts'
-import { SEventBreakdowns, SEventSiteFields } from '../schema.ts'
+import {
+  EQuery,
+  SOffsetPaginationInput,
+  isValidGranularReportRange,
+} from '../../../schema/index.ts'
+import { SEventBreakdowns, SEventGranularReportFieldsSchema, SEventSiteFields } from '../schema.ts'
 
-export const SEventBreakdownsInput = v.strictObject(
-  v.entriesFromObjects([SEventSiteFields, SQueryInput]),
+export const SEventBreakdownsInput = v.pipe(
+  v.strictObject(
+    v.entriesFromObjects([
+      SEventSiteFields,
+      SEventGranularReportFieldsSchema,
+      SOffsetPaginationInput,
+    ]),
+  ),
+  v.check(
+    (input) => isValidGranularReportRange(input),
+    'Report range is invalid for its granularity.',
+  ),
 )
 export type SEventBreakdownsInput = v.InferOutput<typeof SEventBreakdownsInput>
 export const SEventBreakdownsOutput = SEventBreakdowns

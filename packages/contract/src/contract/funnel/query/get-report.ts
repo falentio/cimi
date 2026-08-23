@@ -1,10 +1,11 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SId, SQueryInput } from '../../../schema/index.ts'
+import { EQuery, SId, SReportFieldsSchema, isValidReportRange } from '../../../schema/index.ts'
 import { SFunnelReport } from '../schema.ts'
 
-export const SFunnelReportInput = v.strictObject(
-  v.entriesFromObjects([v.strictObject({ funnelId: SId }), SQueryInput]),
+export const SFunnelReportInput = v.pipe(
+  v.strictObject(v.entriesFromObjects([v.strictObject({ funnelId: SId }), SReportFieldsSchema])),
+  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
 )
 export const SFunnelReportOutput = SFunnelReport
 export type SFunnelReportInput = v.InferOutput<typeof SFunnelReportInput>

@@ -5,7 +5,10 @@ import { SSiteIdFields } from '../schema.ts'
 
 export const SSiteDeleteInput = SSiteIdFields
 export type SSiteDeleteInput = v.InferOutput<typeof SSiteDeleteInput>
-export const SSiteDeleteOutput = v.strictObject({ accepted: v.literal(true) })
+export const SSiteDeleteOutput = v.strictObject({
+  accepted: v.literal(true),
+  status: v.literal('deleting'),
+})
 export type SSiteDeleteOutput = v.InferOutput<typeof SSiteDeleteOutput>
 
 export const deleteSite = oc
@@ -19,7 +22,7 @@ export const deleteSite = oc
     tags: ['site'],
     successStatus: 202,
   })
-  .meta({ auth: 'admin' })
+  .meta({ auth: 'owner' })
   .errors({ ...ECommand, CONFLICT: { status: 409 } })
   .input(SSiteDeleteInput)
   .output(SSiteDeleteOutput)

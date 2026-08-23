@@ -1,10 +1,11 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SQueryInput } from '../../../schema/index.ts'
-import { SEventOverview, SEventSiteFields } from '../schema.ts'
+import { EQuery, isValidReportRange } from '../../../schema/index.ts'
+import { SEventOverview, SEventReportFieldsSchema, SEventSiteFields } from '../schema.ts'
 
-export const SEventOverviewInput = v.strictObject(
-  v.entriesFromObjects([SEventSiteFields, SQueryInput]),
+export const SEventOverviewInput = v.pipe(
+  v.strictObject(v.entriesFromObjects([SEventSiteFields, SEventReportFieldsSchema])),
+  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
 )
 export type SEventOverviewInput = v.InferOutput<typeof SEventOverviewInput>
 export const SEventOverviewOutput = SEventOverview

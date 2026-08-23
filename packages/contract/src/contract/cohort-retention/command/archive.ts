@@ -5,7 +5,7 @@ import { SCohortIdentityFields } from '../schema.ts'
 
 export const SCohortArchiveInput = SCohortIdentityFields
 export type SCohortArchiveInput = v.InferOutput<typeof SCohortArchiveInput>
-export const SCohortArchiveOutput = v.strictObject({ archived: v.literal(true) })
+export const SCohortArchiveOutput = v.void()
 export type SCohortArchiveOutput = v.InferOutput<typeof SCohortArchiveOutput>
 
 export const archiveCohort = oc
@@ -16,6 +16,7 @@ export const archiveCohort = oc
     summary: 'Archive a cohort',
     description: 'Archive a cohort definition without deleting its historical retention reports.',
     tags: ['cohort-retention'],
+    successStatus: 204,
   })
   .meta({ auth: 'admin' })
   .errors(ECommand)

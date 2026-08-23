@@ -1,10 +1,11 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SId, SQueryInput } from '../../../schema/index.ts'
+import { EQuery, SId, SReportFieldsSchema, isValidReportRange } from '../../../schema/index.ts'
 import { SGoalReport } from '../schema.ts'
 
-export const SGoalReportInput = v.strictObject(
-  v.entriesFromObjects([v.strictObject({ goalId: SId }), SQueryInput]),
+export const SGoalReportInput = v.pipe(
+  v.strictObject(v.entriesFromObjects([v.strictObject({ goalId: SId }), SReportFieldsSchema])),
+  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
 )
 export const SGoalReportOutput = SGoalReport
 export type SGoalReportInput = v.InferOutput<typeof SGoalReportInput>

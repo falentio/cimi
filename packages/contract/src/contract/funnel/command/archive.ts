@@ -5,7 +5,7 @@ import { SFunnelIdentityFields } from '../schema.ts'
 
 export const SFunnelArchiveInput = SFunnelIdentityFields
 export type SFunnelArchiveInput = v.InferOutput<typeof SFunnelArchiveInput>
-export const SFunnelArchiveOutput = v.strictObject({ archived: v.literal(true) })
+export const SFunnelArchiveOutput = v.void()
 export type SFunnelArchiveOutput = v.InferOutput<typeof SFunnelArchiveOutput>
 
 export const archiveFunnel = oc
@@ -16,6 +16,7 @@ export const archiveFunnel = oc
     summary: 'Archive a funnel',
     description: 'Archive a Funnel definition without deleting historical reports.',
     tags: ['funnel'],
+    successStatus: 204,
   })
   .meta({ auth: 'admin' })
   .errors(ECommand)

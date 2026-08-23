@@ -1,16 +1,15 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead, SCursor, SPaginationInput } from '../../../schema/index.ts'
-import { SInvitation, SInvitationOrganizationFields } from '../schema.ts'
+import { ERead, SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
+import { SInvitation, SInvitationOrganizationScopeFields } from '../schema.ts'
 
 export const SInvitationListInput = v.strictObject(
-  v.entriesFromObjects([SInvitationOrganizationFields, SPaginationInput]),
+  v.entriesFromObjects([SInvitationOrganizationScopeFields, SOffsetPaginationInput]),
 )
 export type SInvitationListInput = v.InferOutput<typeof SInvitationListInput>
-export const SInvitationListOutput = v.strictObject({
-  items: v.array(SInvitation),
-  nextCursor: v.nullable(SCursor),
-})
+export const SInvitationListOutput = v.strictObject(
+  v.entriesFromObjects([v.strictObject({ items: SPageItems(SInvitation) }), SOffsetPage]),
+)
 export type SInvitationListOutput = v.InferOutput<typeof SInvitationListOutput>
 
 export const listInvitations = oc

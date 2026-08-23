@@ -5,7 +5,7 @@ import { SMembershipTargetFields } from '../schema.ts'
 
 export const SMembershipRemoveInput = SMembershipTargetFields
 export type SMembershipRemoveInput = v.InferOutput<typeof SMembershipRemoveInput>
-export const SMembershipRemoveOutput = v.strictObject({ removed: v.literal(true) })
+export const SMembershipRemoveOutput = v.void()
 export type SMembershipRemoveOutput = v.InferOutput<typeof SMembershipRemoveOutput>
 
 export const removeMember = oc
@@ -17,6 +17,7 @@ export const removeMember = oc
     description:
       'Remove another member from an Organization while protecting the owner membership.',
     tags: ['membership'],
+    successStatus: 204,
   })
   .meta({ auth: 'admin' })
   .errors({ ...ECommand, OWNER_PROTECTED: { status: 409 } })

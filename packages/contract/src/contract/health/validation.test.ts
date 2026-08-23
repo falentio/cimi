@@ -11,22 +11,31 @@ describe('system health contract', () => {
   it('accepts a valid health output', () => {
     expect(
       v.parse(SSystemHealthOutput, {
-        status: 'ok',
-        controlDatabase: true,
-        analyticsDatabase: false,
+        status: 'degraded',
+        controlStore: 'ready',
+        analyticsStore: 'unavailable',
+        cleanupPending: false,
+        version: '0.0.1',
+        checkedAt: '2026-08-23T00:00:00Z',
       }),
     ).toEqual({
-      status: 'ok',
-      controlDatabase: true,
-      analyticsDatabase: false,
+      status: 'degraded',
+      controlStore: 'ready',
+      analyticsStore: 'unavailable',
+      cleanupPending: false,
+      version: '0.0.1',
+      checkedAt: '2026-08-23T00:00:00Z',
     })
   })
 
   it('rejects a missing field', () => {
     expect(() =>
       v.parse(SSystemHealthOutput, {
-        status: 'ok',
-        controlDatabase: true,
+        status: 'healthy',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+        version: '0.0.1',
       }),
     ).toThrow(v.ValiError)
   })
@@ -35,8 +44,24 @@ describe('system health contract', () => {
     expect(() =>
       v.parse(SSystemHealthOutput, {
         status: 'nope',
-        controlDatabase: true,
-        analyticsDatabase: false,
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+        version: '0.0.1',
+        checkedAt: '2026-08-23T00:00:00Z',
+      }),
+    ).toThrow(v.ValiError)
+  })
+
+  it('rejects healthy output when analytics is unavailable', () => {
+    expect(() =>
+      v.parse(SSystemHealthOutput, {
+        status: 'healthy',
+        controlStore: 'ready',
+        analyticsStore: 'unavailable',
+        cleanupPending: false,
+        version: '0.0.1',
+        checkedAt: '2026-08-23T00:00:00Z',
       }),
     ).toThrow(v.ValiError)
   })

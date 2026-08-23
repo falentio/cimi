@@ -5,7 +5,7 @@ import { SOrganizationIdentityFields } from '../schema.ts'
 
 export const SOrganizationDeleteInput = SOrganizationIdentityFields
 export type SOrganizationDeleteInput = v.InferOutput<typeof SOrganizationDeleteInput>
-export const SOrganizationDeleteOutput = v.strictObject({ deleted: v.literal(true) })
+export const SOrganizationDeleteOutput = v.void()
 export type SOrganizationDeleteOutput = v.InferOutput<typeof SOrganizationDeleteOutput>
 
 export const deleteOrganization = oc
@@ -17,8 +17,9 @@ export const deleteOrganization = oc
     description:
       'Delete an empty, non-personal Organization after the owner-only lifecycle checks pass.',
     tags: ['organization'],
+    successStatus: 204,
   })
-  .meta({ auth: 'admin' })
+  .meta({ auth: 'owner' })
   .errors({
     ...ECommand,
     ORGANIZATION_NOT_EMPTY: { status: 409 },

@@ -1,10 +1,14 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SQueryInput } from '../../../schema/index.ts'
-import { SEventSiteFields, SEventTimeseries } from '../schema.ts'
+import { EQuery, isValidGranularReportRange } from '../../../schema/index.ts'
+import { SEventGranularReportFieldsSchema, SEventSiteFields, SEventTimeseries } from '../schema.ts'
 
-export const SEventTimeseriesInput = v.strictObject(
-  v.entriesFromObjects([SEventSiteFields, SQueryInput]),
+export const SEventTimeseriesInput = v.pipe(
+  v.strictObject(v.entriesFromObjects([SEventSiteFields, SEventGranularReportFieldsSchema])),
+  v.check(
+    (input) => isValidGranularReportRange(input),
+    'Report range is invalid for its granularity.',
+  ),
 )
 export type SEventTimeseriesInput = v.InferOutput<typeof SEventTimeseriesInput>
 export const SEventTimeseriesOutput = SEventTimeseries

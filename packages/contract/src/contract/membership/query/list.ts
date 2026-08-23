@@ -1,16 +1,15 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead, SCursor, SPaginationInput } from '../../../schema/index.ts'
+import { ERead, SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
 import { SMembership, SMembershipOrganizationFields } from '../schema.ts'
 
 export const SMembershipListInput = v.strictObject(
-  v.entriesFromObjects([SMembershipOrganizationFields, SPaginationInput]),
+  v.entriesFromObjects([SMembershipOrganizationFields, SOffsetPaginationInput]),
 )
 export type SMembershipListInput = v.InferOutput<typeof SMembershipListInput>
-export const SMembershipListOutput = v.strictObject({
-  items: v.array(SMembership),
-  nextCursor: v.nullable(SCursor),
-})
+export const SMembershipListOutput = v.strictObject(
+  v.entriesFromObjects([v.strictObject({ items: SPageItems(SMembership) }), SOffsetPage]),
+)
 export type SMembershipListOutput = v.InferOutput<typeof SMembershipListOutput>
 
 export const listMembers = oc

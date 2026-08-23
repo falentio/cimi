@@ -1,26 +1,102 @@
 import * as v from 'valibot'
-import { SDateTime, SId, SName, SScalarMap } from '../../schema/index.ts'
+import { SDateTime, SId, SName, SScalarKey } from '../../schema/index.ts'
 
-export const SEventKind = v.picklist([
-  'page_view',
-  'custom_event',
-  'outbound',
-  'performance',
-  'error',
+const SEventProperty = v.union([
+  v.pipe(v.string(), v.maxLength(512)),
+  v.pipe(v.number(), v.finite()),
+  v.boolean(),
+  v.null(),
 ])
-export const SEvent = v.strictObject({
+const SEventProperties = v.pipe(
+  v.record(SScalarKey, SEventProperty),
+  v.check((value) => Object.keys(value).length <= 64, 'Expected at most 64 properties.'),
+  v.check(
+    (value) =>
+      !Object.keys(value).some((key) =>
+        [
+          'eventId',
+          'ingestionIdentifier',
+          'kind',
+          'occurrenceTime',
+          'pagePath',
+          'referrer',
+          'identifiedUserId',
+          'properties',
+          'receiptTime',
+          'name',
+          'destination',
+          'value',
+          'unit',
+          'code',
+          'message',
+        ].includes(key),
+      ),
+    'Event properties must not use reserved envelope names.',
+  ),
+)
+const SEventCommonFields = {
   eventId: SId,
   ingestionIdentifier: SId,
-  kind: SEventKind,
-  name: v.optional(SName),
   occurrenceTime: v.optional(SDateTime),
   pagePath: v.optional(v.pipe(v.string(), v.maxLength(2048))),
   referrer: v.optional(v.pipe(v.string(), v.maxLength(2048))),
   identifiedUserId: v.optional(SId),
-  properties: v.optional(SScalarMap),
-})
+  properties: v.optional(SEventProperties),
+}
+
+export const SEvent = v.variant('kind', [
+  v.strictObject({
+    ...SEventCommonFields,
+    kind: v.literal('page_view'),
+    pagePath: v.pipe(v.string(), v.maxLength(2048)),
+  }),
+  v.strictObject({
+    ...SEventCommonFields,
+    kind: v.literal('custom_event'),
+    name: SName,
+  }),
+  v.strictObject({
+    ...SEventCommonFields,
+    kind: v.literal('outbound'),
+    name: v.optional(SName),
+    destination: v.pipe(v.string(), v.maxLength(2048)),
+  }),
+  v.strictObject({
+    ...SEventCommonFields,
+    kind: v.literal('performance'),
+    name: SName,
+    value: v.pipe(v.number(), v.finite()),
+    unit: v.optional(v.pipe(v.string(), v.maxLength(64))),
+  }),
+  v.strictObject({
+    ...SEventCommonFields,
+    kind: v.literal('error'),
+    name: SName,
+    code: v.optional(v.pipe(v.string(), v.maxLength(128))),
+    message: v.optional(v.pipe(v.string(), v.maxLength(512))),
+  }),
+])
+
 export const SAcceptedEvent = v.strictObject({
   eventId: SId,
   status: v.picklist(['accepted', 'duplicate']),
   receiptTime: SDateTime,
+})
+
+export const SBatchEventResult = v.variant('status', [
+  v.strictObject({
+    status: v.literal('accepted'),
+    eventId: SId,
+    receiptTime: SDateTime,
+  }),
+  v.strictObject({ status: v.literal('duplicate'), eventId: SId, receiptTime: SDateTime }),
+  v.strictObject({ status: v.literal('rejected'), eventId: SId, reason: v.string() }),
+  v.strictObject({
+    status: v.literal('itemError'),
+    eventId: v.nullable(SId),
+    code: v.pipe(v.string(), v.maxLength(64)),
+  }),
+])
+export const SBatchEventResponse = v.strictObject({
+  results: v.pipe(v.array(SBatchEventResult), v.maxLength(100)),
 })

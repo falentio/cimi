@@ -1,14 +1,14 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { SDateTime } from '../../../schema/index.ts'
+import { SDate } from '../../../schema/index.ts'
 import { SPublicDashboardBucket, SPublicDashboardQueryFields } from '../schema.ts'
 
 export const SPublicDashboardQueryInput = SPublicDashboardQueryFields
 export type SPublicDashboardQueryInput = v.InferOutput<typeof SPublicDashboardQueryInput>
 export const SPublicDashboardQueryOutput = v.strictObject({
-  from: SDateTime,
-  to: SDateTime,
-  buckets: v.array(SPublicDashboardBucket),
+  fromDate: SDate,
+  toDate: SDate,
+  buckets: v.pipe(v.array(SPublicDashboardBucket), v.maxLength(2160)),
 })
 export type SPublicDashboardQueryOutput = v.InferOutput<typeof SPublicDashboardQueryOutput>
 

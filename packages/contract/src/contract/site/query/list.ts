@@ -1,16 +1,15 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead, SCursor, SPaginationInput } from '../../../schema/index.ts'
-import { SSite, SSiteOrganizationFields } from '../schema.ts'
+import { ERead, SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
+import { SSite, SSiteOrganizationScopeFields } from '../schema.ts'
 
 export const SSiteListInput = v.strictObject(
-  v.entriesFromObjects([SSiteOrganizationFields, SPaginationInput]),
+  v.entriesFromObjects([SSiteOrganizationScopeFields, SOffsetPaginationInput]),
 )
 export type SSiteListInput = v.InferOutput<typeof SSiteListInput>
-export const SSiteListOutput = v.strictObject({
-  items: v.array(SSite),
-  nextCursor: v.nullable(SCursor),
-})
+export const SSiteListOutput = v.strictObject(
+  v.entriesFromObjects([v.strictObject({ items: SPageItems(SSite) }), SOffsetPage]),
+)
 export type SSiteListOutput = v.InferOutput<typeof SSiteListOutput>
 
 export const listSites = oc
@@ -20,7 +19,7 @@ export const listSites = oc
     operationId: 'listSites',
     summary: 'List sites',
     description:
-      'List Sites visible through persisted Organization membership using opaque cursors.',
+      'List Sites visible through persisted Organization membership using live offset pages.',
     tags: ['site'],
     successStatus: 200,
   })

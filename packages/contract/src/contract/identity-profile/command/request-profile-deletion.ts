@@ -7,7 +7,7 @@ export const SRequestProfileDeletionInput = SProfileIdentityFields
 export type SRequestProfileDeletionInput = v.InferOutput<typeof SRequestProfileDeletionInput>
 export const SRequestProfileDeletionOutput = v.strictObject({
   accepted: v.literal(true),
-  status: v.literal('deletion_requested'),
+  status: v.literal('deletion-requested'),
 })
 export type SRequestProfileDeletionOutput = v.InferOutput<typeof SRequestProfileDeletionOutput>
 

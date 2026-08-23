@@ -2,13 +2,9 @@ export * from './schema/index.ts'
 export * from './contract/backup-restore/schema.ts'
 export * from './contract/cohort-retention/schema.ts'
 export * from './contract/collection-policy/schema.ts'
+export { SEventKind as SEventIngestionKind } from './schema/index.ts'
+export { SEvent as SIngestionEvent, SAcceptedEvent } from './contract/event-ingestion/schema.ts'
 export {
-  SEventKind as SEventIngestionKind,
-  SEvent as SIngestionEvent,
-  SAcceptedEvent,
-} from './contract/event-ingestion/schema.ts'
-export {
-  SEventKind as SEventReportKind,
   SEventSiteFields,
   SEventOverview,
   SEventTimeseries,
@@ -16,6 +12,7 @@ export {
   SEventPageResult,
   SEventBreakdowns,
 } from './contract/event-report/schema.ts'
+export { SEventKind as SEventReportKind } from './schema/index.ts'
 export * from './contract/funnel/schema.ts'
 export * from './contract/goal/schema.ts'
 export * from './contract/health/schema.ts'

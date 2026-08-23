@@ -2,23 +2,251 @@ import * as v from 'valibot'
 
 export const SId = v.pipe(v.string(), v.minLength(1), v.maxLength(128))
 export const SName = v.pipe(v.string(), v.minLength(1), v.maxLength(256))
-export const SDateTime = v.pipe(v.string(), v.isoDateTimeSecond())
+export const isWithinSerializedByteLimit = (value: unknown, maxBytes: number) => {
+  const serialized = JSON.stringify(value)
+  return serialized !== undefined && new TextEncoder().encode(serialized).byteLength <= maxBytes
+}
+export const SIanaTimezone = v.pipe(
+  v.string(),
+  v.minLength(1),
+  v.maxLength(64),
+  v.check((value) => {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
+      return true
+    } catch {
+      return false
+    }
+  }, 'Expected a valid IANA timezone.'),
+)
+const isValidCalendarDate = (year: number, month: number, day: number) => {
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  )
+}
+export const SDateTime = v.pipe(
+  v.string(),
+  v.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})?$/),
+  v.check((value) => {
+    const match = value.match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{3})?(?:Z|[+-](\d{2}):(\d{2}))?$/,
+    )
+    if (!match) return false
+    const [
+      ,
+      yearString,
+      monthString,
+      dayString,
+      hourString,
+      minuteString,
+      secondString,
+      offsetHourString,
+      offsetMinuteString,
+    ] = match
+    const year = Number(yearString)
+    const month = Number(monthString)
+    const day = Number(dayString)
+    const hour = Number(hourString)
+    const minute = Number(minuteString)
+    const second = Number(secondString)
+    const offsetHour = offsetHourString === undefined ? undefined : Number(offsetHourString)
+    const offsetMinute = offsetMinuteString === undefined ? undefined : Number(offsetMinuteString)
+    return (
+      isValidCalendarDate(year, month, day) &&
+      hour <= 23 &&
+      minute <= 59 &&
+      second <= 59 &&
+      (offsetHour === undefined || offsetHour <= 23) &&
+      (offsetMinute === undefined || offsetMinute <= 59)
+    )
+  }, 'Expected a valid ISO date-time.'),
+)
+export const SDate = v.pipe(
+  v.string(),
+  v.regex(/^\d{4}-\d{2}-\d{2}$/),
+  v.check((value) => {
+    const [yearString, monthString, dayString] = value.split('-')
+    const year = Number(yearString)
+    const month = Number(monthString)
+    const day = Number(dayString)
+    return isValidCalendarDate(year, month, day)
+  }, 'Expected a valid calendar date.'),
+)
 export const SCursor = v.pipe(v.string(), v.minLength(1), v.maxLength(4096))
 export const SPageSize = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))
+export const SOffset = v.pipe(v.number(), v.integer(), v.minValue(0))
 export const SPaginationInput = v.strictObject({
   cursor: v.optional(SCursor),
   limit: v.optional(SPageSize),
 })
-export const SScalar = v.union([v.string(), v.number(), v.boolean(), v.null()])
+export const SOffsetPaginationInput = v.strictObject({
+  offset: v.optional(SOffset),
+  limit: v.optional(SPageSize),
+})
+export const SOffsetPage = v.strictObject({
+  nextOffset: v.nullable(SOffset),
+  hasMore: v.boolean(),
+  totalCount: v.pipe(v.number(), v.finite(), v.integer(), v.minValue(0)),
+})
+export const SNonNegativeInteger = v.pipe(v.number(), v.finite(), v.integer(), v.minValue(0))
+export const SFiniteNumber = v.pipe(v.number(), v.finite())
+export const SNonNegativeNumber = v.pipe(SFiniteNumber, v.minValue(0))
+export const SRate = v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(1))
+export const SPageItems = <T extends v.GenericSchema>(schema: T) =>
+  v.pipe(v.array(schema), v.maxLength(100))
+export const SScalar = v.union([
+  v.pipe(v.string(), v.maxLength(512)),
+  v.pipe(v.number(), v.finite()),
+  v.boolean(),
+  v.null(),
+])
 export const SScalarKey = v.pipe(v.string(), v.minLength(1), v.maxLength(64))
 export const SScalarMap = v.record(SScalarKey, SScalar)
 
 export const SSortDirection = v.picklist(['asc', 'desc'])
+export const SIdentityKind = v.picklist(['visitor', 'identified_user'])
+export const SGranularity = v.picklist(['minute', 'hour', 'day', 'week', 'month', 'year'])
+export const SWeekStart = v.picklist([
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+])
+export const SEventKind = v.picklist([
+  'page_view',
+  'custom_event',
+  'outbound',
+  'performance',
+  'error',
+])
 
 export const SQueryFilter = v.strictObject({
   field: v.pipe(v.string(), v.minLength(1), v.maxLength(64)),
   operator: v.picklist(['equals', 'not_equals', 'contains', 'greater_than', 'less_than']),
   values: v.pipe(v.array(SScalar), v.minLength(1), v.maxLength(20)),
+})
+export const SPropertyFilter = v.strictObject({
+  field: SScalarKey,
+  operator: v.picklist(['equals', 'not_equals', 'contains', 'greater_than', 'less_than']),
+  values: v.pipe(v.array(SScalar), v.minLength(1), v.maxLength(20)),
+})
+
+const SReportFilterCommonFields = {
+  operator: v.picklist(['equals', 'not_equals', 'contains', 'greater_than', 'less_than']),
+  values: v.pipe(v.array(SScalar), v.minLength(1), v.maxLength(20)),
+}
+export const SScopedQueryFilter = v.variant('scope', [
+  v.strictObject({
+    scope: v.literal('event'),
+    field: v.picklist(['kind', 'name', 'pagePath', 'referrer', 'destination', 'unit', 'code']),
+    ...SReportFilterCommonFields,
+  }),
+  v.strictObject({
+    scope: v.literal('session'),
+    field: v.picklist([
+      'device',
+      'browser',
+      'os',
+      'country',
+      'region',
+      'city',
+      'entryPage',
+      'exitPage',
+      'utmSource',
+      'utmMedium',
+      'utmCampaign',
+    ]),
+    ...SReportFilterCommonFields,
+  }),
+  v.strictObject({
+    scope: v.literal('visitor'),
+    field: v.picklist(['identityKind']),
+    ...SReportFilterCommonFields,
+  }),
+  v.strictObject({
+    scope: v.literal('profile'),
+    field: v.pipe(v.string(), v.regex(/^trait\.[A-Za-z0-9_.-]{1,63}$/)),
+    ...SReportFilterCommonFields,
+  }),
+])
+
+export const SReportFields = {
+  fromDate: SDate,
+  toDate: SDate,
+  comparison: v.optional(v.strictObject({ fromDate: SDate, toDate: SDate })),
+  filters: v.optional(v.pipe(v.array(SScopedQueryFilter), v.maxLength(20))),
+}
+export const SReportFieldsSchema = v.strictObject(SReportFields)
+export const SReportListFieldsSchema = v.strictObject({
+  fromDate: SDate,
+  toDate: SDate,
+  filters: v.optional(v.pipe(v.array(SScopedQueryFilter), v.maxLength(20))),
+})
+const dateToDay = (date: string) => Date.parse(`${date}T00:00:00Z`)
+const day = 86_400_000
+const isOrderedDateRange = (fromDate: string, toDate: string) =>
+  dateToDay(fromDate) <= dateToDay(toDate)
+const isRangeWithinGranularity = (fromDate: string, toDate: string, granularity: string) => {
+  if (!isOrderedDateRange(fromDate, toDate)) return false
+  const days = (dateToDay(toDate) - dateToDay(fromDate)) / 86_400_000 + 1
+  if (granularity === 'minute') return days <= 1
+  if (granularity === 'hour') return days <= 30
+  return true
+}
+export const isValidReportRange = (input: {
+  fromDate: string
+  toDate: string
+  comparison?: { fromDate: string; toDate: string } | undefined
+  [key: string]: unknown
+}) =>
+  isOrderedDateRange(input.fromDate, input.toDate) &&
+  (input.comparison === undefined ||
+    (isOrderedDateRange(input.comparison.fromDate, input.comparison.toDate) &&
+      dateToDay(input.comparison.toDate) + day === dateToDay(input.fromDate) &&
+      dateToDay(input.toDate) - dateToDay(input.fromDate) ===
+        dateToDay(input.comparison.toDate) - dateToDay(input.comparison.fromDate)))
+export const isValidGranularReportRange = (input: {
+  fromDate: string
+  toDate: string
+  granularity: string
+  comparison?: { fromDate: string; toDate: string } | undefined
+  [key: string]: unknown
+}) => {
+  if (!isValidReportRange(input)) return false
+  return (
+    isRangeWithinGranularity(input.fromDate, input.toDate, input.granularity) &&
+    (input.comparison === undefined ||
+      isRangeWithinGranularity(
+        input.comparison.fromDate,
+        input.comparison.toDate,
+        input.granularity,
+      ))
+  )
+}
+export const SReportInput = v.pipe(
+  SReportFieldsSchema,
+  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
+)
+export const SGranularReportFields = {
+  ...SReportFields,
+  granularity: SGranularity,
+}
+export const SGranularReportFieldsSchema = v.strictObject(SGranularReportFields)
+export const SGranularReportInput = v.pipe(
+  SGranularReportFieldsSchema,
+  v.check(
+    (input) => isValidGranularReportRange(input),
+    'Report range is invalid for its granularity.',
+  ),
+)
+export const SReportFreshness = v.strictObject({
+  projectedAcceptanceSequence: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  occurrenceTimeCoverageThrough: v.nullable(SDateTime),
+  status: v.picklist(['current', 'stale', 'degraded', 'gap']),
 })
 
 export const queryFields = {
@@ -58,8 +286,18 @@ export const ECommand = {
 
 export const EIngestion = {
   BAD_REQUEST: { status: 400 },
+  FORBIDDEN: { status: 403 },
+  NOT_FOUND: { status: 404 },
+  CONFLICT: { status: 409 },
+  PAYLOAD_TOO_LARGE: { status: 413 },
+  TOO_MANY_REQUESTS: { status: 429 },
+  SERVICE_UNAVAILABLE: { status: 503 },
+} as const
+
+export const EBatchIngestion = {
+  BAD_REQUEST: { status: 400 },
   NOT_FOUND: { status: 404 },
   PAYLOAD_TOO_LARGE: { status: 413 },
   TOO_MANY_REQUESTS: { status: 429 },
-  INTERNAL_SERVER_ERROR: { status: 500 },
+  SERVICE_UNAVAILABLE: { status: 503 },
 } as const

@@ -19,3 +19,6 @@
 [submodule "docs/research/vendor/simple-analytics"]
 	path = docs/research/vendor/simple-analytics
 	url = https://github.com/simpleanalytics/scripts.git
+[submodule "docs/research/vendor/orpc"]
+	path = docs/research/vendor/orpc
+	url = https://github.com/middleapi/orpc.git

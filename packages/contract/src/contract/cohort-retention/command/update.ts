@@ -1,10 +1,22 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
 import { ECommand } from '../../../schema/index.ts'
-import { SCohort, SCohortDefinitionFields, SCohortIdentityFields } from '../schema.ts'
+import {
+  areDistinctCohortActions,
+  SCohort,
+  SCohortDefinitionFields,
+  SCohortIdentityFields,
+} from '../schema.ts'
 
-export const SCohortUpdateInput = v.strictObject(
+const SCohortUpdateRecord = v.strictObject(
   v.entriesFromObjects([SCohortIdentityFields, SCohortDefinitionFields]),
+)
+export const SCohortUpdateInput = v.pipe(
+  SCohortUpdateRecord,
+  v.check(
+    (input: v.InferOutput<typeof SCohortUpdateRecord>) => areDistinctCohortActions(input),
+    'Entry and retention actions must be distinct.',
+  ),
 )
 export type SCohortUpdateInput = v.InferOutput<typeof SCohortUpdateInput>
 export const SCohortUpdateOutput = SCohort

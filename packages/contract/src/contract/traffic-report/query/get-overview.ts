@@ -1,10 +1,18 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SQueryInput } from '../../../schema/index.ts'
+import {
+  EQuery,
+  SGranularReportFieldsSchema,
+  isValidGranularReportRange,
+} from '../../../schema/index.ts'
 import { STrafficOverview, STrafficSiteFields } from '../schema.ts'
 
-export const STrafficOverviewInput = v.strictObject(
-  v.entriesFromObjects([STrafficSiteFields, SQueryInput]),
+export const STrafficOverviewInput = v.pipe(
+  v.strictObject(v.entriesFromObjects([STrafficSiteFields, SGranularReportFieldsSchema])),
+  v.check(
+    (input) => isValidGranularReportRange(input),
+    'Report range is invalid for its granularity.',
+  ),
 )
 export type STrafficOverviewInput = v.InferOutput<typeof STrafficOverviewInput>
 export const STrafficOverviewOutput = STrafficOverview

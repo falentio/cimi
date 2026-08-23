@@ -5,7 +5,7 @@ import { SPublicDashboardSiteFields } from '../schema.ts'
 
 export const SPublicDashboardDisableInput = SPublicDashboardSiteFields
 export type SPublicDashboardDisableInput = v.InferOutput<typeof SPublicDashboardDisableInput>
-export const SPublicDashboardDisableOutput = v.strictObject({ disabled: v.literal(true) })
+export const SPublicDashboardDisableOutput = v.void()
 export type SPublicDashboardDisableOutput = v.InferOutput<typeof SPublicDashboardDisableOutput>
 
 export const disablePublicDashboard = oc
@@ -16,6 +16,7 @@ export const disablePublicDashboard = oc
     summary: 'Disable public dashboard',
     description: 'Disable public aggregate access and invalidate the current dashboard identifier.',
     tags: ['public-dashboard'],
+    successStatus: 204,
   })
   .meta({ auth: 'admin' })
   .errors(ECommand)

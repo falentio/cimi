@@ -1,16 +1,15 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SCursor, SPaginationInput } from '../../../schema/index.ts'
+import { EQuery, SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
 import { SCohort, SCohortSiteFields } from '../schema.ts'
 
 export const SCohortListInput = v.strictObject(
-  v.entriesFromObjects([SCohortSiteFields, SPaginationInput]),
+  v.entriesFromObjects([SCohortSiteFields, SOffsetPaginationInput]),
 )
 export type SCohortListInput = v.InferOutput<typeof SCohortListInput>
-export const SCohortListOutput = v.strictObject({
-  items: v.array(SCohort),
-  nextCursor: v.nullable(SCursor),
-})
+export const SCohortListOutput = v.strictObject(
+  v.entriesFromObjects([v.strictObject({ items: SPageItems(SCohort) }), SOffsetPage]),
+)
 export type SCohortListOutput = v.InferOutput<typeof SCohortListOutput>
 
 export const listCohorts = oc

@@ -8,6 +8,7 @@ const createInput = {
   name: 'Checkout completed',
   action: { kind: 'page_view' },
   propertyFilters: [],
+  identityKind: 'visitor',
 }
 
 describe('goal procedure schemas', () => {

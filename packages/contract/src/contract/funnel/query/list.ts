@@ -1,16 +1,15 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SCursor, SPaginationInput } from '../../../schema/index.ts'
+import { EQuery, SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
 import { SFunnel, SFunnelSiteFields } from '../schema.ts'
 
 export const SFunnelListInput = v.strictObject(
-  v.entriesFromObjects([SFunnelSiteFields, SPaginationInput]),
+  v.entriesFromObjects([SFunnelSiteFields, SOffsetPaginationInput]),
 )
 export type SFunnelListInput = v.InferOutput<typeof SFunnelListInput>
-export const SFunnelListOutput = v.strictObject({
-  items: v.array(SFunnel),
-  nextCursor: v.nullable(SCursor),
-})
+export const SFunnelListOutput = v.strictObject(
+  v.entriesFromObjects([v.strictObject({ items: SPageItems(SFunnel) }), SOffsetPage]),
+)
 export type SFunnelListOutput = v.InferOutput<typeof SFunnelListOutput>
 
 export const listFunnels = oc

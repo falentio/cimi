@@ -5,7 +5,7 @@ import { SMembershipOrganizationFields } from '../schema.ts'
 
 export const SMembershipLeaveInput = SMembershipOrganizationFields
 export type SMembershipLeaveInput = v.InferOutput<typeof SMembershipLeaveInput>
-export const SMembershipLeaveOutput = v.strictObject({ left: v.literal(true) })
+export const SMembershipLeaveOutput = v.void()
 export type SMembershipLeaveOutput = v.InferOutput<typeof SMembershipLeaveOutput>
 
 export const leaveOrganization = oc
@@ -17,6 +17,7 @@ export const leaveOrganization = oc
     description:
       'Allow the current member to leave an Organization unless ownership protection prevents it.',
     tags: ['membership'],
+    successStatus: 204,
   })
   .meta({ auth: 'authenticated' })
   .errors({ ...ERead, OWNER_PROTECTED: { status: 409 } })
