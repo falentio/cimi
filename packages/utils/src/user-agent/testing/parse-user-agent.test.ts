@@ -70,6 +70,19 @@ describe('createUserAgentParser', () => {
     expect(result.ua).toBe('A'.repeat(500))
   })
 
+  it('bounds work for a user agent made entirely of leading whitespace', () => {
+    const result = createUserAgentParser().parse(' '.repeat(10_000))
+
+    expect(result).toEqual({
+      ua: '',
+      browser: { name: undefined, version: undefined, major: undefined },
+      cpu: { architecture: undefined },
+      device: { type: undefined, vendor: undefined, model: undefined },
+      engine: { name: undefined, version: undefined },
+      os: { name: undefined, version: undefined },
+    })
+  })
+
   it('provides a process-level parser for ordinary callers', () => {
     expect(parseUserAgent(CHROME_ANDROID).browser.name).toBe('Chrome')
   })

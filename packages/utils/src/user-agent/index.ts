@@ -1,4 +1,6 @@
 import { LRUCache } from 'lru-cache'
+
+// The MIT legacy line avoids the AGPL license and keeps this adapter on the stable common field set.
 import UAParser from 'ua-parser-js'
 
 const DEFAULT_CACHE_SIZE = 10_000
@@ -32,7 +34,7 @@ export interface UserAgentParserOptions {
   cacheSize?: number
 }
 
-// TODO: Consume from event enrichment and analytics projection once their contracts settle.
+// TODO: Consume from apps/api event enrichment and apps/frontend analytics projection once their contracts settle.
 export interface UserAgentParser {
   parse(userAgent: string): ParsedUserAgent
 }
@@ -47,18 +49,29 @@ export function createUserAgentParser(options: UserAgentParserOptions = {}): Use
 
   return {
     parse(userAgent) {
-      const cacheKey = normalizeCacheKey(userAgent)
-      const cached = cache.get(cacheKey)
+      if (userAgent === '') return EMPTY_PARSED_USER_AGENT
+
+      const parserInput = normalizeUserAgentInput(userAgent)
+      const cached = cache.get(parserInput)
       if (cached !== undefined) return cached
 
-      const result = toParsedUserAgent(UAParser(userAgent))
-      cache.set(cacheKey, result)
+      const result = toParsedUserAgent(UAParser(parserInput))
+      cache.set(parserInput, result)
       return result
     },
   }
 }
 
 const defaultParser = createUserAgentParser()
+
+const EMPTY_PARSED_USER_AGENT: ParsedUserAgent = Object.freeze({
+  ua: '',
+  browser: Object.freeze({ name: undefined, version: undefined, major: undefined }),
+  cpu: Object.freeze({ architecture: undefined }),
+  device: Object.freeze({ type: undefined, vendor: undefined, model: undefined }),
+  engine: Object.freeze({ name: undefined, version: undefined }),
+  os: Object.freeze({ name: undefined, version: undefined }),
+})
 
 export function parseUserAgent(userAgent: string): ParsedUserAgent {
   return defaultParser.parse(userAgent)
@@ -83,7 +96,12 @@ function toParsedUserAgent(result: UAParser.IResult): ParsedUserAgent {
   })
 }
 
-function normalizeCacheKey(userAgent: string): string {
+function normalizeUserAgentInput(userAgent: string): string {
   if (userAgent.length <= UA_MAX_LENGTH) return userAgent
-  return userAgent.replace(/^\s\s*/, '').substring(0, UA_MAX_LENGTH)
+
+  const boundedPrefix = userAgent.substring(0, UA_MAX_LENGTH)
+  const leadingWhitespace = boundedPrefix.match(/^\s*/)?.[0].length ?? 0
+  if (leadingWhitespace === UA_MAX_LENGTH) return ''
+
+  return userAgent.substring(leadingWhitespace, leadingWhitespace + UA_MAX_LENGTH)
 }
