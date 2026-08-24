@@ -42,10 +42,15 @@ function extractHostname(input: string): string | null {
 function normalizeHostname(hostname: string): string | null {
   const unbracketed = isBracketedIpv6(hostname) ? hostname.slice(1, -1) : hostname
   if (isIP(unbracketed)) return unbracketed.toLowerCase()
-  if (/^\d+$/.test(unbracketed) || /^\d+(?:\.\d+)+$/.test(unbracketed)) return null
 
   const withoutTrailingDot = unbracketed.endsWith('.') ? unbracketed.slice(0, -1) : unbracketed
   if (withoutTrailingDot === '' || withoutTrailingDot.endsWith('.')) return null
+  if (
+    /^\d+$/.test(withoutTrailingDot) ||
+    /^\d+(?:\.\d+)+$/.test(withoutTrailingDot) ||
+    /^0[xX][\da-fA-F]+$/.test(withoutTrailingDot)
+  )
+    return null
 
   return domainToASCII(withoutTrailingDot).toLowerCase() || null
 }

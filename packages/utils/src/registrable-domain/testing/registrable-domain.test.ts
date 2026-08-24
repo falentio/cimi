@@ -26,8 +26,11 @@ describe('getRegistrableDomain', () => {
   it('handles local hosts and IP literals without PSL lookup', () => {
     expect(getRegistrableDomain('http://localhost:3000')).toBe('localhost')
     expect(getRegistrableDomain('intranet')).toBe('intranet')
+    expect(getRegistrableDomain('foo.local')).toBe('foo.local')
     expect(getRegistrableDomain('192.168.1.1')).toBe('192.168.1.1')
     expect(getRegistrableDomain('https://[2001:db8::1]:8443')).toBe('2001:db8::1')
+    expect(getRegistrableDomain('http://127.1')).toBe('127.0.0.1')
+    expect(getRegistrableDomain('http://2130706433')).toBe('127.0.0.1')
   })
 
   it('canonicalizes internationalized hostnames', () => {
@@ -48,6 +51,9 @@ describe('getRegistrableDomain', () => {
       '127.1',
       '2130706433',
       '192.168.001.001',
+      '127.1.',
+      '2130706433.',
+      '0x7f000001',
     ]) {
       expect(getRegistrableDomain(input)).toBeNull()
     }
