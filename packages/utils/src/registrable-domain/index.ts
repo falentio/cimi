@@ -11,11 +11,11 @@ export function getRegistrableDomain(input: string): string | null {
   if (!normalizedHostname) return null
 
   if (isIP(normalizedHostname)) return normalizedHostname
-  if (normalizedHostname === 'localhost' || !normalizedHostname.includes('.'))
-    return normalizedHostname
+  if (normalizedHostname === 'localhost') return normalizedHostname
 
   const parsed = psl.parse(normalizedHostname)
-  if (parsed.error || !parsed.domain) return null
+  if ('error' in parsed) return null
+  if (!parsed.domain) return parsed.listed ? null : normalizedHostname
 
   return parsed.domain
 }
@@ -42,6 +42,7 @@ function extractHostname(input: string): string | null {
 function normalizeHostname(hostname: string): string | null {
   const unbracketed = isBracketedIpv6(hostname) ? hostname.slice(1, -1) : hostname
   if (isIP(unbracketed)) return unbracketed.toLowerCase()
+  if (/^\d+$/.test(unbracketed) || /^\d+(?:\.\d+)+$/.test(unbracketed)) return null
 
   const withoutTrailingDot = unbracketed.endsWith('.') ? unbracketed.slice(0, -1) : unbracketed
   if (withoutTrailingDot === '' || withoutTrailingDot.endsWith('.')) return null

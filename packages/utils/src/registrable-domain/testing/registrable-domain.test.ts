@@ -13,6 +13,7 @@ describe('getRegistrableDomain', () => {
   it('applies public suffix wildcard and exception rules', () => {
     expect(getRegistrableDomain('a.ck')).toBeNull()
     expect(getRegistrableDomain('b.a.ck')).toBe('b.a.ck')
+    expect(getRegistrableDomain('city.kobe.jp')).toBe('city.kobe.jp')
     expect(getRegistrableDomain('c.kobe.jp')).toBeNull()
     expect(getRegistrableDomain('b.c.kobe.jp')).toBe('b.c.kobe.jp')
   })
@@ -32,6 +33,7 @@ describe('getRegistrableDomain', () => {
   it('canonicalizes internationalized hostnames', () => {
     expect(getRegistrableDomain('https://www.bücher.example')).toBe('xn--bcher-kva.example')
     expect(getRegistrableDomain('www.xn--bcher-kva.example')).toBe('xn--bcher-kva.example')
+    expect(getRegistrableDomain('www.bücher.de')).toBe('xn--bcher-kva.de')
   })
 
   it('rejects malformed host-like inputs instead of guessing', () => {
@@ -43,13 +45,17 @@ describe('getRegistrableDomain', () => {
       'api.example.com/path',
       '//example.com',
       'foo..com',
+      '127.1',
+      '2130706433',
+      '192.168.001.001',
     ]) {
       expect(getRegistrableDomain(input)).toBeNull()
     }
   })
 
-  it('rejects a bare public suffix but keeps a PSL-derived unlisted suffix', () => {
-    expect(getRegistrableDomain('co.uk')).toBeNull()
+  it('rejects listed public suffixes but keeps local and unlisted names', () => {
+    expect(getRegistrableDomain('com')).toBeNull()
+    expect(getRegistrableDomain('ck')).toBeNull()
     expect(getRegistrableDomain('example.invalid')).toBe('example.invalid')
   })
 })
