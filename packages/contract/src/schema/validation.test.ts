@@ -52,121 +52,95 @@ describe('shared report schemas', () => {
   })
 
   it('requires absolute date-times and supports authenticated action filters', () => {
-    expect(v.safeParse(SDateTime, '2026-08-01T00:00:00Z').success).toBe(true)
-    expect(v.safeParse(SDateTime, '2026-08-01T00:00:00+02:00').success).toBe(true)
-    expect(v.safeParse(SDateTime, '2026-08-01T00:00:00').success).toBe(false)
-    expect(v.safeParse(SDateTime, '2026-08-01T00:00:00.000').success).toBe(false)
-    expect(v.safeParse(SAuthenticatedFilterOperator, 'has_done').success).toBe(true)
-    expect(v.safeParse(SAuthenticatedFilterOperator, 'has_not_done').success).toBe(true)
-    expect(
-      v.safeParse(SAuthenticatedFilter, {
-        scope: 'visitor',
-        operator: 'has_done',
-        action: { kind: 'custom_event', name: 'signup' },
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SAuthenticatedFilter, {
-        scope: 'visitor',
-        operator: 'has_done',
-        action: { kind: 'page_view', name: 'home' },
-      }).success,
-    ).toBe(false)
+    expect('2026-08-01T00:00:00Z').toEqual(expect.schemaMatching(SDateTime))
+    expect('2026-08-01T00:00:00+02:00').toEqual(expect.schemaMatching(SDateTime))
+    expect('2026-08-01T00:00:00').not.toEqual(expect.schemaMatching(SDateTime))
+    expect('2026-08-01T00:00:00.000').not.toEqual(expect.schemaMatching(SDateTime))
+    expect('has_done').toEqual(expect.schemaMatching(SAuthenticatedFilterOperator))
+    expect('has_not_done').toEqual(expect.schemaMatching(SAuthenticatedFilterOperator))
+    expect({
+      scope: 'visitor',
+      operator: 'has_done',
+      action: { kind: 'custom_event', name: 'signup' },
+    }).toEqual(expect.schemaMatching(SAuthenticatedFilter))
+    expect({
+      scope: 'visitor',
+      operator: 'has_done',
+      action: { kind: 'page_view', name: 'home' },
+    }).not.toEqual(expect.schemaMatching(SAuthenticatedFilter))
   })
 
   it('allows only current or stale successful report freshness', () => {
-    expect(
-      v.safeParse(SReportFreshness, {
-        projectedAcceptanceSequence: 10,
-        occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
-        status: 'current',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SReportFreshness, {
-        projectedAcceptanceSequence: 10,
-        occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
-        status: 'stale',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SReportFreshness, {
-        projectedAcceptanceSequence: 10,
-        occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
-        status: 'gap',
-      }).success,
-    ).toBe(false)
+    expect({
+      projectedAcceptanceSequence: 10,
+      occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
+      status: 'current',
+    }).toEqual(expect.schemaMatching(SReportFreshness))
+    expect({
+      projectedAcceptanceSequence: 10,
+      occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
+      status: 'stale',
+    }).toEqual(expect.schemaMatching(SReportFreshness))
+    expect({
+      projectedAcceptanceSequence: 10,
+      occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
+      status: 'gap',
+    }).not.toEqual(expect.schemaMatching(SReportFreshness))
   })
 
   it('enforces retention horizon ordering', () => {
-    expect(
-      v.safeParse(SRetentionPolicy, { eventMonths: 12, profileMonths: 12, replayMonths: null })
-        .success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SRetentionPolicy, { eventMonths: 12, profileMonths: 6, replayMonths: 3 }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SRetentionPolicy, { eventMonths: 6, profileMonths: 12, replayMonths: null })
-        .success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SRetentionPolicy, { eventMonths: 12, profileMonths: 6, replayMonths: 6 }).success,
-    ).toBe(false)
+    expect({ eventMonths: 12, profileMonths: 12, replayMonths: null }).toEqual(
+      expect.schemaMatching(SRetentionPolicy),
+    )
+    expect({ eventMonths: 12, profileMonths: 6, replayMonths: 3 }).toEqual(
+      expect.schemaMatching(SRetentionPolicy),
+    )
+    expect({ eventMonths: 6, profileMonths: 12, replayMonths: null }).not.toEqual(
+      expect.schemaMatching(SRetentionPolicy),
+    )
+    expect({ eventMonths: 12, profileMonths: 6, replayMonths: 6 }).not.toEqual(
+      expect.schemaMatching(SRetentionPolicy),
+    )
   })
 
   it('rejects reversed report and comparison ranges', () => {
-    expect(
-      v.safeParse(SReportInput, {
-        fromDate: '2026-08-23',
-        toDate: '2026-08-22',
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SReportInput, {
-        fromDate: '2026-08-22',
-        toDate: '2026-08-23',
-        comparison: { fromDate: '2026-08-23', toDate: '2026-08-22' },
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SReportInput, {
-        fromDate: '2026-08-22',
-        toDate: '2026-08-23',
-        comparison: { fromDate: '2026-08-20', toDate: '2026-08-21' },
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SReportInput, {
-        fromDate: '2026-08-22',
-        toDate: '2026-08-23',
-        comparison: { fromDate: '2026-08-19', toDate: '2026-08-20' },
-      }).success,
-    ).toBe(false)
+    expect({
+      fromDate: '2026-08-23',
+      toDate: '2026-08-22',
+    }).not.toEqual(expect.schemaMatching(SReportInput))
+    expect({
+      fromDate: '2026-08-22',
+      toDate: '2026-08-23',
+      comparison: { fromDate: '2026-08-23', toDate: '2026-08-22' },
+    }).not.toEqual(expect.schemaMatching(SReportInput))
+    expect({
+      fromDate: '2026-08-22',
+      toDate: '2026-08-23',
+      comparison: { fromDate: '2026-08-20', toDate: '2026-08-21' },
+    }).toEqual(expect.schemaMatching(SReportInput))
+    expect({
+      fromDate: '2026-08-22',
+      toDate: '2026-08-23',
+      comparison: { fromDate: '2026-08-19', toDate: '2026-08-20' },
+    }).not.toEqual(expect.schemaMatching(SReportInput))
   })
 
   it('rejects granular ranges beyond procedure limits', () => {
-    expect(
-      v.safeParse(SGranularReportInput, {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-31',
-        granularity: 'hour',
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SGranularReportInput, {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-01',
-        granularity: 'minute',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SGranularReportInput, {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-02',
-        granularity: 'minute',
-      }).success,
-    ).toBe(false)
+    expect({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-31',
+      granularity: 'hour',
+    }).not.toEqual(expect.schemaMatching(SGranularReportInput))
+    expect({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-01',
+      granularity: 'minute',
+    }).toEqual(expect.schemaMatching(SGranularReportInput))
+    expect({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-02',
+      granularity: 'minute',
+    }).not.toEqual(expect.schemaMatching(SGranularReportInput))
   })
 
   it('bounds minute report output to the shared one-day response ceiling', () => {
@@ -186,38 +160,32 @@ describe('shared report schemas', () => {
     }))
     const eventBuckets = metricBuckets.map(({ at, complete }) => ({ at, count: 0, complete }))
 
-    expect(
-      v.safeParse(STrafficOverview, {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-01',
-        visitors: 0,
-        sessions: 0,
-        eligibleSessions: 0,
-        sessionsWithValidDuration: 0,
-        pageviews: 0,
-        bounceRate: 0,
-        pagesPerSession: 0,
-        averageSessionDurationSeconds: 0,
-        trend: metricBuckets,
-        ...freshness,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SEventTimeseries, {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-01',
-        buckets: eventBuckets,
-        ...freshness,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SEventTimeseries, {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-01',
-        buckets: [...eventBuckets, { at: '2026-08-02T06:00:00Z', count: 0, complete: true }],
-        ...freshness,
-      }).success,
-    ).toBe(false)
+    expect({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-01',
+      visitors: 0,
+      sessions: 0,
+      eligibleSessions: 0,
+      sessionsWithValidDuration: 0,
+      pageviews: 0,
+      bounceRate: 0,
+      pagesPerSession: 0,
+      averageSessionDurationSeconds: 0,
+      trend: metricBuckets,
+      ...freshness,
+    }).toEqual(expect.schemaMatching(STrafficOverview))
+    expect({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-01',
+      buckets: eventBuckets,
+      ...freshness,
+    }).toEqual(expect.schemaMatching(SEventTimeseries))
+    expect({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-01',
+      buckets: [...eventBuckets, { at: '2026-08-02T06:00:00Z', count: 0, complete: true }],
+      ...freshness,
+    }).not.toEqual(expect.schemaMatching(SEventTimeseries))
   })
 
   it('enforces public date and field allowlists', () => {
@@ -230,56 +198,46 @@ describe('shared report schemas', () => {
       dimension: 'page',
       filters: [{ scope: 'event', field: 'pagePath', operator: 'equals', values: ['/'] }],
     }
-    expect(v.safeParse(SPublicDashboardQueryFields, query).success).toBe(true)
-    expect(
-      v.safeParse(SPublicDashboardQueryFields, {
-        ...query,
-        metric: 'events',
-        dimension: 'region',
-        filters: [
-          { scope: 'session', field: 'utmSource', operator: 'equals', values: ['newsletter'] },
-        ],
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SPublicDashboardQueryFields, {
-        ...query,
-        dimension: 'identity_kind',
-        filters: [
-          { scope: 'visitor', field: 'identityKind', operator: 'equals', values: ['identified'] },
-        ],
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SPublicDashboardQueryFields, {
-        ...query,
-        filters: [
-          {
-            scope: 'visitor',
-            field: 'identityKind',
-            operator: 'not_equals',
-            values: ['identified'],
-          },
-        ],
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SPublicDashboardQueryFields, {
-        ...query,
-        filters: [
-          { scope: 'visitor', field: 'identityKind', operator: 'equals', values: ['profile'] },
-        ],
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SPublicDashboardQueryFields, {
-        ...query,
-        filters: [{ scope: 'visitor', field: 'email', operator: 'equals', values: ['x'] }],
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SPublicDashboardQueryFields, { ...query, toDate: '2026-11-01' }).success,
-    ).toBe(false)
+    expect(query).toEqual(expect.schemaMatching(SPublicDashboardQueryFields))
+    expect({
+      ...query,
+      metric: 'events',
+      dimension: 'region',
+      filters: [
+        { scope: 'session', field: 'utmSource', operator: 'equals', values: ['newsletter'] },
+      ],
+    }).toEqual(expect.schemaMatching(SPublicDashboardQueryFields))
+    expect({
+      ...query,
+      dimension: 'identity_kind',
+      filters: [
+        { scope: 'visitor', field: 'identityKind', operator: 'equals', values: ['identified'] },
+      ],
+    }).toEqual(expect.schemaMatching(SPublicDashboardQueryFields))
+    expect({
+      ...query,
+      filters: [
+        {
+          scope: 'visitor',
+          field: 'identityKind',
+          operator: 'not_equals',
+          values: ['identified'],
+        },
+      ],
+    }).not.toEqual(expect.schemaMatching(SPublicDashboardQueryFields))
+    expect({
+      ...query,
+      filters: [
+        { scope: 'visitor', field: 'identityKind', operator: 'equals', values: ['profile'] },
+      ],
+    }).not.toEqual(expect.schemaMatching(SPublicDashboardQueryFields))
+    expect({
+      ...query,
+      filters: [{ scope: 'visitor', field: 'email', operator: 'equals', values: ['x'] }],
+    }).not.toEqual(expect.schemaMatching(SPublicDashboardQueryFields))
+    expect({ ...query, toDate: '2026-11-01' }).not.toEqual(
+      expect.schemaMatching(SPublicDashboardQueryFields),
+    )
   })
 
   it('bounds public hourly output at the DST-aware ceiling', () => {
@@ -298,38 +256,28 @@ describe('shared report schemas', () => {
       status: 'current' as const,
     }
 
-    expect(v.safeParse(SPublicDashboardQueryOutput, output).success).toBe(true)
-    expect(
-      v.safeParse(SPublicDashboardTimeBucket, {
-        key: '2026-11-01T00:00:00',
-        at: null,
-        value: 0,
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SPublicDashboardQueryOutput, {
-        ...output,
-        buckets: [...buckets, { key: 'overflow', at: null, value: 0 }],
-      }).success,
-    ).toBe(false)
+    expect(output).toEqual(expect.schemaMatching(SPublicDashboardQueryOutput))
+    expect({
+      key: '2026-11-01T00:00:00',
+      at: null,
+      value: 0,
+    }).not.toEqual(expect.schemaMatching(SPublicDashboardTimeBucket))
+    expect({
+      ...output,
+      buckets: [...buckets, { key: 'overflow', at: null, value: 0 }],
+    }).not.toEqual(expect.schemaMatching(SPublicDashboardQueryOutput))
   })
 
   it('bounds paginated items and report rates', () => {
-    expect(
-      v.safeParse(
-        SPageItems(v.string()),
-        Array.from({ length: 100 }, () => 'item'),
-      ).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(
-        SPageItems(v.string()),
-        Array.from({ length: 101 }, () => 'item'),
-      ).success,
-    ).toBe(false)
-    expect(v.safeParse(SRate, 1).success).toBe(true)
-    expect(v.safeParse(SRate, 1.01).success).toBe(false)
-    expect(v.safeParse(SRate, Number.POSITIVE_INFINITY).success).toBe(false)
+    expect(Array.from({ length: 100 }, () => 'item')).toEqual(
+      expect.schemaMatching(SPageItems(v.string())),
+    )
+    expect(Array.from({ length: 101 }, () => 'item')).not.toEqual(
+      expect.schemaMatching(SPageItems(v.string())),
+    )
+    expect(1).toEqual(expect.schemaMatching(SRate))
+    expect(1.01).not.toEqual(expect.schemaMatching(SRate))
+    expect(Number.POSITIVE_INFINITY).not.toEqual(expect.schemaMatching(SRate))
   })
 
   it('requires discriminated collection policy scopes', () => {
@@ -354,73 +302,57 @@ describe('shared report schemas', () => {
       profileFilterKeys: [],
       exclusions: { hostnames: [], paths: [], countries: [], ipRanges: [] },
     }
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, {
-        scope: 'site',
-        policy: { siteId: 'site-2', ...policy },
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, {
-        scope: 'site',
-        policy,
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, { scope: 'installation', policy }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, {
-        scope: 'installation',
-        policy: { siteId: 'site-1', ...policy },
-      }).success,
-    ).toBe(false)
-    expect(v.safeParse(SCollectionPolicyUpdateFields, { siteId: 'site-2', policy }).success).toBe(
-      false,
+    expect({
+      scope: 'site',
+      policy: { siteId: 'site-2', ...policy },
+    }).toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+    expect({
+      scope: 'site',
+      policy,
+    }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+    expect({ scope: 'installation', policy }).toEqual(
+      expect.schemaMatching(SCollectionPolicyUpdateFields),
+    )
+    expect({
+      scope: 'installation',
+      policy: { siteId: 'site-1', ...policy },
+    }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+    expect({ siteId: 'site-2', policy }).not.toEqual(
+      expect.schemaMatching(SCollectionPolicyUpdateFields),
     )
   })
 
   it('enforces the event report filter allowlist', () => {
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'event',
-        field: 'property.plan',
-        operator: 'equals',
-        values: ['pro'],
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'session',
-        field: 'country',
-        operator: 'equals',
-        values: ['GB'],
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'event',
-        field: 'kind',
-        operator: 'equals',
-        values: ['not-an-event-kind'],
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'event',
-        field: 'name',
-        operator: 'equals',
-        values: [42],
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SScopedQueryFilter, {
-        scope: 'visitor',
-        field: 'identityKind',
-        operator: 'equals',
-        values: ['profile'],
-      }).success,
-    ).toBe(false)
+    expect({
+      scope: 'event',
+      field: 'property.plan',
+      operator: 'equals',
+      values: ['pro'],
+    }).toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'session',
+      field: 'country',
+      operator: 'equals',
+      values: ['GB'],
+    }).not.toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'event',
+      field: 'kind',
+      operator: 'equals',
+      values: ['not-an-event-kind'],
+    }).not.toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'event',
+      field: 'name',
+      operator: 'equals',
+      values: [42],
+    }).not.toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'visitor',
+      field: 'identityKind',
+      operator: 'equals',
+      values: ['profile'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
   })
 
   it('redacts traits and aliases for non-active profiles', () => {
@@ -432,18 +364,16 @@ describe('shared report schemas', () => {
       createdAt: '2026-08-01T00:00:00Z',
       updatedAt: '2026-08-01T00:00:00Z',
     }
-    expect(v.safeParse(SProfile, { status: 'deleting' }).success).toBe(true)
-    expect(
-      v.safeParse(SProfile, { ...profile, status: 'deleting', traits: null, aliases: [] }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SProfile, {
-        ...profile,
-        status: 'deleting',
-        traits: { plan: 'pro' },
-        aliases: ['alias-1'],
-      }).success,
-    ).toBe(false)
+    expect({ status: 'deleting' }).toEqual(expect.schemaMatching(SProfile))
+    expect({ ...profile, status: 'deleting', traits: null, aliases: [] }).not.toEqual(
+      expect.schemaMatching(SProfile),
+    )
+    expect({
+      ...profile,
+      status: 'deleting',
+      traits: { plan: 'pro' },
+      aliases: ['alias-1'],
+    }).not.toEqual(expect.schemaMatching(SProfile))
   })
 
   it('exposes independent derived and backup cleanup status', () => {
@@ -459,13 +389,11 @@ describe('shared report schemas', () => {
         updatedAt: '2026-08-01T00:01:00Z',
       },
     }
-    expect(v.safeParse(SDeletionStatusOutput, status).success).toBe(true)
-    expect(
-      v.safeParse(SDeletionStatusOutput, {
-        ...status,
-        backupCleanup: { status: 'unknown', updatedAt: status.updatedAt },
-      }).success,
-    ).toBe(false)
+    expect(status).toEqual(expect.schemaMatching(SDeletionStatusOutput))
+    expect({
+      ...status,
+      backupCleanup: { status: 'unknown', updatedAt: status.updatedAt },
+    }).not.toEqual(expect.schemaMatching(SDeletionStatusOutput))
   })
 })
 
@@ -486,45 +414,38 @@ describe('site deletion schemas', () => {
       },
     }
 
-    expect(v.safeParse(SSiteDeletionStatusOutput, status).success).toBe(true)
-    expect(
-      v.safeParse(SSiteDeletionStatusOutput, { ...status, status: 'recovering' }).success,
-    ).toBe(true)
-    expect(v.safeParse(SSiteDeletionStatusOutput, { ...status, status: 'unknown' }).success).toBe(
-      false,
+    expect(status).toEqual(expect.schemaMatching(SSiteDeletionStatusOutput))
+    expect({ ...status, status: 'recovering' }).toEqual(
+      expect.schemaMatching(SSiteDeletionStatusOutput),
     )
-    expect(
-      v.safeParse(SSiteDeleteOutput, { accepted: true, status: 'deleting', operationId: 'op-1' })
-        .success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SSiteRecoverOutput, {
-        accepted: true,
-        status: 'recovering',
-        operationId: 'op-2',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SSiteDeletionStatusOutput, {
-        ...status,
-        status: 'active',
-        operationId: null,
-        requestedAt: null,
-        deletedAt: null,
-        recoveryDeadline: null,
-        purgeAt: null,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SSiteDeletionStatusOutput, {
-        ...status,
-        status: 'active',
-      }).success,
-    ).toBe(false)
-    expect(v.safeParse(SSiteDeletionStatusOutput, { ...status, status: 'purged' }).success).toBe(
-      true,
+    expect({ ...status, status: 'unknown' }).not.toEqual(
+      expect.schemaMatching(SSiteDeletionStatusOutput),
     )
-    expect(v.safeParse(SHostname, 'example.test.').success).toBe(true)
+    expect({ accepted: true, status: 'deleting', operationId: 'op-1' }).toEqual(
+      expect.schemaMatching(SSiteDeleteOutput),
+    )
+    expect({
+      accepted: true,
+      status: 'recovering',
+      operationId: 'op-2',
+    }).toEqual(expect.schemaMatching(SSiteRecoverOutput))
+    expect({
+      ...status,
+      status: 'active',
+      operationId: null,
+      requestedAt: null,
+      deletedAt: null,
+      recoveryDeadline: null,
+      purgeAt: null,
+    }).toEqual(expect.schemaMatching(SSiteDeletionStatusOutput))
+    expect({
+      ...status,
+      status: 'active',
+    }).not.toEqual(expect.schemaMatching(SSiteDeletionStatusOutput))
+    expect({ ...status, status: 'purged' }).toEqual(
+      expect.schemaMatching(SSiteDeletionStatusOutput),
+    )
+    expect('example.test.').toEqual(expect.schemaMatching(SHostname))
   })
 })
 
@@ -559,148 +480,126 @@ describe('backup lifecycle schemas', () => {
   }
 
   it('keeps backup status and phase combinations coherent', () => {
-    expect(
-      v.safeParse(SBackup, {
-        ...base,
-        status: 'creating',
-        completedAt: null,
-        phase: 'capturing_sqlite',
-        cleanupPending: false,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SBackup, {
-        ...base,
-        status: 'available',
-        completedAt: '2026-08-24T00:01:00Z',
-        phase: 'ready',
-        progress: 1,
-        checkpoint: 'structurally_ready',
-        readiness: {
-          controlStore: 'ready',
-          analyticsStore: 'ready',
-          structural: 'ready',
-        },
-        cleanupPending: false,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SBackup, {
-        ...base,
-        status: 'restoring',
-        completedAt: null,
-        phase: 'rebuilding_duckdb',
-        progress: 0.5,
-        checkpoint: 'sqlite_restored',
-        lastSafeSequence: 42,
-        readiness: {
-          controlStore: 'ready',
-          analyticsStore: 'rebuilding',
-          structural: 'not_ready',
-        },
-        restoreSourceBackupId: 'backup-2',
-        preRestoreSafetyArtifact: {
-          id: 'safety-1',
-          createdAt: '2026-08-24T00:00:30Z',
-          status: 'ready',
-          lastSafeSequence: 41,
-          errorCode: null,
-        },
-        cleanupPending: false,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SBackup, {
-        ...base,
-        status: 'available',
-        completedAt: '2026-08-24T00:01:00Z',
-        phase: 'cleanup_pending',
-        progress: 1,
-        checkpoint: 'structurally_ready',
-        readiness: {
-          controlStore: 'ready',
-          analyticsStore: 'ready',
-          structural: 'ready',
-        },
-        cleanupPending: true,
-        derivedCleanup: {
-          status: 'completed',
-          startedAt: '2026-08-24T00:00:30Z',
-          completedAt: '2026-08-24T00:00:45Z',
-          errorCode: null,
-        },
-        backupCleanup: {
-          status: 'pending',
-          startedAt: null,
-          completedAt: null,
-          errorCode: null,
-        },
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SBackup, {
-        ...base,
-        status: 'failed',
-        completedAt: '2026-08-24T00:01:00Z',
-        phase: 'failed',
-        progress: 0.25,
-        cleanupPending: false,
-        errorCode: 'INTERNAL_SERVER_ERROR',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SBackup, {
-        ...base,
-        status: 'available',
-        completedAt: '2026-08-24T00:01:00Z',
-        phase: 'capturing_sqlite',
-        cleanupPending: false,
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SBackup, {
-        id: 'backup-1',
-        status: 'creating',
-        createdAt: '2026-08-24T00:00:00Z',
-        completedAt: null,
-        scope: 'installation',
-        phase: 'capturing_sqlite',
-        cleanupPending: false,
+    expect({
+      ...base,
+      status: 'creating',
+      completedAt: null,
+      phase: 'capturing_sqlite',
+      cleanupPending: false,
+    }).toEqual(expect.schemaMatching(SBackup))
+    expect({
+      ...base,
+      status: 'available',
+      completedAt: '2026-08-24T00:01:00Z',
+      phase: 'ready',
+      progress: 1,
+      checkpoint: 'structurally_ready',
+      readiness: {
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        structural: 'ready',
+      },
+      cleanupPending: false,
+    }).toEqual(expect.schemaMatching(SBackup))
+    expect({
+      ...base,
+      status: 'restoring',
+      completedAt: null,
+      phase: 'rebuilding_duckdb',
+      progress: 0.5,
+      checkpoint: 'sqlite_restored',
+      lastSafeSequence: 42,
+      readiness: {
+        controlStore: 'ready',
+        analyticsStore: 'rebuilding',
+        structural: 'not_ready',
+      },
+      restoreSourceBackupId: 'backup-2',
+      preRestoreSafetyArtifact: {
+        id: 'safety-1',
+        createdAt: '2026-08-24T00:00:30Z',
+        status: 'ready',
+        lastSafeSequence: 41,
         errorCode: null,
-      }).success,
-    ).toBe(false)
+      },
+      cleanupPending: false,
+    }).toEqual(expect.schemaMatching(SBackup))
+    expect({
+      ...base,
+      status: 'available',
+      completedAt: '2026-08-24T00:01:00Z',
+      phase: 'cleanup_pending',
+      progress: 1,
+      checkpoint: 'structurally_ready',
+      readiness: {
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        structural: 'ready',
+      },
+      cleanupPending: true,
+      derivedCleanup: {
+        status: 'completed',
+        startedAt: '2026-08-24T00:00:30Z',
+        completedAt: '2026-08-24T00:00:45Z',
+        errorCode: null,
+      },
+      backupCleanup: {
+        status: 'pending',
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+      },
+    }).toEqual(expect.schemaMatching(SBackup))
+    expect({
+      ...base,
+      status: 'failed',
+      completedAt: '2026-08-24T00:01:00Z',
+      phase: 'failed',
+      progress: 0.25,
+      cleanupPending: false,
+      errorCode: 'INTERNAL_SERVER_ERROR',
+    }).toEqual(expect.schemaMatching(SBackup))
+    expect({
+      ...base,
+      status: 'available',
+      completedAt: '2026-08-24T00:01:00Z',
+      phase: 'capturing_sqlite',
+      cleanupPending: false,
+    }).not.toEqual(expect.schemaMatching(SBackup))
+    expect({
+      id: 'backup-1',
+      status: 'creating',
+      createdAt: '2026-08-24T00:00:00Z',
+      completedAt: null,
+      scope: 'installation',
+      phase: 'capturing_sqlite',
+      cleanupPending: false,
+      errorCode: null,
+    }).not.toEqual(expect.schemaMatching(SBackup))
   })
 })
 
 describe('batch ingestion results', () => {
   it('keeps policy refusals generic and item errors bounded', () => {
-    expect(
-      v.safeParse(SBatchEventResult, {
-        status: 'rejected',
-        eventId: 'event-1',
-        reason: 'policy',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SBatchEventResult, {
-        status: 'rejected',
-        eventId: 'event-1',
-        reason: 'bot',
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SBatchEventResult, {
-        status: 'itemError',
-        eventId: 'event-1',
-        code: 'CONFLICT',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SBatchEventResult, {
-        status: 'itemError',
-        eventId: null,
-        code: 'FORBIDDEN',
-      }).success,
-    ).toBe(false)
+    expect({
+      status: 'rejected',
+      eventId: 'event-1',
+      reason: 'policy',
+    }).toEqual(expect.schemaMatching(SBatchEventResult))
+    expect({
+      status: 'rejected',
+      eventId: 'event-1',
+      reason: 'bot',
+    }).not.toEqual(expect.schemaMatching(SBatchEventResult))
+    expect({
+      status: 'itemError',
+      eventId: 'event-1',
+      code: 'CONFLICT',
+    }).toEqual(expect.schemaMatching(SBatchEventResult))
+    expect({
+      status: 'itemError',
+      eventId: null,
+      code: 'FORBIDDEN',
+    }).not.toEqual(expect.schemaMatching(SBatchEventResult))
   })
 })

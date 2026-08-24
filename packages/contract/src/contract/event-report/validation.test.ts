@@ -1,4 +1,3 @@
-import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { SEvent, SEventReportFilter, isWithinAuthenticatedEventBucketLimit } from './schema.ts'
 import { SEventBreakdownsInput } from './query/get-breakdowns.ts'
@@ -8,49 +7,39 @@ const pagination = { offset: 0, limit: 10 }
 
 describe('event report contract', () => {
   it('accepts typed property filters and rejects incompatible operators', () => {
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'event',
-        field: 'property.orderTotal',
-        operator: 'greater_than',
-        values: [42],
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'event',
-        field: 'property.isTrial',
-        operator: 'equals',
-        values: [false],
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'event',
-        field: 'property.orderTotal',
-        operator: 'greater_than',
-        values: ['42'],
-      }).success,
-    ).toBe(false)
+    expect({
+      scope: 'event',
+      field: 'property.orderTotal',
+      operator: 'greater_than',
+      values: [42],
+    }).toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'event',
+      field: 'property.isTrial',
+      operator: 'equals',
+      values: [false],
+    }).toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'event',
+      field: 'property.orderTotal',
+      operator: 'greater_than',
+      values: ['42'],
+    }).not.toEqual(expect.schemaMatching(SEventReportFilter))
   })
 
   it('represents authenticated same-range has_done and has_not_done filters', () => {
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'session',
-        operator: 'has_done',
-        action: { kind: 'custom_event', name: 'checkout' },
-        range: 'same_range',
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SEventReportFilter, {
-        scope: 'session',
-        operator: 'has_not_done',
-        action: { kind: 'page_view' },
-        range: 'same_range',
-      }).success,
-    ).toBe(true)
+    expect({
+      scope: 'session',
+      operator: 'has_done',
+      action: { kind: 'custom_event', name: 'checkout' },
+      range: 'same_range',
+    }).toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'session',
+      operator: 'has_not_done',
+      action: { kind: 'page_view' },
+      range: 'same_range',
+    }).toEqual(expect.schemaMatching(SEventReportFilter))
   })
 
   it('uses occurrence time only for Event list sorting', () => {
@@ -61,11 +50,11 @@ describe('event report contract', () => {
       toDate: '2026-08-24',
       ...pagination,
     }
-    expect(v.safeParse(SEventListInput, { ...base, sort: 'occurredAt' }).success).toBe(true)
-    expect(v.safeParse(SEventListInput, { ...base, sort: 'createdAt' }).success).toBe(false)
-    expect(
-      v.safeParse(SEventBreakdownsInput, { ...base, sort: 'count', direction: 'desc' }).success,
-    ).toBe(true)
+    expect({ ...base, sort: 'occurredAt' }).toEqual(expect.schemaMatching(SEventListInput))
+    expect({ ...base, sort: 'createdAt' }).not.toEqual(expect.schemaMatching(SEventListInput))
+    expect({ ...base, sort: 'count', direction: 'desc' }).toEqual(
+      expect.schemaMatching(SEventBreakdownsInput),
+    )
   })
 
   it('requires absolute occurrence and receipt timestamps', () => {
@@ -78,8 +67,10 @@ describe('event report contract', () => {
       kind: 'page_view',
       pagePath: '/',
     }
-    expect(v.safeParse(SEvent, event).success).toBe(true)
-    expect(v.safeParse(SEvent, { ...event, occurredAt: '2026-08-24T12:00:00' }).success).toBe(false)
+    expect(event).toEqual(expect.schemaMatching(SEvent))
+    expect({ ...event, occurredAt: '2026-08-24T12:00:00' }).not.toEqual(
+      expect.schemaMatching(SEvent),
+    )
   })
 
   it('uses per-granularity timeseries bounds', () => {

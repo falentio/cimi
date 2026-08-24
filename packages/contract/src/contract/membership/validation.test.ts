@@ -25,8 +25,8 @@ describe('membership ownership transfer contract', () => {
     }
 
     expect(v.parse(SMembershipTransferOwnershipOutput, membership)).toEqual(membership)
-    expect(
-      v.safeParse(SMembershipTransferOwnershipOutput, { ...membership, role: 'admin' }).success,
-    ).toBe(false)
+    expect({ ...membership, role: 'admin' }).not.toEqual(
+      expect.schemaMatching(SMembershipTransferOwnershipOutput),
+    )
   })
 })

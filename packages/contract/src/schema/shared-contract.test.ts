@@ -1,4 +1,3 @@
-import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { AUTH_META_VALUES } from '../orpc/meta.ts'
 import {
@@ -23,33 +22,27 @@ describe('shared contract primitives', () => {
   })
 
   it('requires an explicit timezone for absolute timestamps', () => {
-    expect(v.safeParse(SDateTime, '2026-08-01T00:00:00Z').success).toBe(true)
-    expect(v.safeParse(SDateTime, '2026-08-01T00:00:00-04:00').success).toBe(true)
-    expect(v.safeParse(SDateTime, '2026-08-01T00:00:00').success).toBe(false)
+    expect('2026-08-01T00:00:00Z').toEqual(expect.schemaMatching(SDateTime))
+    expect('2026-08-01T00:00:00-04:00').toEqual(expect.schemaMatching(SDateTime))
+    expect('2026-08-01T00:00:00').not.toEqual(expect.schemaMatching(SDateTime))
   })
 
   it('supports authenticated same-range action filters without widening property filters', () => {
-    expect(
-      v.safeParse(SAuthenticatedFilter, {
-        scope: 'visitor',
-        operator: 'has_done',
-        action: { kind: 'custom_event', name: 'signup' },
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SAuthenticatedFilter, {
-        scope: 'visitor',
-        operator: 'has_not_done',
-        action: { kind: 'page_view', name: 'home' },
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SPropertyFilter, {
-        field: 'event',
-        operator: 'has_done',
-        values: ['signup'],
-      }).success,
-    ).toBe(false)
+    expect({
+      scope: 'visitor',
+      operator: 'has_done',
+      action: { kind: 'custom_event', name: 'signup' },
+    }).toEqual(expect.schemaMatching(SAuthenticatedFilter))
+    expect({
+      scope: 'visitor',
+      operator: 'has_not_done',
+      action: { kind: 'page_view', name: 'home' },
+    }).not.toEqual(expect.schemaMatching(SAuthenticatedFilter))
+    expect({
+      field: 'event',
+      operator: 'has_done',
+      values: ['signup'],
+    }).not.toEqual(expect.schemaMatching(SPropertyFilter))
   })
 
   it('publishes the shared authorization vocabulary', () => {

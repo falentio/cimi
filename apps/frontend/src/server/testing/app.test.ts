@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, expect, test } from 'vitest'
+import { SSystemHealthOutput } from '@cimi/contract'
 import { createFrontendServerApp } from '../app.ts'
 
 const tempDir = await mkdtemp(join(tmpdir(), 'cimi-frontend-'))
@@ -14,14 +15,8 @@ const app = await createFrontendServerApp(process.env)
 test('system health reports live control and analytics stores', async () => {
   const res = await app.fetch(new Request('http://localhost/api/system/health'))
   expect(res.status).toBe(200)
-  const body = (await res.json()) as {
-    status: string
-    controlStore: string
-    analyticsStore: string
-    cleanupPending: boolean
-    version: string
-    checkedAt: string
-  }
+  const body = await res.json()
+  expect(body).toEqual(expect.schemaMatching(SSystemHealthOutput))
   expect(body.status).toBe('healthy')
   expect(body.controlStore).toBe('ready')
   expect(body.analyticsStore).toBe('ready')

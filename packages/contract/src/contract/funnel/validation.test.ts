@@ -1,14 +1,11 @@
-import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { SFunnelAction, SFunnelReportSteps } from './schema.ts'
 
 describe('funnel report contract', () => {
   it('rejects names on pageview actions and requires names for named Event kinds', () => {
-    expect(v.safeParse(SFunnelAction, { kind: 'page_view', name: '/home' }).success).toBe(false)
-    expect(v.safeParse(SFunnelAction, { kind: 'custom_event' }).success).toBe(false)
-    expect(v.safeParse(SFunnelAction, { kind: 'custom_event', name: 'checkout' }).success).toBe(
-      true,
-    )
+    expect({ kind: 'page_view', name: '/home' }).not.toEqual(expect.schemaMatching(SFunnelAction))
+    expect({ kind: 'custom_event' }).not.toEqual(expect.schemaMatching(SFunnelAction))
+    expect({ kind: 'custom_event', name: 'checkout' }).toEqual(expect.schemaMatching(SFunnelAction))
   })
 
   it('requires ordered contiguous report steps', () => {
@@ -18,8 +15,8 @@ describe('funnel report contract', () => {
       rateFromEntry: 0.5,
       rateFromPrevious: 0.5,
     })
-    expect(v.safeParse(SFunnelReportSteps, [step(0), step(1)]).success).toBe(true)
-    expect(v.safeParse(SFunnelReportSteps, [step(1), step(2)]).success).toBe(false)
-    expect(v.safeParse(SFunnelReportSteps, [step(0)]).success).toBe(false)
+    expect([step(0), step(1)]).toEqual(expect.schemaMatching(SFunnelReportSteps))
+    expect([step(1), step(2)]).not.toEqual(expect.schemaMatching(SFunnelReportSteps))
+    expect([step(0)]).not.toEqual(expect.schemaMatching(SFunnelReportSteps))
   })
 })

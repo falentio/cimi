@@ -1,4 +1,3 @@
-import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import {
   SMetricPoint,
@@ -8,29 +7,25 @@ import {
 
 describe('traffic report contract', () => {
   it('requires named trend metrics and their denominator semantics', () => {
-    expect(
-      v.safeParse(SMetricPoint, {
-        metric: 'bounce_rate',
-        grain: 'session',
-        unit: 'rate',
-        denominator: 12,
-        at: '2026-08-24T12:00:00Z',
-        value: 0.25,
-        complete: true,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SMetricPoint, {
-        at: '2026-08-24T12:00:00Z',
-        value: 1,
-        complete: true,
-      }).success,
-    ).toBe(false)
+    expect({
+      metric: 'bounce_rate',
+      grain: 'session',
+      unit: 'rate',
+      denominator: 12,
+      at: '2026-08-24T12:00:00Z',
+      value: 0.25,
+      complete: true,
+    }).toEqual(expect.schemaMatching(SMetricPoint))
+    expect({
+      at: '2026-08-24T12:00:00Z',
+      value: 1,
+      complete: true,
+    }).not.toEqual(expect.schemaMatching(SMetricPoint))
   })
 
   it('requires absolute trend timestamps', () => {
-    expect(v.safeParse(STrafficAbsoluteDateTime, '2026-08-24T12:00:00').success).toBe(false)
-    expect(v.safeParse(STrafficAbsoluteDateTime, '2026-08-24T12:00:00+02:00').success).toBe(true)
+    expect('2026-08-24T12:00:00').not.toEqual(expect.schemaMatching(STrafficAbsoluteDateTime))
+    expect('2026-08-24T12:00:00+02:00').toEqual(expect.schemaMatching(STrafficAbsoluteDateTime))
   })
 
   it('uses separate bucket bounds for each authenticated granularity', () => {

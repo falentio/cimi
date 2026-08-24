@@ -1,4 +1,3 @@
-import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { PSafePolicy, SCollectionPolicyUpdateFields, SPolicy } from './schema.ts'
 
@@ -38,34 +37,26 @@ const source = {
 
 describe('collection policy schemas', () => {
   it('discriminates installation defaults from Site overrides', () => {
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, {
-        scope: 'installation',
-        policy: values,
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, {
-        scope: 'site',
-        policy: { ...values, siteId: 'site-1' },
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, {
-        policy: { ...values, siteId: 'site-1' },
-      }).success,
-    ).toBe(false)
-    expect(
-      v.safeParse(SCollectionPolicyUpdateFields, {
-        scope: 'site',
-        policy: values,
-      }).success,
-    ).toBe(false)
+    expect({
+      scope: 'installation',
+      policy: values,
+    }).toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+    expect({
+      scope: 'site',
+      policy: { ...values, siteId: 'site-1' },
+    }).toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+    expect({
+      policy: { ...values, siteId: 'site-1' },
+    }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+    expect({
+      scope: 'site',
+      policy: values,
+    }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
   })
 
   it('does not accept a scope-less policy', () => {
-    expect(v.safeParse(SPolicy, values).success).toBe(false)
-    expect(v.safeParse(SPolicy, { scope: 'site', siteId: 'site-1', ...values }).success).toBe(true)
+    expect(values).not.toEqual(expect.schemaMatching(SPolicy))
+    expect({ scope: 'site', siteId: 'site-1', ...values }).toEqual(expect.schemaMatching(SPolicy))
   })
 
   it('requires complete installation-or-Site provenance', () => {
@@ -76,12 +67,11 @@ describe('collection policy schemas', () => {
       source,
     }
 
-    expect(v.safeParse(PSafePolicy, output).success).toBe(true)
+    expect(output).toEqual(expect.schemaMatching(PSafePolicy))
     const { consentMode: _consentMode, ...missingSource } = source
-    expect(v.safeParse(PSafePolicy, { ...output, source: missingSource }).success).toBe(false)
-    expect(
-      v.safeParse(PSafePolicy, { ...output, source: { ...source, default: 'installation' } })
-        .success,
-    ).toBe(false)
+    expect({ ...output, source: missingSource }).not.toEqual(expect.schemaMatching(PSafePolicy))
+    expect({ ...output, source: { ...source, default: 'installation' } }).not.toEqual(
+      expect.schemaMatching(PSafePolicy),
+    )
   })
 })

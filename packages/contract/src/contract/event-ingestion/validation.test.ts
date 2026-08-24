@@ -1,4 +1,3 @@
-import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { SCollectEventInput } from './command/collect-event.ts'
 import {
@@ -21,103 +20,85 @@ const common = {
 
 describe('event ingestion schemas', () => {
   it('requires kind-specific page-view fields', () => {
-    expect(
-      v.safeParse(SEvent, { ...common, kind: 'page_view', pagePath: '/checkout' }).success,
-    ).toBe(true)
-    expect(v.safeParse(SEvent, { ...common, kind: 'page_view' }).success).toBe(false)
+    expect({ ...common, kind: 'page_view', pagePath: '/checkout' }).toEqual(
+      expect.schemaMatching(SEvent),
+    )
+    expect({ ...common, kind: 'page_view' }).not.toEqual(expect.schemaMatching(SEvent))
   })
 
   it('requires kind-specific custom-event fields', () => {
-    expect(
-      v.safeParse(SEvent, { ...common, kind: 'custom_event', name: 'completed' }).success,
-    ).toBe(true)
-    expect(v.safeParse(SEvent, { ...common, kind: 'custom_event' }).success).toBe(false)
+    expect({ ...common, kind: 'custom_event', name: 'completed' }).toEqual(
+      expect.schemaMatching(SEvent),
+    )
+    expect({ ...common, kind: 'custom_event' }).not.toEqual(expect.schemaMatching(SEvent))
   })
 
   it('accepts a bounded non-atomic batch shape', () => {
-    expect(
-      v.safeParse(SCollectEventsInput, {
-        ingestionIdentifier: 'site-ingestion-1',
-        events: [{ ...common, kind: 'page_view', pagePath: '/' }],
-      }).success,
-    ).toBe(true)
+    expect({
+      ingestionIdentifier: 'site-ingestion-1',
+      events: [{ ...common, kind: 'page_view', pagePath: '/' }],
+    }).toEqual(expect.schemaMatching(SCollectEventsInput))
   })
 
   it('accepts privacy context on singular requests', () => {
-    expect(
-      v.safeParse(SCollectEventInput, {
-        ...common,
-        kind: 'page_view',
-        pagePath: '/',
-        collectionContext: { consent: 'granted', gpc: false, dnt: false },
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SCollectEventInput, {
-        ...common,
-        kind: 'page_view',
-        pagePath: '/',
-        collectionContext: { consent: 'yes' },
-      }).success,
-    ).toBe(false)
+    expect({
+      ...common,
+      kind: 'page_view',
+      pagePath: '/',
+      collectionContext: { consent: 'granted', gpc: false, dnt: false },
+    }).toEqual(expect.schemaMatching(SCollectEventInput))
+    expect({
+      ...common,
+      kind: 'page_view',
+      pagePath: '/',
+      collectionContext: { consent: 'yes' },
+    }).not.toEqual(expect.schemaMatching(SCollectEventInput))
   })
 
   it('scopes privacy context to the batch envelope', () => {
-    expect(
-      v.safeParse(SCollectEventsInput, {
-        ingestionIdentifier: common.ingestionIdentifier,
-        collectionContext: { consent: 'denied', gpc: true },
-        events: [{ ...common, kind: 'page_view', pagePath: '/' }],
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SCollectEventsInput, {
-        ingestionIdentifier: common.ingestionIdentifier,
-        events: [{ ...common, kind: 'page_view', pagePath: '/', collectionContext: {} }],
-      }).success,
-    ).toBe(false)
+    expect({
+      ingestionIdentifier: common.ingestionIdentifier,
+      collectionContext: { consent: 'denied', gpc: true },
+      events: [{ ...common, kind: 'page_view', pagePath: '/' }],
+    }).toEqual(expect.schemaMatching(SCollectEventsInput))
+    expect({
+      ingestionIdentifier: common.ingestionIdentifier,
+      events: [{ ...common, kind: 'page_view', pagePath: '/', collectionContext: {} }],
+    }).not.toEqual(expect.schemaMatching(SCollectEventsInput))
   })
 
   it('keeps malformed items eligible for per-item errors', () => {
-    expect(
-      v.safeParse(SCollectEventsInput, {
-        ingestionIdentifier: 'site-ingestion-1',
-        events: [{ eventId: 'event-1', kind: 'unknown' }],
-      }).success,
-    ).toBe(true)
-    expect(
-      v.safeParse(SCollectEventsInput, {
-        ingestionIdentifier: 'site-ingestion-1',
-        events: [null],
-      }).success,
-    ).toBe(true)
+    expect({
+      ingestionIdentifier: 'site-ingestion-1',
+      events: [{ eventId: 'event-1', kind: 'unknown' }],
+    }).toEqual(expect.schemaMatching(SCollectEventsInput))
+    expect({
+      ingestionIdentifier: 'site-ingestion-1',
+      events: [null],
+    }).toEqual(expect.schemaMatching(SCollectEventsInput))
   })
 
   it('rejects a batch whose items use another Ingestion Identifier', () => {
-    expect(
-      v.safeParse(SCollectEventsInput, {
-        ingestionIdentifier: 'site-ingestion-1',
-        events: [
-          { ...common, ingestionIdentifier: 'site-ingestion-2', kind: 'page_view', pagePath: '/' },
-        ],
-      }).success,
-    ).toBe(false)
+    expect({
+      ingestionIdentifier: 'site-ingestion-1',
+      events: [
+        { ...common, ingestionIdentifier: 'site-ingestion-2', kind: 'page_view', pagePath: '/' },
+      ],
+    }).not.toEqual(expect.schemaMatching(SCollectEventsInput))
   })
 
   it('rejects server-controlled receipt time as an Event property', () => {
-    expect(
-      v.safeParse(SEvent, {
-        ...common,
-        kind: 'custom_event',
-        name: 'completed',
-        properties: { receiptTime: '2026-08-23T00:00:00Z' },
-      }).success,
-    ).toBe(false)
+    expect({
+      ...common,
+      kind: 'custom_event',
+      name: 'completed',
+      properties: { receiptTime: '2026-08-23T00:00:00Z' },
+    }).not.toEqual(expect.schemaMatching(SEvent))
   })
 
   it('rejects impossible calendar dates and timestamps', () => {
-    expect(v.safeParse(SDate, '2026-02-29').success).toBe(false)
-    expect(v.safeParse(SDateTime, '2026-02-29T00:00:00Z').success).toBe(false)
+    expect('2026-02-29').not.toEqual(expect.schemaMatching(SDate))
+    expect('2026-02-29T00:00:00Z').not.toEqual(expect.schemaMatching(SDateTime))
   })
 
   it('publishes raw request byte limits for the transport adapter', () => {
@@ -132,25 +113,21 @@ describe('event ingestion schemas', () => {
   })
 
   it('keeps acceptance-boundary failures out of per-item results', () => {
-    expect(
-      v.safeParse(SBatchEventResult, {
-        status: 'itemError',
-        eventId: 'event-1',
-        code: 'SERVICE_UNAVAILABLE',
-      }).success,
-    ).toBe(false)
+    expect({
+      status: 'itemError',
+      eventId: 'event-1',
+      code: 'SERVICE_UNAVAILABLE',
+    }).not.toEqual(expect.schemaMatching(SBatchEventResult))
   })
 
   it('requires a non-empty batch response and permits the 100-item boundary', () => {
-    expect(v.safeParse(SBatchEventResponse, { results: [] }).success).toBe(false)
-    expect(
-      v.safeParse(SBatchEventResponse, {
-        results: Array.from({ length: 100 }, (_, index) => ({
-          status: 'accepted',
-          eventId: `event-${index}`,
-          receiptTime: '2026-08-23T00:00:00Z',
-        })),
-      }).success,
-    ).toBe(true)
+    expect({ results: [] }).not.toEqual(expect.schemaMatching(SBatchEventResponse))
+    expect({
+      results: Array.from({ length: 100 }, (_, index) => ({
+        status: 'accepted',
+        eventId: `event-${index}`,
+        receiptTime: '2026-08-23T00:00:00Z',
+      })),
+    }).toEqual(expect.schemaMatching(SBatchEventResponse))
   })
 })
