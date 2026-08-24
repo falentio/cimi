@@ -12,10 +12,12 @@
   },
   "dependencies": {
     "ip-address": "catalog:",
-    "lru-cache": "catalog:"
+    "lru-cache": "catalog:",
+    "ua-parser-js": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/ua-parser-js": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

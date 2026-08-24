@@ -9,6 +9,13 @@ export {
   type ParsedIpPattern,
 } from './ip/index.ts'
 export {
+  createUserAgentParser,
+  parseUserAgent,
+  type ParsedUserAgent,
+  type UserAgentParser,
+  type UserAgentParserOptions,
+} from './user-agent/index.ts'
+export {
   classifyUA,
   isBotUA,
   type BotCategory,
