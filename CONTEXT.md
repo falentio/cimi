@@ -61,7 +61,7 @@ An expiring, single-use custom bearer link that carries a fixed Organization rol
 _Avoid_: access link, invite code
 
 **Site**:
-A website or web application whose analytics belong to exactly one Organization. A Site owns its reporting timezone and week-start preference; transfer between Organizations is outside the first-release boundary. Its `Site.status` is `active`, `deleting`, `deleted`, `recovering`, or `purged`; every non-`active` Site is hidden and non-ingestible/non-queryable except for the privileged deletion-status surface where specified. Deletion is recoverable for thirty days, and purge removes live Site data while a Site Deletion Tombstone prevents resurrection from older backups.
+A website or web application whose analytics belong to exactly one Organization. A Site owns its reporting timezone and week-start preference; transfer between Organizations is outside the first-release boundary. Its `Site.status` is `active`, `deleting`, `deleted`, `recovering`, or `purged`; every non-`active` Site is hidden, blocks new ingestion admission, and is non-queryable except for the privileged deletion-status surface where specified. Event candidates admitted before a deletion boundary may finish durable acceptance. Deletion is recoverable for thirty days, and purge removes live Site data while a Site Deletion Tombstone prevents resurrection from older backups.
 _Avoid_: property, project
 
 **Scoped Lifecycle Status**:
@@ -137,11 +137,11 @@ The client-reported time at which an Event occurred. Missing values use Receipt 
 _Avoid_: ingest time, trusted client time
 
 **Receipt Time**:
-The server time when Cimi accepts an Event for processing. It provides the authoritative ingest ordering, is retained in the durable acceptance record, and remains available even when an occurrence time is absent or delayed.
+The server time when Cimi admits a normalized Event candidate for processing. It is captured before the synchronous acceptance flush, provides the authoritative ingest ordering, is retained in the durable acceptance record, supplies a missing Occurrence Time, and remains available even when an occurrence time is delayed. A candidate that never commits has no durable acceptance record.
 _Avoid_: client timestamp
 
 **Event Acceptance Record**:
-The durable record of a normalized Event and immutable acceptance metadata written before successful ingestion acknowledgment. It supports idempotent recovery but is not the queryable analytics-store commit.
+The durable record of a normalized Event and immutable acceptance metadata written by a committed SQLite acceptance flush before successful ingestion acknowledgment. It supports idempotent recovery but is not the queryable analytics-store commit or a transient queue item.
 _Avoid_: analytics table, transient queue item
 
 **Analytical Fact**:
@@ -189,11 +189,15 @@ The transport-level status mapped from a declared contract error code. It commun
 _Avoid_: contract error code, batch result status
 
 **Event Batch**:
-A separate non-atomic collection request containing up to one hundred Events for one Site and no more than 256 KiB serialized. Boundary failures reject the request before results; otherwise each item receives its own `accepted`, `duplicate`, generic policy `rejected`, or bounded `itemError` outcome and counts separately against ingestion protection buckets. Policy refusals and item errors are not acceptance records and are re-evaluated on retry.
+A separate non-atomic collection request containing up to one hundred Events for one Site and no more than 256 KiB measured as raw UTF-8 bytes before JSON parsing. Boundary failures reject the request before results; otherwise each item receives its own `accepted`, `duplicate`, generic policy `rejected`, or bounded `itemError` outcome and counts separately against ingestion protection buckets. Policy refusals and item errors are not acceptance records and are re-evaluated on retry. It is distinct from Cimi's internal acceptance flush.
 _Avoid_: transaction, bulk import
 
+**Acceptance Flush**:
+An internal sequential SQLite transaction containing normalized Event candidates admitted through the installation-wide acceptance coalescer. The first candidate opens a fixed coalescing window, candidates are ordered by admission, and the flush either commits all its candidates or commits none. It is not a public Event Batch, an acknowledgment by itself, or an analytics-store projection.
+_Avoid_: Event Batch, in-memory acknowledgment, report freshness
+
 **Batch Item Outcome**:
-The per-Event result in a successfully boundary-validated Event Batch. `accepted`, `duplicate`, `rejected`, and `itemError` are item outcomes, not top-level HTTP errors; a batch may return them independently without creating an acceptance record for the affected item.
+The per-Event result in a successfully boundary-validated Event Batch. `accepted` and `duplicate` identify committed or previously committed acceptance records; `rejected` and `itemError` are response-only outcomes and never create acceptance records. All four are item outcomes, not top-level HTTP errors; a batch may return them independently in its normal HTTP 200 response.
 _Avoid_: top-level error, HTTP response, batch transaction result
 
 **Collection Policy Rejection**:

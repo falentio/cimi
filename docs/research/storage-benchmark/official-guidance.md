@@ -257,7 +257,7 @@ The current database client skeleton now applies the following production-safe d
 - **DuckDB:** one writer thread by default, an explicit 512 MiB buffer-manager limit, a local temporary spill directory, a 1 GiB temporary-directory cap, and an explicit `CHECKPOINT` before close. Every setting is overridable through `CreateAnalyticsDbOptions`.
 - **Storage location:** both database files and DuckDB spill files remain under the caller-provided local data path; no network or Daytona volume is selected by the clients.
 - **Testing:** the SQLite test asserts the effective PRAGMA values, and the DuckDB test exercises explicit threads, memory, temporary-directory, and reopen/close configuration.
-- **Benchmark parity:** the benchmark defaults now use the same settings and the selected 1,000-row production batch profile. Smaller batch sizes remain available only as explicit diagnostic overrides.
+- **Benchmark parity:** the benchmark defaults now use the same settings and the adopted 500-candidate acceptance flush profile. The recorded 1,000-row results are historical evidence; smaller batch sizes remain available as explicit diagnostic overrides.
 
 These settings harden the client boundary, but they do not mean the whole database lifecycle is complete. The following remain implementation work before production release:
 

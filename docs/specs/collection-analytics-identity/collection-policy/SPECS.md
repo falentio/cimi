@@ -13,7 +13,7 @@ updated: 2026-08-24
 
 Collection Policy is the privacy and collection boundary evaluated before Visitor, Identified User, or Analytics Session assignment. Installation defaults and an optional Site override are distinct scopes; the effective policy returned for a Site is always Site-scoped. It is not a report filter and cannot be bypassed by a server-side caller.
 
-The effective policy is installation defaults plus an optional Site override. Anonymous cookieless collection is the default posture; explicit identity, Traits, and replay require caller opt-in. Changes apply to newly received Events and do not retroactively reconstruct data already stored.
+The effective policy is installation defaults plus an optional Site override. Anonymous cookieless collection is the default posture; explicit identity, Traits, and replay require caller opt-in. Changes apply to newly admitted Events and do not retroactively reconstruct data already stored. An Event that has crossed the ingestion admission boundary keeps the effective policy version and normalized policy outcome captured at admission while it waits for its SQLite acceptance flush.
 
 ## 2. Base Schema
 
@@ -70,7 +70,7 @@ When `honorGpcDnt` is true, either active signal suppresses collection before ac
 
 **Purpose:** Update an installation default or a Site collection and privacy override.
 
-**Behavior:** The input is discriminated by `scope`. The `installation` branch has no Site ID and requires installation-admin authority. The `site` branch requires a Site ID in the policy and Owner or Administrator Site-management authority. Validate policy combinations before commit. The policy is evaluated before identity/Session assignment on subsequent ingestion. `profileFilterKeys` is the bounded registry for authenticated profile filters and changing it does not rewrite historical traits. Return 200.
+**Behavior:** The input is discriminated by `scope`. The `installation` branch has no Site ID and requires installation-admin authority. The `site` branch requires a Site ID in the policy and Owner or Administrator Site-management authority. Validate policy combinations before commit. The policy is evaluated before identity/Session assignment on subsequent ingestion and its effective version is snapshotted when an Event candidate enters the acceptance boundary; coalescing wait does not trigger a second policy evaluation. `profileFilterKeys` is the bounded registry for authenticated profile filters and changing it does not rewrite historical traits. Return 200.
 
 **Events Emitted:** None in MVP.
 
@@ -105,7 +105,7 @@ No domain event channel is required by the MVP contract.
 - **GPC/DNT received** — `gpc: true` or `dnt: true` is honored only when `honorGpcDnt` is true; then suppress the Event with the generic policy refusal before acceptance, identity, or Session creation.
 - **Server-side caller omits consent context** — Treat consent as not granted, treat GPC/DNT as absent, and apply the effective Site policy. The request cannot bypass a required opt-in.
 - **Batch consent context** — One envelope-level `collectionContext` applies to every Event; a per-item context is invalid.
-- **Policy changes while an Event is in flight** — The receiver evaluates the committed policy observed at acceptance; no partial identity/session assignment occurs.
+- **Policy changes while an Event is in flight** — The receiver evaluates and snapshots the committed policy at candidate admission; the candidate keeps that policy version through coalescing and durable acceptance, with no partial identity/session assignment.
 
 ## 10. Error Code Catalog
 

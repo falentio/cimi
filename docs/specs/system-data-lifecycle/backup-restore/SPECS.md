@@ -31,7 +31,7 @@ explicit `cleanupPending` flag. `completedAt` is null for `creating` and
 `restoring`, non-null for `available` and `failed`, and never precedes
 `createdAt`.
 
-Backup creation uses write quiescence while preserving analytics reads; restore uses read/write quiescence until structural readiness. They never accept arbitrary filesystem paths from clients.
+Backup creation uses write quiescence while preserving analytics reads; write quiescence stops new Event admission and drains the active 500-candidate flush plus the pending 1,500-candidate queue before the SQLite snapshot. Restore uses read/write quiescence until structural readiness and also requires the acceptance queues to drain before replacing SQLite. They never accept arbitrary filesystem paths from clients.
 
 ## 2. Base Schema
 
@@ -97,7 +97,7 @@ Each cleanup stage uses `not_applicable`, `not_started`, `pending`, `running`, `
 
 **Purpose:** Create a consistent backup of the configured SQLite control and acceptance data.
 
-**Behavior:** Installation admin only. Enter read-only maintenance: continue analytics reads, reject collection and lifecycle mutations, and hold the global lifecycle lock. Capture the full SQLite-canonical installation generation: the full-retention acceptance journal, deduplication/replay state, Organization/Site and resource definitions, identity profiles/aliases/redaction overlays, retention and deletion intent/tombstones, projector cursors, quarantine gaps, lifecycle state, and retention manifest. DuckDB need not be included because it is rebuildable from the authoritative journal; an optional DuckDB copy is only a restore accelerator. Return 202 with operation status. No client filesystem destination is accepted.
+**Behavior:** Installation admin only. Enter read-only maintenance: continue analytics reads, stop new Event admission, reject lifecycle mutations, and hold the global lifecycle lock. Drain the active and pending acceptance queues before capturing the snapshot. If SQLite cannot commit the drain, mark the backup operation failed with `INTERNAL_SERVER_ERROR` and fail its waiting ingestion requests with `SERVICE_UNAVAILABLE`; do not capture a partial generation. Capture the full SQLite-canonical installation generation: the full-retention acceptance journal, deduplication/replay state, Organization/Site and resource definitions, identity profiles/aliases/redaction overlays, retention and deletion intent/tombstones, projector cursors, quarantine gaps, lifecycle state, and retention manifest. DuckDB need not be included because it is rebuildable from the authoritative journal; an optional DuckDB copy is only a restore accelerator. Return 202 with operation status. No client filesystem destination is accepted.
 
 **Events Emitted:** None in MVP.
 
@@ -109,7 +109,7 @@ Each cleanup stage uses `not_applicable`, `not_started`, `pending`, `running`, `
 
 **Purpose:** Restore an operator-selected configured SQLite backup manifest and rebuild analytical state.
 
-**Behavior:** Installation admin only. Require explicit confirmation, acquire the global lifecycle lock, quiesce writes and reads, validate manifest compatibility, migrate supported older manifests, reject newer or incompatible manifests, and create and persist an internal SQLite `preRestoreSafetyArtifact` for the currently active generation before replacing it. The operator-selected `restoreSourceBackupId` and safety artifact are separate manifests. Restore SQLite, reapply identity redaction and Site deletion tombstones, recreate DuckDB from authoritative SQLite, replay accepted records, and keep the instance in `recovering` state until projection and structural health checks pass. Return 202. If safety-artifact creation fails, record a failed operation and return `INSUFFICIENT_STORAGE` (507); do not replace active state. If migration or DuckDB rebuild fails, roll back the whole pre-restore generation from the safety artifact. The instance may become ready before retention/deletion cleanup of historical backup payloads completes; `derivedCleanup` then `backupCleanup` are visible and ordered. An older backup may temporarily rehydrate expired or deleted payload into the restored generation under the restore-time privacy exception, but tombstones and redaction overlays block normal Site reads, collection, authenticated analytics, and Public Query, and prevent deleted or purged Site activation. A failed restore must not report ready or silently continue with incomplete analytical state.
+**Behavior:** Installation admin only. Require explicit confirmation, acquire the global lifecycle lock, stop new Event admission, drain the active and pending acceptance queues, quiesce writes and reads, validate manifest compatibility, migrate supported older manifests, reject newer or incompatible manifests, and create and persist an internal SQLite `preRestoreSafetyArtifact` for the currently active generation before replacing it. The operator-selected `restoreSourceBackupId` and safety artifact are separate manifests. Restore SQLite, reapply identity redaction and Site deletion tombstones, recreate DuckDB from authoritative SQLite, replay accepted records, and keep the instance in `recovering` state until projection and structural health checks pass. Return 202. If the queue drain or safety-artifact creation fails, mark the operation failed with `INTERNAL_SERVER_ERROR` and fail uncommitted ingestion waiters with `SERVICE_UNAVAILABLE`; do not replace active state. If migration or DuckDB rebuild fails, roll back the whole pre-restore generation from the safety artifact. The instance may become ready before retention/deletion cleanup of historical backup payloads completes; `derivedCleanup` then `backupCleanup` are visible and ordered. An older backup may temporarily rehydrate expired or deleted payload into the restored generation under the restore-time privacy exception, but tombstones and redaction overlays block normal Site reads, collection, authenticated analytics, and Public Query, and prevent deleted or purged Site activation. A failed restore must not report ready or silently continue with incomplete analytical state.
 
 **Events Emitted:** None in MVP.
 
@@ -128,6 +128,7 @@ Each cleanup stage uses `not_applicable`, `not_started`, `pending`, `running`, `
 | Active-derived cleanup completes before historical-backup cleanup. | Cleanup coordinator. | Q2, C2 |
 | Storage pressure causes explicit failure, not silent deletion.                                      | Operation executor.                 | C1-C2               |
 | One global lifecycle lock covers backup, restore, upgrade, retention, Site deletion/recovery/purge, and destructive cleanup. | Lifecycle coordinator. | C1-C2 |
+| Write quiescence stops new admission and drains the 500-active/1,500-pending acceptance envelope before snapshot or replacement. | Lifecycle coordinator and acceptance coordinator. | C1-C2 |
 
 ## 7. Authorization Matrix
 
@@ -153,6 +154,7 @@ No domain event channel is required by the MVP contract; operation status is pol
 - **Upgrade migration or rebuild failure** — Restore the whole pre-operation generation from the authoritative SQLite safety artifact; never leave a partial generation ready.
 - **Timestamp invariant** — Reject active operations with `completedAt`, terminal operations without it, or any completion timestamp before `createdAt`.
 - **Cleanup ordering** — `backupCleanup` cannot be `running`, `completed`, or `failed` until `derivedCleanup` is `completed`; both stages expose safe timestamps and errors.
+- **Acceptance drain failure** — Do not create or restore a backup generation when the acceptance queues cannot drain durably; record `INTERNAL_SERVER_ERROR` on the lifecycle operation and return `SERVICE_UNAVAILABLE` to uncommitted ingestion waiters rather than snapshotting a partial queue.
 
 ## 10. Error Code Catalog
 

@@ -2,6 +2,11 @@ import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
 import { EBatchIngestion, SId } from '../../../schema/index.ts'
 import { SCollectionContext } from '../../collection-policy/transport.ts'
+import {
+  EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS,
+  EVENT_ACCEPTANCE_PENDING_MAX_EVENTS,
+  EVENT_ACCEPTANCE_WINDOW_MS,
+} from '../acceptance.ts'
 import { SBatchEventResponse } from '../schema.ts'
 
 export const COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES = 256 * 1024
@@ -44,8 +49,7 @@ export const collectEvents = oc
     path: '/collectEvents',
     operationId: 'collectEvents',
     summary: 'Collect a batch of events',
-    description:
-      'Accept a bounded non-atomic batch of telemetry Events. The transport adapter measures the raw UTF-8 request body before JSON parsing against the published byte limit; collectionContext applies to the whole batch.',
+    description: `Accept a bounded non-atomic batch of telemetry Events. New normalized candidates share a FIFO SQLite acceptance coalescer with a ${EVENT_ACCEPTANCE_WINDOW_MS} ms window, a ${EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS}-candidate flush limit, and ${EVENT_ACCEPTANCE_PENDING_MAX_EVENTS} pending-candidate capacity. Candidates may span flushes while preserving input order; successful responses wait for durable SQLite commit. Normal item outcomes remain HTTP 200; queue or flush failure returns top-level SERVICE_UNAVAILABLE with no result body. The transport adapter measures the raw UTF-8 request body before JSON parsing against the published byte limit; collectionContext applies to the whole batch.`,
     tags: ['event-ingestion'],
     successStatus: 200,
   })

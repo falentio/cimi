@@ -6,7 +6,12 @@ import {
   SCollectEventsInput,
 } from './command/collect-events.ts'
 import { COLLECT_EVENT_MAX_RAW_REQUEST_BYTES } from './command/collect-event.ts'
-import { SBatchEventResponse, SEvent } from './schema.ts'
+import { SBatchEventResponse, SBatchEventResult, SEvent } from './schema.ts'
+import {
+  EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS,
+  EVENT_ACCEPTANCE_PENDING_MAX_EVENTS,
+  EVENT_ACCEPTANCE_WINDOW_MS,
+} from './acceptance.ts'
 import { SDate, SDateTime } from '../../schema/index.ts'
 
 const common = {
@@ -118,6 +123,22 @@ describe('event ingestion schemas', () => {
   it('publishes raw request byte limits for the transport adapter', () => {
     expect(COLLECT_EVENT_MAX_RAW_REQUEST_BYTES).toBe(64 * 1024)
     expect(COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES).toBe(256 * 1024)
+  })
+
+  it('publishes synchronous acceptance coalescing limits', () => {
+    expect(EVENT_ACCEPTANCE_WINDOW_MS).toBe(1_000)
+    expect(EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS).toBe(500)
+    expect(EVENT_ACCEPTANCE_PENDING_MAX_EVENTS).toBe(1_500)
+  })
+
+  it('keeps acceptance-boundary failures out of per-item results', () => {
+    expect(
+      v.safeParse(SBatchEventResult, {
+        status: 'itemError',
+        eventId: 'event-1',
+        code: 'SERVICE_UNAVAILABLE',
+      }).success,
+    ).toBe(false)
   })
 
   it('requires a non-empty batch response and permits the 100-item boundary', () => {

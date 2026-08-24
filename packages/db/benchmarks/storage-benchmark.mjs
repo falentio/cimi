@@ -29,12 +29,12 @@ const config = {
     '--engines',
     'sqlite-direct,duckdb-direct,sqlite-outbox-duckdb,sqlite-sync-duckdb',
   ).split(','),
-  // Production uses a 1000-row flush threshold; override for diagnostics.
-  batchSizes: stringOption('--batch-sizes', '1000')
+  // Product acceptance flushes at 500 candidates; override for diagnostics.
+  batchSizes: stringOption('--batch-sizes', '500')
     .split(',')
     .map((value) => positiveInteger('--batch-sizes', Number(value))),
   mixedRows: numberOption('--mixed-rows', Math.min(1000, numberOption('--rows', 20_000))),
-  mixedBatchSize: numberOption('--mixed-batch-size', 1000),
+  mixedBatchSize: numberOption('--mixed-batch-size', 500),
   readers: numberOption('--readers', 2),
   mixedQueries: numberOption('--mixed-queries', 20),
   dbDir: resolve(stringOption('--db-dir', './storage-benchmark-data')),

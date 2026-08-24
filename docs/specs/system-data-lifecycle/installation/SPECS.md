@@ -86,7 +86,7 @@ degraded -> ready
 
 **Input:** `{ confirmation: "UPGRADE" }`. No startup side effect or initialization call implicitly starts an upgrade.
 
-**Behavior:** Installation admin only. Acquire the global lifecycle lock and return 202 with `activeOperation.kind: upgrade` and a safe operation ID. Create and persist an authoritative SQLite pre-upgrade safety artifact before migration, migrate supported older manifests, reject newer or incompatible manifests with `INCOMPATIBLE_BACKUP` (422), rebuild DuckDB from SQLite when required, and poll progress through Q1. If migration or rebuild fails, restore the whole pre-upgrade SQLite generation and remain non-ready until health checks pass. A retry is a new explicit command after the failed operation is durably recorded.
+**Behavior:** Installation admin only. Acquire the global lifecycle lock, stop new Event admission, drain the active and pending acceptance queues, and return 202 with `activeOperation.kind: upgrade` and a safe operation ID. Create and persist an authoritative SQLite pre-upgrade safety artifact before migration, migrate supported older manifests, reject newer or incompatible manifests with `INCOMPATIBLE_BACKUP` (422), rebuild DuckDB from SQLite when required, and poll progress through Q1. If queue drain, migration, or rebuild fails, record `INTERNAL_SERVER_ERROR`, restore the whole pre-upgrade SQLite generation when replacement has begun, and remain non-ready until health checks pass. A retry is a new explicit command after the failed operation is durably recorded.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `CONFLICT` (409 while the lifecycle lock is held), `INCOMPATIBLE_BACKUP` (422), `INSUFFICIENT_STORAGE` (507), `INTERNAL_SERVER_ERROR` (500).
 
@@ -99,6 +99,7 @@ degraded -> ready
 | Default policy is available before Site overrides. | Initialization transaction. | C1 |
 | A ready installation always has a ready mounted data directory. | Contract validation. | Q1, C1, C2 |
 | Site lifecycle lock holders are named in `activeOperation` and expose only safe progress identifiers. | Lifecycle coordinator. | Q1, C2 |
+| Upgrade quiescence stops new Event admission and drains the active/pending acceptance queues before the safety artifact is created. | Lifecycle coordinator and acceptance coordinator. | C2 |
 
 ## 7. Authorization Matrix
 

@@ -57,7 +57,7 @@ The contract accepts only these combinations:
 
 **Purpose:** Determine whether the application can serve its basic contract.
 
-**Behavior:** Do not include secrets, paths, raw SQL errors, or analytics data. Return only a row from the health state matrix. When control is `ready` and analytics is `degraded`, `rebuilding`, or `unavailable`, collection may accept Events durably, but every analytics read returns generic `SERVICE_UNAVAILABLE` (503) before cache or execution. During write-quiesced maintenance or restore, collection is paused rather than accept-only. Projection lag may produce `stale` freshness only when the analytics store is `ready` and there is no relevant or unbounded Projection Gap; such a gap returns `QUERY_LIMIT_EXCEEDED` (422) before cache or execution for the current or comparison interval. A ready restore with pending historical cleanup reports `degraded` plus `cleanupPending`, never a clean `healthy` generation.
+**Behavior:** Do not include secrets, paths, raw SQL errors, or analytics data. Return only a row from the health state matrix. When control is `ready` and analytics is `degraded`, `rebuilding`, or `unavailable`, collection may accept Events durably, but every analytics read returns generic `SERVICE_UNAVAILABLE` (503) before cache or execution. During write-quiesced maintenance or restore, new collection admission is paused and the active/pending acceptance queues drain before the operation proceeds; collection is paused rather than accept-only. Projection lag may produce `stale` freshness only when the analytics store is `ready` and there is no relevant or unbounded Projection Gap; such a gap returns `QUERY_LIMIT_EXCEEDED` (422) before cache or execution for the current or comparison interval. A ready restore with pending historical cleanup reports `degraded` plus `cleanupPending`, never a clean `healthy` generation.
 
 **Errors:** `INTERNAL_SERVER_ERROR` (500 when the health check itself cannot produce a response).
 
@@ -90,7 +90,7 @@ No events are emitted.
 **Audience:** Both
 
 - **Analytics store not ready** — For `degraded`, `rebuilding`, or `unavailable`, return the corresponding safe health state without exposing provider internals; analytics reads return generic `SERVICE_UNAVAILABLE` (503).
-- **During restore** — Report `recovering` or `maintenance` state, not healthy, and pause collection while writes are quiesced.
+- **During restore** — Report `recovering` or `maintenance` state, not healthy, stop new collection admission, and drain the acceptance queues while writes are quiesced.
 - **Cleanup after restore** — Readiness may return while `cleanupPending` is true; lifecycle status and report freshness expose the remaining work.
 - **Contradictory state** — Reject a `healthy` response with an unready store, a clean `degraded` response with both stores ready, or `unavailable` with a ready control store.
 

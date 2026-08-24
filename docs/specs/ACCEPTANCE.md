@@ -104,7 +104,7 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **When** `deleteSite` acquires the lifecycle lock
 
-**Then** it returns HTTP `202` with `status: deleting` and an operation ID, collection stops, normal Site reads and all analytics/public requests fail closed for every non-`active` state (`deleting`, `deleted`, `recovering`, and `purged`), and `getSiteDeletionStatus` exposes the asynchronous lifecycle without returning Site configuration or identifiers
+**Then** it returns HTTP `202` with `status: deleting` and an operation ID, new collection admission stops, pre-admitted candidates drain through the acceptance flush, normal Site reads and all analytics/public requests fail closed for every non-`active` state (`deleting`, `deleted`, `recovering`, and `purged`), and `getSiteDeletionStatus` exposes the asynchronous lifecycle without returning Site configuration or identifiers
 
 ### Site recovery
 
@@ -128,11 +128,11 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **Given** a valid new Event within the configured size, timestamp, policy, and rate boundaries
 
-**When** `collectEvent` appends the normalized Event and immutable acceptance metadata to SQLite
+**When** `collectEvent` admits the normalized candidate and its sequential SQLite acceptance flush commits
 
 **Then** it returns HTTP `200` with `accepted`, and the response does not imply that DuckDB is already queryable
 
-### Serialized payload limits
+### Raw payload limits
 
 **Given** a singular raw HTTP request body over 64 KiB or a batch raw HTTP request body over 256 KiB when measured as UTF-8 bytes before JSON parsing
 
@@ -172,17 +172,49 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **Then** it returns generic `FORBIDDEN` and creates no accepted record, Visitor, Identified User, Alias, or Analytics Session
 
+### Synchronous acceptance coalescing
+
+**Given** concurrent valid new Events pass policy, identity, Session, and lifecycle admission
+
+**When** they enter the shared FIFO coalescer
+
+**Then** the first candidate starts a fixed 1,000 ms window, the active flush commits at 500 candidates or the deadline in one SQLite transaction, each request waits for its own candidates to commit, and the response does not imply DuckDB is already queryable
+
+### Pending duplicate
+
+**Given** an Event ID is reserved by a new candidate and an identical request arrives before the flush commits
+
+**When** the owning flush commits
+
+**Then** the first request returns `accepted`, the retry returns `duplicate` with the original Receipt Time, and only one acceptance record exists
+
+### Flush failure and retry
+
+**Given** a candidate is in a flush and SQLite cannot complete the outer transaction
+
+**When** the transaction rolls back
+
+**Then** every affected request returns top-level `SERVICE_UNAVAILABLE` (503) with no success body, failed in-memory reservations are released, and retrying by Event ID is safe
+
+### Queue capacity
+
+**Given** the active flush has 500 candidates and the pending queue has 1,500 unique candidates
+
+**When** a request would require additional queue capacity
+
+**Then** it returns top-level `SERVICE_UNAVAILABLE` (503) before admitting any eligible candidate from that request; existing queued candidates remain eligible for their next flush
+
 ### Mixed batch recovery
 
 **Given** a bounded batch containing new, duplicate, policy-refused, and malformed Events
 
-**When** `collectEvents` processes items independently and the request is interrupted
+**When** `collectEvents` processes items independently and the request is interrupted before the response arrives
 
-**Then** the response contains per-item outcomes, policy refusals use generic `rejected` results, malformed/collision/size failures use bounded `itemError` codes, each accepted item has its own SQLite sequence, and retrying unjournaled Event IDs is safe
+**Then** every committed candidate remains recoverable by Event ID, policy refusals use generic `rejected` results when a response is available, malformed/collision/size failures use bounded `itemError` codes, accepted candidates may be split across sequential flushes, and retrying after an interrupted or failed flush is safe by Event ID
 
 ### Batch result cardinality
 
-**Given** a valid non-empty batch of between 1 and 100 Events
+**Given** a valid non-empty batch of between 1 and 100 Events within the raw UTF-8 request-byte limit
 
 **When** `collectEvents` returns successfully
 
@@ -190,11 +222,11 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 ### Batch envelope consistency
 
-**Given** a batch with one Site Ingestion Identifier and at most 100 Events within the serialized payload limit
+**Given** a batch with one Site Ingestion Identifier and at most 100 Events within the raw UTF-8 payload limit
 
 **When** an item uses another Ingestion Identifier or the payload exceeds 256 KiB
 
-**Then** validation rejects the batch before partial acceptance and no item result is returned
+**Then** validation rejects the batch before candidate admission and no item result is returned
 
 ### Event-kind requirements
 
@@ -218,7 +250,31 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **When** ingestion validates and journals the Event
 
-**Then** future or expired Events are rejected, valid late Events are marked late while retaining their validated Occurrence Time, and Receipt Time remains the ingest-order timestamp
+**Then** future or expired Events are rejected, valid late Events are marked late while retaining their validated Occurrence Time, and Receipt Time remains the candidate-admission timestamp
+
+### Split batch flush failure
+
+**Given** a valid batch has eligible candidates split across two internal flushes
+
+**When** the first flush commits and the later flush rolls back
+
+**Then** `collectEvents` returns top-level `SERVICE_UNAVAILABLE` (503) with no results; retrying the whole request returns `duplicate` for committed Event IDs and `accepted` for uncommitted Event IDs
+
+### In-flight deletion
+
+**Given** a candidate crosses the shared lifecycle boundary before its Site enters `deleting`
+
+**When** deletion marks the Site non-ingestible and the current global flush drains
+
+**Then** the pre-admitted candidate may commit and complete its response, while all later admissions for that Site return `NOT_FOUND`
+
+### Quiesce drain
+
+**Given** backup, maintenance, or graceful shutdown requests write quiescence
+
+**When** new admissions stop
+
+**Then** the active and pending acceptance queues drain before the snapshot or close; if SQLite cannot commit the drain, the operation fails and uncommitted ingestion requests receive `SERVICE_UNAVAILABLE`
 
 ## Identity and Deletion
 
@@ -586,7 +642,7 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **When** analytics reads, collection, and another lifecycle command arrive
 
-**Then** analytics reads may continue, collection and mutations return lifecycle `CONFLICT`, and the backup captures only the authoritative SQLite generation
+**Then** analytics reads may continue, collection returns top-level `SERVICE_UNAVAILABLE` (503) with no result body, other lifecycle mutations return `CONFLICT`, and the backup captures only the authoritative SQLite generation
 
 ### Installation initialization convergence
 
@@ -670,7 +726,7 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 ### Upgrade rollback
 
-**Given** an upgrade has created an authoritative SQLite backup and writes are quiesced
+**Given** an upgrade has stopped new Event admission, drained the active and pending acceptance queues, created an authoritative SQLite backup, and quiesced writes
 
 **When** SQLite migration or the subsequent DuckDB rebuild fails
 

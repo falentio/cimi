@@ -85,15 +85,15 @@ A separate container snapshot with 1 vCPU, 2 GiB cgroup memory, and 3 GiB disk w
 - Result: 36 runs across all four candidates completed with no mixed-load errors, 5,500 rows after drain, and valid SQLite/DuckDB backup row counts. The raw result was copied to `/tmp/opencode/cimi-storage-benchmark-results-2gb-5k.json`.
 - Boundary: the full 20,000-row profile was OOM-killed with exit 137 while entering `duckdb-direct`; the cgroup recorded `oom_kill=1`. Isolated 20,000-row DuckDB runs with `batchSize=100` and `batchSize=1000` passed, while `batchSize=1` independently reproduced the OOM with mixed load, backup, and retention disabled. The failure therefore points to per-batch Appender allocation pressure, not a pure 20,000-row capacity limit.
 
-## Production-Parity Batch Comparison
+## Historical Production-Parity Batch Comparison
 
-The default benchmark profile now matches the production client configuration. It excludes `batchSize=1`, uses one 1,000-row acceptance batch and 1,000-row mixed-load batches, and represents the selected production branch of either a 1,000-row threshold or a 5-second time-bounded batch.
+The recorded benchmark artifacts below use a historical 1,000-row acceptance profile. The adopted ingestion contract now uses a 500-candidate active flush with a 1,000 ms coalescing window and a separate pending queue, so these artifacts are evidence for the storage engine comparison rather than current production-parity evidence. The benchmark runner defaults now use 500-row acceptance and mixed-load batches.
 
 - Configuration: SQLite WAL, `synchronous=FULL`, foreign keys, 5-second busy timeout, and 1000-page WAL auto-checkpoint; DuckDB one thread, 512 MiB memory limit, local temp directory, and 1 GiB temp-directory cap.
-- Profile: 20,000 base rows, 1,000 mixed rows, three repetitions, five query repetitions, batch size 1000, two readers, and 1,000-row mixed-load batches.
+- Historical profile: 20,000 base rows, 1,000 mixed rows, three repetitions, five query repetitions, batch size 1000, two readers, and 1,000-row mixed-load batches.
 - 1 GiB final result: 12 runs across all four candidates completed with no mixed-load errors, 21,000 rows after drain, and valid SQLite/DuckDB backup row counts. Raw result: [`results/production-parity-1gb.json`](results/production-parity-1gb.json).
 - 2 GiB final result: 12 runs across all four candidates completed with no mixed-load errors, 21,000 rows after drain, and valid SQLite/DuckDB backup row counts. Raw result: [`results/production-parity-2gb.json`](results/production-parity-2gb.json).
-- Verdict: the production-parity batch profile fits both 1 GiB and 2 GiB containers. The excluded one-row Appender stress path remains diagnostic only.
+- Verdict: the historical 1,000-row profile fits both 1 GiB and 2 GiB containers. The excluded one-row Appender stress path remains diagnostic only; the adopted 500-row profile still requires a fresh measurement.
 
 ## Verdict
 
@@ -122,7 +122,7 @@ The final production-parity results are means across three repetitions on one-vC
 - Direct DuckDB has the highest measured acceptance throughput, but it does not provide the selected durable acceptance boundary by itself.
 - SQLite direct has the lowest measured report latency and simplest topology, but it does not provide the intended separation between collection and analytical materialization.
 - Synchronous dual write adds the largest acceptance cost without being required for the selected recoverable-acceptance contract.
-- The production batch profile fits both tested memory envelopes. This does not establish a product capacity promise; the 20,000-row base is a synthetic harness scale.
+- The historical 1,000-row profile fits both tested memory envelopes. This does not establish a product capacity promise; the 20,000-row base is a synthetic harness scale, and the adopted 500-row profile requires a separate run.
 
 ### Closure Check
 
@@ -131,7 +131,7 @@ Issue #18 is **ready to close as a completed benchmark research issue under the 
 - Official SQLite, DuckDB, and Daytona guidance is recorded.
 - The reproducible harness and human-readable report are present.
 - The accepted container environment, runtime, cgroup limits, configuration, workload, repetitions, and raw JSON artifacts are recorded.
-- The production-parity profile was rerun after aligning benchmark settings with the production clients.
+- The historical production-parity profile was rerun before the 500-candidate acceptance contract was adopted; current benchmark defaults now model the 500-row flush cap.
 - The results support an explicit recommendation rather than an inconclusive outcome.
 
 Closing issue #18 does not imply that ingestion, projection, versioned migrations, backup/restore procedures, or Astro shutdown wiring are implemented. Issue #14 records the logical ownership decision; those implementation tasks follow that decision.
@@ -143,7 +143,7 @@ Closing issue #18 does not imply that ingestion, projection, versioned migration
 - Benchmark runner: `packages/db/benchmarks/storage-benchmark.mjs` with the `@cimi/db` `benchmark` script. It covers direct SQLite, direct DuckDB, SQLite journal plus DuckDB projection, synchronous SQLite plus DuckDB dual write, acceptance, deduplication, representative reports, mixed writer/readers/projector load, SQLite online backup, DuckDB checkpoint/copy, retention maintenance, and close/reopen recovery checks.
 - Local smoke validation: 100 rows, one repetition, batch size 10, four candidates, mixed load, and backup verification passed. This is only a harness check on a high-spec workstation and is not benchmark evidence.
 - Container benchmark execution: accepted as the authoritative environment; Node `v25.9.0` is accepted.
-- Production-parity benchmark: defaults match SQLite/DuckDB client settings and the selected 1,000-row production batching profile; the corrected full profile completed on both 1 GiB and 2 GiB containers.
+- Production-parity benchmark: current defaults match SQLite/DuckDB client settings and the adopted 500-row acceptance flush; the recorded full artifacts are historical 1,000-row runs completed on both 1 GiB and 2 GiB containers.
 - Production client audit: SQLite durability/concurrency pragmas, DuckDB resource/spill limits, explicit DuckDB close checkpoints, and coordinated frontend database shutdown are implemented and covered by focused tests. Astro standalone signal wiring remains host-runtime work.
 - VM execution: intentionally out of scope because Linux VM runners are unavailable in the configured regions.
 - Storage ownership decision: benchmark recommendation is recorded above and incorporated into the resolved issue #14 decision.

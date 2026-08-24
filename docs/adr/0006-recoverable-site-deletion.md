@@ -28,11 +28,16 @@ deleted -> recovering -> active
 ```
 
 - `deleteSite` remains Owner-only, returns `202`, and is retry-safe. It acquires
-  the global lifecycle lock, stops collection, and hides the Site from normal
-  reads, authenticated analytics, and Public Query immediately.
+  the shared lifecycle boundary, marks the Site `deleting`, blocks new
+  collection admissions, and hides the Site from normal reads, authenticated
+  analytics, and Public Query immediately. Candidates admitted before the
+  transition are grandfathered and drain through the sequential global SQLite
+  writer; this in-flight work is not new collection admission.
 - `deleting` and `deleted` Sites retain their live data, Ingestion Identifier,
   and Public Dashboard configuration during the recovery window, subject to
-  normal retention. The Site is non-ingestible and non-queryable in both states.
+  normal retention. The Site is non-ingestible for new requests and
+  non-queryable in both states; candidates admitted before `deleting` may
+  complete their durable acceptance flush.
 - `recoverSite` is an explicit Owner/Administrator command. It is accepted from
   `deleting` or `deleted`, enters persisted `recovering`, cancels pending
   deletion work, and restores the prior access boundary asynchronously.
@@ -68,6 +73,9 @@ deleted -> recovering -> active
 
 - Site lifecycle status is durable and observable without exposing a hidden Site
   through ordinary Site reads.
+- The deletion boundary is linearized with Event admission: post-transition
+  requests fail closed, while pre-transition candidates may finish and retain
+  their admission Receipt Time.
 - Recovery is meaningful for the full grace period because destructive live
   cleanup is deferred until purge, while normal retention may still expire data.
 - Backup storage may contain deleted Site payloads after live purge. Restore may
@@ -85,6 +93,9 @@ Future changes must preserve these invariants:
 
 - Deleting and deleted Sites fail closed for collection, normal Site reads,
   authenticated analytics, and Public Query.
+- Event candidates admitted before the deletion boundary are grandfathered
+  through the acceptance flush; no candidate admitted after the boundary may be
+  journaled for the Site.
 - Only Owners can request deletion; Owners and Administrators can recover it.
 - Recovery is available only before `purged` and is safe to retry.
 - A restore cannot resurrect a Site whose canonical tombstone says `purged`.
