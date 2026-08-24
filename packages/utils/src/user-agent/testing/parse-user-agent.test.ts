@@ -43,10 +43,20 @@ describe('createUserAgentParser', () => {
   it('caches normalized empty inputs as one LRU entry', () => {
     const parser = createUserAgentParser({ cacheSize: 1 })
     const first = parser.parse(CHROME_ANDROID)
-    const empty = parser.parse('')
+    parser.parse('')
 
-    expect(parser.parse(' '.repeat(10_000))).toBe(empty)
     expect(parser.parse(CHROME_ANDROID)).not.toBe(first)
+
+    const normalizedEmpty = parser.parse(' '.repeat(10_000))
+    expect(parser.parse('')).toBe(normalizedEmpty)
+  })
+
+  it('freezes empty parsed results', () => {
+    const empty = createUserAgentParser().parse('')
+
+    expect(() => {
+      Object.defineProperty(empty.browser, 'name', { value: 'changed' })
+    }).toThrow(TypeError)
   })
 
   it('supports empty user agents without inventing values', () => {
@@ -77,6 +87,10 @@ describe('createUserAgentParser', () => {
     const result = createUserAgentParser().parse(input)
 
     expect(result.ua).toBe('A'.repeat(500))
+  })
+
+  it('preserves short user-agent input as supplied to the parser', () => {
+    expect(createUserAgentParser().parse('  curl/8.0').ua).toBe('  curl/8.0')
   })
 
   it('bounds work for a user agent made entirely of leading whitespace', () => {

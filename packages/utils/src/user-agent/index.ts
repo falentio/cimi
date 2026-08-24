@@ -96,6 +96,8 @@ function toParsedUserAgent(result: UAParser.IResult): ParsedUserAgent {
 }
 
 function normalizeUserAgentInput(userAgent: string): string {
+  if (userAgent.length <= UA_MAX_LENGTH) return userAgent
+
   // Scan only the bounded prefix; hostile whitespace beyond it is treated as empty input.
   const boundedPrefix = userAgent.substring(0, UA_MAX_LENGTH)
   const leadingWhitespace = boundedPrefix.match(/^\s*/)?.[0].length ?? 0
