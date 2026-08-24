@@ -11,11 +11,10 @@ describe('loadConfig', () => {
       caught = error
     }
     expect(caught).toBeInstanceOf(ConfigError)
-    expect((caught as Error).message).toContain('Missing required environment variables')
     expect((caught as Error).message).toContain('BETTER_AUTH_SECRET')
   })
 
-  it('treats an empty secret as missing', () => {
+  it('treats an empty secret as invalid', () => {
     expect(() => loadConfig({ BETTER_AUTH_SECRET: '' })).toThrowError(ConfigError)
   })
 
@@ -38,5 +37,23 @@ describe('loadConfig', () => {
     expect(config.authSecret).toBe('s3cret')
     expect(config.baseUrl).toBe('https://cimi.example.com')
     expect(config.isDev).toBe(false)
+  })
+
+  it('rejects an invalid auth URL', () => {
+    expect(() =>
+      loadConfig({
+        BETTER_AUTH_SECRET: 's3cret',
+        BETTER_AUTH_URL: 'not-a-url',
+      }),
+    ).toThrowError(ConfigError)
+  })
+
+  it('rejects an unsupported node environment', () => {
+    expect(() =>
+      loadConfig({
+        BETTER_AUTH_SECRET: 's3cret',
+        NODE_ENV: 'staging',
+      }),
+    ).toThrowError(ConfigError)
   })
 })

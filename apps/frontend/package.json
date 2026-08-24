@@ -16,6 +16,7 @@
     "@cimi/api": "workspace:*",
     "@cimi/auth": "workspace:*",
     "@cimi/client": "workspace:*",
+    "@cimi/config": "workspace:*",
     "@cimi/contract": "workspace:*",
     "@cimi/db": "workspace:*",
     "@cimi/utils": "workspace:*",

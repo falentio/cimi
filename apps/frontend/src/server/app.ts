@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { loadConfig } from '@cimi/config'
 import { createSingleton } from '@cimi/utils'
-import { loadConfig } from '@cimi/utils'
 import {
   createDb,
   closeDb,
