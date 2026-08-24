@@ -72,6 +72,9 @@ catalogs:
     hono:
       specifier: ^4.13.3
       version: 4.13.3
+    ip-address:
+      specifier: ^10.5.0
+      version: 10.5.0
     lru-cache:
       specifier: ^11.5.2
       version: 11.5.2
@@ -363,6 +366,9 @@ importers:
 
   packages/utils:
     dependencies:
+      ip-address:
+        specifier: 'catalog:'
+        version: 10.5.0
       lru-cache:
         specifier: 'catalog:'
         version: 11.5.2
@@ -2755,6 +2761,10 @@ packages:
   internmap@2.0.3:
     resolution: {integrity: sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg==}
     engines: {node: '>=12'}
+
+  ip-address@10.5.0:
+    resolution: {integrity: sha512-R5SnVLJmgYYvf2F2ZgwSBnelz5G4q5AxIC277GDfUaNbrZKNANcBC7RHqYYePlszf4kBolVkJauG0ZjHHFh55g==}
+    engines: {node: '>= 12'}
 
   iron-webcrypto@1.2.1:
     resolution: {integrity: sha512-feOM6FaSr6rEABp/eDfVseKyTMDt+KGpeB35SkVn9Tyn0CqvVsY3EwI0v5i8nMHyJnzCIQf7nsy3p41TPkJZhg==}
@@ -5946,6 +5956,8 @@ snapshots:
   ini@1.3.8: {}
 
   internmap@2.0.3: {}
+
+  ip-address@10.5.0: {}
 
   iron-webcrypto@1.2.1: {}
 

@@ -1,6 +1,14 @@
 export { createSingleton } from './singleton/index.ts'
 export { ConfigError, loadConfig, type AppConfig } from './config/index.ts'
 export {
+  createIpMatcher,
+  parseIpPattern,
+  type IpFamily,
+  type IpMatcher,
+  type IpPatternKind,
+  type ParsedIpPattern,
+} from './ip/index.ts'
+export {
   classifyUA,
   isBotUA,
   type BotCategory,
