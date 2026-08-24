@@ -47,8 +47,13 @@ describe('createUserAgentParser', () => {
 
     expect(parser.parse(CHROME_ANDROID)).not.toBe(first)
 
-    const normalizedEmpty = parser.parse(' '.repeat(10_000))
-    expect(parser.parse('')).toBe(normalizedEmpty)
+    const normalizedParser = createUserAgentParser({ cacheSize: 2 })
+    const cachedChrome = normalizedParser.parse(CHROME_ANDROID)
+    const normalizedEmpty = normalizedParser.parse('')
+    expect(normalizedParser.parse(CHROME_ANDROID)).toBe(cachedChrome)
+    expect(normalizedParser.parse(' '.repeat(10_000))).toBe(normalizedEmpty)
+    normalizedParser.parse('curl/8.0')
+    expect(normalizedParser.parse(CHROME_ANDROID)).not.toBe(cachedChrome)
   })
 
   it('freezes empty parsed results', () => {
