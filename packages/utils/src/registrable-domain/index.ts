@@ -47,7 +47,8 @@ function normalizeHostname(hostname: string): string | null {
   if (withoutTrailingDot === '' || withoutTrailingDot.endsWith('.')) return null
   if (isNumericHostAlias(withoutTrailingDot)) return null
 
-  return domainToASCII(withoutTrailingDot).toLowerCase() || null
+  const ascii = domainToASCII(withoutTrailingDot).toLowerCase()
+  return ascii === '' || isIP(ascii) ? null : ascii
 }
 
 function isBracketedIpv6(value: string): boolean {

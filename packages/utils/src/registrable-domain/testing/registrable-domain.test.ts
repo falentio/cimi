@@ -31,6 +31,8 @@ describe('getRegistrableDomain', () => {
     expect(getRegistrableDomain('https://[2001:db8::1]:8443')).toBe('2001:db8::1')
     expect(getRegistrableDomain('http://127.1')).toBe('127.0.0.1')
     expect(getRegistrableDomain('http://2130706433')).toBe('127.0.0.1')
+    expect(getRegistrableDomain('http://0x7f.0.0.1')).toBe('127.0.0.1')
+    expect(getRegistrableDomain('http://127.0x1')).toBe('127.0.0.1')
   })
 
   it('canonicalizes internationalized hostnames', () => {
@@ -56,6 +58,8 @@ describe('getRegistrableDomain', () => {
       '0x7f000001',
       '0x7f.0.0.1',
       '127.0x1',
+      '127%2E0x1',
+      '１２７.０.０.１',
     ]) {
       expect(getRegistrableDomain(input)).toBeNull()
     }
