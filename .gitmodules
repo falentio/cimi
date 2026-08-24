@@ -22,3 +22,6 @@
 [submodule "docs/research/vendor/orpc"]
 	path = docs/research/vendor/orpc
 	url = https://github.com/middleapi/orpc.git
+[submodule "docs/research/vendor/astro"]
+	path = docs/research/vendor/astro
+	url = https://github.com/withastro/astro.git
