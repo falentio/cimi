@@ -15,4 +15,5 @@ export type AuthScope = AuthMetaValue
 
 export interface AuthMeta extends Meta {
   auth?: AuthMetaValue
+  devOnly?: boolean
 }
