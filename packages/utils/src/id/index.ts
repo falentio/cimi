@@ -9,6 +9,7 @@ const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567'
 
 export type EntityId<Prefix extends string> = `${Prefix}_${string}`
 
+// TODO: Adopt this utility in packages/db and apps/api when entity identifier migrations land.
 const entropyPool = new Uint8Array(ENTROPY_POOL_SIZE)
 let entropyOffset = ENTROPY_POOL_SIZE
 
