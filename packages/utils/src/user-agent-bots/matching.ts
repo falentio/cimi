@@ -2,6 +2,7 @@ import { ALL_BOT_PATTERNS, type BotPattern } from './patterns.ts'
 
 const UNSUPPORTED_SYNTAX = '()[]{}?+*|.^$'
 const WORD_CHARACTERS = 'abcdefghijklmnopqrstuvwxyz0123456789_'
+export const ASCII_ALPHABET_SIZE = 128
 
 export interface LiteralRule {
   kind: 'literal'
@@ -44,6 +45,10 @@ export const COMBINED_COMPLEX_REGEX = new RegExp(
   COMPLEX_RULES.map((rule) => rule.pattern).join('|'),
   'i',
 )
+
+export function normalizeAscii(value: string): string {
+  return value.replace(/[A-Z]/g, (character) => String.fromCharCode(character.charCodeAt(0) + 32))
+}
 
 export function matchesLiteralRule(userAgent: string, rule: LiteralRule): boolean {
   if (rule.startsWith && !userAgent.startsWith(rule.value)) {
@@ -127,6 +132,7 @@ function createLiteralRule(
 
   if (
     value.length === 0 ||
+    value.split('').some((character) => character.charCodeAt(0) >= ASCII_ALPHABET_SIZE) ||
     value.includes('\\') ||
     value.split('').some((character) => UNSUPPORTED_SYNTAX.includes(character))
   ) {
@@ -138,7 +144,7 @@ function createLiteralRule(
     sourceIndex,
     pattern,
     category,
-    value: value.toLowerCase(),
+    value: normalizeAscii(value),
     startsWith,
     endsWith,
     wordBoundaryStart,

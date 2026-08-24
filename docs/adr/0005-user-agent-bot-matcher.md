@@ -28,6 +28,7 @@ Use dense Aho-Corasick as the primary matcher through `classifyUA`.
 - Select the lowest original pattern index to preserve first-match-wins order.
 - Use the combined complex regex and ordered complex regex fallback for the 29
   patterns that cannot be represented as literals.
+- Use a guarded early-AI literal fast path before the full automaton scan.
 - Keep the bounded 10,000-entry LRU cache.
 
 The exhaustive compatibility test remains at
@@ -69,6 +70,29 @@ and are directional rather than a product performance guarantee.
   and call-boundary complexity.
 - V8's experimental non-backtracking regexp mode does not support the full
   current pattern set and is not a portable application dependency.
+
+## Considered Options
+
+- Keep the ordered regex scan: rejected because it pays the per-pattern cost on
+  late matches and long browser negatives.
+- Use a direct literal/regex hybrid, map-transition Aho-Corasick, or a dense
+  trie: evaluated, but each was slower than dense Aho-Corasick on the broader
+  workload.
+- Use RE2, V8's experimental linear engine, or a native wrapper: rejected
+  because the current pattern syntax and deployment boundary are incompatible
+  with a complete drop-in replacement.
+
+## Consequences
+
+- Literal-safe matching is faster for the workloads where the regex baseline
+  scans many patterns, while early matches and cache hits remain approximately
+  regex-speed workloads.
+- Complex patterns continue to use JavaScript regular expressions, so the
+  matcher does not claim to eliminate regex execution.
+- Module initialization builds a dense ASCII transition table and consumes
+  additional memory for the precomputed transitions.
+- The primary API keeps the existing classification shape and pattern-order
+  semantics, guarded by exhaustive compatibility tests.
 
 ## Compatibility Rules
 

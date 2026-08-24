@@ -65,6 +65,13 @@ describe('dense Aho-Corasick compatibility', () => {
       expect(classifyUAPublic(userAgent!), rule.pattern).toEqual(classifyUAAhoDense(userAgent!))
     }
   })
+
+  it('preserves regex case behavior for non-ASCII input', () => {
+    for (const userAgent of ['ranK', 'groKbot']) {
+      expect(classifyUAAhoDense(userAgent), userAgent).toEqual(regexOracle(userAgent))
+      expect(classifyUAPublic(userAgent), userAgent).toEqual(regexOracle(userAgent))
+    }
+  })
 })
 
 function literalProbe(rule: LiteralRule): string {

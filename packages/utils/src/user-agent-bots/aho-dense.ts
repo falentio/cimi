@@ -4,16 +4,20 @@ import {
   COMBINED_COMPLEX_REGEX,
   COMPLEX_RULES,
   LITERAL_RULES,
+  ASCII_ALPHABET_SIZE,
   isEarliestLiteralRule,
   matchesLiteralRule,
   matchesLiteralRuleAt,
+  normalizeAscii,
   type LiteralRule,
 } from './matching.ts'
 import { NON_BOT, type BotClassification } from './types.ts'
 
 const CLASSIFY_CACHE_MAX = 10_000
-const ASCII_ALPHABET_SIZE = 128
-const HOT_LITERAL_RULES = LITERAL_RULES.filter((rule) => rule.sourceIndex < 8)
+const EARLY_AI_LITERAL_SOURCE_LIMIT = 8
+const EARLY_AI_LITERAL_RULES = LITERAL_RULES.filter(
+  (rule) => rule.sourceIndex < EARLY_AI_LITERAL_SOURCE_LIMIT,
+)
 const classifyCache = new LRUCache<string, BotClassification>({ max: CLASSIFY_CACHE_MAX })
 
 interface SparseNode {
@@ -53,7 +57,7 @@ export function isBotUAAhoDense(userAgent: string | null | undefined): boolean {
 }
 
 function computeClassification(userAgent: string): BotClassification {
-  const normalizedUserAgent = userAgent.toLowerCase()
+  const normalizedUserAgent = normalizeAscii(userAgent)
   const hotLiteralRule = findHotLiteralRule(normalizedUserAgent)
   if (hotLiteralRule) {
     return classificationFor(hotLiteralRule)
@@ -90,7 +94,7 @@ function findHotLiteralRule(userAgent: string): LiteralRule | undefined {
     return undefined
   }
 
-  for (const rule of HOT_LITERAL_RULES) {
+  for (const rule of EARLY_AI_LITERAL_RULES) {
     if (matchesLiteralRule(userAgent, rule)) {
       return rule
     }
