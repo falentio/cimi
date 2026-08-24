@@ -59,6 +59,7 @@ describe('parseIpPattern', () => {
       '192.168.1.20-192.168.1.10',
       '192.168.1.1-2001:db8::1',
       '2001:db8::1-2001:db8::2',
+      'fe80::1%eth0/64',
     ]) {
       expect(parseIpPattern(pattern)).toBeNull()
     }

@@ -14,6 +14,7 @@ export interface IpMatcher {
   matches(ip: string): boolean
 }
 
+// TODO: Consume from event-ingestion policy evaluation and the frontend policy editor once their contract is settled.
 type IpAddress = Address4 | Address6
 
 interface CompiledIpPattern {
@@ -105,6 +106,8 @@ function compileIpPattern(value: string): CompiledIpPattern | null {
 }
 
 function compileCidr(source: string): CompiledIpPattern | null {
+  if (source.includes('%')) return null
+
   try {
     const address = source.includes(':') ? new Address6(source) : new Address4(source)
     const family: IpFamily = address instanceof Address4 ? 4 : 6
