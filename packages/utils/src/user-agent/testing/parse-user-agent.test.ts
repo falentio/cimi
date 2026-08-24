@@ -40,6 +40,15 @@ describe('createUserAgentParser', () => {
     expect(parser.parse(second.ua)).not.toBe(second)
   })
 
+  it('caches normalized empty inputs as one LRU entry', () => {
+    const parser = createUserAgentParser({ cacheSize: 1 })
+    const first = parser.parse(CHROME_ANDROID)
+    const empty = parser.parse('')
+
+    expect(parser.parse(' '.repeat(10_000))).toBe(empty)
+    expect(parser.parse(CHROME_ANDROID)).not.toBe(first)
+  })
+
   it('supports empty user agents without inventing values', () => {
     expect(createUserAgentParser().parse('')).toEqual({
       ua: '',
@@ -81,6 +90,13 @@ describe('createUserAgentParser', () => {
       engine: { name: undefined, version: undefined },
       os: { name: undefined, version: undefined },
     })
+  })
+
+  it('truncates after bounded leading-whitespace normalization', () => {
+    expect(createUserAgentParser().parse(`${' '.repeat(499)}${'A'.repeat(600)}`).ua).toBe(
+      'A'.repeat(500),
+    )
+    expect(createUserAgentParser().parse(`${' '.repeat(500)}${'A'.repeat(600)}`).ua).toBe('')
   })
 
   it('provides a process-level parser for ordinary callers', () => {
