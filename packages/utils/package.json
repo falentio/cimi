@@ -13,6 +13,7 @@
   "dependencies": {
     "ip-address": "catalog:",
     "lru-cache": "catalog:",
+    "psl": "catalog:",
     "ua-parser-js": "catalog:"
   },
   "devDependencies": {

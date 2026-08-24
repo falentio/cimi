@@ -16,6 +16,7 @@ export {
   type UserAgentParser,
   type UserAgentParserOptions,
 } from './user-agent/index.ts'
+export { getRegistrableDomain } from './registrable-domain/index.ts'
 export {
   classifyUA,
   isBotUA,
