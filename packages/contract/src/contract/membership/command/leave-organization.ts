@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead } from '../../../schema/index.ts'
 import { SMembershipOrganizationFields } from '../schema.ts'
 
 export const SMembershipLeaveInput = SMembershipOrganizationFields
@@ -20,6 +19,10 @@ export const leaveOrganization = oc
     successStatus: 204,
   })
   .meta({ auth: 'authenticated' })
-  .errors({ ...ERead, OWNER_PROTECTED: { status: 409 } })
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    OWNER_PROTECTED: { status: 409 },
+  })
   .input(SMembershipLeaveInput)
   .output(SMembershipLeaveOutput)

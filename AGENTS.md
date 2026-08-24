@@ -9,6 +9,7 @@
 - Always run test/lint/fmt as a narrow, not broad, so we save much compute.
 - If you spawn subagents for audit, review, track bug, check, etc. try to spawn 2x identical for that, and then synthesis from both spawned subagents, this help exhaustively audit, spawn in parallel, with no context shared from same subagents task.
 - need an source code access for 3rd party library? create git submodule, vendored at ./docs/research/vendor/
+- Always parallel subagents whenver the tasks are READ only, sequence otherwise.
 
 ### Narrow lint and format fixes
 

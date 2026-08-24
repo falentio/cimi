@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead } from '../../../schema/index.ts'
 import { SSite, SSiteIdFields } from '../schema.ts'
 
 export const SSiteGetInput = SSiteIdFields
@@ -19,6 +18,10 @@ export const getSite = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(ERead)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+  })
   .input(SSiteGetInput)
   .output(SSiteGetOutput)

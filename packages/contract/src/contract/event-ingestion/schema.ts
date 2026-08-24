@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { SDateTime, SId, SName, SScalarKey } from '../../schema/index.ts'
+import { SCollectionContext } from '../collection-policy/transport.ts'
 
 const SEventProperty = v.union([
   v.pipe(v.string(), v.maxLength(512)),
@@ -42,6 +43,7 @@ const SEventCommonFields = {
   referrer: v.optional(v.pipe(v.string(), v.maxLength(2048))),
   identifiedUserId: v.optional(SId),
   properties: v.optional(SEventProperties),
+  collectionContext: v.optional(SCollectionContext),
 }
 
 export const SEvent = v.variant('kind', [
@@ -90,13 +92,13 @@ export const SBatchEventResult = v.variant('status', [
     receiptTime: SDateTime,
   }),
   v.strictObject({ status: v.literal('duplicate'), eventId: SId, receiptTime: SDateTime }),
-  v.strictObject({ status: v.literal('rejected'), eventId: SId, reason: v.string() }),
+  v.strictObject({ status: v.literal('rejected'), eventId: SId, reason: v.literal('policy') }),
   v.strictObject({
     status: v.literal('itemError'),
     eventId: v.nullable(SId),
-    code: v.pipe(v.string(), v.maxLength(64)),
+    code: v.picklist(['BAD_REQUEST', 'CONFLICT', 'PAYLOAD_TOO_LARGE']),
   }),
 ])
 export const SBatchEventResponse = v.strictObject({
-  results: v.pipe(v.array(SBatchEventResult), v.maxLength(100)),
+  results: v.pipe(v.array(SBatchEventResult), v.minLength(1), v.maxLength(100)),
 })

@@ -79,7 +79,7 @@ apps/frontend/
 
 | Package             | npm name         | Purpose                                       | Key exports                                                                                                                 |
 | ------------------- | ---------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `packages/contract` | `@cimi/contract` | oRPC contract — single source for API shapes  | `packages/contract/src/contract.ts:1` → `contract.system.health`; `src/contract/system/query/health.ts`; `src/orpc/meta.ts` |
+| `packages/contract` | `@cimi/contract` | oRPC contract — single source for API shapes  | `packages/contract/src/contract.ts:19` → `contract.health.health`; `packages/contract/src/contract/health/query/health.ts`; `src/orpc/meta.ts` |
 | `packages/db`       | `@cimi/db`       | control (sqlite/drizzle) + analytics (duckdb) | `packages/db/src/index.ts:1` → `createDb`, `schema`, `migrateControlDb`, `createAnalyticsDb`                                |
 | `packages/auth`     | `@cimi/auth`     | better-auth wrapper                           | `packages/auth/src/server.ts`, `src/client.ts`, `src/first-user-admin.ts`                                                   |
 | `packages/guard`    | `@cimi/guard`    | authz guards                                  | `packages/guard/src/guard.ts`, `src/index.ts`                                                                               |
@@ -110,14 +110,16 @@ packages/db/src/
 
 ```
 packages/contract/src/
-├── contract.ts            # export const contract = { system }
-├── contract/system/index.ts
-├── contract/system/schema.ts
-├── contract/system/query/health.ts
+├── contract.ts            # export const contract = { ... health }
+├── contract/health/index.ts # export const health = { health: healthProcedure }
+├── contract/health/schema.ts
+├── contract/health/query/health.ts # health procedure; route GET /system/health
 ├── orpc/index.ts
 ├── orpc/meta.ts
 └── testing/contract.test.ts
 ```
+
+- Health procedure identity is `contract.health.health`; `GET /system/health` is its route, not a `system.health` contract namespace.
 
 ## Package Skeleton
 

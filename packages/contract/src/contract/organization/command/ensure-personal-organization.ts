@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead } from '../../../schema/index.ts'
 import { SOrganization } from '../schema.ts'
 
 export const SOrganizationEnsurePersonalInput = v.strictObject({})
@@ -23,6 +22,10 @@ export const ensurePersonalOrganization = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors({ ...ERead, CONFLICT: { status: 409 } })
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    CONFLICT: { status: 409 },
+    INTERNAL_SERVER_ERROR: { status: 500 },
+  })
   .input(SOrganizationEnsurePersonalInput)
   .output(SOrganizationEnsurePersonalOutput)

@@ -2,7 +2,7 @@
 resource: cohort-retention
 status: draft
 version: 1.0.0
-updated: 2026-08-23
+updated: 2026-08-24
 ---
 
 # Cohort Retention Resource
@@ -11,41 +11,41 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-A Cohort Retention definition groups Visitors/Identified Users by their first qualifying action and measures whether they perform a selected repeated action in later Site-local periods.
+A Cohort Retention definition groups one explicitly selected population, Visitors or Identified Users, by its first qualifying action and measures whether it performs a selected repeated action in later Site-local periods.
 
 ```text
 active -> archived
 ```
 
-Retention is bounded to twelve reporting periods per query. Anonymous and explicit Identified User behavior follows the resolved identity model; deleted profiles are invalidated from future results.
+Retention is bounded to twelve reporting periods per query. A request that would require more than twelve periods is rejected rather than truncated. Anonymous and explicit Identified User behavior follows the resolved identity model; identity redaction invalidates Identified User cohort results, while eligible retained non-personal activity may continue anonymously for Visitor-mode cohorts.
 
 ## 2. Base Schema
 
 **Audience:** Both
 
-| Field | Schema | Description |
-| --- | --- | --- |
-| `id` | `nanoid` | Cohort definition identifier. |
-| `siteId` | `nanoid` | Site scope. |
-| `name` | `string256` | Display name. |
-| `entryAction` | `cohortAction` | First qualifying action. |
-| `retentionAction` | `cohortAction` | Repeated action. |
-| `identityKind` | `identityKind` | Visitor or Identified User subject for the cohort. |
-| `period` | `retentionPeriod` | Site-local day, week, or month. |
-| `status` | `cohortStatus` | Active or archived. |
+| Field             | Schema            | Description                                        |
+| ----------------- | ----------------- | -------------------------------------------------- |
+| `id`              | `nanoid`          | Cohort definition identifier.                      |
+| `siteId`          | `nanoid`          | Site scope.                                        |
+| `name`            | `string256`       | Display name.                                      |
+| `entryAction`     | `cohortAction`    | First qualifying discriminated action; pageviews have no name. |
+| `retentionAction` | `cohortAction`    | Repeated discriminated action; pageviews have no name.         |
+| `identityKind`    | `identityKind`    | Visitor or Identified User subject for the cohort. |
+| `period`          | `retentionPeriod` | Site-local day, week, or month.                    |
+| `status`          | `cohortStatus`    | Active or archived.                                |
 
 ## 3. Endpoint Quick Index
 
 **Audience:** FE
 
-| # | Procedure | Method | Path | Auth | CQRS |
-| --- | --- | --- | --- | --- | --- |
-| Q1 | `listCohorts` | GET | `/listCohorts` | authenticated | query |
-| Q2 | `getCohort` | GET | `/getCohort` | authenticated | query |
-| Q3 | `getRetentionReport` | GET | `/getRetentionReport` | authenticated | query |
-| C1 | `createCohort` | POST | `/createCohort` | admin | command |
-| C2 | `updateCohort` | POST | `/updateCohort` | admin | command |
-| C3 | `archiveCohort` | POST | `/archiveCohort` | admin | command |
+| #   | Procedure            | Method | Path                  | Auth          | CQRS    |
+| --- | -------------------- | ------ | --------------------- | ------------- | ------- |
+| Q1  | `listCohorts`        | GET    | `/listCohorts`        | authenticated | query   |
+| Q2  | `getCohort`          | GET    | `/getCohort`          | authenticated | query   |
+| Q3  | `getRetentionReport` | GET    | `/getRetentionReport` | authenticated | query   |
+| C1  | `createCohort`       | POST   | `/createCohort`       | admin         | command |
+| C2  | `updateCohort`       | POST   | `/updateCohort`       | admin         | command |
+| C3  | `archiveCohort`      | POST   | `/archiveCohort`      | admin         | command |
 
 ## 4. Queries
 
@@ -57,7 +57,7 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 
 **Behavior:** Use zero-based live offset pages ordered by `createdAt` plus Cohort ID. Return `nextOffset`, `hasMore`, and `totalCount`; definitions never include raw member lists.
 
-**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
+**Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
 ### Q2: `GET /getCohort` — `getCohort`
 
@@ -65,9 +65,9 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 
 **Purpose:** Return one cohort definition after Site authorization.
 
-**Behavior:** Inaccessible IDs return `NOT_FOUND`.
+**Behavior:** Inaccessible IDs return indistinguishable `NOT_FOUND`; the procedure does not reveal whether the Site or Cohort exists.
 
-**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404).
+**Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404).
 
 ### Q3: `GET /getRetentionReport` — `getRetentionReport`
 
@@ -75,9 +75,9 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 
 **Purpose:** Return cohort size and retained counts/rates for each bounded Site-local period.
 
-**Behavior:** The selected Visitor or Identified User enters once at the first qualifying action. Retention counts a later qualifying repeated action in each Site-local period. The same identity may count once per period. Limit output to twelve periods, apply explicitly scoped filters before computing membership, and allow an explicit previous-period comparison.
+**Behavior:** The persisted `identityKind` selects exactly one Visitor or Identified User population; the populations are never coalesced. The selected subject enters once at the first qualifying action. Retention counts a later qualifying repeated action in each Site-local period. The same identity may count once per period. Requests requiring more than twelve periods return `BAD_REQUEST` before execution rather than truncating output. Apply explicitly scoped filters before computing membership. An optional comparison must be adjacent and equal in Site-local calendar length and is returned separately with its own `current` or `stale` freshness, projected acceptance sequence, and occurrence-time coverage. Effective Retention must cover every dependency across both periods. Preflight rejects stale statistics, a relevant or unbounded Projection Gap, or over-budget work with `QUERY_LIMIT_EXCEEDED` before cache or execution; a non-ready analytics store returns generic `SERVICE_UNAVAILABLE` (503) before cache or execution.
 
-**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422).
+**Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422), `SERVICE_UNAVAILABLE` (503).
 
 ## 5. Commands
 
@@ -119,20 +119,20 @@ Retention is bounded to twelve reporting periods per query. Anonymous and explic
 
 ## 6. Business Rules
 
-| Rule | Enforcement Point | Affected Procedures |
-| --- | --- | --- |
-| Entry is the first qualifying action. | Retention evaluator. | Q3 |
-| Repeated action is counted once per identity per period. | Retention evaluator. | Q3 |
-| Period output is bounded to twelve periods. | Contract and query planner. | Q3 |
-| Deletion invalidates profile and derived cohort membership. | Deletion lifecycle. | Q3 |
-| Cohort reports inherit the global Effective Retention and Fact-Work admission rules; the twelve-period output bound remains an additional structural limit. | Query admission. | Q3 |
+| Rule                                                                                                                                                        | Enforcement Point           | Affected Procedures |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------- |
+| Entry is the first qualifying action.                                                                                                                       | Retention evaluator.        | Q3                  |
+| Repeated action is counted once per identity per period.                                                                                                    | Retention evaluator.        | Q3                  |
+| Period output is bounded to twelve periods.                                                                                                                 | Contract and query planner. | Q3                  |
+| Identity redaction invalidates Identified User cohort results; eligible retained non-personal activity may remain in Visitor-mode cohorts anonymously.                 | Deletion lifecycle.         | Q3                  |
+| Cohort reports inherit the global Effective Retention and Fact-Work admission rules; the twelve-period output bound remains an additional structural limit. | Query admission.            | Q3                  |
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning | Procedures |
-| --- | --- | --- |
-| `authenticated` | Site member. | Q1-Q3 |
-| `admin` | Site-management role. | C1-C3 |
+| Auth Level      | Meaning               | Procedures |
+| --------------- | --------------------- | ---------- |
+| `authenticated` | Site member.          | Q1-Q3      |
+| `admin`         | Site-management role. | C1-C3      |
 
 ## 8. Event Catalog
 
@@ -146,34 +146,35 @@ No domain event channel is required by the MVP contract.
 
 - **No repeated action** — Return zero retention for that period, not missing data.
 - **Late Event** — Use validated Occurrence Time consistently with traffic and Event reports.
-- **Deleted profile** — Remove it from active cohort counts after deletion invalidation completes.
+- **Deleted profile** — Remove it from Identified User cohort counts after identity redaction; retain eligible non-personal activity for Visitor-mode cohorts as anonymous activity.
 - **Anonymous identity reset** — A new Anonymous Identity is a new reporting projection, not an inferred continuation.
 
 ## 10. Error Code Catalog
 
-| Code | HTTP | Trigger |
-| --- | ---: | --- |
-| `BAD_REQUEST` | 400 | Action, period, filter, or range invalid. |
-| `FORBIDDEN` | 403 | Caller lacks Site-management/report scope. |
-| `NOT_FOUND` | 404 | Site or cohort is inaccessible. |
-| `QUERY_LIMIT_EXCEEDED` | 422 | Report exceeds bounded execution. |
+| Code                   | HTTP | Trigger                                           |
+| ---------------------- | ---: | ------------------------------------------------- |
+| `BAD_REQUEST`          |  400 | Action, period, filter, or range invalid.         |
+| `FORBIDDEN`            |  403 | Caller lacks the documented Site-management capability for a command. |
+| `NOT_FOUND`            |  404 | Site or cohort is inaccessible.                   |
+| `QUERY_LIMIT_EXCEEDED` |  422 | Effective Retention is incomplete, preflight statistics are stale or uncertain, a relevant/unbounded Projection Gap exists, or the report exceeds bounded execution. |
+| `SERVICE_UNAVAILABLE`  |  503 | Analytics store is not ready to serve the report. |
 
 ## 11. Related Resources & Dependencies
 
 ### Depends On
 
-| Resource | Integration Point |
-| --- | --- |
-| `site` | Scope and ownership. |
-| `event-report` | Action matching. |
+| Resource           | Integration Point                     |
+| ------------------ | ------------------------------------- |
+| `site`             | Scope and ownership.                  |
+| `event-report`     | Action matching.                      |
 | `identity-profile` | Identified-user context and deletion. |
-| `retention-policy` | Data availability horizon. |
+| `retention-policy` | Data availability horizon.            |
 
 ### Used By
 
-| Resource | Integration Point |
-| --- | --- |
-| `traffic-report` | Retention summary. |
+| Resource           | Integration Point                                                 |
+| ------------------ | ----------------------------------------------------------------- |
+| `traffic-report`   | Retention summary.                                                |
 | `public-dashboard` | Only if an approved aggregate retention metric is later included. |
 
 ## 12. Out of Scope

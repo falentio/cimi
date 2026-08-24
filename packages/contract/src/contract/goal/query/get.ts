@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery } from '../../../schema/index.ts'
 import { SGoal, SGoalIdentityFields } from '../schema.ts'
 
 export const SGoalGetInput = SGoalIdentityFields
@@ -19,6 +18,9 @@ export const getGoal = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+  })
   .input(SGoalGetInput)
   .output(SGoalGetOutput)

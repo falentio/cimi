@@ -5,7 +5,7 @@ import { SCohortCreateInput } from './command/create.ts'
 const baseInput = {
   siteId: 'site-1',
   name: 'Activation',
-  entryAction: { kind: 'page_view', name: '/signup' },
+  entryAction: { kind: 'page_view' },
   retentionAction: { kind: 'custom_event', name: 'activated' },
   identityKind: 'identified_user',
   period: 'week',
@@ -21,6 +21,15 @@ describe('cohort retention contract', () => {
       v.safeParse(SCohortCreateInput, {
         ...baseInput,
         retentionAction: baseInput.entryAction,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects names on pageview actions', () => {
+    expect(
+      v.safeParse(SCohortCreateInput, {
+        ...baseInput,
+        entryAction: { kind: 'page_view', name: '/signup' },
       }).success,
     ).toBe(false)
   })

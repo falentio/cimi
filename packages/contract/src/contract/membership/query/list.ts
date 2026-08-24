@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead, SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
+import { SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
 import { SMembership, SMembershipOrganizationFields } from '../schema.ts'
 
 export const SMembershipListInput = v.strictObject(
@@ -23,6 +23,11 @@ export const listMembers = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(ERead)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    INTERNAL_SERVER_ERROR: { status: 500 },
+  })
   .input(SMembershipListInput)
   .output(SMembershipListOutput)

@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SInvitationIdFields } from '../schema.ts'
 
 export const SInvitationRevokeInput = SInvitationIdFields
@@ -19,6 +18,11 @@ export const revokeInvitation = oc
     successStatus: 204,
   })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, INVITATION_CONSUMED: { status: 409 } })
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    INVITATION_CONSUMED: { status: 409 },
+  })
   .input(SInvitationRevokeInput)
   .output(SInvitationRevokeOutput)

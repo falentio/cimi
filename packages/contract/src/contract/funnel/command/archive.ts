@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SFunnelIdentityFields } from '../schema.ts'
 
 export const SFunnelArchiveInput = SFunnelIdentityFields
@@ -19,6 +18,11 @@ export const archiveFunnel = oc
     successStatus: 204,
   })
   .meta({ auth: 'admin' })
-  .errors(ECommand)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    CONFLICT: { status: 409 },
+  })
   .input(SFunnelArchiveInput)
   .output(SFunnelArchiveOutput)

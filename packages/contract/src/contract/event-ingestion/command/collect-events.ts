@@ -1,10 +1,13 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EBatchIngestion, SId, isWithinSerializedByteLimit } from '../../../schema/index.ts'
+import { EBatchIngestion, SId } from '../../../schema/index.ts'
+import { SCollectionContext } from '../../collection-policy/transport.ts'
 import { SBatchEventResponse } from '../schema.ts'
 
+export const COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES = 256 * 1024
 const SCollectEventsEnvelope = v.strictObject({
   ingestionIdentifier: SId,
+  collectionContext: v.optional(SCollectionContext),
   events: v.pipe(v.array(v.unknown()), v.minLength(1), v.maxLength(100)),
 })
 export const SCollectEventsInput = v.pipe(
@@ -20,8 +23,15 @@ export const SCollectEventsInput = v.pipe(
     'Every Event must use the batch Ingestion Identifier when provided.',
   ),
   v.check(
-    (input) => isWithinSerializedByteLimit(input, 256 * 1024),
-    'Batch payload must not exceed 256 KiB.',
+    ({ events }) =>
+      events.every(
+        (event) =>
+          typeof event !== 'object' ||
+          event === null ||
+          Array.isArray(event) ||
+          !('collectionContext' in event),
+      ),
+    'Collection context is scoped to the batch envelope.',
   ),
 )
 export type SCollectEventsInput = v.InferOutput<typeof SCollectEventsInput>
@@ -34,7 +44,8 @@ export const collectEvents = oc
     path: '/collectEvents',
     operationId: 'collectEvents',
     summary: 'Collect a batch of events',
-    description: 'Accept a bounded non-atomic batch of telemetry Events for processing.',
+    description:
+      'Accept a bounded non-atomic batch of telemetry Events. The transport adapter measures the raw UTF-8 request body before JSON parsing against the published byte limit; collectionContext applies to the whole batch.',
     tags: ['event-ingestion'],
     successStatus: 200,
   })

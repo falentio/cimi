@@ -2,7 +2,7 @@
 resource: invitation
 status: draft
 version: 1.0.0
-updated: 2026-08-23
+updated: 2026-08-24
 ---
 
 # Invitation Resource
@@ -11,7 +11,7 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-An Invitation is a single-use bearer link for joining one Organization with one fixed role. It is created by an Owner or Administrator and becomes consumed, expired, or revoked.
+An Invitation is a single-use custom bearer link for joining one Organization with one fixed role. It is created by an Owner or Administrator and becomes consumed, expired, or revoked. The bearer token is not bound to an email address; email delivery and verification are outside the core contract.
 
 ```text
 pending -> accepted
@@ -23,25 +23,26 @@ pending -> revoked
 
 **Audience:** Both
 
-| Field | Schema | Description |
-| --- | --- | --- |
-| `id` | `nanoid` | Invitation identifier. |
-| `organizationId` | `nanoid` | Target Organization. |
-| `role` | `organizationRoleWithoutOwner` | Fixed `admin` or `member` role. |
-| `token` | `opaqueBearer` | Returned only at creation; stored hashed. |
-| `expiresAt` | `coercedDate` | Seven days after creation. |
-| `status` | `invitationStatus` | `pending`, `accepted`, `expired`, or `revoked`. |
+| Field            | Schema                         | Description                                     |
+| ---------------- | ------------------------------ | ----------------------------------------------- |
+| `id`             | `opaque bounded string`        | Invitation identifier; Nano ID syntax is not an API invariant. |
+| `organizationId` | `opaque bounded string`        | Target Organization identifier; Nano ID syntax is not required. |
+| `role`           | `organizationRoleWithoutOwner` | Fixed `admin` or `member` role.                 |
+| `token`          | `opaqueBearer`                 | Returned only at creation; stored hashed.       |
+| `expiresAt`      | `coercedDate`                  | Seven days after creation.                      |
+| `status`         | `invitationStatus`             | `pending`, `accepted`, `expired`, or `revoked`. |
+| `createdAt` / `updatedAt` | `coercedDate`            | Invitation lifecycle timestamps.               |
 
 ## 3. Endpoint Quick Index
 
 **Audience:** FE
 
-| # | Procedure | Method | Path | Auth | CQRS |
-| --- | --- | --- | --- | --- | --- |
-| Q1 | `listInvitations` | GET | `/listInvitations` | admin | query |
-| C1 | `createInvitation` | POST | `/createInvitation` | admin | command |
-| C2 | `revokeInvitation` | POST | `/revokeInvitation` | admin | command |
-| C3 | `acceptInvitation` | POST | `/acceptInvitation` | authenticated | command |
+| #   | Procedure          | Method | Path                | Auth          | CQRS    |
+| --- | ------------------ | ------ | ------------------- | ------------- | ------- |
+| Q1  | `listInvitations`  | GET    | `/listInvitations`  | admin         | query   |
+| C1  | `createInvitation` | POST   | `/createInvitation` | admin         | command |
+| C2  | `revokeInvitation` | POST   | `/revokeInvitation` | admin         | command |
+| C3  | `acceptInvitation` | POST   | `/acceptInvitation` | authenticated | command |
 
 ## 4. Queries
 
@@ -51,7 +52,7 @@ pending -> revoked
 
 **Purpose:** List pending and historical invitations for an Organization.
 
-**Behavior:** Return token-free records with zero-based live offset pagination and `nextOffset`, `hasMore`, and `totalCount`. Expired pending invitations are reported as expired on read and cannot be accepted.
+**Behavior:** Return token-free records with zero-based live offset pagination ordered by `createdAt` plus invitation ID, and return `nextOffset`, `hasMore`, and `totalCount`. Expired pending invitations are reported as expired on read and cannot be accepted.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
@@ -87,7 +88,7 @@ pending -> revoked
 
 **Purpose:** Consume a bearer link after the recipient authenticates and create the fixed-role membership.
 
-**Behavior:** Require an authenticated User. Hash-compare the token, verify pending/non-expired state, create membership transactionally, and mark accepted. A token cannot be replayed. Return the resulting membership.
+**Behavior:** Require an active authenticated User; an unauthenticated recipient must sign up or sign in through Better Auth and retry the still-valid token. Hash-compare the custom bearer token, verify pending/non-expired state, reconcile the fixed non-owner role through Better Auth organization membership transactionally, and mark the invitation accepted. The token is intentionally transferable: the authenticated holder becomes the member, with no intended-recipient email check and no `emailVerified` gate. A token cannot be replayed. If the User already has the same role, return the complete existing non-owner Membership and consume the token atomically; if the existing role conflicts, return `CONFLICT` and leave the invitation pending. `acceptInvitation` never returns an Owner Membership.
 
 **Events Emitted:** None in MVP.
 
@@ -95,19 +96,23 @@ pending -> revoked
 
 ## 6. Business Rules
 
-| Rule | Enforcement Point | Affected Procedures |
-| --- | --- | --- |
-| Expiry is seven days from creation. | Server timestamp and command guard. | Q1, C3 |
-| Token is single-use and stored hashed. | Transaction and persistence. | C1, C3 |
-| Invitation cannot grant Owner. | Contract validation. | C1 |
-| Acceptance and membership creation are atomic. | Database transaction. | C3 |
+| Rule                                                                                                     | Enforcement Point                   | Affected Procedures |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------- |
+| Expiry is seven days from creation.                                                                      | Server timestamp and command guard. | Q1, C3              |
+| Token is single-use and stored hashed.                                                                   | Transaction and persistence.        | C1, C3              |
+| Invitation cannot grant Owner.                                                                           | Contract validation.                | C1                  |
+| Acceptance output cannot contain Owner.                                                                  | Contract validation.                | C3                  |
+| Acceptance and membership creation are atomic.                                                           | Database transaction.               | C3                  |
+| A valid bearer token is transferable and not email-bound.                                                | Token and acceptance boundary.      | C3                  |
+| Email verification is not an acceptance prerequisite.                                                    | Authentication boundary.            | C3                  |
+| Better Auth owns the resulting Organization membership; Cimi reconciles persisted Site scope separately. | Auth organization integration.      | C3                  |
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning | Procedures |
-| --- | --- | --- |
-| `admin` | Organization Owner or Administrator. | Q1, C1-C2 |
-| `authenticated` | Authenticated recipient. | C3 |
+| Auth Level      | Meaning                              | Procedures |
+| --------------- | ------------------------------------ | ---------- |
+| `admin`         | Organization Owner or Administrator. | Q1, C1-C2  |
+| `authenticated` | Authenticated recipient.             | C3         |
 
 ## 8. Event Catalog
 
@@ -119,39 +124,44 @@ No domain event channel is required by the MVP contract.
 
 **Audience:** Both
 
-- **Forwarded token** — The token is a bearer capability; the authenticated acceptor becomes the member.
+- **Forwarded token** — The token is a bearer capability; the authenticated acceptor becomes the member, even when the token was delivered by another person.
+- **Unauthenticated recipient** — Return `UNAUTHORIZED` without consuming the token; the recipient must authenticate or sign up before retrying.
+- **Unverified email** — Accept the token for an authenticated User; Better Auth's optional verified-email invitation setting does not apply to this custom token flow.
 - **Repeated acceptance** — Return `NOT_FOUND` after consumption; do not disclose the prior acceptor.
 - **Existing member** — Do not create duplicate membership; return a conflict if the requested role differs.
+- **Existing member with same role** — Return the complete existing non-owner Membership, consume the token exactly once, and do not create a duplicate membership.
 
 ## 10. Error Code Catalog
 
-| Code | HTTP | Trigger |
-| --- | ---: | --- |
-| `UNAUTHORIZED` | 401 | Recipient is not authenticated. |
-| `FORBIDDEN` | 403 | Caller lacks invitation management role. |
-| `NOT_FOUND` | 404 | Token is invalid, expired, revoked, or unknown. |
-| `INVITATION_CONSUMED` | 409 | Revoke attempted after acceptance. |
+| Code                  | HTTP | Trigger                                         |
+| --------------------- | ---: | ----------------------------------------------- |
+| `UNAUTHORIZED`        |  401 | Recipient is not authenticated.                 |
+| `FORBIDDEN`           |  403 | Caller lacks invitation management role.        |
+| `NOT_FOUND`           |  404 | Token is invalid, expired, revoked, or unknown. |
+| `BAD_REQUEST`         |  400 | Invitation role, organization, token, or pagination input is invalid. |
+| `CONFLICT`            |  409 | The existing membership has an incompatible role. |
+| `INVITATION_CONSUMED` |  409 | Revoke attempted after acceptance.              |
 
 ## 11. Related Resources & Dependencies
 
 ### Depends On
 
-| Resource | Integration Point |
-| --- | --- |
-| `organization` | Target Organization lifecycle. |
-| `membership` | Atomic membership creation. |
-| Better Auth User | Authenticated recipient. |
+| Resource         | Integration Point                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `organization`   | Target Organization lifecycle.                                                        |
+| `membership`     | Atomic membership creation.                                                           |
+| Better Auth User | Authentication and Organization membership authority for the authenticated recipient. |
 
 ### Used By
 
-| Resource | Integration Point |
-| --- | --- |
+| Resource     | Integration Point          |
+| ------------ | -------------------------- |
 | `membership` | Accept creates membership. |
 
 ## 12. Out of Scope
 
 **Audience:** Both
 
-- Email, SMS, or external notification delivery.
+- Email, SMS, or external notification delivery and email verification as an acceptance prerequisite.
 - Owner-role invitations or automatic Organization creation.
 - Hosted invitation pages, billing entitlements, or cross-Organization Site transfer.

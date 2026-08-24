@@ -12,10 +12,13 @@ import {
   isValidReportRange,
 } from '../../schema/index.ts'
 
-export const SGoalAction = v.strictObject({
-  kind: v.picklist(['page_view', 'custom_event', 'outbound', 'performance', 'error']),
-  name: v.optional(SName),
-})
+export const SGoalAction = v.variant('kind', [
+  v.strictObject({ kind: v.literal('page_view') }),
+  v.strictObject({ kind: v.literal('custom_event'), name: SName }),
+  v.strictObject({ kind: v.literal('outbound'), name: v.optional(SName) }),
+  v.strictObject({ kind: v.literal('performance'), name: SName }),
+  v.strictObject({ kind: v.literal('error'), name: SName }),
+])
 export const SGoal = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({

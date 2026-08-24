@@ -1,16 +1,16 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
+import { SGranularReportFieldsSchema, isValidGranularReportRange } from '../../../schema/index.ts'
 import {
-  EQuery,
-  SGranularReportFieldsSchema,
-  isValidGranularReportRange,
-} from '../../../schema/index.ts'
-import { STrafficOverview, STrafficSiteFields } from '../schema.ts'
+  STrafficOverview,
+  STrafficSiteFields,
+  isWithinAuthenticatedReportBucketLimit,
+} from '../schema.ts'
 
 export const STrafficOverviewInput = v.pipe(
   v.strictObject(v.entriesFromObjects([STrafficSiteFields, SGranularReportFieldsSchema])),
   v.check(
-    (input) => isValidGranularReportRange(input),
+    (input) => isValidGranularReportRange(input) && isWithinAuthenticatedReportBucketLimit(input),
     'Report range is invalid for its granularity.',
   ),
 )
@@ -29,6 +29,12 @@ export const getTrafficOverview = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    QUERY_LIMIT_EXCEEDED: { status: 422 },
+    SERVICE_UNAVAILABLE: { status: 503 },
+  })
   .input(STrafficOverviewInput)
   .output(STrafficOverviewOutput)

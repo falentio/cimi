@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SMembership, SMembershipChangeRoleFields } from '../schema.ts'
 
 export const SMembershipChangeRoleInput = SMembershipChangeRoleFields
@@ -20,6 +19,12 @@ export const changeMemberRole = oc
     successStatus: 200,
   })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, OWNER_PROTECTED: { status: 409 } })
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    OWNER_PROTECTED: { status: 409 },
+  })
   .input(SMembershipChangeRoleInput)
   .output(SMembershipChangeRoleOutput)

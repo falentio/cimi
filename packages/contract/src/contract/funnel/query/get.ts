@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery } from '../../../schema/index.ts'
 import { SFunnel, SFunnelIdentityFields } from '../schema.ts'
 
 export const SFunnelGetInput = SFunnelIdentityFields
@@ -19,6 +18,9 @@ export const getFunnel = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+  })
   .input(SFunnelGetInput)
   .output(SFunnelGetOutput)

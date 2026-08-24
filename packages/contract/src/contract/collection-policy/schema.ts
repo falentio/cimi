@@ -1,8 +1,8 @@
 import * as v from 'valibot'
 import { SId, SScalarKey } from '../../schema/index.ts'
+export { SCollectionContext } from './transport.ts'
 
-export const SPolicy = v.strictObject({
-  siteId: SId,
+const SPolicyValues = {
   anonymousCollection: v.picklist(['enabled', 'disabled']),
   honorGpcDnt: v.boolean(),
   consentMode: v.picklist(['none', 'required_for_identity', 'required_for_all']),
@@ -16,7 +16,7 @@ export const SPolicy = v.strictObject({
   }),
   propertyPolicy: v.strictObject({
     allowScalarProperties: v.boolean(),
-    maxProperties: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
+    maxProperties: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(64)),
     maxValueLength: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(512)),
     reservedNames: v.pipe(v.array(SScalarKey), v.maxLength(64)),
   }),
@@ -27,18 +27,48 @@ export const SPolicy = v.strictObject({
     countries: v.pipe(v.array(v.string()), v.maxLength(128)),
     ipRanges: v.pipe(v.array(v.string()), v.maxLength(128)),
   }),
+}
+
+export const SInstallationDefaultPolicy = v.strictObject({
+  scope: v.literal('installation'),
+  ...SPolicyValues,
 })
+export const SSiteOverridePolicy = v.strictObject({
+  scope: v.literal('site'),
+  siteId: SId,
+  ...SPolicyValues,
+})
+export const SPolicy = v.variant('scope', [SInstallationDefaultPolicy, SSiteOverridePolicy])
+
+const SInstallationDefaultPolicyUpdate = v.strictObject({
+  scope: v.literal('installation'),
+  policy: v.strictObject(SPolicyValues),
+})
+const SSiteOverridePolicyUpdate = v.strictObject({
+  scope: v.literal('site'),
+  policy: v.strictObject({ siteId: SId, ...SPolicyValues }),
+})
+
+export const SCollectionPolicySource = v.strictObject({
+  anonymousCollection: v.picklist(['installation', 'site']),
+  honorGpcDnt: v.picklist(['installation', 'site']),
+  consentMode: v.picklist(['installation', 'site']),
+  botPolicy: v.picklist(['installation', 'site']),
+  captureQueryStrings: v.picklist(['installation', 'site']),
+  urlPolicy: v.picklist(['installation', 'site']),
+  propertyPolicy: v.picklist(['installation', 'site']),
+  profileFilterKeys: v.picklist(['installation', 'site']),
+  exclusions: v.picklist(['installation', 'site']),
+})
+
 export const PSafePolicy = v.strictObject({
-  installationDefault: SPolicy,
-  siteOverride: v.nullable(SPolicy),
-  effective: SPolicy,
-  source: v.record(SScalarKey, v.picklist(['installation', 'site', 'default'])),
+  installationDefault: SInstallationDefaultPolicy,
+  siteOverride: v.nullable(SSiteOverridePolicy),
+  effective: SSiteOverridePolicy,
+  source: SCollectionPolicySource,
 })
 export const SCollectionPolicySiteFields = v.strictObject({ siteId: SId })
-export const SCollectionPolicyUpdateFields = v.pipe(
-  v.strictObject({ siteId: SId, policy: SPolicy }),
-  v.check(
-    (input) => input.siteId === input.policy.siteId,
-    'Policy Site scope must match the request.',
-  ),
-)
+export const SCollectionPolicyUpdateFields = v.variant('scope', [
+  SInstallationDefaultPolicyUpdate,
+  SSiteOverridePolicyUpdate,
+])

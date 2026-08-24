@@ -19,14 +19,16 @@ export const identify = oc
     operationId: 'identify',
     summary: 'Identify a profile',
     description:
-      'Identify an application user and attach bounded traits to the Site-scoped profile.',
+      'Identify an application user and attach bounded traits to the Site-scoped profile. collectionContext carries consent and GPC/DNT transport metadata.',
     tags: ['identity-profile'],
     successStatus: 200,
   })
   .meta({ auth: 'public' })
   .errors({
     BAD_REQUEST: { status: 400 },
+    FORBIDDEN: { status: 403 },
     NOT_FOUND: { status: 404 },
+    CONFLICT: { status: 409 },
     PAYLOAD_TOO_LARGE: { status: 413 },
     TOO_MANY_REQUESTS: { status: 429 },
   })

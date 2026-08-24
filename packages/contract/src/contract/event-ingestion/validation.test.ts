@@ -1,9 +1,13 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { SCollectEventInput } from './command/collect-event.ts'
-import { SCollectEventsInput } from './command/collect-events.ts'
-import { SEvent } from './schema.ts'
-import { SDate, SDateTime, isWithinSerializedByteLimit } from '../../schema/index.ts'
+import {
+  COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES,
+  SCollectEventsInput,
+} from './command/collect-events.ts'
+import { COLLECT_EVENT_MAX_RAW_REQUEST_BYTES } from './command/collect-event.ts'
+import { SBatchEventResponse, SEvent } from './schema.ts'
+import { SDate, SDateTime } from '../../schema/index.ts'
 
 const common = {
   eventId: 'event-1',
@@ -32,6 +36,41 @@ describe('event ingestion schemas', () => {
         events: [{ ...common, kind: 'page_view', pagePath: '/' }],
       }).success,
     ).toBe(true)
+  })
+
+  it('accepts privacy context on singular requests', () => {
+    expect(
+      v.safeParse(SCollectEventInput, {
+        ...common,
+        kind: 'page_view',
+        pagePath: '/',
+        collectionContext: { consent: 'granted', gpc: false, dnt: false },
+      }).success,
+    ).toBe(true)
+    expect(
+      v.safeParse(SCollectEventInput, {
+        ...common,
+        kind: 'page_view',
+        pagePath: '/',
+        collectionContext: { consent: 'yes' },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('scopes privacy context to the batch envelope', () => {
+    expect(
+      v.safeParse(SCollectEventsInput, {
+        ingestionIdentifier: common.ingestionIdentifier,
+        collectionContext: { consent: 'denied', gpc: true },
+        events: [{ ...common, kind: 'page_view', pagePath: '/' }],
+      }).success,
+    ).toBe(true)
+    expect(
+      v.safeParse(SCollectEventsInput, {
+        ingestionIdentifier: common.ingestionIdentifier,
+        events: [{ ...common, kind: 'page_view', pagePath: '/', collectionContext: {} }],
+      }).success,
+    ).toBe(false)
   })
 
   it('keeps malformed items eligible for per-item errors', () => {
@@ -76,18 +115,21 @@ describe('event ingestion schemas', () => {
     expect(v.safeParse(SDateTime, '2026-02-29T00:00:00Z').success).toBe(false)
   })
 
-  it('enforces the singular serialized payload limit', () => {
-    const event = {
-      ...common,
-      kind: 'custom_event',
-      name: 'completed',
-      properties: Object.fromEntries(
-        Array.from({ length: 64 }, (_, index) => [`property-${index}`, 'x'.repeat(512)]),
-      ),
-    }
-    expect(v.safeParse(SCollectEventInput, event).success).toBe(true)
-    expect(isWithinSerializedByteLimit({ payload: '\u{1F600}'.repeat(20_000) }, 64 * 1024)).toBe(
-      false,
-    )
+  it('publishes raw request byte limits for the transport adapter', () => {
+    expect(COLLECT_EVENT_MAX_RAW_REQUEST_BYTES).toBe(64 * 1024)
+    expect(COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES).toBe(256 * 1024)
+  })
+
+  it('requires a non-empty batch response and permits the 100-item boundary', () => {
+    expect(v.safeParse(SBatchEventResponse, { results: [] }).success).toBe(false)
+    expect(
+      v.safeParse(SBatchEventResponse, {
+        results: Array.from({ length: 100 }, (_, index) => ({
+          status: 'accepted',
+          eventId: `event-${index}`,
+          receiptTime: '2026-08-23T00:00:00Z',
+        })),
+      }).success,
+    ).toBe(true)
   })
 })

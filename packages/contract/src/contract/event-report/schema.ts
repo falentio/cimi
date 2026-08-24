@@ -1,8 +1,6 @@
 import * as v from 'valibot'
 import {
   SDate,
-  SDateTime,
-  MAX_MINUTE_REPORT_BUCKETS,
   SEventKind,
   SFiniteNumber,
   SGranularity,
@@ -12,11 +10,12 @@ import {
   SReportFreshness,
   SScalar,
   SScalarKey,
+  SPropertyFilter,
   SName,
   isValidReportRange,
 } from '../../schema/index.ts'
 
-export const SEventSiteFields = v.strictObject({ siteId: SId, eventKind: v.optional(SEventKind) })
+export const SEventSiteFields = v.strictObject({ siteId: SId, eventKind: SEventKind })
 const SEventReportFilterCommonFields = {
   operator: v.picklist(['equals', 'not_equals', 'contains', 'greater_than', 'less_than']),
   values: v.pipe(v.array(SScalar), v.minLength(1), v.maxLength(20)),
@@ -25,11 +24,131 @@ const SEventReportFilterField = v.union([
   v.picklist(['kind', 'name', 'pagePath', 'referrer', 'destination', 'unit', 'code']),
   v.pipe(v.string(), v.regex(/^property\.[A-Za-z0-9_.-]{1,63}$/)),
 ])
-export const SEventReportFilter = v.strictObject({
-  scope: v.literal('event'),
-  field: SEventReportFilterField,
-  ...SEventReportFilterCommonFields,
-})
+const SEventMatchActionCommonFields = {
+  propertyFilters: v.optional(v.pipe(v.array(SPropertyFilter), v.maxLength(20))),
+}
+export const SEventMatchAction = v.variant('kind', [
+  v.strictObject({ kind: v.literal('page_view'), ...SEventMatchActionCommonFields }),
+  v.strictObject({
+    kind: v.literal('custom_event'),
+    name: SName,
+    ...SEventMatchActionCommonFields,
+  }),
+  v.strictObject({
+    kind: v.literal('outbound'),
+    name: v.optional(SName),
+    ...SEventMatchActionCommonFields,
+  }),
+  v.strictObject({
+    kind: v.literal('performance'),
+    name: SName,
+    ...SEventMatchActionCommonFields,
+  }),
+  v.strictObject({
+    kind: v.literal('error'),
+    name: SName,
+    ...SEventMatchActionCommonFields,
+  }),
+])
+
+const isCompatibleEventFilterValue = (input: {
+  scope: 'event'
+  field: string
+  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than'
+  values: Array<string | number | boolean | null>
+}) => {
+  if (input.field === 'kind') {
+    return input.values.every((value) =>
+      ['page_view', 'custom_event', 'outbound', 'performance', 'error'].includes(String(value)),
+    )
+  }
+
+  if (input.field.startsWith('property.')) {
+    if (input.operator === 'contains') {
+      return input.values.every((value) => typeof value === 'string')
+    }
+    if (input.operator === 'greater_than' || input.operator === 'less_than') {
+      return input.values.every((value) => typeof value === 'number' && Number.isFinite(value))
+    }
+    return true
+  }
+
+  if (input.operator === 'contains') {
+    return input.values.every((value) => typeof value === 'string')
+  }
+  return input.values.every((value) => typeof value === 'string' || value === null)
+}
+
+const SEventValueFilter = v.pipe(
+  v.strictObject({
+    scope: v.literal('event'),
+    field: SEventReportFilterField,
+    ...SEventReportFilterCommonFields,
+  }),
+  v.check(isCompatibleEventFilterValue, 'Event report filters require compatible typed values.'),
+)
+const SEventActionPresenceFilter = v.variant('operator', [
+  v.strictObject({
+    scope: v.literal('session'),
+    operator: v.literal('has_done'),
+    action: SEventMatchAction,
+    range: v.literal('same_range'),
+  }),
+  v.strictObject({
+    scope: v.literal('session'),
+    operator: v.literal('has_not_done'),
+    action: SEventMatchAction,
+    range: v.literal('same_range'),
+  }),
+])
+export const SEventReportFilter = v.union([SEventValueFilter, SEventActionPresenceFilter])
+
+export const SEventAbsoluteDateTime = v.pipe(v.string(), v.isoTimestamp())
+export const AUTHENTICATED_EVENT_BUCKET_LIMITS = {
+  minute: 1_800,
+  hour: 720,
+  day: 366,
+  week: 104,
+  month: 36,
+  year: 10,
+} as const
+export const MAX_AUTHENTICATED_EVENT_OUTPUT_BUCKETS = Math.max(
+  ...Object.values(AUTHENTICATED_EVENT_BUCKET_LIMITS),
+)
+
+const getInclusiveDayCount = (fromDate: string, toDate: string) => {
+  const from = Date.parse(`${fromDate}T00:00:00Z`)
+  const to = Date.parse(`${toDate}T00:00:00Z`)
+  return Number.isFinite(from) && Number.isFinite(to) && to >= from
+    ? Math.floor((to - from) / (24 * 60 * 60 * 1000)) + 1
+    : 0
+}
+
+export const isWithinAuthenticatedEventBucketLimit = (input: {
+  fromDate: string
+  toDate: string
+  granularity: string
+}) => {
+  const days = getInclusiveDayCount(input.fromDate, input.toDate)
+
+  switch (input.granularity) {
+    case 'minute':
+      return days === 1 && days * 1_440 <= AUTHENTICATED_EVENT_BUCKET_LIMITS.minute
+    case 'hour':
+      return days <= 30 && days * 24 <= AUTHENTICATED_EVENT_BUCKET_LIMITS.hour
+    case 'day':
+      return days <= AUTHENTICATED_EVENT_BUCKET_LIMITS.day
+    case 'week':
+      return Math.ceil(days / 7) <= AUTHENTICATED_EVENT_BUCKET_LIMITS.week
+    case 'month':
+      return Math.ceil(days / 31) <= AUTHENTICATED_EVENT_BUCKET_LIMITS.month
+    case 'year':
+      return Math.ceil(days / 366) <= AUTHENTICATED_EVENT_BUCKET_LIMITS.year
+    default:
+      return false
+  }
+}
+
 const SEventReportComparison = v.strictObject({ fromDate: SDate, toDate: SDate })
 const SEventReportFields = {
   fromDate: SDate,
@@ -84,9 +203,13 @@ const SEventTimeseriesPeriod = v.strictObject(
       toDate: SDate,
       buckets: v.pipe(
         v.array(
-          v.strictObject({ at: SDateTime, count: SNonNegativeInteger, complete: v.boolean() }),
+          v.strictObject({
+            at: SEventAbsoluteDateTime,
+            count: SNonNegativeInteger,
+            complete: v.boolean(),
+          }),
         ),
-        v.maxLength(MAX_MINUTE_REPORT_BUCKETS),
+        v.maxLength(MAX_AUTHENTICATED_EVENT_OUTPUT_BUCKETS),
       ),
     }),
     SReportFreshness,
@@ -115,8 +238,8 @@ const SEventOutputProperties = v.pipe(
 )
 const SEventOutputCommonFields = {
   eventId: SId,
-  occurredAt: SDateTime,
-  createdAt: SDateTime,
+  occurredAt: SEventAbsoluteDateTime,
+  createdAt: SEventAbsoluteDateTime,
   referrer: v.nullable(v.pipe(v.string(), v.maxLength(2048))),
   properties: v.nullable(SEventOutputProperties),
 }
@@ -178,7 +301,7 @@ const SEventBreakdownPage = v.strictObject(
               'unit',
               'code',
             ]),
-            value: v.pipe(v.string(), v.maxLength(512)),
+            value: v.pipe(v.string(), v.maxLength(2048)),
             count: SNonNegativeInteger,
           }),
         ),

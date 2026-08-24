@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SPublicDashboardSiteFields } from '../schema.ts'
 
 export const SPublicDashboardDisableInput = SPublicDashboardSiteFields
@@ -19,6 +18,10 @@ export const disablePublicDashboard = oc
     successStatus: 204,
   })
   .meta({ auth: 'admin' })
-  .errors(ECommand)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+  })
   .input(SPublicDashboardDisableInput)
   .output(SPublicDashboardDisableOutput)

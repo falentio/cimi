@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
+import { SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema/index.ts'
 import { SFunnel, SFunnelSiteFields } from '../schema.ts'
 
 export const SFunnelListInput = v.strictObject(
@@ -23,6 +23,10 @@ export const listFunnels = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+  })
   .input(SFunnelListInput)
   .output(SFunnelListOutput)

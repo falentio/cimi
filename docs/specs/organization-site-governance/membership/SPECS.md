@@ -2,7 +2,7 @@
 resource: membership
 status: draft
 version: 1.0.0
-updated: 2026-08-23
+updated: 2026-08-24
 ---
 
 # Membership Resource
@@ -11,9 +11,9 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-Membership is a User's active relationship with an Organization and its role. Better Auth owns the underlying organization membership model; this resource defines the Cimi role defaults and mutation guards consumed by Site authorization.
+Membership is a User's active relationship with an Organization and its role. Better Auth owns the underlying Organization membership authority; Cimi reconciles one persisted `(organizationId, userId)` membership pair and defines the role defaults and mutation guards consumed by Site authorization.
 
-Membership states are `active` and absent. An Owner cannot be removed or demoted without an explicit ownership-transfer capability, which is outside v1.
+Membership states are `active` and absent. Ownership transfer is an explicit Owner-controlled lifecycle operation, not an ordinary role change. An Owner cannot be removed, demoted, or leave until ownership is transferred to another active member.
 
 ## 2. Base Schema
 
@@ -21,8 +21,8 @@ Membership states are `active` and absent. An Owner cannot be removed or demoted
 
 | Field | Schema | Description |
 | --- | --- | --- |
-| `organizationId` | `nanoid` | Organization scope. |
-| `userId` | `userId` | Better Auth User. |
+| `organizationId` | `opaque bounded string` | Organization scope; Nano ID syntax is not an API invariant. |
+| `userId` | `userId` | Better Auth User identifier represented as an opaque bounded string; Nano ID syntax is not required. |
 | `role` | `organizationRole` | `owner`, `admin`, or `member`. |
 | `createdAt` / `updatedAt` | `coercedDate` | Membership timestamps. |
 
@@ -36,6 +36,7 @@ Membership states are `active` and absent. An Owner cannot be removed or demoted
 | C1 | `changeMemberRole` | POST | `/changeMemberRole` | admin | command |
 | C2 | `removeMember` | POST | `/removeMember` | admin | command |
 | C3 | `leaveOrganization` | POST | `/leaveOrganization` | authenticated | command |
+| C4 | `transferOrganizationOwnership` | POST | `/transferOrganizationOwnership` | owner | command |
 
 ## 4. Queries
 
@@ -57,7 +58,7 @@ Membership states are `active` and absent. An Owner cannot be removed or demoted
 
 **Purpose:** Change an existing member's Organization role.
 
-**Behavior:** Owner or Administrator may change roles, but the sole Owner cannot be changed. The target must already be a member. Return 200.
+**Behavior:** Owner or Administrator may change an existing member only to `admin` or `member`; ownership changes require C4. The sole Owner cannot be changed by this procedure. The target must already be a member. Return 200.
 
 **Events Emitted:** None in MVP.
 
@@ -81,18 +82,32 @@ Membership states are `active` and absent. An Owner cannot be removed or demoted
 
 **Purpose:** Allow a member to leave an Organization.
 
-**Behavior:** The Owner cannot leave while owning the Organization; transfer is outside v1. Return 204.
+**Behavior:** The Owner cannot leave while owning the Organization; the Owner must first transfer ownership with C4. Other active members may leave. Return 204.
 
 **Events Emitted:** None in MVP.
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `OWNER_PROTECTED` (409).
 
+### C4: `POST /transferOrganizationOwnership` — `transferOrganizationOwnership`
+
+**Audience:** Both
+
+**Purpose:** Transfer Organization ownership to an existing active member.
+
+**Behavior:** Only the current Owner may transfer ownership. The target must be an active non-owner member of the same Organization. Promote the target to `owner` and demote the previous Owner to `admin` atomically, preserving exactly one Owner. Return the complete promoted Owner Membership with 200.
+
+**Events Emitted:** None in MVP.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404 for an inaccessible or absent target membership), `CONFLICT` (409 when the target is not an active non-owner member or the transfer cannot complete atomically).
+
 ## 6. Business Rules
 
 | Rule | Enforcement Point | Affected Procedures |
 | --- | --- | --- |
-| Roles are exactly Owner, Administrator, or Member. | Contract and persistence. | Q1, C1 |
-| Exactly one Owner exists. | Transactional command guard. | C1-C3 |
+| Roles are exactly Owner, Administrator, or Member; role-change input accepts only Administrator or Member. | Contract and persistence. | Q1, C1 |
+| Exactly one Owner exists. | Transactional command guard. | C1-C4 |
+| Ownership changes only through an explicit Owner-controlled transfer. | Transaction and role guard. | C1-C4 |
+| Better Auth remains membership authority and Cimi reconciles a unique `(organizationId, userId)` pair. | Auth integration and persistence guard. | Q1-C4 |
 | Membership removal revokes Site access immediately. | Persisted guard lookup. | C2-C3 and all Site resources |
 
 ## 7. Authorization Matrix
@@ -101,6 +116,7 @@ Membership states are `active` and absent. An Owner cannot be removed or demoted
 | --- | --- | --- |
 | `authenticated` | Current active member. | Q1, C3 |
 | `admin` | Owner or Administrator. | C1-C2 |
+| `owner` | Current Organization Owner. | C4 |
 
 ## 8. Event Catalog
 
@@ -112,7 +128,8 @@ No domain event channel is required by the MVP contract.
 
 **Audience:** Both
 
-- **Removing the Owner** — Always reject; ownership transfer is a later capability.
+- **Removing or demoting the Owner** — Always reject until a successful ownership transfer makes another active member the Owner.
+- **Ownership transfer target** — Reject an absent, inactive, or already-owner target without changing either membership; a successful transfer leaves exactly one Owner.
 - **Last Administrator leaves** — Allowed only if the Owner remains; otherwise the Owner-protection rule rejects it.
 - **Removed User with stale session** — Every protected request rechecks persisted membership.
 
@@ -123,7 +140,10 @@ No domain event channel is required by the MVP contract.
 | `UNAUTHORIZED` | 401 | No authenticated User. |
 | `FORBIDDEN` | 403 | Insufficient Organization role. |
 | `NOT_FOUND` | 404 | Organization or target membership is inaccessible. |
-| `OWNER_PROTECTED` | 409 | Operation would remove or demote the sole Owner. |
+| `OWNER_PROTECTED` | 409 | Ordinary role-change, removal, or leave operation would remove or demote the sole Owner. |
+| `CONFLICT` | 409 | Ownership transfer target is not an active non-owner member, or the atomic transfer cannot complete. |
+| `BAD_REQUEST` | 400 | Role, pagination, or other membership input is invalid. |
+| `INTERNAL_SERVER_ERROR` | 500 | A provider or persistence failure cannot be exposed safely. |
 
 ## 11. Related Resources & Dependencies
 
@@ -146,5 +166,5 @@ No domain event channel is required by the MVP contract.
 **Audience:** Both
 
 - Authentication/session protocol mechanics owned by Better Auth.
-- Ownership transfer, billing membership, or cross-Organization invitations.
+- Billing membership or cross-Organization invitations.
 - Site-specific authorization rules beyond the persisted membership guard.

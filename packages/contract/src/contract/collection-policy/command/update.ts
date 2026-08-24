@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { PSafePolicy, SCollectionPolicyUpdateFields } from '../schema.ts'
 
 export const SCollectionPolicyUpdateInput = SCollectionPolicyUpdateFields
@@ -14,11 +13,18 @@ export const updateCollectionPolicy = oc
     path: '/updateCollectionPolicy',
     operationId: 'updateCollectionPolicy',
     summary: 'Update collection policy',
-    description: 'Update Site collection and privacy settings.',
+    description:
+      'Update an installation default or a Site override. Authorization is selected by the scope discriminator: installation-admin for installation defaults, or Site-management authority for Site overrides.',
     tags: ['collection-policy'],
     successStatus: 200,
   })
   .meta({ auth: 'admin' })
-  .errors(ECommand)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    CONFLICT: { status: 409 },
+  })
   .input(SCollectionPolicyUpdateInput)
   .output(SCollectionPolicyUpdateOutput)

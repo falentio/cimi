@@ -2,7 +2,7 @@
 resource: organization
 status: draft
 version: 1.0.0
-updated: 2026-08-23
+updated: 2026-08-24
 ---
 
 # Organization Resource
@@ -11,9 +11,9 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-An Organization is the collaborative ownership boundary for Sites. Better Auth owns authentication and membership primitives; this resource owns Cimi's persisted Organization meaning, Personal Organization rule, Site ownership relationship, and lifecycle guards.
+An Organization is the collaborative ownership boundary for Sites. Better Auth owns authentication plus Organization and membership authority; this resource owns Cimi's persisted Organization metadata, Personal Organization rule, Site ownership relationship, and lifecycle guards, and reconciles persisted Site scope independently.
 
-Organizations are active after creation. A Personal Organization is provisioned lazily on the first authenticated dashboard open and cannot be deleted while it owns a Site.
+Organizations are active after creation. A Personal Organization is provisioned lazily on the first authenticated dashboard open and cannot be deleted while it owns a Site; once it owns no Sites, its Owner may delete it like any other empty Organization.
 
 ## 2. Base Schema
 
@@ -27,9 +27,9 @@ Organizations are active after creation. A Personal Organization is provisioned 
 
 | Field | Schema | Description |
 | --- | --- | --- |
-| `id` | `nanoid` | Stable Organization identifier. |
+| `id` | `opaque bounded string` | Stable Organization identifier; Nano ID syntax is not an API invariant. |
 | `name` | `string256` | Human-readable Organization name. |
-| `ownerUserId` | `userId` | Better Auth User who owns the Organization. |
+| `ownerUserId` | `userId` | Better Auth User identifier represented as an opaque bounded string; Nano ID syntax is not required. |
 | `isPersonal` | `boolean` | Whether lazy Personal Organization rules apply. |
 | `createdAt` / `updatedAt` | `coercedDate` | Lifecycle timestamps. |
 
@@ -44,7 +44,7 @@ Organizations are active after creation. A Personal Organization is provisioned 
 | C1 | `ensurePersonalOrganization` | POST | `/ensurePersonalOrganization` | authenticated | command |
 | C2 | `createOrganization` | POST | `/createOrganization` | authenticated | command |
 | C3 | `updateOrganization` | POST | `/updateOrganization` | admin | command |
-| C4 | `deleteOrganization` | POST | `/deleteOrganization` | admin | command |
+| C4 | `deleteOrganization` | POST | `/deleteOrganization` | owner | command |
 
 ## 4. Queries
 
@@ -76,7 +76,7 @@ Organizations are active after creation. A Personal Organization is provisioned 
 
 **Purpose:** Idempotently obtain the authenticated User's Personal Organization.
 
-**Behavior:** Concurrent calls converge on one Personal Organization. Existing Organizations are never relabeled Personal. Return 200 for both creation and reuse.
+**Behavior:** Require only an authenticated Better Auth User, not prior Organization membership. Concurrent calls converge on one Personal Organization. Existing Organizations are never relabeled Personal. Return 200 for both creation and reuse.
 
 **Events Emitted:** None in MVP.
 
@@ -88,7 +88,7 @@ Organizations are active after creation. A Personal Organization is provisioned 
 
 **Purpose:** Create a non-personal collaborative Organization and initial Owner membership.
 
-**Behavior:** The authenticated User becomes the sole Owner. No Site is implicitly created. Return 201.
+**Behavior:** Require only an authenticated Better Auth User. The authenticated User becomes the sole Owner. No Site is implicitly created. Return 201.
 
 **Events Emitted:** None in MVP.
 
@@ -112,7 +112,7 @@ Organizations are active after creation. A Personal Organization is provisioned 
 
 **Purpose:** Delete an Organization that has no owned Sites.
 
-**Behavior:** Only the Owner may delete. Personal Organizations and Organizations with Sites are rejected; deletion is not a cascade. Return 204.
+**Behavior:** Only the Owner may delete. Evaluate the Personal Organization protection before the general non-empty guard: a Personal Organization with owned Sites returns `PERSONAL_ORGANIZATION_PROTECTED`, while any other non-empty Organization returns `ORGANIZATION_NOT_EMPTY`. Any empty Organization, including a Personal Organization, may be deleted. Deletion is not a cascade. Return 204.
 
 **Events Emitted:** None in MVP.
 
@@ -131,9 +131,10 @@ Organizations are active after creation. A Personal Organization is provisioned 
 
 | Auth Level | Meaning | Procedures |
 | --- | --- | --- |
-| `authenticated` | Authenticated User with persisted membership. | Q1-Q2, C1-C2 |
+| `authenticated` | Authenticated Better Auth User. | C1-C2 |
+| `authenticated` | Authenticated User with persisted membership. | Q1-Q2 |
 | `admin` | Organization Owner or Administrator. | C3 |
-| `admin` | Organization Owner-only guard. | C4 |
+| `owner` | Organization Owner-only guard. | C4 |
 
 ## 8. Event Catalog
 
@@ -156,8 +157,11 @@ No domain event channel is required by the MVP contract. State changes remain tr
 | `UNAUTHORIZED` | 401 | No authenticated User. |
 | `FORBIDDEN` | 403 | User lacks the required Organization role. |
 | `NOT_FOUND` | 404 | Organization is absent or inaccessible. |
-| `ORGANIZATION_NOT_EMPTY` | 409 | Organization still owns a Site. |
-| `PERSONAL_ORGANIZATION_PROTECTED` | 409 | Personal Organization deletion requested. |
+| `ORGANIZATION_NOT_EMPTY` | 409 | A non-personal Organization still owns a Site. |
+| `PERSONAL_ORGANIZATION_PROTECTED` | 409 | A Personal Organization with owned Sites is targeted for deletion; this takes precedence over `ORGANIZATION_NOT_EMPTY`. |
+| `BAD_REQUEST` | 400 | Organization name, pagination, or other input is invalid. |
+| `CONFLICT` | 409 | Organization ownership or lifecycle invariants cannot be reconciled. |
+| `INTERNAL_SERVER_ERROR` | 500 | A provider or persistence failure cannot be exposed safely. |
 
 ## 11. Related Resources & Dependencies
 

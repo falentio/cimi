@@ -1,10 +1,15 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
-import { SInstallation, SInstallationInitializeFields } from '../schema.ts'
+import {
+  DEFAULT_RETENTION_POLICY,
+  SInstallation,
+  SInstallationInitializeFields,
+} from '../schema.ts'
 
 export const SInstallationInitializeInput = SInstallationInitializeFields
 export type SInstallationInitializeInput = v.InferOutput<typeof SInstallationInitializeInput>
+
+export { DEFAULT_RETENTION_POLICY }
 
 const SInstallationInitializeCreatedOutput = v.strictObject({
   status: v.literal(201),
@@ -33,6 +38,13 @@ export const initializeInstallation = oc
     successStatus: 200,
   })
   .meta({ auth: 'admin' })
-  .errors(ECommand)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    CONFLICT: { status: 409 },
+    INTERNAL_SERVER_ERROR: { status: 500 },
+  })
   .input(SInstallationInitializeInput)
   .output(SInstallationInitializeOutput)

@@ -2,7 +2,7 @@
 resource: identity-profile
 status: draft
 version: 1.0.0
-updated: 2026-08-23
+updated: 2026-08-24
 ---
 
 # Identity Profile Resource
@@ -11,13 +11,13 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-An Identity Profile represents one explicit Site-scoped Identified User with bounded scalar Traits and Aliases. It is never inferred from Better Auth, email discovery, URL metadata, or event properties.
+An Identity Profile represents one explicit Site-scoped Identified User with bounded scalar Traits and Aliases. It is never inferred from Better Auth, email discovery, URL metadata, or event properties. A profile ID remains reserved from deletion request through completed cleanup; a later explicit re-identification starts a new Profile Epoch.
 
 ```text
 active -> deletion-requested -> deleting -> deleted
 ```
 
-Deletion is asynchronous and must invalidate or recompute affected derived results, including profile listings, cohorts, Goals, Funnels, and retention reports. Identity Redaction removes profile, alias, trait, and identity linkage through a SQLite overlay without rewriting accepted Event sequence history; retained non-personal Event activity may continue anonymously.
+Deletion is asynchronous and must invalidate or recompute affected derived results, including profile listings, cohorts, Goals, Funnels, and retention reports. `profileMonths` expiry applies the same Identity Redaction without a user request: profile, alias, trait, and identity linkage are removed through a SQLite overlay without rewriting accepted Event sequence history; retained non-personal Event activity may continue anonymously. Re-identification after expiry or completed deletion starts a new Profile Epoch and never restores the prior linkage.
 
 ## 2. Base Schema
 
@@ -27,10 +27,13 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 | --- | --- | --- |
 | `siteId` | `nanoid` | Site scope. |
 | `identifiedUserId` | `opaqueUserId` | Application-supplied stable opaque identifier. |
-| `traits` | `scalarTraitMap` | Bounded string, number, boolean, or null values. |
+| `traits` | `scalarTraitMap` | Bounded string, number, boolean, or null values. The compact JSON serialization is at most 16 KiB of UTF-8 bytes. |
 | `aliases` | `aliasList` | Site-scoped Anonymous Identity links. |
 | `status` | `profileDeletionStatus` | Active or deletion lifecycle state. |
+| `profileEpoch` | positive integer (active only) | Current Profile Epoch number; a later re-identification after redaction uses a higher number. |
+| `identityHistory` | bounded `profileEpoch` list (active only) | At most 32 typed epochs. Active epochs have `endedAt: null`; redacted epochs have an end timestamp. |
 | `firstSeenAt` / `lastSeenAt` | `coercedDate` | Derived activity timestamps. |
+| `createdAt` / `updatedAt` | `coercedDate` | Profile lifecycle timestamps. |
 
 ## 3. Endpoint Quick Index
 
@@ -52,7 +55,7 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 **Purpose:** Explore explicit Identified User profiles within a Site.
 
-**Behavior:** Require persisted Site scope. Use zero-based live offset pages ordered by `createdAt` plus `identifiedUserId`, returning `nextOffset`, `hasMore`, and `totalCount`. Do not expose raw IP, hidden identity fingerprints, or unapproved trait values.
+**Behavior:** Require persisted Site scope. Use zero-based live offset pages ordered by `createdAt` plus `identifiedUserId`, returning `nextOffset`, `hasMore`, and `totalCount`. Active profiles include bounded typed Profile Epoch history. Profiles in `deletion-requested`, `deleting`, or `deleted` state return exactly `{ status }`; do not expose Site ID, Identified User ID, traits, aliases, identity history, raw IP, hidden identity fingerprints, lifecycle timestamps, or unapproved trait values.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
@@ -62,7 +65,7 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 **Purpose:** Return one Site-scoped profile and its bounded identity history.
 
-**Behavior:** A missing or inaccessible profile returns `NOT_FOUND`. Deleting profiles are represented by deletion status, not raw data.
+**Behavior:** A missing or inaccessible profile returns `NOT_FOUND`. An active profile includes its current Profile Epoch and bounded identity history. Profiles in any non-active deletion state are represented by exactly `{ status }`; traits, aliases, identity history, identifiers, and lifecycle timestamps are not returned.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404).
 
@@ -84,11 +87,11 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 **Purpose:** Explicitly identify an application user and attach bounded Traits, optionally without an Event.
 
-**Behavior:** Reuse the same identity validation and privacy policy as Event ingestion. Link the current Anonymous Identity to the supplied Identified User for the current Analytics Session plus future Events; do not relabel unrelated anonymous history. Null Traits remove values. The request is not Cimi authentication and is not idempotent beyond convergent upsert of the same identity/traits.
+**Behavior:** Require the Ingestion Identifier to resolve an `active` Site and reuse the same identity validation and privacy policy as Event ingestion. `collectionContext` carries consent and GPC/DNT metadata; omitted consent is not an opt-in. Link the current Anonymous Identity to the supplied Identified User for the current Analytics Session from its beginning plus future Events; do not relabel unrelated anonymous history. One Anonymous Identity may link to at most one Identified User at a time. Null Traits remove values. The compact JSON UTF-8 serialization of `traits` must be at most 16 KiB; exceeding it returns `PAYLOAD_TOO_LARGE`. Reject identification while the profile is `deletion-requested`, `deleting`, or `deleted`, and reserve the ID until cleanup completes; a later accepted identification starts a new Profile Epoch. The request is not Cimi authentication and is not idempotent beyond convergent upsert of the same active identity/traits.
 
 **Events Emitted:** None in MVP.
 
-**Errors:** `BAD_REQUEST` (400), `NOT_FOUND` (404 for invalid Ingestion Identifier), `PAYLOAD_TOO_LARGE` (413), `TOO_MANY_REQUESTS` (429).
+**Errors:** `BAD_REQUEST` (400), `FORBIDDEN` (403 for generic collection-policy refusal), `NOT_FOUND` (404 for invalid Ingestion Identifier or non-active Site), `CONFLICT` (409 for a profile in deletion), `PAYLOAD_TOO_LARGE` (413), `TOO_MANY_REQUESTS` (429).
 
 ### C2: `POST /requestProfileDeletion` — `requestProfileDeletion`
 
@@ -96,20 +99,21 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 **Purpose:** Request asynchronous hard deletion of one Site-scoped Identified User.
 
-**Behavior:** Owner or Administrator only in v1. Mark the profile deleting, prevent new trait writes, append the Identity Redaction intent, enqueue deletion of profile/alias links and derived results, and return 202 with status. Eligible retained Events are reclassified as anonymous after the overlay is applied. `clearIdentity` or opt-out does not count as deletion.
+**Behavior:** Owner or Administrator only in v1. A profile already in `deletion-requested`, `deleting`, or `deleted` state returns `CONFLICT`; the ID remains reserved through cleanup. Otherwise mark the profile `deletion-requested`, prevent new trait writes, append the Identity Redaction intent, enqueue deletion of profile/alias links and derived results, and return 202 with status. Processing then enters `deleting` and completes at `deleted`. Eligible retained Events are reclassified as anonymous after the overlay is applied. `clearIdentity` or opt-out does not count as deletion.
 
 **Events Emitted:** None in MVP.
 
-**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409 if already deleting/deleted).
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409 if already `deletion-requested`, `deleting`, or `deleted`, or while the ID remains reserved for cleanup).
 
 ## 6. Business Rules
 
 | Rule | Enforcement Point | Affected Procedures |
 | --- | --- | --- |
 | Identified IDs are explicit opaque Site-scoped values. | Contract and ingestion policy. | C1, Q1-Q2 |
-| Traits are bounded scalar values only. | Strict schema and policy. | C1 |
-| Current Session plus future Events are linked; unrelated history is not merged. | Identity/session transaction. | C1 |
-| Deletion is asynchronous and derived-result aware. | Deletion worker/status contract. | C2-Q3 |
+| Traits are bounded scalar values only, have a bounded serialized size, and never contain secrets, credentials, payment data, or prohibited sensitive categories. | Strict schema and policy. | C1 |
+| Current Session from its beginning plus future Events are linked; unrelated history is not merged, and one Anonymous Identity has at most one current Identified User link. | Identity/session transaction. | C1 |
+| `profileMonths` expiry and explicit deletion both redact profile-dependent meaning while retained non-personal Events may remain anonymous. | Retention and identity lifecycle. | C1-C2, Q1-Q3 |
+| Deletion is asynchronous, reserves the ID through cleanup, and is derived-result aware. | Deletion worker/status contract. | C2-Q3 |
 
 ## 7. Authorization Matrix
 
@@ -131,8 +135,8 @@ No domain event channel is required by the MVP contract.
 
 - **Same opaque ID from two devices** — Link each device's Site-scoped Alias to the same profile; do not merge Anonymous Identities into one browser key.
 - **Identify after opt-out** — Apply the effective collection policy; do not create or mutate identity while collection is disabled.
-- **Trait contains email/name** — Treat it as caller-supplied personal data; accept only when policy permits and expose only to authenticated Site members.
-- **Deletion during reporting** — Reports exclude deleting/deleted profile data and converge as derived invalidation completes.
+- **Trait contains email/name** — Treat it as caller-supplied personal data; accept only when policy permits, within the serialized trait bound, and expose only to authenticated Site members. Secrets, credentials, payment data, and sensitive categories are prohibited.
+- **Deletion during reporting** — Reports exclude `deletion-requested`, `deleting`, and `deleted` profile data and converge as derived invalidation completes; eligible non-personal Event fields may remain anonymous.
 - **Redacted historical Event** — The Event remains eligible for anonymous Site analytics only when its remaining fields are not personal; Identified User-specific reports exclude it.
 
 ## 10. Error Code Catalog
@@ -142,7 +146,9 @@ No domain event channel is required by the MVP contract.
 | `BAD_REQUEST` | 400 | Identity or Trait shape is invalid. |
 | `FORBIDDEN` | 403 | Caller lacks Site profile-management scope. |
 | `NOT_FOUND` | 404 | Site or profile is inaccessible. |
-| `CONFLICT` | 409 | Profile is already in a terminal deletion lifecycle. |
+| `CONFLICT` | 409 | Profile status is `deletion-requested`, `deleting`, or `deleted`, or the requested identity ID remains reserved for cleanup. |
+| `PAYLOAD_TOO_LARGE` | 413 | Compact JSON UTF-8 Trait serialization exceeds 16 KiB. |
+| `TOO_MANY_REQUESTS` | 429 | Identity mutation protection is exceeded. |
 
 ## 11. Related Resources & Dependencies
 

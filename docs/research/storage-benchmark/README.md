@@ -6,10 +6,14 @@ This directory contains the completed research and reproducible benchmark record
 
 - `official-guidance.md` records first-party SQLite, DuckDB, and Daytona guidance.
 
+## Accepted Benchmark Authority
+
+Container sandbox results are authoritative for the accepted issue #18 benchmark scope. The Linux VM profile was investigated but was not run and is historical/superseded material, not a pending fairness prerequisite. These results are evidence for the storage ownership decision and do not establish a product capacity promise.
+
 ## Fairness Rules
 
-- Run candidates on the same constrained Linux VM, local filesystem, dataset, runtime, schema meaning, and result checksums.
-- Keep live database files, database WAL files, journal files, and DuckDB temporary spill files on local VM storage. Do not use a Daytona volume for database files.
+- Run candidates on the same constrained container sandbox, local sandbox filesystem, dataset, runtime, schema meaning, and result checksums.
+- Keep live database files, database WAL files, journal files, and DuckDB temporary spill files on local sandbox storage. Do not use a Daytona volume for database files.
 - Record effective cgroup CPU and memory limits instead of trusting host-level `nproc` or `free` output.
 - Pin and record SQLite, better-sqlite3, DuckDB, @duckdb/node-api, Node.js, kernel, Daytona CLI, snapshot, region, and all database settings.
 - Separate durable acceptance latency from analytics materialization latency and query visibility.
@@ -49,11 +53,11 @@ All candidates use the same deterministic logical Event shape. Candidate-specifi
 - Verify row counts, duplicate counts, query checksums, and report results after every phase.
 - Never count Daytona sandbox creation, CLI transport, repository setup, or artifact upload in database timings.
 
-## Daytona VM Run
+## Historical VM Probe
 
-The intended first profile is the documented `daytona-vm-small` shape: 1 vCPU, 1 GiB memory, and 3 GiB disk. The exact effective limits must be captured inside the sandbox.
+The planned but unexecuted Linux VM profile used the documented `daytona-vm-small` shape: 1 vCPU, 1 GiB memory, and 3 GiB disk. It is retained as a historical execution note only; no VM result is part of the accepted benchmark.
 
-The CLI is authenticated (`daytona list` succeeds), but reports a client/API version mismatch (`v0.190.0` versus API `v0.207.0`). The documented VM snapshot is listed, but the current organization has no Linux VM runners in either `eu` or `us`:
+The historical probe found an authenticated CLI (`daytona list` succeeds), a client/API version mismatch (`v0.190.0` versus API `v0.207.0`), and no Linux VM runners in either `eu` or `us`:
 
 ```bash
 daytona version
@@ -61,17 +65,17 @@ daytona snapshot list
 daytona create --snapshot daytona-vm-small --name cimi-storage-bench --auto-stop 0 --auto-delete -1
 ```
 
-Both the default VM create and a custom `linux-vm` snapshot attempt fail with `No runners are configured in region ... for sandbox class 'linux-vm'`. This requires Daytona regional VM capacity or quota changes; a container sandbox is not an equivalent substitute for this benchmark.
+Both the default VM create and a custom `linux-vm` snapshot attempt fail with `No runners are configured in region ... for sandbox class 'linux-vm'`. No VM result was produced, and no regional VM capacity or quota change is required for the accepted container benchmark.
 
-Use `daytona exec` with an explicit working directory and timeout. Keep the databases under the sandbox filesystem. Export only logs, JSON results, plans, and summaries to a persistent artifact location after each run. Do not mount a Daytona volume at the database path.
+The planned VM execution would have used an explicit working directory and timeout, kept databases on sandbox storage, and exported only diagnostic artifacts. No such VM execution occurred.
 
-## Container Benchmark Scope
+## Accepted Container Benchmark
 
 Container sandboxes are the accepted benchmark environment for this research. Database files stay on the sandbox filesystem and no Daytona volume is mounted. Node `v25.9.0` is accepted for benchmark runs.
 
 - Profile: 1,000 base rows, 100 mixed rows, three repetitions, three query repetitions, batch sizes 1/100/1000, two readers, one DuckDB thread, and a 128 MiB DuckDB memory limit.
 - Result: 36 runs across all four candidates completed with no mixed-load errors, 1,100 rows after drain, and valid SQLite/DuckDB backup row counts. The raw result was copied to `/tmp/opencode/cimi-storage-benchmark-results-container-1k-r3.json`.
-- Boundary: the original 20,000-row profile and a 5,000-row DuckDB profile were OOM-killed with exit 137 under the 1 GiB cgroup limit. The container result is useful smoke/scale evidence but is not a substitute for the planned Linux VM result. The failure is batch-size-sensitive and should not be read as a pure row-count limit.
+- Boundary: the original 20,000-row profile and a 5,000-row DuckDB profile were OOM-killed with exit 137 under the 1 GiB cgroup limit. This is a batch-size-sensitive diagnostic caveat, not a pure row-count limit or product capacity claim.
 
 ## Two GiB Capacity Diagnostics
 

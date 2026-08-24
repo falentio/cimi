@@ -20,4 +20,13 @@ describe('goal procedure schemas', () => {
   it('keeps composed inputs strict', () => {
     expect(v.safeParse(SGoalCreateInput, { ...createInput, unexpected: true }).success).toBe(false)
   })
+
+  it('rejects a name on a pageview action', () => {
+    expect(
+      v.safeParse(SGoalCreateInput, {
+        ...createInput,
+        action: { kind: 'page_view', name: '/checkout' },
+      }).success,
+    ).toBe(false)
+  })
 })

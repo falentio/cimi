@@ -1,7 +1,8 @@
 import { oc } from '../../../orpc/index.ts'
-import { SSystemHealth } from '../schema.ts'
+import { SHealth } from '../schema.ts'
 
-export const SSystemHealthOutput = SSystemHealth
+export const SHealthOutput = SHealth
+export const SSystemHealthOutput = SHealthOutput
 
 /**
  * Reports API liveness and backing-store readiness.
@@ -22,4 +23,4 @@ export const health = oc
   })
   .meta({ auth: 'public' })
   .errors({ INTERNAL_SERVER_ERROR: { status: 500 } })
-  .output(SSystemHealthOutput)
+  .output(SHealthOutput)

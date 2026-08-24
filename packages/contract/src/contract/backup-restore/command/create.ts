@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SBackup } from '../schema.ts'
 
 export const SBackupCreateInput = v.strictObject({})
@@ -14,11 +13,20 @@ export const createBackup = oc
     path: '/createBackup',
     operationId: 'createBackup',
     summary: 'Create a backup',
-    description: 'Create a consistent backup of configured data for operator recovery.',
+    description:
+      'Create a consistent SQLite-canonical backup of configured data for operator recovery.',
     tags: ['backup-restore'],
     successStatus: 202,
   })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, INSUFFICIENT_STORAGE: { status: 507 } })
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    CONFLICT: { status: 409 },
+    INSUFFICIENT_STORAGE: { status: 507 },
+    INTERNAL_SERVER_ERROR: { status: 500 },
+  })
   .input(SBackupCreateInput)
   .output(SBackupCreateOutput)

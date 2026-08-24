@@ -23,8 +23,6 @@ export const listOrganizations = oc
   .meta({ auth: 'authenticated' })
   .errors({
     UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
     BAD_REQUEST: { status: 400 },
     INTERNAL_SERVER_ERROR: { status: 500 },
   })

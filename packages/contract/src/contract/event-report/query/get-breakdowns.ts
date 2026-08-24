@@ -1,24 +1,25 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
 import {
-  EQuery,
   SOffsetPaginationInput,
-  isValidGranularReportRange,
+  SSortDirection,
+  isValidReportRange,
 } from '../../../schema/index.ts'
-import { SEventBreakdowns, SEventGranularReportFieldsSchema, SEventSiteFields } from '../schema.ts'
+import { SEventBreakdowns, SEventReportFieldsSchema, SEventSiteFields } from '../schema.ts'
 
 export const SEventBreakdownsInput = v.pipe(
   v.strictObject(
     v.entriesFromObjects([
       SEventSiteFields,
-      SEventGranularReportFieldsSchema,
+      SEventReportFieldsSchema,
       SOffsetPaginationInput,
+      v.strictObject({
+        sort: v.optional(v.picklist(['value', 'count'])),
+        direction: v.optional(SSortDirection),
+      }),
     ]),
   ),
-  v.check(
-    (input) => isValidGranularReportRange(input),
-    'Report range is invalid for its granularity.',
-  ),
+  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
 )
 export type SEventBreakdownsInput = v.InferOutput<typeof SEventBreakdownsInput>
 export const SEventBreakdownsOutput = SEventBreakdowns
@@ -35,6 +36,12 @@ export const getEventBreakdowns = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    QUERY_LIMIT_EXCEEDED: { status: 422 },
+    SERVICE_UNAVAILABLE: { status: 503 },
+  })
   .input(SEventBreakdownsInput)
   .output(SEventBreakdownsOutput)

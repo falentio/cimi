@@ -12,11 +12,32 @@ import {
   isValidReportRange,
 } from '../../schema/index.ts'
 
-export const SFunnelAction = v.strictObject({
-  kind: v.picklist(['page_view', 'custom_event', 'outbound', 'performance', 'error']),
-  name: v.optional(SName),
+const SFunnelActionPropertyFields = {
   propertyFilters: v.optional(v.pipe(v.array(SPropertyFilter), v.maxLength(20))),
-})
+}
+export const SFunnelAction = v.variant('kind', [
+  v.strictObject({ kind: v.literal('page_view'), ...SFunnelActionPropertyFields }),
+  v.strictObject({
+    kind: v.literal('custom_event'),
+    name: SName,
+    ...SFunnelActionPropertyFields,
+  }),
+  v.strictObject({
+    kind: v.literal('outbound'),
+    name: v.optional(SName),
+    ...SFunnelActionPropertyFields,
+  }),
+  v.strictObject({
+    kind: v.literal('performance'),
+    name: SName,
+    ...SFunnelActionPropertyFields,
+  }),
+  v.strictObject({
+    kind: v.literal('error'),
+    name: SName,
+    ...SFunnelActionPropertyFields,
+  }),
+])
 export const SFunnelSteps = v.pipe(
   v.array(SFunnelAction),
   v.minLength(2),
@@ -39,22 +60,28 @@ export const SFunnel = v.strictObject(
     SCreated,
   ]),
 )
+export const SFunnelReportSteps = v.pipe(
+  v.array(
+    v.strictObject({
+      index: SNonNegativeInteger,
+      matched: SNonNegativeInteger,
+      rateFromEntry: SRate,
+      rateFromPrevious: SRate,
+    }),
+  ),
+  v.minLength(2),
+  v.maxLength(10),
+  v.check(
+    (steps) => steps.every((step, index) => step.index === index),
+    'Funnel report steps must have contiguous indexes starting at zero.',
+  ),
+)
 const SFunnelReportPeriod = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
       fromDate: SDate,
       toDate: SDate,
-      steps: v.pipe(
-        v.array(
-          v.strictObject({
-            index: SNonNegativeInteger,
-            matched: SNonNegativeInteger,
-            rateFromEntry: SRate,
-            rateFromPrevious: SRate,
-          }),
-        ),
-        v.maxLength(10),
-      ),
+      steps: SFunnelReportSteps,
     }),
     SReportFreshness,
   ]),

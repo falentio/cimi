@@ -11,10 +11,13 @@ import {
   isValidReportRange,
 } from '../../schema/index.ts'
 
-export const SCohortAction = v.strictObject({
-  kind: v.picklist(['page_view', 'custom_event', 'outbound', 'performance', 'error']),
-  name: v.optional(SName),
-})
+export const SCohortAction = v.variant('kind', [
+  v.strictObject({ kind: v.literal('page_view') }),
+  v.strictObject({ kind: v.literal('custom_event'), name: SName }),
+  v.strictObject({ kind: v.literal('outbound'), name: v.optional(SName) }),
+  v.strictObject({ kind: v.literal('performance'), name: SName }),
+  v.strictObject({ kind: v.literal('error'), name: SName }),
+])
 type SCohortActionOutput = v.InferOutput<typeof SCohortAction>
 export const areDistinctCohortActions = (input: {
   entryAction: SCohortActionOutput

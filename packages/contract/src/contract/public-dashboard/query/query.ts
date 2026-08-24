@@ -1,15 +1,35 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { SDate } from '../../../schema/index.ts'
-import { SPublicDashboardBucket, SPublicDashboardQueryFields } from '../schema.ts'
+import { SDate, SReportFreshness } from '../../../schema/index.ts'
+import {
+  MAX_PUBLIC_DASHBOARD_DIMENSION_ROWS,
+  MAX_PUBLIC_DASHBOARD_INTERVAL_STARTS,
+  SPublicDashboardDimensionBucket,
+  SPublicDashboardQueryFields,
+  SPublicDashboardTimeBucket,
+} from '../schema.ts'
 
 export const SPublicDashboardQueryInput = SPublicDashboardQueryFields
 export type SPublicDashboardQueryInput = v.InferOutput<typeof SPublicDashboardQueryInput>
-export const SPublicDashboardQueryOutput = v.strictObject({
-  fromDate: SDate,
-  toDate: SDate,
-  buckets: v.pipe(v.array(SPublicDashboardBucket), v.maxLength(2160)),
-})
+export const SPublicDashboardQueryOutput = v.strictObject(
+  v.entriesFromObjects([
+    v.strictObject({
+      fromDate: SDate,
+      toDate: SDate,
+      buckets: v.union([
+        v.pipe(
+          v.array(SPublicDashboardTimeBucket),
+          v.maxLength(MAX_PUBLIC_DASHBOARD_INTERVAL_STARTS),
+        ),
+        v.pipe(
+          v.array(SPublicDashboardDimensionBucket),
+          v.maxLength(MAX_PUBLIC_DASHBOARD_DIMENSION_ROWS),
+        ),
+      ]),
+    }),
+    SReportFreshness,
+  ]),
+)
 export type SPublicDashboardQueryOutput = v.InferOutput<typeof SPublicDashboardQueryOutput>
 
 export const queryPublicDashboard = oc
@@ -27,6 +47,7 @@ export const queryPublicDashboard = oc
   .errors({
     BAD_REQUEST: { status: 400 },
     NOT_FOUND: { status: 404 },
+    SERVICE_UNAVAILABLE: { status: 503 },
     TOO_MANY_REQUESTS: { status: 429 },
     QUERY_LIMIT_EXCEEDED: { status: 422 },
   })

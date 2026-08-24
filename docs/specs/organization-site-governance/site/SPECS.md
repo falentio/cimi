@@ -2,7 +2,7 @@
 resource: site
 status: draft
 version: 1.0.0
-updated: 2026-08-23
+updated: 2026-08-24
 ---
 
 # Site Resource
@@ -11,28 +11,30 @@ updated: 2026-08-23
 
 **Audience:** Both
 
-A Site is a website or web application whose analytics belong to exactly one Organization. It supplies a non-secret Ingestion Identifier for collection and never moves between Organizations in v1.
+A Site is a website or web application whose analytics belong to exactly one Organization. It supplies a non-secret Ingestion Identifier for collection and never moves between Organizations in v1. Active Sites are visible through normal membership-scoped reads; every non-`active` Site (`deleting`, `deleted`, `recovering`, and `purged`) is hidden while its lifecycle record remains.
 
 ```text
-active -> deleted
+active -> deleting -> deleted -> purged
+deleting -> recovering -> active
+deleted -> recovering -> active
 ```
 
-Deletion is blocked or quiesced according to retention and recovery rules; it never silently transfers or deletes another Organization.
+`deleteSite` is Owner-only and enters `deleting` with HTTP 202. The Site becomes hidden, non-ingestible, non-queryable, and unavailable to Public Query immediately, while live Site data and the prior Ingestion Identifier/Public Dashboard configuration remain retained during the 30-day recovery window subject to normal retention. `recoverSite` is available to Owners and Administrators from `deleting` or `deleted`, enters `recovering`, and keeps the Site hidden and blocked until asynchronous recovery reaches `active`. At the end of the recovery window, automatic purge removes all live Site data except minimal tombstone/audit metadata; backup copies follow normal backup retention and cannot reactivate a deleted or purged Site. A restored generation may temporarily rehydrate historical payload while cleanup catches up, but the tombstone still blocks Site activation, collection, query, and Public Query visibility and exposes cleanup-pending status.
 
 ## 2. Base Schema
 
 **Audience:** Both
 
-| Field | Schema | Description |
-| --- | --- | --- |
-| `id` | `nanoid` | Site identifier. |
-| `organizationId` | `nanoid` | Owning Organization. |
-| `name` | `string256` | Display name. |
-| `hostname` | `hostname` | Canonical site hostname. |
-| `ingestionIdentifier` | `publicIdentifier` | Non-secret collection selector. |
-| `reportingTimezone` | `ianaTimezone` | Site timezone for report dates, buckets, and comparisons. Defaults to UTC. |
-| `weekStartsOn` | `weekStart` | Explicit first weekday for Site-local weekly periods. Defaults to Monday. |
-| `createdAt` / `updatedAt` | `coercedDate` | Lifecycle timestamps. |
+| Field                     | Schema             | Description                                                                |
+| ------------------------- | ------------------ | -------------------------------------------------------------------------- |
+| `id`                      | `opaque bounded string` | Site identifier; Nano ID syntax is not an API invariant.                    |
+| `organizationId`          | `opaque bounded string` | Owning Organization identifier; Nano ID syntax is not required.             |
+| `name`                    | `string256`        | Display name.                                                              |
+| `hostname`                | `hostname`         | Lowercase canonical hostname with an optional terminal DNS root dot removed. |
+| `ingestionIdentifier`     | `publicIdentifier` | Non-secret bounded public collection selector.                              |
+| `reportingTimezone`       | `ianaTimezone`     | Site timezone for report dates, buckets, and comparisons. Defaults to UTC. |
+| `weekStartsOn`            | `weekStart`        | Explicit first weekday for Site-local weekly periods. Defaults to Monday.  |
+| `createdAt` / `updatedAt` | `coercedDate`      | Lifecycle timestamps.                                                      |
 
 The Ingestion Identifier is never a read or management credential.
 
@@ -40,14 +42,16 @@ The Ingestion Identifier is never a read or management credential.
 
 **Audience:** FE
 
-| # | Procedure | Method | Path | Auth | CQRS |
-| --- | --- | --- | --- | --- | --- |
-| Q1 | `listSites` | GET | `/listSites` | authenticated | query |
-| Q2 | `getSite` | GET | `/getSite` | authenticated | query |
-| C1 | `createSite` | POST | `/createSite` | admin | command |
-| C2 | `updateSiteV2` | POST | `/updateSiteV2` | admin | command |
-| C3 | `deleteSite` | POST | `/deleteSite` | admin | command |
-| C4 | `rotateIngestionIdentifier` | POST | `/rotateIngestionIdentifier` | admin | command |
+| #   | Procedure                   | Method | Path                         | Auth          | CQRS    |
+| --- | --------------------------- | ------ | ---------------------------- | ------------- | ------- |
+| Q1  | `listSites`                 | GET    | `/listSites`                 | authenticated | query   |
+| Q2  | `getSite`                   | GET    | `/getSite`                   | authenticated | query   |
+| Q3  | `getSiteDeletionStatus`     | GET    | `/getSiteDeletionStatus`     | admin         | query   |
+| C1  | `createSite`                | POST   | `/createSite`                | admin         | command |
+| C2  | `updateSiteV2`              | POST   | `/updateSiteV2`              | admin         | command |
+| C3  | `deleteSite`                | POST   | `/deleteSite`                | owner         | command |
+| C4  | `recoverSite`               | POST   | `/recoverSite`               | admin         | command |
+| C5  | `rotateIngestionIdentifier` | POST   | `/rotateIngestionIdentifier` | admin         | command |
 
 ## 4. Queries
 
@@ -57,7 +61,7 @@ The Ingestion Identifier is never a read or management credential.
 
 **Purpose:** List Sites visible through persisted Organization membership.
 
-**Behavior:** Use zero-based live offset pages ordered by `createdAt` plus Site ID. Return `nextOffset`, `hasMore`, and `totalCount`; never return Sites from the active Organization merely because it is selected in navigation.
+**Behavior:** Use zero-based live offset pages ordered by `createdAt` plus Site ID. Return `nextOffset`, `hasMore`, and `totalCount`; never return Sites from the active Organization merely because it is selected in navigation. Every non-`active` Site (`deleting`, `deleted`, `recovering`, and `purged`) is hidden from this list.
 
 **Errors:** `UNAUTHORIZED` (401), `BAD_REQUEST` (400), `INTERNAL_SERVER_ERROR` (500).
 
@@ -67,9 +71,19 @@ The Ingestion Identifier is never a read or management credential.
 
 **Purpose:** Return one Site after persisted membership and Site ownership checks.
 
-**Behavior:** Inaccessible and unknown Site IDs return the same `NOT_FOUND` response.
+**Behavior:** Inaccessible, unknown, and non-`active` Site IDs return the same `NOT_FOUND` response; the `deleting`, `deleted`, `recovering`, and `purged` states are not exposed through this normal Site read.
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400).
+
+### Q3: `GET /getSiteDeletionStatus` — `getSiteDeletionStatus`
+
+**Audience:** Both
+
+**Purpose:** Report asynchronous Site deletion, recovery, and purge status without returning hidden Site data or credentials.
+
+**Behavior:** Require persisted Owner or Administrator Site-management scope. Return the lifecycle status, operation ID, requested/deleted timestamps, recovery deadline, purge time, and cleanup status/error summary. The query may report `active`, `deleting`, `deleted`, `recovering`, or `purged`; it never returns the Site configuration, Ingestion Identifier, or Public Dashboard Identifier. Unknown or inaccessible Sites return indistinguishable `NOT_FOUND`.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
 ## 5. Commands
 
@@ -79,7 +93,7 @@ The Ingestion Identifier is never a read or management credential.
 
 **Purpose:** Create a Site in an Organization where the caller may manage Sites.
 
-**Behavior:** Generate a fresh Ingestion Identifier. Hostname normalization and uniqueness are Site-scoped according to the canonical hostname rule. Return 201.
+**Behavior:** Generate a fresh Ingestion Identifier. Normalize the hostname to lowercase with a terminal DNS root dot removed, then enforce Organization-scoped uniqueness using that canonical value. A hostname remains reserved while its deleting, deleted, recovering, or purged lifecycle record/tombstone exists; it becomes reusable only after that record is permanently removed. Return 201.
 
 **Events Emitted:** None in MVP.
 
@@ -91,7 +105,7 @@ The Ingestion Identifier is never a read or management credential.
 
 **Purpose:** Update mutable Site metadata and collection-facing settings.
 
-**Behavior:** Owner or Administrator only. Site Organization and Ingestion Identifier are not changed by this procedure. `reportingTimezone` and `weekStartsOn` are explicit Site reporting settings. `updateSiteV2` intentionally supersedes the pre-release `updateSite` contract after incompatible input and behavior changes; no unversioned alias is exposed. Future incompatible changes use a new versioned procedure.
+**Behavior:** Owner or Administrator only, and only while the Site is `active`; every non-`active` state (`deleting`, `deleted`, `recovering`, and `purged`) returns `CONFLICT` without mutation. Site Organization and Ingestion Identifier are not changed by this procedure. `reportingTimezone` and `weekStartsOn` are explicit Site reporting settings. `updateSiteV2` intentionally supersedes the pre-release `updateSite` contract after incompatible input and behavior changes; no unversioned alias is exposed. Future incompatible changes use a new versioned procedure.
 
 **Events Emitted:** None in MVP.
 
@@ -101,21 +115,33 @@ The Ingestion Identifier is never a read or management credential.
 
 **Audience:** Both
 
-**Purpose:** Quiesce and delete a Site and its Site-scoped configuration.
+**Purpose:** Begin the recoverable asynchronous deletion lifecycle for a Site.
 
-**Behavior:** Owner only. Collection stops before deletion; analytics and identity deletion follows the asynchronous lifecycle contract and backup policy. Return 202 with deletion status when work is asynchronous.
+**Behavior:** Owner only and only while the Site is `active`. Acquire the global lifecycle lock; reject incompatible backup, restore, or lifecycle work with `CONFLICT`. On acceptance, stop collection, hide the Site from normal reads and all analytics/public requests, and return 202 with `status: deleting` and an operation ID. Retry the command for the same Site returns the existing deletion operation status without creating another operation. Retain live Site data, the prior Ingestion Identifier, and Public Dashboard configuration while deletion is recoverable. Once the Site reaches `deleted`, start the 30-day recovery window; automatic purge then removes all live Site data except minimal anti-resurrection tombstone/audit metadata. Backup copies remain under normal backup retention and are never allowed to restore the Site as active.
 
 **Events Emitted:** None in MVP.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409 while quiescing or restoring).
 
-### C4: `POST /rotateIngestionIdentifier` — `rotateIngestionIdentifier`
+### C4: `POST /recoverSite` — `recoverSite`
+
+**Audience:** Both
+
+**Purpose:** Cancel recoverable Site deletion and restore the Site through the asynchronous lifecycle.
+
+**Behavior:** Owner or Administrator only. Accept recovery from `deleting` or `deleted`, acquire the global lifecycle lock, and return 202 with `status: recovering`. Cancel pending deletion work, preserve retained data subject to normal retention, restore the prior Ingestion Identifier and Public Dashboard configuration, and return the Site to `active` after recovery completes. Repeating recovery returns the existing recovery operation status; recovery of an active or purged Site returns `CONFLICT` and cannot restore a new lifecycle operation.
+
+**Events Emitted:** None in MVP.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409 while purging, restoring, or otherwise incompatible).
+
+### C5: `POST /rotateIngestionIdentifier` — `rotateIngestionIdentifier`
 
 **Audience:** Both
 
 **Purpose:** Revoke the current collection selector and issue a new one.
 
-**Behavior:** Owner or Administrator only. The old identifier fails closed after the committed rotation. Return the new non-secret identifier once in the normal Site response.
+**Behavior:** Owner or Administrator only, and only while the Site is `active`; every non-`active` state (`deleting`, `deleted`, `recovering`, and `purged`) returns `CONFLICT` without rotating the retained recovery identifier. The old identifier fails closed after the committed rotation. Return the new non-secret identifier once in the normal Site response.
 
 **Events Emitted:** None in MVP.
 
@@ -123,20 +149,24 @@ The Ingestion Identifier is never a read or management credential.
 
 ## 6. Business Rules
 
-| Rule | Enforcement Point | Affected Procedures |
-| --- | --- | --- |
-| A Site belongs to exactly one Organization. | Persistence and authorization guard. | Q1-Q2, C1-C4 |
-| Site transfer is outside v1. | Contract and handler. | C2 |
-| Ingestion Identifier is non-secret and not a read credential. | Schema and auth separation. | Q2, C1, C4 |
-| Rotation invalidates the old identifier. | Transactional configuration update. | C4 |
+| Rule                                                                                       | Enforcement Point                              | Affected Procedures |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------- | ------------------- |
+| A Site belongs to exactly one Organization.                                                | Persistence and authorization guard.           | Q1-Q3, C1-C5        |
+| Site transfer is outside v1.                                                               | Contract and handler.                          | C2                  |
+| Ingestion Identifier is non-secret and not a read credential.                              | Schema and auth separation.                    | Q2, C1, C4          |
+| Rotation invalidates the old identifier.                                                   | Transactional configuration update.            | C5                  |
+| Deletion hides and blocks a Site before asynchronous cleanup.                              | Lifecycle guard and query/ingestion admission. | Q1-Q2, C3-C4        |
+| Every non-`active` Site state is hidden and blocked from ingestion, queries, analytics, and Public Query. | Lifecycle admission guard. | Q1-Q2, C1-C5 |
+| A deleted Site is recoverable for 30 days, then is purged from live data automatically.    | Durable lifecycle state and purge worker.      | Q3, C3-C4           |
+| Restore honors the SQLite-canonical deletion tombstone and cannot reactivate a deleted or purged Site; temporary cleanup-pending payload rehydration does not grant visibility. | Restore and lifecycle coordination. | Q3, C3-C4 |
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning | Procedures |
-| --- | --- | --- |
-| `authenticated` | Current Organization member with Site visibility. | Q1-Q2 |
-| `admin` | Organization Owner or Administrator with Site-management authority. | C1-C2, C4 |
-| `admin` | Organization Owner-only guard. | C3 |
+| Auth Level      | Meaning                                                                               | Procedures       |
+| --------------- | ------------------------------------------------------------------------------------- | ---------------- |
+| `authenticated` | Current Organization member with Site visibility; every non-`active` Site fails closed. | Q1-Q2            |
+| `admin`         | Organization Owner or Administrator with Site-management authority.                   | Q3, C1-C2, C4-C5 |
+| `owner`         | Organization Owner-only guard.                                                        | C3               |
 
 ## 8. Event Catalog
 
@@ -150,33 +180,41 @@ No domain event channel is required by the MVP contract.
 
 - **Rotated identifier in an old tracker** — Collection returns a typed rejection; it never falls back to another Site.
 - **Hostname case/trailing dot** — Normalize before uniqueness checks and persist one canonical value.
-- **Deletion during backup** — Quiesce or reject the command; never produce a backup with a partially deleted Site.
+- **Deletion during backup** — Serialize lifecycle work under the global lifecycle lock; reject incompatible backup or restore work with `CONFLICT`, never produce a backup with a partially deleted Site.
+- **Hidden Site read** — `listSites`, `getSite`, authenticated reports, ingestion, and Public Query fail closed for `deleting`, `deleted`, `recovering`, and `purged` Sites; `getSiteDeletionStatus` remains available to an Owner or Administrator without returning Site data.
+- **Recovery during deletion** — `recoverSite` may cancel `deleting` or `deleted` work, enters `recovering`, and restores the prior Site access boundary after asynchronous recovery.
+- **Expired recovery window** — Automatic purge moves the Site to `purged`; the live data and access identifiers are removed, while retained backup payloads may be temporarily rehydrated during cleanup but cannot reactivate the deleted or purged Site or make it queryable.
+- **Public Dashboard during Site deletion** — Site deletion suspends public requests without counting as a Public Dashboard disable, so recovery restores the prior Public Dashboard configuration and identifier.
 
 ## 10. Error Code Catalog
 
-| Code | HTTP | Trigger |
-| --- | ---: | --- |
-| `UNAUTHORIZED` | 401 | No authenticated User. |
-| `FORBIDDEN` | 403 | Caller lacks persisted Site-management scope. |
-| `NOT_FOUND` | 404 | Site is absent or inaccessible. |
-| `CONFLICT` | 409 | Hostname or lifecycle state conflicts. |
+| Code                    | HTTP | Trigger                                                  |
+| ----------------------- | ---: | -------------------------------------------------------- |
+| `UNAUTHORIZED`          |  401 | No authenticated User.                                   |
+| `FORBIDDEN`             |  403 | Caller lacks persisted Site-management scope.            |
+| `NOT_FOUND`             |  404 | Site is absent or inaccessible.                          |
+| `CONFLICT`              |  409 | Hostname or lifecycle state conflicts.                   |
+| `BAD_REQUEST`           |  400 | Site metadata, timezone, week-start, pagination, or other input is invalid. |
+| `INTERNAL_SERVER_ERROR` |  500 | Lifecycle work failed without exposing provider details. |
 
 ## 11. Related Resources & Dependencies
 
 ### Depends On
 
-| Resource | Integration Point |
-| --- | --- |
-| `organization` / `membership` | Persisted ownership and authorization. |
-| `collection-policy` | Site collection settings. |
-| `public-dashboard` | Public identifier and disclosure configuration. |
+| Resource                      | Integration Point                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| `organization` / `membership` | Persisted ownership and authorization.                                                   |
+| `collection-policy`           | Site collection settings.                                                                |
+| `public-dashboard`            | Public identifier and disclosure configuration.                                          |
+| `backup-restore`              | Global lifecycle lock, tombstone-authoritative restore, and historical backup retention. |
+| `retention-policy`            | Normal retention continues during the recoverable deletion window.                       |
 
 ### Used By
 
-| Resource | Integration Point |
-| --- | --- |
-| `event-ingestion` | Ingestion Identifier selects Site. |
-| All analytics resources | Site scope. |
+| Resource                | Integration Point                  |
+| ----------------------- | ---------------------------------- |
+| `event-ingestion`       | Ingestion Identifier selects Site. |
+| All analytics resources | Site scope.                        |
 
 ## 12. Out of Scope
 

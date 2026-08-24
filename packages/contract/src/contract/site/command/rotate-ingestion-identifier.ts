@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SSite, SSiteIdFields } from '../schema.ts'
 
 export const SSiteRotateIngestionInput = SSiteIdFields
@@ -20,6 +19,11 @@ export const rotateIngestionIdentifier = oc
     successStatus: 200,
   })
   .meta({ auth: 'admin' })
-  .errors(ECommand)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    CONFLICT: { status: 409 },
+  })
   .input(SSiteRotateIngestionInput)
   .output(SSiteRotateIngestionOutput)

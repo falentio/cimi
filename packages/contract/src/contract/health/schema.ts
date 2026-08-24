@@ -17,11 +17,27 @@ const SSystemHealthFields = v.strictObject({
   version: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
   checkedAt: SDateTime,
 })
-export const SSystemHealth = v.pipe(
+const isAllowedHealthState = ({
+  status,
+  controlStore,
+  analyticsStore,
+  cleanupPending,
+}: v.InferOutput<typeof SSystemHealthFields>) => {
+  if (status === 'healthy') {
+    return controlStore === 'ready' && analyticsStore === 'ready' && !cleanupPending
+  }
+  if (status === 'degraded') {
+    return controlStore === 'ready' && (analyticsStore !== 'ready' || cleanupPending)
+  }
+  if (status === 'recovering' || status === 'maintenance') {
+    return controlStore === 'ready'
+  }
+  return controlStore !== 'ready'
+}
+
+export const SHealth = v.pipe(
   SSystemHealthFields,
-  v.check(
-    ({ status, controlStore, analyticsStore }) =>
-      status !== 'healthy' || (controlStore === 'ready' && analyticsStore === 'ready'),
-    'Healthy status requires both stores to be ready.',
-  ),
+  v.check(isAllowedHealthState, 'Health status and store states are not a valid combination.'),
 )
+
+export const SSystemHealth = SHealth

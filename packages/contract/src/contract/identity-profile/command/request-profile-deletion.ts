@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SProfileIdentityFields } from '../schema.ts'
 
 export const SRequestProfileDeletionInput = SProfileIdentityFields
@@ -17,11 +16,17 @@ export const requestProfileDeletion = oc
     path: '/requestProfileDeletion',
     operationId: 'requestProfileDeletion',
     summary: 'Request profile deletion',
-    description: 'Request asynchronous hard deletion of a Site-scoped identity profile.',
+    description:
+      'Request asynchronous hard deletion of a Site-scoped identity profile. A profile in deletion-requested, deleting, or deleted state returns CONFLICT and remains reserved through cleanup.',
     tags: ['identity-profile'],
     successStatus: 202,
   })
   .meta({ auth: 'admin' })
-  .errors(ECommand)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    CONFLICT: { status: 409 },
+  })
   .input(SRequestProfileDeletionInput)
   .output(SRequestProfileDeletionOutput)

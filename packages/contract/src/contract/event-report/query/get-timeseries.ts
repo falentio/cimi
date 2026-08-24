@@ -1,12 +1,17 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, isValidGranularReportRange } from '../../../schema/index.ts'
-import { SEventGranularReportFieldsSchema, SEventSiteFields, SEventTimeseries } from '../schema.ts'
+import { isValidGranularReportRange } from '../../../schema/index.ts'
+import {
+  SEventGranularReportFieldsSchema,
+  SEventSiteFields,
+  SEventTimeseries,
+  isWithinAuthenticatedEventBucketLimit,
+} from '../schema.ts'
 
 export const SEventTimeseriesInput = v.pipe(
   v.strictObject(v.entriesFromObjects([SEventSiteFields, SEventGranularReportFieldsSchema])),
   v.check(
-    (input) => isValidGranularReportRange(input),
+    (input) => isValidGranularReportRange(input) && isWithinAuthenticatedEventBucketLimit(input),
     'Report range is invalid for its granularity.',
   ),
 )
@@ -25,6 +30,12 @@ export const getEventTimeseries = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    QUERY_LIMIT_EXCEEDED: { status: 422 },
+    SERVICE_UNAVAILABLE: { status: 503 },
+  })
   .input(SEventTimeseriesInput)
   .output(SEventTimeseriesOutput)

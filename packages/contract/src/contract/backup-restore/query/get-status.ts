@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ERead } from '../../../schema/index.ts'
 import { SBackup, SBackupIdFields } from '../schema.ts'
 
 export const SBackupStatusInput = SBackupIdFields
@@ -14,11 +13,18 @@ export const getBackupStatus = oc
     path: '/getBackupStatus',
     operationId: 'getBackupStatus',
     summary: 'Get backup status',
-    description: 'Poll backup creation or restore progress for an operator recovery operation.',
+    description:
+      'Poll progress, SQLite checkpoint, readiness, and independent cleanup stages for an operator recovery operation.',
     tags: ['backup-restore'],
     successStatus: 200,
   })
   .meta({ auth: 'admin' })
-  .errors(ERead)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    INTERNAL_SERVER_ERROR: { status: 500 },
+  })
   .input(SBackupStatusInput)
   .output(SBackupStatusOutput)

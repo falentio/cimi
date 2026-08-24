@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SMembershipTargetFields } from '../schema.ts'
 
 export const SMembershipRemoveInput = SMembershipTargetFields
@@ -20,6 +19,11 @@ export const removeMember = oc
     successStatus: 204,
   })
   .meta({ auth: 'admin' })
-  .errors({ ...ECommand, OWNER_PROTECTED: { status: 409 } })
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
+    OWNER_PROTECTED: { status: 409 },
+  })
   .input(SMembershipRemoveInput)
   .output(SMembershipRemoveOutput)

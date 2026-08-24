@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, isValidReportRange } from '../../../schema/index.ts'
+import { isValidReportRange } from '../../../schema/index.ts'
 import { SEventOverview, SEventReportFieldsSchema, SEventSiteFields } from '../schema.ts'
 
 export const SEventOverviewInput = v.pipe(
@@ -22,6 +22,12 @@ export const getEventOverview = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    QUERY_LIMIT_EXCEEDED: { status: 422 },
+    SERVICE_UNAVAILABLE: { status: 503 },
+  })
   .input(SEventOverviewInput)
   .output(SEventOverviewOutput)

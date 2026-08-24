@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { ECommand } from '../../../schema/index.ts'
 import { SOrganizationIdentityFields } from '../schema.ts'
 
 export const SOrganizationDeleteInput = SOrganizationIdentityFields
@@ -15,13 +14,15 @@ export const deleteOrganization = oc
     operationId: 'deleteOrganization',
     summary: 'Delete an organization',
     description:
-      'Delete an empty, non-personal Organization after the owner-only lifecycle checks pass.',
+      'Delete an empty Organization, including a Personal Organization, after owner-only lifecycle checks pass.',
     tags: ['organization'],
     successStatus: 204,
   })
   .meta({ auth: 'owner' })
   .errors({
-    ...ECommand,
+    UNAUTHORIZED: { status: 401 },
+    FORBIDDEN: { status: 403 },
+    NOT_FOUND: { status: 404 },
     ORGANIZATION_NOT_EMPTY: { status: 409 },
     PERSONAL_ORGANIZATION_PROTECTED: { status: 409 },
   })

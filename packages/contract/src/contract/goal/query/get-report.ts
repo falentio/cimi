@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EQuery, SId, SReportFieldsSchema, isValidReportRange } from '../../../schema/index.ts'
+import { SId, SReportFieldsSchema, isValidReportRange } from '../../../schema/index.ts'
 import { SGoalReport } from '../schema.ts'
 
 export const SGoalReportInput = v.pipe(
@@ -22,6 +22,12 @@ export const getGoalReport = oc
     successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
-  .errors(EQuery)
+  .errors({
+    UNAUTHORIZED: { status: 401 },
+    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: { status: 400 },
+    QUERY_LIMIT_EXCEEDED: { status: 422 },
+    SERVICE_UNAVAILABLE: { status: 503 },
+  })
   .input(SGoalReportInput)
   .output(SGoalReportOutput)
