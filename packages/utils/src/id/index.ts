@@ -10,15 +10,43 @@ const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567'
 export type EntityId<Prefix extends string> = `${Prefix}_${string}`
 
 // TODO: Adopt this utility in packages/db and apps/api when entity identifier migrations land.
-const entropyPool = new Uint8Array(ENTROPY_POOL_SIZE)
-let entropyOffset = ENTROPY_POOL_SIZE
+export interface IdGeneratorOptions {
+  readonly now?: () => number
+  readonly getRandomValues?: (bytes: Uint8Array<ArrayBuffer>) => void
+}
+
+export function createIdGenerator(options: IdGeneratorOptions = {}) {
+  const now = options.now ?? (() => Date.now())
+  const getRandomValues =
+    options.getRandomValues ??
+    ((bytes: Uint8Array<ArrayBuffer>) => globalThis.crypto.getRandomValues(bytes))
+  const entropyPool = new Uint8Array(ENTROPY_POOL_SIZE)
+  let entropyOffset = ENTROPY_POOL_SIZE
+
+  return function generate<const Prefix extends string>(prefix: Prefix): EntityId<Prefix> {
+    validatePrefix(prefix)
+
+    const timeFragment = getTimeFragment(now)
+    const entropy = takeEntropy()
+    return `${prefix}_${encodeIdFragment(timeFragment, entropy)}` as EntityId<Prefix>
+
+    function takeEntropy(): Uint8Array {
+      if (entropyOffset + ENTROPY_BYTES > ENTROPY_POOL_SIZE) {
+        getRandomValues(entropyPool)
+        entropyOffset = 0
+      }
+
+      const entropy = entropyPool.subarray(entropyOffset, entropyOffset + ENTROPY_BYTES)
+      entropyOffset += ENTROPY_BYTES
+      return entropy
+    }
+  }
+}
+
+const defaultGenerateId = createIdGenerator()
 
 export function generateId<const Prefix extends string>(prefix: Prefix): EntityId<Prefix> {
-  validatePrefix(prefix)
-
-  const timeFragment = getTimeFragment()
-  const entropy = takeEntropy()
-  return `${prefix}_${encodeIdFragment(timeFragment, entropy)}` as EntityId<Prefix>
+  return defaultGenerateId(prefix)
 }
 
 function validatePrefix(prefix: string): void {
@@ -27,20 +55,9 @@ function validatePrefix(prefix: string): void {
   }
 }
 
-function getTimeFragment(): number {
-  const day = Math.floor(Date.now() / DAY_IN_MILLISECONDS)
+function getTimeFragment(now: () => number): number {
+  const day = Math.floor(now() / DAY_IN_MILLISECONDS)
   return ((day % DAY_MODULUS) + DAY_MODULUS) % DAY_MODULUS
-}
-
-function takeEntropy(): Uint8Array {
-  if (entropyOffset + ENTROPY_BYTES > ENTROPY_POOL_SIZE) {
-    globalThis.crypto.getRandomValues(entropyPool)
-    entropyOffset = 0
-  }
-
-  const entropy = entropyPool.subarray(entropyOffset, entropyOffset + ENTROPY_BYTES)
-  entropyOffset += ENTROPY_BYTES
-  return entropy
 }
 
 function encodeIdFragment(timeFragment: number, entropy: Uint8Array): string {

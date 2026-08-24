@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { generateId } from '../index.ts'
+import { createIdGenerator, generateId } from '../index.ts'
 import type { EntityId } from '../index.ts'
 
 describe('generateId', () => {
@@ -44,5 +44,42 @@ describe('generateId', () => {
     // @ts-expect-error Site ids must not be assignable to user ids.
     const invalidUserId: EntityId<'user'> = siteId
     void invalidUserId
+  })
+})
+
+describe('createIdGenerator', () => {
+  it('combines the day fragment and entropy into one fixed-width Base32 value', () => {
+    let randomCalls = 0
+    const now = Date.UTC(2026, 7, 24)
+    const generate = createIdGenerator({
+      now: () => now,
+      getRandomValues: (bytes) => {
+        randomCalls += 1
+        bytes.forEach((_, index) => {
+          bytes[index] = index % 256
+        })
+      },
+    })
+
+    expect(generate('site')).toBe('site_kdiqaaicamcakbqhbaequcymbu')
+    expect(randomCalls).toBe(1)
+  })
+
+  it('uses one random pool fill until the pool cannot satisfy an id', () => {
+    let randomCalls = 0
+    const generate = createIdGenerator({
+      getRandomValues: (bytes) => {
+        randomCalls += 1
+        bytes.fill(randomCalls)
+      },
+    })
+
+    for (let index = 0; index < 4_681; index += 1) {
+      generate('site')
+    }
+    expect(randomCalls).toBe(1)
+
+    generate('site')
+    expect(randomCalls).toBe(2)
   })
 })
