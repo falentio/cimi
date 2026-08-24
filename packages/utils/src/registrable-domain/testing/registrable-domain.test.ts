@@ -54,6 +54,8 @@ describe('getRegistrableDomain', () => {
       '127.1.',
       '2130706433.',
       '0x7f000001',
+      '0x7f.0.0.1',
+      '127.0x1',
     ]) {
       expect(getRegistrableDomain(input)).toBeNull()
     }

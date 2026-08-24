@@ -45,16 +45,15 @@ function normalizeHostname(hostname: string): string | null {
 
   const withoutTrailingDot = unbracketed.endsWith('.') ? unbracketed.slice(0, -1) : unbracketed
   if (withoutTrailingDot === '' || withoutTrailingDot.endsWith('.')) return null
-  if (
-    /^\d+$/.test(withoutTrailingDot) ||
-    /^\d+(?:\.\d+)+$/.test(withoutTrailingDot) ||
-    /^0[xX][\da-fA-F]+$/.test(withoutTrailingDot)
-  )
-    return null
+  if (isNumericHostAlias(withoutTrailingDot)) return null
 
   return domainToASCII(withoutTrailingDot).toLowerCase() || null
 }
 
 function isBracketedIpv6(value: string): boolean {
   return value.startsWith('[') && value.endsWith(']') && isIP(value.slice(1, -1)) === 6
+}
+
+function isNumericHostAlias(value: string): boolean {
+  return value.split('.').every((label) => /^\d+$/.test(label) || /^0[xX][\da-fA-F]+$/.test(label))
 }
