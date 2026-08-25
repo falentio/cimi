@@ -24,3 +24,10 @@ export {
   type BotCategory,
   type BotClassification,
 } from './user-agent-bots/index.ts'
+export {
+  createEvent,
+  EventEmitter,
+  type EventEmitterOptions,
+  type EventName,
+  type UnlistenFn,
+} from './event/index.ts'
