@@ -16,3 +16,6 @@ coverage/
 *.duckdb
 *.duckdb.wal
 .vite/
+
+# linked worktrees
+.worktrees/
