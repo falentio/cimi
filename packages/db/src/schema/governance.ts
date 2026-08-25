@@ -1,5 +1,13 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import {
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core'
 import { TUser } from './auth.ts'
 
 export const TOrganization = sqliteTable(
@@ -47,6 +55,7 @@ export const TMembership = sqliteTable(
       table.userId,
     ),
     index('membership_user_organization_idx').on(table.userId, table.organizationId),
+    check('membership_role_check', sql`${table.role} IN ('owner', 'admin', 'member')`),
   ],
 )
 
@@ -151,5 +160,25 @@ export const TInvitation = sqliteTable(
     ),
     index('invitation_organization_status_idx').on(table.organizationId, table.status),
     index('invitation_expiry_idx').on(table.status, table.expiresAt),
+    check('invitation_role_check', sql`${table.role} IN ('admin', 'member')`),
+  ],
+)
+
+export const TSiteTombstone = sqliteTable(
+  'site_tombstone',
+  {
+    siteId: text('site_id').primaryKey().notNull(),
+    organizationId: text('organization_id').notNull(),
+    hostname: text('hostname').notNull(),
+    purgeOperationId: text('purge_operation_id').notNull(),
+    purgedAt: integer('purged_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('site_tombstone_organization_hostname_unique').on(
+      table.organizationId,
+      table.hostname,
+    ),
+    check('site_tombstone_purge_time_check', sql`${table.purgedAt} >= ${table.createdAt}`),
   ],
 )

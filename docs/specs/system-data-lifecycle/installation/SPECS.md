@@ -27,6 +27,8 @@ degraded -> ready
 
 ## 2. Base Schema
 
+The control-plane row is a singleton with a fixed internal key. Retention values mirror the installation-default policy summary and must satisfy the same ordering rules as the versioned retention policy. A new installation has both cleanup stages `not_applicable` and `cleanupPending: false`.
+
 **Audience:** Both
 
 | Field | Schema | Description |

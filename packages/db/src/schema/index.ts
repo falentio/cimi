@@ -17,6 +17,7 @@ export {
   TOrganization,
   TSite,
   TSiteLifecycleOperation,
+  TSiteTombstone,
 } from './governance.ts'
 export {
   TIdentityLink,
@@ -28,11 +29,13 @@ export {
   TBackupArtifact,
   TBackupCleanupStage,
   TBackupOperation,
+  TBackupRestoreReference,
   TInstallation,
   TRetentionCleanupCheckpoint,
   TRetentionCleanupRun,
   TRetentionPolicy,
 } from './lifecycle.ts'
+export { TProjectionCheckpoint, TProjectionGap } from './projection.ts'
 export {
   TCohort,
   TCohortVersion,

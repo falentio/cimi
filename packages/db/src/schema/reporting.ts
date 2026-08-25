@@ -1,4 +1,5 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { TSite } from './governance.ts'
 import type { JsonObject, JsonValue } from './types.ts'
 
@@ -22,6 +23,7 @@ export const TGoal = sqliteTable(
   },
   (table) => [
     index('goal_site_status_created_idx').on(table.siteId, table.status, table.createdAt, table.id),
+    check('goal_current_version_check', sql`${table.currentVersion} > 0`),
   ],
 )
 
@@ -43,6 +45,7 @@ export const TGoalVersion = sqliteTable(
   (table) => [
     uniqueIndex('goal_version_unique').on(table.goalId, table.version),
     index('goal_version_effective_idx').on(table.goalId, table.effectiveAt),
+    check('goal_version_number_check', sql`${table.version} > 0`),
   ],
 )
 
@@ -69,6 +72,7 @@ export const TFunnel = sqliteTable(
       table.createdAt,
       table.id,
     ),
+    check('funnel_current_version_check', sql`${table.currentVersion} > 0`),
   ],
 )
 
@@ -89,6 +93,7 @@ export const TFunnelVersion = sqliteTable(
   (table) => [
     uniqueIndex('funnel_version_unique').on(table.funnelId, table.version),
     index('funnel_version_effective_idx').on(table.funnelId, table.effectiveAt),
+    check('funnel_version_number_check', sql`${table.version} > 0`),
   ],
 )
 
@@ -116,6 +121,7 @@ export const TCohort = sqliteTable(
       table.createdAt,
       table.id,
     ),
+    check('cohort_current_version_check', sql`${table.currentVersion} > 0`),
   ],
 )
 
@@ -140,6 +146,7 @@ export const TCohortVersion = sqliteTable(
   (table) => [
     uniqueIndex('cohort_version_unique').on(table.cohortId, table.version),
     index('cohort_version_effective_idx').on(table.cohortId, table.effectiveAt),
+    check('cohort_version_number_check', sql`${table.version} > 0`),
   ],
 )
 
@@ -150,6 +157,7 @@ export const TPublicDashboard = sqliteTable(
       .primaryKey()
       .references(() => TSite.id, { onDelete: 'restrict' }),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+    publicIdentifier: text('public_identifier').notNull().unique(),
     publicIdentifierHash: text('public_identifier_hash').notNull().unique(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
@@ -157,5 +165,9 @@ export const TPublicDashboard = sqliteTable(
   },
   (table) => [
     index('public_dashboard_identifier_enabled_idx').on(table.publicIdentifierHash, table.enabled),
+    check(
+      'public_dashboard_identifier_length_check',
+      sql`length(${table.publicIdentifier}) BETWEEN 1 AND 128`,
+    ),
   ],
 )

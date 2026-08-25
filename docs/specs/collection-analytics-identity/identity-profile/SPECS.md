@@ -21,6 +21,8 @@ Deletion is asynchronous and must invalidate or recompute affected derived resul
 
 ## 2. Base Schema
 
+Persistence permits at most one active epoch per Profile. Identity links and redaction rows must resolve to the Profile and epoch they claim; Site and Identified User scope are validated in the same identity transaction.
+
 **Audience:** Both
 
 | Field | Schema | Description |

@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
+  check,
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -43,6 +45,14 @@ export const TCollectionPolicyRevision = sqliteTable(
     uniqueIndex('collection_policy_current_site_unique')
       .on(table.installationId, table.siteId)
       .where(sql`${table.scope} = 'site' AND ${table.effectiveTo} IS NULL`),
+    check(
+      'collection_policy_scope_site_check',
+      sql`(${table.scope} = 'installation' AND ${table.siteId} IS NULL) OR (${table.scope} = 'site' AND ${table.siteId} IS NOT NULL)`,
+    ),
+    check(
+      'collection_policy_effective_interval_check',
+      sql`${table.effectiveTo} IS NULL OR ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
     index('collection_policy_target_effective_idx').on(
       table.installationId,
       table.siteId,
@@ -85,6 +95,13 @@ export const TAcceptedEvent = sqliteTable(
     index('accepted_event_site_receipt_idx').on(table.siteId, table.receiptTime),
     index('accepted_event_identity_idx').on(table.siteId, table.visitorId, table.identifiedUserId),
     index('accepted_event_session_idx').on(table.siteId, table.analyticsSessionId),
+    uniqueIndex('accepted_event_acceptance_metadata_unique').on(
+      table.eventPk,
+      table.replaySequence,
+      table.payloadFingerprint,
+      table.receiptTime,
+      table.policyRevisionId,
+    ),
   ],
 )
 
@@ -151,6 +168,10 @@ export const TEventProperty = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.eventPk, table.propertyKey] }),
     index('event_property_key_idx').on(table.propertyKey),
+    check(
+      'event_property_typed_value_check',
+      sql`(${table.valueType} = 'string' AND ${table.stringValue} IS NOT NULL AND ${table.numberValue} IS NULL AND ${table.booleanValue} IS NULL) OR (${table.valueType} = 'number' AND ${table.stringValue} IS NULL AND ${table.numberValue} IS NOT NULL AND ${table.booleanValue} IS NULL) OR (${table.valueType} = 'boolean' AND ${table.stringValue} IS NULL AND ${table.numberValue} IS NULL AND ${table.booleanValue} IS NOT NULL) OR (${table.valueType} = 'null' AND ${table.stringValue} IS NULL AND ${table.numberValue} IS NULL AND ${table.booleanValue} IS NULL)`,
+    ),
   ],
 )
 
@@ -180,5 +201,22 @@ export const TEventAcceptanceJournal = sqliteTable(
       table.projectionState,
       table.replaySequence,
     ),
+    foreignKey({
+      columns: [
+        table.eventPk,
+        table.replaySequence,
+        table.payloadFingerprint,
+        table.receiptTime,
+        table.policyRevisionId,
+      ],
+      foreignColumns: [
+        TAcceptedEvent.eventPk,
+        TAcceptedEvent.replaySequence,
+        TAcceptedEvent.payloadFingerprint,
+        TAcceptedEvent.receiptTime,
+        TAcceptedEvent.policyRevisionId,
+      ],
+      name: 'event_acceptance_journal_metadata_fk',
+    }),
   ],
 )

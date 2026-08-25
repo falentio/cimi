@@ -8,6 +8,27 @@
       "when": 1787598567675,
       "tag": "0000_windy_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787625779909,
+      "tag": "0001_mute_darkhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787626099955,
+      "tag": "0002_milky_beyonder",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787626219132,
+      "tag": "0003_nice_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,8 @@ The retention-policy specification owns the first-release default: initializatio
 
 ## 2. Base Schema
 
+The versioned `retention_policy` rows are the canonical policy history. Installation summary columns are a denormalized status projection and are updated in the same transaction as the active installation-scope revision; readers must not resolve conflicting values from the summary alone.
+
 **Audience:** Both
 
 | Field                 | Schema                    | Description                             |

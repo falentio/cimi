@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import {
+  check,
+  foreignKey,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core'
 import { TSite } from './governance.ts'
 import type { JsonObject } from './types.ts'
 
@@ -31,6 +40,10 @@ export const TIdentityProfile = sqliteTable(
       table.createdAt,
       table.identifiedUserId,
     ),
+    check(
+      'identity_profile_active_epoch_check',
+      sql`${table.status} <> 'active' OR ${table.profileEpoch} IS NOT NULL`,
+    ),
   ],
 )
 
@@ -56,6 +69,18 @@ export const TIdentityProfileEpoch = sqliteTable(
       table.siteId,
       table.identifiedUserId,
       table.epoch,
+    ),
+    uniqueIndex('identity_profile_epoch_site_profile_unique').on(
+      table.siteId,
+      table.profileId,
+      table.epoch,
+    ),
+    uniqueIndex('identity_profile_epoch_active_unique')
+      .on(table.profileId)
+      .where(sql`${table.status} = 'active'`),
+    check(
+      'identity_profile_epoch_status_check',
+      sql`(${table.status} = 'active' AND ${table.endedAt} IS NULL) OR (${table.status} = 'redacted' AND ${table.endedAt} IS NOT NULL)`,
     ),
   ],
 )
@@ -87,6 +112,15 @@ export const TIdentityLink = sqliteTable(
       table.analyticsSessionId,
       table.effectiveFrom,
     ),
+    foreignKey({
+      columns: [table.siteId, table.profileId, table.profileEpoch],
+      foreignColumns: [
+        TIdentityProfileEpoch.siteId,
+        TIdentityProfileEpoch.profileId,
+        TIdentityProfileEpoch.epoch,
+      ],
+      name: 'identity_link_profile_epoch_fk',
+    }),
   ],
 )
 
@@ -97,6 +131,9 @@ export const TIdentityRedaction = sqliteTable(
     siteId: text('site_id')
       .notNull()
       .references(() => TSite.id, { onDelete: 'restrict' }),
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => TIdentityProfile.profileId, { onDelete: 'cascade' }),
     identifiedUserId: text('identified_user_id').notNull(),
     profileEpoch: integer('profile_epoch').notNull(),
     reason: text('reason', { enum: ['explicit', 'retention'] }).notNull(),
@@ -121,5 +158,10 @@ export const TIdentityRedaction = sqliteTable(
       table.profileEpoch,
     ),
     index('identity_redaction_status_idx').on(table.siteId, table.status),
+    foreignKey({
+      columns: [table.profileId, table.profileEpoch],
+      foreignColumns: [TIdentityProfileEpoch.profileId, TIdentityProfileEpoch.epoch],
+      name: 'identity_redaction_profile_epoch_fk',
+    }),
   ],
 )

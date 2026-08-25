@@ -23,6 +23,8 @@ The open URL contains a random Public Dashboard Identifier, not a key. Disabling
 
 ## 2. Base Schema
 
+The raw public identifier is first-party durable configuration, while its hash remains the lookup and uniqueness boundary. A legacy row migrated from hash-only storage is disabled until an administrator rotates the identifier.
+
 **Audience:** Both
 
 | Field                       | Schema                   | Description                                         |

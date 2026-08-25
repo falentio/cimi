@@ -35,6 +35,8 @@ Backup creation uses write quiescence while preserving analytics reads; write qu
 
 ## 2. Base Schema
 
+Restore operation references are persisted in the first-party `backup_restore_reference` row. A selected source ID must resolve to an existing backup operation, and the pre-restore safety artifact must resolve to an existing artifact owned by the active restore workflow; handlers validate the artifact type and operation ownership before replacement or rollback.
+
 **Audience:** Both
 
 | Field                       | Schema          | Description                             |

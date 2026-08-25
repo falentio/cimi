@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
+  check,
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -50,7 +52,7 @@ export const TInstallation = sqliteTable(
       enum: ['not_applicable', 'not_started', 'pending', 'running', 'completed', 'failed'],
     })
       .notNull()
-      .default('not_started'),
+      .default('not_applicable'),
     derivedCleanupStartedAt: integer('derived_cleanup_started_at', { mode: 'timestamp_ms' }),
     derivedCleanupCompletedAt: integer('derived_cleanup_completed_at', { mode: 'timestamp_ms' }),
     derivedCleanupErrorCode: text('derived_cleanup_error_code'),
@@ -58,14 +60,29 @@ export const TInstallation = sqliteTable(
       enum: ['not_applicable', 'not_started', 'pending', 'running', 'completed', 'failed'],
     })
       .notNull()
-      .default('not_started'),
+      .default('not_applicable'),
     backupCleanupStartedAt: integer('backup_cleanup_started_at', { mode: 'timestamp_ms' }),
     backupCleanupCompletedAt: integer('backup_cleanup_completed_at', { mode: 'timestamp_ms' }),
     backupCleanupErrorCode: text('backup_cleanup_error_code'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
   },
-  (table) => [index('installation_status_updated_idx').on(table.status, table.updatedAt)],
+  (table) => [
+    index('installation_status_updated_idx').on(table.status, table.updatedAt),
+    check('installation_singleton_key_check', sql`${table.singletonKey} = 'default'`),
+    check(
+      'installation_retention_policy_check',
+      sql`${table.eventRetentionMonths} > 0 AND ${table.profileRetentionMonths} > 0 AND ${table.profileRetentionMonths} <= ${table.eventRetentionMonths} AND (${table.replayRetentionMonths} IS NULL OR (${table.replayRetentionMonths} > 0 AND ${table.replayRetentionMonths} < ${table.eventRetentionMonths} AND ${table.replayRetentionMonths} < ${table.profileRetentionMonths}))`,
+    ),
+    check(
+      'installation_cleanup_pending_check',
+      sql`${table.cleanupPending} = ((${table.derivedCleanupStatus} NOT IN ('not_applicable', 'completed')) OR (${table.backupCleanupStatus} NOT IN ('not_applicable', 'completed')))`,
+    ),
+    check(
+      'installation_cleanup_order_check',
+      sql`${table.backupCleanupStatus} IN ('not_applicable', 'not_started', 'pending') OR ${table.derivedCleanupStatus} = 'completed'`,
+    ),
+  ],
 )
 
 export const TRetentionPolicy = sqliteTable(
@@ -89,10 +106,19 @@ export const TRetentionPolicy = sqliteTable(
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (table) => [
-    uniqueIndex('retention_policy_version_unique').on(
-      table.installationId,
-      table.siteId,
-      table.version,
+    uniqueIndex('retention_policy_installation_version_unique')
+      .on(table.installationId, table.version)
+      .where(sql`${table.scope} = 'installation'`),
+    uniqueIndex('retention_policy_site_version_unique')
+      .on(table.installationId, table.siteId, table.version)
+      .where(sql`${table.scope} = 'site'`),
+    check(
+      'retention_policy_scope_site_check',
+      sql`(${table.scope} = 'installation' AND ${table.siteId} IS NULL) OR (${table.scope} = 'site' AND ${table.siteId} IS NOT NULL)`,
+    ),
+    check(
+      'retention_policy_values_check',
+      sql`${table.eventMonths} > 0 AND ${table.profileMonths} > 0 AND ${table.profileMonths} <= ${table.eventMonths} AND (${table.replayMonths} IS NULL OR (${table.replayMonths} > 0 AND ${table.replayMonths} < ${table.eventMonths} AND ${table.replayMonths} < ${table.profileMonths}))`,
     ),
     uniqueIndex('retention_policy_current_installation_unique')
       .on(table.installationId)
@@ -136,6 +162,10 @@ export const TRetentionCleanupRun = sqliteTable(
       table.status,
       table.createdAt,
     ),
+    uniqueIndex('retention_cleanup_run_active_unique')
+      .on(table.installationId)
+      .where(sql`${table.status} IN ('queued', 'running')`),
+    uniqueIndex('retention_cleanup_run_id_kind_unique').on(table.id, table.cleanupKind),
   ],
 )
 
@@ -160,6 +190,11 @@ export const TRetentionCleanupCheckpoint = sqliteTable(
       table.dataClass,
     ),
     index('retention_cleanup_checkpoint_status_idx').on(table.cleanupRunId, table.status),
+    foreignKey({
+      columns: [table.cleanupRunId, table.stage],
+      foreignColumns: [TRetentionCleanupRun.id, TRetentionCleanupRun.cleanupKind],
+      name: 'retention_cleanup_checkpoint_stage_fk',
+    }),
   ],
 )
 
@@ -193,8 +228,6 @@ export const TBackupOperation = sqliteTable(
     }).notNull(),
     structuralReadiness: text('structural_readiness', { enum: ['not_ready', 'ready'] }).notNull(),
     cleanupPending: integer('cleanup_pending', { mode: 'boolean' }).notNull().default(false),
-    restoreSourceBackupId: text('restore_source_backup_id'),
-    preRestoreSafetyArtifactId: text('pre_restore_safety_artifact_id'),
     errorCode: text('error_code', {
       enum: ['INCOMPATIBLE_BACKUP', 'INSUFFICIENT_STORAGE', 'CONFLICT', 'INTERNAL_SERVER_ERROR'],
     }),
@@ -210,6 +243,10 @@ export const TBackupOperation = sqliteTable(
     uniqueIndex('backup_operation_active_unique')
       .on(table.scope)
       .where(sql`${table.status} IN ('creating', 'restoring')`),
+    check(
+      'backup_operation_progress_check',
+      sql`${table.progress} >= 0 AND ${table.progress} <= 1`,
+    ),
   ],
 )
 
@@ -240,6 +277,19 @@ export const TBackupArtifact = sqliteTable(
   ],
 )
 
+export const TBackupRestoreReference = sqliteTable('backup_restore_reference', {
+  operationId: text('operation_id')
+    .primaryKey()
+    .references(() => TBackupOperation.id, { onDelete: 'cascade' }),
+  restoreSourceBackupId: text('restore_source_backup_id')
+    .notNull()
+    .references(() => TBackupOperation.id, { onDelete: 'restrict' }),
+  preRestoreSafetyArtifactId: text('pre_restore_safety_artifact_id')
+    .notNull()
+    .references(() => TBackupArtifact.id, { onDelete: 'restrict' }),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
 export const TBackupCleanupStage = sqliteTable(
   'backup_cleanup_stage',
   {
@@ -256,5 +306,11 @@ export const TBackupCleanupStage = sqliteTable(
       enum: ['INCOMPATIBLE_BACKUP', 'INSUFFICIENT_STORAGE', 'CONFLICT', 'INTERNAL_SERVER_ERROR'],
     }),
   },
-  (table) => [primaryKey({ columns: [table.operationId, table.stage] })],
+  (table) => [
+    primaryKey({ columns: [table.operationId, table.stage] }),
+    check(
+      'backup_cleanup_stage_status_check',
+      sql`(${table.status} IN ('not_applicable', 'not_started', 'pending') AND ${table.startedAt} IS NULL AND ${table.completedAt} IS NULL AND ${table.errorCode} IS NULL) OR (${table.status} = 'running' AND ${table.startedAt} IS NOT NULL AND ${table.completedAt} IS NULL AND ${table.errorCode} IS NULL) OR (${table.status} = 'completed' AND ${table.startedAt} IS NOT NULL AND ${table.completedAt} IS NOT NULL AND ${table.errorCode} IS NULL) OR (${table.status} = 'failed' AND ${table.startedAt} IS NOT NULL AND ${table.completedAt} IS NOT NULL AND ${table.errorCode} IS NOT NULL)`,
+    ),
+  ],
 )

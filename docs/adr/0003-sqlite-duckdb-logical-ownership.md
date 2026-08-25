@@ -9,6 +9,7 @@ Cimi uses one embedded SQLite control plane and one embedded DuckDB analytical s
 ## Decision
 
 - SQLite is canonical for Site configuration, Goal/Funnel/Cohort definitions, Identity Profiles, aliases, retention and deletion intent, Event Acceptance Records, deduplication, projector cursors, quarantine gaps, and lifecycle status.
+- SQLite persists one `projection_checkpoint` per Site and the `projection_gap` ledger used by query preflight; DuckDB keeps only rebuildable analytical copies of projected state.
 - DuckDB owns full normalized Analytical Facts, derived Identity Projections, Analytics Sessions, aggregates, Goal/Funnel/Cohort projections, and report indexes. All of these are rebuildable from SQLite-owned state; their definitions remain SQLite-canonical.
 - Analytical Facts contain validated Event fields, occurrence and receipt times, opaque identity and Session IDs, attribution, and bounded properties. Acceptance fingerprints, policy metadata, replay cursors, and deletion intent remain SQLite-owned control data.
 - The SQLite acceptance journal covers the full configured raw-event retention window. SQLite is the authoritative backup artifact; restore replays it to rebuild DuckDB and may report ready after structural health checks while retention/deletion cleanup continues asynchronously.

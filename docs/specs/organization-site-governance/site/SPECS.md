@@ -23,6 +23,8 @@ deleted -> recovering -> active
 
 ## 2. Base Schema
 
+After purge, the live Site row and access configuration are removed. The SQLite `site_tombstone` retains only `siteId`, Organization scope, canonical hostname, purge operation ID, and creation/purge timestamps. Hostname reservation and restore anti-resurrection checks consult both live Sites and tombstones.
+
 **Audience:** Both
 
 | Field                     | Schema             | Description                                                                |

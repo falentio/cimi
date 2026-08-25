@@ -21,6 +21,8 @@ Retention is bounded to twelve reporting periods per query. A request that would
 
 ## 2. Base Schema
 
+Persistence requires the current definition snapshot and its version row to be committed together. Writers create the version before advancing `currentVersion`; readers treat a missing or mismatched current version as unavailable rather than falling back to duplicated parent fields. The implementation may scan the status-partitioned persistence index and merge those partitions to preserve the public `createdAt` plus Cohort ID order.
+
 **Audience:** Both
 
 | Field             | Schema            | Description                                        |

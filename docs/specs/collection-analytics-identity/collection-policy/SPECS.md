@@ -17,6 +17,8 @@ The effective policy is installation defaults plus an optional Site override. An
 
 ## 2. Base Schema
 
+Persistence keeps `scope` and `siteId` consistent: installation rows have no `siteId`, while Site override rows require one. Accepted Events retain the policy revision selected at admission; resolving the effective installation policy for a Site remains part of the transactional ingestion boundary.
+
 **Audience:** Both
 
 | Field | Schema | Description |
