@@ -12,7 +12,7 @@ export type SFunnelUpdateOutput = v.InferOutput<typeof SFunnelUpdateOutput>
 export const updateFunnel = oc
   .route({
     method: 'POST',
-    path: '/updateFunnel',
+    path: '/funnel/updateFunnel',
     operationId: 'updateFunnel',
     summary: 'Update a funnel',
     description: 'Update an existing Funnel definition.',

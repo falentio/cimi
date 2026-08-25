@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { closeDb, createDb } from '../../client.ts'
 import { migrateControlDb } from '../../migrate.ts'
 import { TUser } from '../../schema/index.ts'
+import { createMigratedTestDb } from '../../testing/index.ts'
 
 describe('createDb + migrateControlDb', () => {
   let dir: string
@@ -33,7 +34,7 @@ describe('createDb + migrateControlDb', () => {
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
-    expect(migrationRows).toHaveLength(4)
+    expect(migrationRows).toHaveLength(5)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
     const tableRows = db.$client
@@ -61,6 +62,7 @@ describe('createDb + migrateControlDb', () => {
         'funnel_version',
         'goal',
         'goal_version',
+        'hello',
         'identity_link',
         'identity_profile',
         'identity_profile_epoch',
@@ -112,9 +114,7 @@ describe('createDb + migrateControlDb', () => {
   })
 
   it('enforces first-party scope, version, epoch, restore, and cleanup invariants', async () => {
-    const path = join(dir, 'control.sqlite')
-    const db = createDb({ path })
-    migrateControlDb(db)
+    const db = createMigratedTestDb()
 
     const now = Date.now()
     db.$client

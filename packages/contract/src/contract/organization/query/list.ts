@@ -13,7 +13,7 @@ export type SOrganizationListOutput = v.InferOutput<typeof SOrganizationListOutp
 export const listOrganizations = oc
   .route({
     method: 'GET',
-    path: '/listOrganizations',
+    path: '/organization/listOrganizations',
     operationId: 'listOrganizations',
     summary: 'List organizations',
     description: 'List Organizations with persisted membership for the current user.',

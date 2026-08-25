@@ -24,7 +24,7 @@ export type SCohortCreateOutput = v.InferOutput<typeof SCohortCreateOutput>
 export const createCohort = oc
   .route({
     method: 'POST',
-    path: '/createCohort',
+    path: '/cohort-retention/createCohort',
     operationId: 'createCohort',
     summary: 'Create a cohort',
     description: 'Persist a bounded cohort retention definition for a Site.',

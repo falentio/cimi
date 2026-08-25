@@ -13,7 +13,7 @@ export type SRequestProfileDeletionOutput = v.InferOutput<typeof SRequestProfile
 export const requestProfileDeletion = oc
   .route({
     method: 'POST',
-    path: '/requestProfileDeletion',
+    path: '/identity-profile/requestProfileDeletion',
     operationId: 'requestProfileDeletion',
     summary: 'Request profile deletion',
     description:

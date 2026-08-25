@@ -1,6 +1,6 @@
 # Acceptance Scenarios
 
-These Given/When/Then scenarios are the executable-contract acceptance checklist for the first coherent release. They describe observable behavior without prescribing handlers, repositories, migrations, or query engines.
+These Given/When/Then scenarios are the executable-contract acceptance checklist for the first coherent release. They define required observable behavior without prescribing handlers, repositories, migrations, or query engines; their presence is not evidence that those runtime components exist.
 
 ## Authorization and Governance
 
@@ -72,7 +72,7 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **When** an authenticated recipient accepts it, repeats the same acceptance, or presents an expired or revoked token
 
-**Then** the first valid acceptance atomically creates the resulting Membership and consumes the invitation, while every replay, expired token, or revoked token returns indistinguishable `NOT_FOUND`
+**Then** the first valid acceptance returns HTTP `200` with the complete non-owner Membership, atomically creates the resulting Membership and consumes the invitation, while every replay, expired token, or revoked token returns indistinguishable `NOT_FOUND`
 
 ### Transferable invitation bearer
 
@@ -452,7 +452,7 @@ These Given/When/Then scenarios are the executable-contract acceptance checklist
 
 **Given** an authenticated Event report uses a `property.*` filter or a Session `has_done`/`has_not_done` filter
 
-**When** a property comparison supplies a compatible number, boolean, string, or explicit null, or an action-presence filter supplies a discriminated action with `range: same_range`
+**When** a property comparison supplies a compatible number, boolean, or string, or supplies `null` only for `equals` against a nullable Event field selected by the Event Kind, or an action-presence filter supplies a discriminated action with `range: same_range`
 
 **Then** compatible typed values are accepted, incompatible operators are rejected, and the action-presence filter evaluates over the report's same range; Public Query does not accept these operators
 

@@ -10,7 +10,7 @@ export type SCohortArchiveOutput = v.InferOutput<typeof SCohortArchiveOutput>
 export const archiveCohort = oc
   .route({
     method: 'POST',
-    path: '/archiveCohort',
+    path: '/cohort-retention/archiveCohort',
     operationId: 'archiveCohort',
     summary: 'Archive a cohort',
     description: 'Archive a cohort definition without deleting its historical retention reports.',

@@ -15,7 +15,7 @@ export type SGoalListOutput = v.InferOutput<typeof SGoalListOutput>
 export const listGoals = oc
   .route({
     method: 'GET',
-    path: '/listGoals',
+    path: '/goal/listGoals',
     operationId: 'listGoals',
     summary: 'List goals',
     description:

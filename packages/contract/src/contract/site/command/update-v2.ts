@@ -10,7 +10,7 @@ export type SSiteUpdateV2Output = v.InferOutput<typeof SSiteUpdateV2Output>
 export const updateSiteV2 = oc
   .route({
     method: 'POST',
-    path: '/updateSiteV2',
+    path: '/site/updateSiteV2',
     operationId: 'updateSiteV2',
     summary: 'Update a site',
     description:

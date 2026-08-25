@@ -28,7 +28,7 @@ export type SEventListOutput = v.InferOutput<typeof SEventListOutput>
 export const listEvents = oc
   .route({
     method: 'GET',
-    path: '/listEvents',
+    path: '/event-report/listEvents',
     operationId: 'listEvents',
     summary: 'List events',
     description: 'Explore accepted Events for debugging and analysis with offset pagination.',

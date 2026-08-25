@@ -29,6 +29,13 @@
       "when": 1787626219132,
       "tag": "0003_nice_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787653239164,
+      "tag": "0004_tired_power_pack",
+      "breakpoints": true
     }
   ]
 }

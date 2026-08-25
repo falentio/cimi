@@ -10,7 +10,7 @@ export type SSiteGetOutput = v.InferOutput<typeof SSiteGetOutput>
 export const getSite = oc
   .route({
     method: 'GET',
-    path: '/getSite',
+    path: '/site/getSite',
     operationId: 'getSite',
     summary: 'Get a site',
     description: 'Return one Site after persisted membership and Site ownership checks.',

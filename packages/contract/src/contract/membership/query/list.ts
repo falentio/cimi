@@ -15,7 +15,7 @@ export type SMembershipListOutput = v.InferOutput<typeof SMembershipListOutput>
 export const listMembers = oc
   .route({
     method: 'GET',
-    path: '/listMembers',
+    path: '/membership/listMembers',
     operationId: 'listMembers',
     summary: 'List organization members',
     description: 'List active memberships for an authorized Organization.',

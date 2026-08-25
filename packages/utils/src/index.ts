@@ -1,3 +1,5 @@
+import './registrable-domain/psl.d.ts'
+
 export { createSingleton } from './singleton/index.ts'
 export { generateId, type EntityId } from './id/index.ts'
 export {

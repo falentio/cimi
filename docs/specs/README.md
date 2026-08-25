@@ -1,10 +1,11 @@
 # Cimi Resource Specifications
 
-These specifications are the normative planning contracts for Cimi's first coherent release. They complement the contract-first oRPC code: schemas and route metadata belong in `packages/contract`; business rules, lifecycle, authorization, query semantics, edge cases, and dependencies belong here.
+These specifications are the normative planning contracts for Cimi's first coherent release. They complement the contract-first oRPC declaration layer: typed schemas, errors, and route metadata belong in `packages/contract`; handlers, persistence, and runtime enforcement remain implementation work; business rules, lifecycle, authorization, query semantics, edge cases, and dependencies belong here.
 
 Cross-resource Given/When/Then acceptance scenarios live in [`ACCEPTANCE.md`](./ACCEPTANCE.md). Resource-specific edge cases remain in each resource's `SPECS.md`.
 
 The cross-resource dependency graph is maintained in [`DEPENDENCIES.md`](./DEPENDENCIES.md).
+
 The canonical first-release capability disposition is [`CAPABILITIES.md`](../CAPABILITIES.md). The capability research synthesis is linked from that document as evidence and is not a competing product contract.
 
 ## Authority and Precedence
@@ -12,7 +13,7 @@ The canonical first-release capability disposition is [`CAPABILITIES.md`](../CAP
 - Issue decisions and accepted ADRs establish cross-resource product decisions. A later accepted decision supersedes earlier wording; superseded text remains historical and must not be treated as an alternative implementation contract.
 - `CONTEXT.md` owns canonical domain vocabulary and meanings.
 - Resource `SPECS.md` files and `ACCEPTANCE.md` own normative behavior, lifecycle rules, authorization, and acceptance outcomes.
-- The contract package is the executable expression of the normative contract: its schemas, errors, and route metadata must match the decision and specification layers rather than silently broaden them.
+- The contract package is the executable declaration of the normative contract: its schemas, errors, and route metadata must match the decision and specification layers rather than silently broaden them. Runtime handlers must enforce the remaining business, lifecycle, authorization, persistence, and transport rules.
 - Research documents are evidence only unless an accepted decision, ADR, or normative specification explicitly promotes a finding.
 
 ## Domains
@@ -24,14 +25,25 @@ The canonical first-release capability disposition is [`CAPABILITIES.md`](../CAP
 | Analytics and Reporting           | `traffic-report`, `event-report`, `goal`, `funnel`, `cohort-retention`, `public-dashboard` | Bounded authenticated analytics and the separate aggregate-only public surface.                         |
 | System and Data Lifecycle         | `health`, `installation`, `retention-policy`, `backup-restore`                             | Installation status, retention, storage safety, backup, and restore.                                    |
 
+## Examples
+
+The `examples/` subtree contains illustrative resource specifications such as
+[`hello`](../../packages/contract/src/contract/hello/SPECS.md). These documents demonstrate contract and
+behavior documentation conventions but are not first-release product
+resources. They are excluded from `DEPENDENCIES.md`, `ACCEPTANCE.md`, and
+`CAPABILITIES.md` unless a later product decision promotes one into a bounded
+domain.
+
 ## Cross-Cutting Rules
 
 - Better Auth owns authentication mechanics and Organization/membership authority. Cimi contracts consume the authenticated principal, reconcile a unique persisted membership pair, and enforce persisted Organization/Site scope; Personal Organization creation is allowed from an authenticated principal before membership exists.
 - Site deletion is recoverable and fail-closed: every non-`active` Site (`deleting`, `deleted`, `recovering`, or `purged`) is hidden and blocks new ingestion/query/Public Query admission except for the privileged deletion-status surface where specified; candidates admitted before the lifecycle boundary may finish their acceptance flush. Owners/Administrators may recover Sites for 30 days, after which live Site data is purged and backup copies follow normal retention without permitting resurrection.
-- RPC procedures use explicit OpenAPI route metadata. GET is for reads; POST is for ingestion, commands, and mutations.
-- Procedure names are RPC operations, not REST resource/action paths. Initial procedures are unversioned; new `V2+` names are reserved for breaking changes only.
+- RPC procedures use explicit OpenAPI route metadata. Resource procedures use `/{resource}/{operation}` paths with kebab-case resource segments; `health` remains the `/system/health` operational-probe exception. GET is for reads; POST is for ingestion, commands, and mutations.
+- Route auth metadata is a coarse admission posture. Resource-specific Organization, Site, and installation scope, including input-discriminated scope, remains a handler authorization rule; `admin` never implies installation-wide authority by itself.
+- Procedure names are RPC operations, not REST resource/action paths; the resource path segment namespaces the operation without changing its RPC identity. Initial procedures are unversioned; new `V2+` names are reserved for breaking changes only.
 - Contract schemas are strict. Unknown input keys fail validation.
-- Errors are declared in oRPC contracts, mapped centrally to HTTP statuses, and expose safe `code`, `status`, and `message` fields. A contract error code is the normative semantic outcome; HTTP status is its transport mapping and does not replace the code.
+- Cimi-generated entity IDs use the in-house prefixed generator from `@cimi/utils`. Contract boundaries validate IDs as opaque `SId` strings (1-128 characters); the generator's prefix and encoding are not API invariants.
+- The normative error design declares errors in oRPC contracts, maps them centrally to HTTP statuses, and exposes safe `code`, `status`, and `message` fields. Runtime adapters must implement that mapping. A contract error code is the normative semantic outcome; HTTP status is its transport mapping and does not replace the code.
 - Query inputs use inclusive Site-local `fromDate` and `toDate` calendar dates. The Reporting Timezone and explicit Week Start resolve them to internal half-open intervals; invalid ranges never become all-time queries.
 - Authenticated coarse reports have no independent duration cap. Effective Retention is the data-availability horizon, every requested dependency must cover the complete current and comparison windows, and older or partial ranges are rejected rather than clamped. This rule does not apply to Public Query, which retains its independent 90-day Site-local window and 2,161 actual hourly-start bound.
 - Filters are bounded JSON predicates with explicit `event`, `session`, `visitor`, or `profile` scope. They use allowlisted fields/operators, AND across filters, and OR across repeated values within one field.
@@ -53,7 +65,9 @@ The canonical first-release capability disposition is [`CAPABILITIES.md`](../CAP
 
 ## Status
 
-All specifications are `draft` until the corresponding contract schemas and handlers exist. This is intentional: planning is complete enough to implement without reopening domain decisions, but no product implementation is part of this package.
+All first-release product specifications are `draft` until the corresponding contract schemas and handlers exist. This is intentional: planning is complete enough to implement without reopening domain decisions, but no first-release product implementation is part of this package. Illustrative specifications under `examples/` may use their own implementation status.
+
+A declared contract member is not a served API route. A procedure is available only after a runtime handler is registered and its authorization, persistence, lifecycle, transport, and error boundaries are implemented. At the current repository state, `apps/api` registers `health` at `GET /api/system/health` (contract path `GET /system/health`) and the illustrative `hello` procedures; first-release product procedures remain planned contract surface. Update this status paragraph whenever route registration changes.
 
 ## Boundary Decisions
 

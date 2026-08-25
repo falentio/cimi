@@ -10,7 +10,7 @@ export type SRetentionPolicyUpdateOutput = v.InferOutput<typeof SRetentionPolicy
 export const updateRetentionPolicy = oc
   .route({
     method: 'POST',
-    path: '/updateRetentionPolicy',
+    path: '/retention-policy/updateRetentionPolicy',
     operationId: 'updateRetentionPolicy',
     summary: 'Update retention policy',
     description:

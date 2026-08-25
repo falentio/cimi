@@ -15,7 +15,7 @@ export type SSiteListOutput = v.InferOutput<typeof SSiteListOutput>
 export const listSites = oc
   .route({
     method: 'GET',
-    path: '/listSites',
+    path: '/site/listSites',
     operationId: 'listSites',
     summary: 'List sites',
     description:

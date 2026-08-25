@@ -10,7 +10,7 @@ export type SOrganizationCreateOutput = v.InferOutput<typeof SOrganizationCreate
 export const createOrganization = oc
   .route({
     method: 'POST',
-    path: '/createOrganization',
+    path: '/organization/createOrganization',
     operationId: 'createOrganization',
     summary: 'Create an organization',
     description: 'Create a collaborative Organization and its initial Owner membership.',

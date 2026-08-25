@@ -1,27 +1,19 @@
-import { mkdtemp } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { afterEach, expect, test } from 'vitest'
-import { createDb, migrateControlDb, schema } from '@cimi/db'
+import { closeDb, schema, type Db } from '@cimi/db'
+import { createMigratedTestDb } from '@cimi/db/testing'
 import { createAuth } from '../server.ts'
 
-const tempDirs: string[] = []
+const databases: Db[] = []
 
-afterEach(async () => {
-  await Promise.all(
-    tempDirs.map(async (dir) => {
-      await import('node:fs/promises').then((fs) => fs.rm(dir, { recursive: true, force: true }))
-    }),
-  )
-  tempDirs.length = 0
+afterEach(() => {
+  for (const db of databases) closeDb(db)
+  databases.length = 0
 })
 
 test('first signed-up user becomes admin, later users keep non-admin role', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'cimi-auth-'))
-  tempDirs.push(dir)
-  const db = createDb({ path: join(dir, 'control.sqlite') })
-  migrateControlDb(db)
+  const db = createMigratedTestDb()
+  databases.push(db)
 
   const auth = createAuth({
     db,

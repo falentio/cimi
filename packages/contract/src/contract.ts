@@ -6,6 +6,7 @@ import { eventReport } from './contract/event-report/index.ts'
 import { funnel } from './contract/funnel/index.ts'
 import { goal } from './contract/goal/index.ts'
 import { health } from './contract/health/index.ts'
+import { hello } from './contract/hello/index.ts'
 import { identityProfile } from './contract/identity-profile/index.ts'
 import { installation } from './contract/installation/index.ts'
 import { invitation } from './contract/invitation/index.ts'
@@ -25,6 +26,7 @@ export const contract = {
   funnel,
   goal,
   health,
+  hello,
   identityProfile,
   installation,
   invitation,

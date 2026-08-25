@@ -11,12 +11,13 @@ export type SInvitationAcceptOutput = v.InferOutput<typeof SInvitationAcceptOutp
 export const acceptInvitation = oc
   .route({
     method: 'POST',
-    path: '/acceptInvitation',
+    path: '/invitation/acceptInvitation',
     operationId: 'acceptInvitation',
     summary: 'Accept an invitation',
     description:
       'Consume a custom bearer token for an authenticated User and reconcile the invitation-defined Organization membership.',
     tags: ['invitation'],
+    successStatus: 200,
   })
   .meta({ auth: 'authenticated' })
   .errors({

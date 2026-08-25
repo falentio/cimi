@@ -10,7 +10,7 @@ export type SPublicDashboardConfigOutput = v.InferOutput<typeof SPublicDashboard
 export const getPublicDashboardConfig = oc
   .route({
     method: 'GET',
-    path: '/getPublicDashboardConfig',
+    path: '/public-dashboard/getPublicDashboardConfig',
     operationId: 'getPublicDashboardConfig',
     summary: 'Get public dashboard config',
     description: 'Return public dashboard status and identifier metadata for authorized operators.',

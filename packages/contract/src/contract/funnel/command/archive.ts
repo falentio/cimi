@@ -10,7 +10,7 @@ export type SFunnelArchiveOutput = v.InferOutput<typeof SFunnelArchiveOutput>
 export const archiveFunnel = oc
   .route({
     method: 'POST',
-    path: '/archiveFunnel',
+    path: '/funnel/archiveFunnel',
     operationId: 'archiveFunnel',
     summary: 'Archive a funnel',
     description: 'Archive a Funnel definition without deleting historical reports.',

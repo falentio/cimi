@@ -12,7 +12,7 @@ export type SGoalCreateOutput = v.InferOutput<typeof SGoalCreateOutput>
 export const createGoal = oc
   .route({
     method: 'POST',
-    path: '/createGoal',
+    path: '/goal/createGoal',
     operationId: 'createGoal',
     summary: 'Create a goal',
     description: 'Persist a validated single-action Goal definition for a Site.',

@@ -10,7 +10,7 @@ export type SOrganizationGetOutput = v.InferOutput<typeof SOrganizationGetOutput
 export const getOrganization = oc
   .route({
     method: 'GET',
-    path: '/getOrganization',
+    path: '/organization/getOrganization',
     operationId: 'getOrganization',
     summary: 'Get an organization',
     description: 'Return one Organization after persisted membership authorization.',

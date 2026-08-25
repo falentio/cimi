@@ -10,7 +10,7 @@ export type SInvitationRevokeOutput = v.InferOutput<typeof SInvitationRevokeOutp
 export const revokeInvitation = oc
   .route({
     method: 'POST',
-    path: '/revokeInvitation',
+    path: '/invitation/revokeInvitation',
     operationId: 'revokeInvitation',
     summary: 'Revoke an invitation',
     description: 'Revoke a pending Organization invitation without exposing its bearer token.',

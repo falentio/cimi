@@ -10,7 +10,7 @@ export type SOrganizationUpdateOutput = v.InferOutput<typeof SOrganizationUpdate
 export const updateOrganization = oc
   .route({
     method: 'POST',
-    path: '/updateOrganization',
+    path: '/organization/updateOrganization',
     operationId: 'updateOrganization',
     summary: 'Update an organization',
     description: 'Update mutable metadata for an authorized Organization.',

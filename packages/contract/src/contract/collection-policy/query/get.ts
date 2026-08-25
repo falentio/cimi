@@ -10,7 +10,7 @@ export type SCollectionPolicyGetOutput = v.InferOutput<typeof SCollectionPolicyG
 export const getCollectionPolicy = oc
   .route({
     method: 'GET',
-    path: '/getCollectionPolicy',
+    path: '/collection-policy/getCollectionPolicy',
     operationId: 'getCollectionPolicy',
     summary: 'Get collection policy',
     description: 'Return the effective collection policy and any Site-level override.',

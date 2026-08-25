@@ -138,6 +138,9 @@ importers:
       '@cimi/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@cimi/guard':
+        specifier: workspace:*
+        version: link:../../packages/guard
       '@cimi/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -150,9 +153,15 @@ importers:
       '@orpc/valibot':
         specifier: 'catalog:'
         version: 1.15.0(@orpc/contract@1.15.0)(@orpc/server@1.15.0(crossws@0.3.5)(ws@8.21.3))(crossws@0.3.5)(valibot@1.4.2(typescript@6.0.3))(ws@8.21.3)
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@types/better-sqlite3@7.6.13)(better-sqlite3@12.11.1)(kysely@0.29.5)
       hono:
         specifier: 'catalog:'
         version: 4.13.3
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
     devDependencies:
       '@cimi/testing':
         specifier: workspace:*

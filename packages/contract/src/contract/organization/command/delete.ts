@@ -10,7 +10,7 @@ export type SOrganizationDeleteOutput = v.InferOutput<typeof SOrganizationDelete
 export const deleteOrganization = oc
   .route({
     method: 'POST',
-    path: '/deleteOrganization',
+    path: '/organization/deleteOrganization',
     operationId: 'deleteOrganization',
     summary: 'Delete an organization',
     description:

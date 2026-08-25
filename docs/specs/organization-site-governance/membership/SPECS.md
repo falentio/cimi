@@ -21,10 +21,10 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 
 | Field | Schema | Description |
 | --- | --- | --- |
-| `organizationId` | `opaque bounded string` | Organization scope; Nano ID syntax is not an API invariant. |
-| `userId` | `userId` | Better Auth User identifier represented as an opaque bounded string; Nano ID syntax is not required. |
+| `organizationId` | `SId` | Organization scope. |
+| `userId` | `SId` | Better Auth User identifier represented as an opaque bounded string. |
 | `role` | `organizationRole` | `owner`, `admin`, or `member`. |
-| `createdAt` / `updatedAt` | `coercedDate` | Membership timestamps. |
+| `createdAt` / `updatedAt` | `SDateTime` | Membership timestamps. |
 
 ## 3. Endpoint Quick Index
 
@@ -32,15 +32,15 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 
 | # | Procedure | Method | Path | Auth | CQRS |
 | --- | --- | --- | --- | --- | --- |
-| Q1 | `listMembers` | GET | `/listMembers` | authenticated | query |
-| C1 | `changeMemberRole` | POST | `/changeMemberRole` | admin | command |
-| C2 | `removeMember` | POST | `/removeMember` | admin | command |
-| C3 | `leaveOrganization` | POST | `/leaveOrganization` | authenticated | command |
-| C4 | `transferOrganizationOwnership` | POST | `/transferOrganizationOwnership` | owner | command |
+| Q1 | `listMembers` | GET | `/membership/listMembers` | authenticated | query |
+| C1 | `changeMemberRole` | POST | `/membership/changeMemberRole` | admin | command |
+| C2 | `removeMember` | POST | `/membership/removeMember` | admin | command |
+| C3 | `leaveOrganization` | POST | `/membership/leaveOrganization` | authenticated | command |
+| C4 | `transferOrganizationOwnership` | POST | `/membership/transferOrganizationOwnership` | owner | command |
 
 ## 4. Queries
 
-### Q1: `GET /listMembers` — `listMembers`
+### Q1: `GET /membership/listMembers` — `listMembers`
 
 **Audience:** Both
 
@@ -52,7 +52,7 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 
 ## 5. Commands
 
-### C1: `POST /changeMemberRole` — `changeMemberRole`
+### C1: `POST /membership/changeMemberRole` — `changeMemberRole`
 
 **Audience:** Both
 
@@ -64,7 +64,7 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `OWNER_PROTECTED` (409).
 
-### C2: `POST /removeMember` — `removeMember`
+### C2: `POST /membership/removeMember` — `removeMember`
 
 **Audience:** Both
 
@@ -76,7 +76,7 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `OWNER_PROTECTED` (409).
 
-### C3: `POST /leaveOrganization` — `leaveOrganization`
+### C3: `POST /membership/leaveOrganization` — `leaveOrganization`
 
 **Audience:** Both
 
@@ -88,7 +88,7 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `OWNER_PROTECTED` (409).
 
-### C4: `POST /transferOrganizationOwnership` — `transferOrganizationOwnership`
+### C4: `POST /membership/transferOrganizationOwnership` — `transferOrganizationOwnership`
 
 **Audience:** Both
 

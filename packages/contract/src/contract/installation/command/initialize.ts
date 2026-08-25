@@ -28,7 +28,7 @@ export type SInstallationInitializeOutput = v.InferOutput<typeof SInstallationIn
 export const initializeInstallation = oc
   .route({
     method: 'POST',
-    path: '/initializeInstallation',
+    path: '/installation/initializeInstallation',
     operationId: 'initializeInstallation',
     summary: 'Initialize installation',
     description:

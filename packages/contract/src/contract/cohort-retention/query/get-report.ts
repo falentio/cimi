@@ -14,7 +14,7 @@ export type SCohortReportOutput = v.InferOutput<typeof SCohortReportOutput>
 export const getRetentionReport = oc
   .route({
     method: 'GET',
-    path: '/getRetentionReport',
+    path: '/cohort-retention/getRetentionReport',
     operationId: 'getRetentionReport',
     summary: 'Get a retention report',
     description: 'Return cohort size and retained counts and rates by bounded Site-local period.',

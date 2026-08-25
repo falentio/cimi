@@ -10,7 +10,7 @@ export type SCollectionPolicyUpdateOutput = v.InferOutput<typeof SCollectionPoli
 export const updateCollectionPolicy = oc
   .route({
     method: 'POST',
-    path: '/updateCollectionPolicy',
+    path: '/collection-policy/updateCollectionPolicy',
     operationId: 'updateCollectionPolicy',
     summary: 'Update collection policy',
     description:

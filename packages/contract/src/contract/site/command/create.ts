@@ -10,7 +10,7 @@ export type SSiteCreateOutput = v.InferOutput<typeof SSiteCreateOutput>
 export const createSite = oc
   .route({
     method: 'POST',
-    path: '/createSite',
+    path: '/site/createSite',
     operationId: 'createSite',
     summary: 'Create a site',
     description:

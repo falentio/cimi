@@ -32,8 +32,10 @@ the returned detailed output, not the generated document.
   `201` (`packages/contract/src/contract/organization/command/create.ts:11-24`),
   ordinary reads/updates use `200`, and void archive/removal procedures use
   `204` with `v.void()` (`packages/contract/src/contract/goal/command/archive.ts:6-24`).
-  No current contract uses `outputStructure: 'detailed'`, `responseBodyHint`, or
-  a `spec` override.
+  `initializeInstallation` is the current detailed-output exception: it uses
+  `outputStructure: 'detailed'` with literal `200` and `201` variants
+  (`packages/contract/src/contract/installation/command/initialize.ts:14-39`).
+  No current contract uses `responseBodyHint` or a `spec` override.
 - The API composition root uses the Fetch `OpenAPIHandler`
   (`apps/api/src/index.ts:3,28-45`), so the installed Fetch adapter is the
   relevant server runtime.

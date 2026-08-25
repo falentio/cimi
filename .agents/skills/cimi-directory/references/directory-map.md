@@ -53,7 +53,7 @@ apps/api/
     └── testing/api.test.ts
 ```
 
-- Composition root: `apps/api/src/index.ts:20` `createApiApp`.
+- Composition root: `apps/api/src/index.ts:21` `createApiApp`.
 - Routes: `/api/auth/*` → `deps.auth.handler`, `/api/*` → `OpenAPIHandler` with `contract` router.
 - No direct drizzle/better-auth imports — go through `@cimi/db` and `@cimi/auth`.
 
@@ -79,17 +79,17 @@ apps/frontend/
 
 | Package             | npm name         | Purpose                                       | Key exports                                                                                                                 |
 | ------------------- | ---------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `packages/contract` | `@cimi/contract` | oRPC contract — single source for API shapes  | `packages/contract/src/contract.ts:19` → `contract.health.health`; `packages/contract/src/contract/health/query/health.ts`; `src/orpc/meta.ts` |
+| `packages/contract` | `@cimi/contract` | oRPC contract declaration layer — single source for API shapes | `packages/contract/src/contract.ts:19-37` → all 17 resource groups; `packages/contract/src/contract/{resource}`; `src/orpc/meta.ts` |
 | `packages/db`       | `@cimi/db`       | control (sqlite/drizzle) + analytics (duckdb) | `packages/db/src/index.ts:1` → `createDb`, `schema`, `migrateControlDb`, `createAnalyticsDb`                                |
 | `packages/auth`     | `@cimi/auth`     | better-auth wrapper                           | `packages/auth/src/server.ts`, `src/client.ts`, `src/first-user-admin.ts`                                                   |
 | `packages/guard`    | `@cimi/guard`    | authz guards                                  | `packages/guard/src/guard.ts`, `src/index.ts`                                                                               |
 | `packages/client`   | `@cimi/client`   | typed oRPC client for frontend                | `packages/client/src/index.ts` (wraps `@orpc/client` + `@orpc/openapi-client`)                                              |
-| `packages/utils`    | `@cimi/utils`    | cross-cutting only                            | `packages/utils/src/index.ts:1` → `createSingleton`, `loadConfig`, `ConfigError`                                            |
+| `packages/utils`    | `@cimi/utils`    | cross-cutting only                            | `packages/utils/src/index.ts:1-25` → `createSingleton`, `loadConfig`, `generateId`, `EntityId`, IP, user-agent, registrable-domain, and bot utilities |
 | `packages/testing`  | `@cimi/testing`  | shared test helpers                           | `packages/testing/src/index.ts` → `temp-dir`, `orpc-error` helpers                                                          |
 
 ### packages/utils — Allowed vs. forbidden
 
-Allowed (today): `src/singleton/`, `src/config/` — generic, no domain nouns, no imports from `@cimi/*` except other utils.
+Allowed (today): `src/singleton/`, `src/config/`, `src/id/`, `src/ip/`, `src/user-agent/`, `src/registrable-domain/`, and `src/user-agent-bots/` — generic, no domain nouns, no imports from `@cimi/*` except other utils.
 
 Forbidden: anything importing `@cimi/db`, `@cimi/auth`, `@cimi/contract`; any code used by only one consumer.
 
@@ -110,10 +110,10 @@ packages/db/src/
 
 ```
 packages/contract/src/
-├── contract.ts            # export const contract = { ... health }
-├── contract/health/index.ts # export const health = { health: healthProcedure }
-├── contract/health/schema.ts
-├── contract/health/query/health.ts # health procedure; route GET /system/health
+├── contract.ts            # export const contract = { ... all resource groups }
+├── contract/{resource}/index.ts # assembled procedures for one resource
+├── contract/{resource}/schema.ts
+├── contract/{resource}/query/*.ts # query procedures; health/query/health.ts is the live example
 ├── orpc/index.ts
 ├── orpc/meta.ts
 └── testing/contract.test.ts

@@ -15,7 +15,7 @@ export type SProfileListOutput = v.InferOutput<typeof SProfileListOutput>
 export const listProfiles = oc
   .route({
     method: 'GET',
-    path: '/listProfiles',
+    path: '/identity-profile/listProfiles',
     operationId: 'listProfiles',
     summary: 'List profiles',
     description: 'Explore explicit Site-scoped identity profiles.',

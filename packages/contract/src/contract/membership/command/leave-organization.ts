@@ -10,7 +10,7 @@ export type SMembershipLeaveOutput = v.InferOutput<typeof SMembershipLeaveOutput
 export const leaveOrganization = oc
   .route({
     method: 'POST',
-    path: '/leaveOrganization',
+    path: '/membership/leaveOrganization',
     operationId: 'leaveOrganization',
     summary: 'Leave an organization',
     description:

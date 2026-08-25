@@ -10,7 +10,7 @@ export type SMembershipRemoveOutput = v.InferOutput<typeof SMembershipRemoveOutp
 export const removeMember = oc
   .route({
     method: 'POST',
-    path: '/removeMember',
+    path: '/membership/removeMember',
     operationId: 'removeMember',
     summary: 'Remove a member',
     description:

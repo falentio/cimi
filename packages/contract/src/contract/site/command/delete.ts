@@ -15,7 +15,7 @@ export type SSiteDeleteOutput = v.InferOutput<typeof SSiteDeleteOutput>
 export const deleteSite = oc
   .route({
     method: 'POST',
-    path: '/deleteSite',
+    path: '/site/deleteSite',
     operationId: 'deleteSite',
     summary: 'Delete a site',
     description: 'Quiesce a Site and begin its recoverable asynchronous deletion lifecycle.',

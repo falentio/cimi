@@ -15,7 +15,7 @@ export type SInvitationListOutput = v.InferOutput<typeof SInvitationListOutput>
 export const listInvitations = oc
   .route({
     method: 'GET',
-    path: '/listInvitations',
+    path: '/invitation/listInvitations',
     operationId: 'listInvitations',
     summary: 'List invitations',
     description: 'List token-free invitation records for an Organization.',

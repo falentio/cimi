@@ -10,7 +10,7 @@ export type SBackupStatusOutput = v.InferOutput<typeof SBackupStatusOutput>
 export const getBackupStatus = oc
   .route({
     method: 'GET',
-    path: '/getBackupStatus',
+    path: '/backup-restore/getBackupStatus',
     operationId: 'getBackupStatus',
     summary: 'Get backup status',
     description:

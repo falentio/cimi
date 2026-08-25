@@ -14,7 +14,7 @@ export type SEventOverviewOutput = v.InferOutput<typeof SEventOverviewOutput>
 export const getEventOverview = oc
   .route({
     method: 'GET',
-    path: '/getEventOverview',
+    path: '/event-report/getEventOverview',
     operationId: 'getEventOverview',
     summary: 'Get event overview',
     description: 'Report event counts and unique Session and Visitor context by Event Kind.',

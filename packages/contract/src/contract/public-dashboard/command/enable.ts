@@ -10,7 +10,7 @@ export type SPublicDashboardEnableOutput = v.InferOutput<typeof SPublicDashboard
 export const enablePublicDashboard = oc
   .route({
     method: 'POST',
-    path: '/enablePublicDashboard',
+    path: '/public-dashboard/enablePublicDashboard',
     operationId: 'enablePublicDashboard',
     summary: 'Enable public dashboard',
     description: 'Enable public aggregate access and return the rotated dashboard identifier.',

@@ -1,6 +1,6 @@
 # First-Release Capabilities
 
-This is the canonical implementation-facing disposition of Cimi's first-release capabilities. It owns only release scope: `Required`, `Deferred`, or `Excluded`. It is not an implementation-status report; the resource specifications remain the normative behavior contracts and are still marked `draft` until implemented.
+This is the canonical release-scope disposition of Cimi's first-release capabilities. It owns only `Required`, `Deferred`, or `Excluded`; it is not an implementation-status report. Route and handler availability are defined by the implementation boundary in [`docs/specs/README.md`](specs/README.md). The resource specifications remain the normative behavior contracts and are still marked `draft` until implemented.
 
 Accepted issue decisions and ADRs remain authoritative for product behavior. This document is authoritative for the cross-domain capability disposition. A disposition change requires an accepted product decision and an update here.
 

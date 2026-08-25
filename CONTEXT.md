@@ -124,6 +124,10 @@ _Avoid_: arbitrary comparison range, delta-only comparison
 An immutable, Site-scoped telemetry record carried by one shared strict typed envelope. It has a stable Event ID, a discriminated Event Kind, Visitor/Identified User and Analytics Session context, validated occurrence and receipt times, page and attribution context, and bounded properties. The first envelope supports `page_view`, `custom_event`, outbound, performance, and error kinds.
 _Avoid_: raw hit, arbitrary payload
 
+**Cimi Identifier**:
+A Cimi-generated opaque identifier produced by the in-house prefixed generator exposed by `@cimi/utils`. Contract boundaries validate identifiers as `SId` values from one through 128 characters; the generator's prefix and encoding are implementation details, not API grammar.
+_Avoid_: provider-generated ID, unbounded identifier
+
 **Event ID**:
 A caller-supplied identifier for one intended Event. Ingestion uses the Site-scoped ID for duplicate suppression and retry-safe acceptance for the full raw-event retention period; an exact retry is a duplicate and a changed payload is a conflict. It is not an authorization credential.
 _Avoid_: request ID, session ID
@@ -257,7 +261,7 @@ A dedicated aggregate analytics query governed by the Public Dashboard contract:
 _Avoid_: public API passthrough, unrestricted report query
 
 **RPC Procedure**:
-An externally callable Cimi operation defined in the contract-first oRPC tree with typed input, typed output, declared errors, authorization posture, and explicit OpenAPI route metadata. An RPC Procedure is an operation contract, not a REST resource route.
+A Cimi operation declared for external calling in the contract-first oRPC tree with typed input, typed output, declared errors, authorization posture, and explicit OpenAPI route metadata. The declaration becomes served only after a runtime handler is registered and its authorization, persistence, lifecycle, transport, and error boundaries are implemented. An RPC Procedure is an operation contract, not a REST resource route.
 _Avoid_: REST endpoint, controller method
 
 **Procedure Version**:

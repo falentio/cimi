@@ -10,7 +10,7 @@ export type SPublicDashboardRotateOutput = v.InferOutput<typeof SPublicDashboard
 export const rotatePublicDashboardIdentifier = oc
   .route({
     method: 'POST',
-    path: '/rotatePublicDashboardIdentifier',
+    path: '/public-dashboard/rotatePublicDashboardIdentifier',
     operationId: 'rotatePublicDashboardIdentifier',
     summary: 'Rotate public dashboard identifier',
     description: 'Rotate the public dashboard URL identifier and return the new value.',

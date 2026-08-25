@@ -1,47 +1,62 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { afterEach, expect, test } from 'vitest'
 import { SSystemHealthOutput } from '@cimi/contract'
-import { closeDb, createAnalyticsDb, createDb, migrateControlDb, schema } from '@cimi/db'
+import { closeDb, schema, type Db } from '@cimi/db'
+import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
 import { createApiApp } from '../index.ts'
 
-const tempDirs: string[] = []
+const fixtures: Array<{
+  db: Db
+  analytics: Awaited<ReturnType<typeof createTestAnalyticsDb>>
+}> = []
 
 afterEach(async () => {
-  await Promise.all(
-    tempDirs.map(async (dir) => {
-      await rm(dir, { recursive: true, force: true })
-    }),
-  )
-  tempDirs.length = 0
+  try {
+    await Promise.all(
+      fixtures.map(async ({ db, analytics }) => {
+        try {
+          await analytics.close()
+        } finally {
+          closeDb(db)
+        }
+      }),
+    )
+  } finally {
+    fixtures.length = 0
+  }
 })
 
-async function makeTempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'cimi-api-'))
-  tempDirs.push(dir)
-  return dir
+async function createFixture() {
+  const db = createMigratedTestDb()
+  try {
+    const analytics = await createTestAnalyticsDb()
+    try {
+      const auth = createAuth({
+        db,
+        schema: {
+          user: schema.TUser,
+          session: schema.TSession,
+          account: schema.TAccount,
+          verification: schema.TVerification,
+        },
+        secret: 'test-secret-1234567890',
+        baseURL: 'http://localhost',
+      })
+      const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+      fixtures.push({ db, analytics })
+      return { app, auth, db, analytics }
+    } catch (error) {
+      await analytics.close()
+      throw error
+    }
+  } catch (error) {
+    closeDb(db)
+    throw error
+  }
 }
 
 test('system health reports live control and analytics stores', async () => {
-  const dir = await makeTempDir()
-  const db = createDb({ path: join(dir, 'control.sqlite') })
-  migrateControlDb(db)
-  const analytics = await createAnalyticsDb({ path: join(dir, 'analytics.duckdb') })
-  const auth = createAuth({
-    db,
-    schema: {
-      user: schema.TUser,
-      session: schema.TSession,
-      account: schema.TAccount,
-      verification: schema.TVerification,
-    },
-    secret: 'test-secret-1234567890',
-    baseURL: 'http://localhost',
-  })
-
-  const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+  const { app, auth, db, analytics } = await createFixture()
 
   const res = await app.fetch(new Request('http://localhost/api/system/health'))
   expect(res.status).toBe(200)
@@ -78,29 +93,10 @@ test('system health reports live control and analytics stores', async () => {
     status: 'maintenance',
     cleanupPending: true,
   })
-
-  await analytics.close()
-  closeDb(db)
 })
 
 test('auth sign-up route is mounted and sets a session cookie', async () => {
-  const dir = await makeTempDir()
-  const db = createDb({ path: join(dir, 'control.sqlite') })
-  migrateControlDb(db)
-  const analytics = await createAnalyticsDb({ path: join(dir, 'analytics.duckdb') })
-  const auth = createAuth({
-    db,
-    schema: {
-      user: schema.TUser,
-      session: schema.TSession,
-      account: schema.TAccount,
-      verification: schema.TVerification,
-    },
-    secret: 'test-secret-1234567890',
-    baseURL: 'http://localhost',
-  })
-
-  const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+  const { app } = await createFixture()
 
   const signup = await app.fetch(
     new Request('http://localhost/api/auth/sign-up/email', {
@@ -116,33 +112,11 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
 
   expect(signup.status).toBe(200)
   expect(signup.headers.get('set-cookie')).toBeTruthy()
-
-  await analytics.close()
-  closeDb(db)
 })
 
 test('unknown api route returns 404', async () => {
-  const dir = await makeTempDir()
-  const db = createDb({ path: join(dir, 'control.sqlite') })
-  migrateControlDb(db)
-  const analytics = await createAnalyticsDb({ path: join(dir, 'analytics.duckdb') })
-  const auth = createAuth({
-    db,
-    schema: {
-      user: schema.TUser,
-      session: schema.TSession,
-      account: schema.TAccount,
-      verification: schema.TVerification,
-    },
-    secret: 'test-secret-1234567890',
-    baseURL: 'http://localhost',
-  })
-
-  const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+  const { app } = await createFixture()
 
   const res = await app.fetch(new Request('http://localhost/api/does-not-exist'))
   expect(res.status).toBe(404)
-
-  await analytics.close()
-  closeDb(db)
 })

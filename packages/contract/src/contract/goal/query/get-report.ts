@@ -14,7 +14,7 @@ export type SGoalReportOutput = v.InferOutput<typeof SGoalReportOutput>
 export const getGoalReport = oc
   .route({
     method: 'GET',
-    path: '/getGoalReport',
+    path: '/goal/getGoalReport',
     operationId: 'getGoalReport',
     summary: 'Get a goal report',
     description: 'Count Goal conversions and calculate the conversion rate for a bounded period.',

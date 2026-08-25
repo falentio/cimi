@@ -1,11 +1,11 @@
 ---
 name: writing-specs
-description: Write a SPECS.md for a contract resource. Use when the user wants a SPECS.md for a resource at packages/contract, mentions "write the spec", "add SPECS.md", or asks to document a contract resource. Also use when adding a new resource or procedure — offer to update the SPECS.md.
+description: Write a SPECS.md for a contract resource. Use when the user wants a SPECS.md for a resource under docs/specs, mentions "write the spec", "add SPECS.md", or asks to document a contract resource. Also use when adding a new resource or procedure — offer to update the SPECS.md.
 ---
 
 # Writing SPECS.md
 
-A SPECS.md lives at `contract/{resource}/SPECS.md`. It **complements** the typed contract code — schemas, routes, JSDoc — by carrying what code cannot express: business rules, behavioral guarantees, edge case resolution, and the implementation reasoning frontend and backend both need. Never duplicate what the code already states; always add what the code leaves unsaid.
+A SPECS.md lives at `docs/specs/{domain}/{resource}/SPECS.md`. It **complements** the typed contract declaration under `packages/contract/src/contract/{resource}` — schemas, routes, and procedure metadata — by carrying what code cannot express: business rules, behavioral guarantees, edge case resolution, and the implementation reasoning frontend and backend both need. Never duplicate what the code already states; always add what the code leaves unsaid.
 
 ## When to write
 
@@ -20,14 +20,14 @@ A SPECS.md lives at `contract/{resource}/SPECS.md`. It **complements** the typed
 
 Read these files for the target resource:
 
-- `contract/{resource}/schema.ts` — base schema, field constraints, derivations
-- `contract/{resource}/query/*.ts` — all query procedures
-- `contract/{resource}/command/*.ts` — all command procedures
-- `contract/{resource}/index.ts` — list of assembled procedures
-- `contract.ts` — confirms the resource is registered
-- `schema.ts` — confirms schemas are re-exported
+- `packages/contract/src/contract/{resource}/schema.ts` — base schema, field constraints, derivations
+- `packages/contract/src/contract/{resource}/query/*.ts` — all query procedures
+- `packages/contract/src/contract/{resource}/command/*.ts` — all command procedures
+- `packages/contract/src/contract/{resource}/index.ts` — list of assembled procedures
+- `packages/contract/src/contract.ts` — confirms the resource is registered
+- `packages/contract/src/schema.ts` — confirms schemas are re-exported
 
-Also read the shared schema sources the resource uses (`schema/index.ts`) and the typed builder (`orpc/meta.ts`, `orpc/index.ts`).
+Also read the shared schema sources the resource uses (`packages/contract/src/schema/index.ts`) and the typed builder (`packages/contract/src/orpc/meta.ts`, `packages/contract/src/orpc/index.ts`).
 
 ### 2. Produce SPECS.md
 
@@ -71,15 +71,15 @@ updated: { YYYY-MM-DD }
 
 | Field | Schema   | Constraints           | Description       |
 | ----- | -------- | --------------------- | ----------------- |
-| `id`  | `nanoid` | 21 chars, A-Za-z0-9_- | Unique identifier |
+| `id`  | `SId` | 1-128 character opaque identifier | Unique identifier |
 
-{Use the shared primitive name (e.g. `string256`, `nanoid`, `coercedDate`) — not the valibot pipeline.}
+{Use the exported shared schema name (e.g. `SId`, `SName`, `SDate`, `SDateTime`) — not the valibot pipeline. Cimi-generated IDs use the in-house generator; its prefix and encoding are not API invariants.}
 
 ### Shared Primitives Used
 
 | Primitive     | Input                                       | Output |
 | ------------- | ------------------------------------------- | ------ |
-| `coercedDate` | Date / number (unix ms) / string (ISO 8601) | Date   |
+| `SDateTime` | ISO 8601 string with `Z` or an explicit offset | string |
 
 {List only the shared primitives this resource actually uses.}
 
@@ -149,7 +149,7 @@ updated: { YYYY-MM-DD }
 | ------------------------------ | ------------- | --------------- | ----------------------------------- | --------------------- |
 | `{resource}.{past-tense-verb}` | `event-store` | `{schema name}` | {sync \| outbox \| fire-and-forget} | `E{Resource}{Action}` |
 
-Backend implementations must publish every listed event. The JS identifier (defined in `contract/{resource}/events.ts` via `createEvent<T>`) is the canonical reference — use it for `emitter.emit()` and `emitter.on()`.
+Document only accepted domain events here. Internal acceptance-journal records, projector work, and lifecycle operations are not domain events. If the MVP emits no domain event, write `None in MVP`.
 
 **Errors**
 
@@ -183,7 +183,7 @@ Backend implementations must publish every listed event. The JS identifier (defi
 | ------------------- | ------------- | ------------ | --------------- | ----------------------------------- | --------------------- |
 | `{resource}.{verb}` | `event-store` | {procedure}  | `{schema name}` | {sync \| outbox \| fire-and-forget} | `E{Resource}{Action}` |
 
-{Event JS identifiers follow the naming convention `E{Resource}{Action}` and are defined in `contract/{resource}/events.ts` using `createEvent<T>` from `@lomba/utils`. The identifier is the canonical reference for backend code — use it for `emitter.emit()` and `emitter.on()`.}
+{If a later accepted contract introduces a domain event, reference its actual contract location and delivery boundary; do not invent an event identifier or utility package.}
 
 ## 9. Edge Cases
 
@@ -225,6 +225,6 @@ Check these before declaring done:
 1. **Coverage:** Every procedure in `index.ts` appears in §3, and has a subsection in §4 or §5.
 2. **No code duplication:** The SPECS.md references schema names; it does not restate valibot pipelines.
 3. **Behavior sections carry weight:** Each query/command subsection's behavior block says something the schema doesn't — filtering semantics, idempotency, authorization beyond `meta.auth`, ordering, caching.
-4. **Events documented per procedure:** Every command has an **Events Emitted** table. Queries have one too (usually "None" — but the section is present). §8 consolidates every event across the resource.
+4. **Events documented:** Every command states whether it emits a domain event. Read-only resources may state `No domain event channel is required by the MVP contract` in §8; add a per-query event note only when a query has an explicit audit side effect. Internal acceptance-journal records and lifecycle operation state are not domain events.
 5. **Audience markers:** Every section header has one.
 6. **Error codes match JSDoc:** Every `@errors` code appears in the procedure's error table and in §10.

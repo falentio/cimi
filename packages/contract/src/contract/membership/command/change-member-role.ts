@@ -10,7 +10,7 @@ export type SMembershipChangeRoleOutput = v.InferOutput<typeof SMembershipChange
 export const changeMemberRole = oc
   .route({
     method: 'POST',
-    path: '/changeMemberRole',
+    path: '/membership/changeMemberRole',
     operationId: 'changeMemberRole',
     summary: 'Change a member role',
     description:

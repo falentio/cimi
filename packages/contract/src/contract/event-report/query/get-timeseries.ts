@@ -22,7 +22,7 @@ export type SEventTimeseriesOutput = v.InferOutput<typeof SEventTimeseriesOutput
 export const getEventTimeseries = oc
   .route({
     method: 'GET',
-    path: '/getEventTimeseries',
+    path: '/event-report/getEventTimeseries',
     operationId: 'getEventTimeseries',
     summary: 'Get event timeseries',
     description: 'Return bounded time buckets containing accepted Event counts.',

@@ -26,7 +26,7 @@ The versioned `retention_policy` rows are the canonical policy history. Installa
 | `installationDefault` | `retentionPolicy`         | Instance fallback; each month is an integer from 1 through 120. |
 | `siteOverride`        | `retentionPolicy` or `null` | Optional Site-specific values.          |
 | `effectivePolicy`     | `retentionPolicy`         | Computed policy used by lifecycle jobs. |
-| `updatedAt`           | `coercedDate`             | Policy timestamp.                       |
+| `updatedAt`           | `SDateTime`               | Policy timestamp.                       |
 
 Update and read inputs are discriminated by `scope`: `installation` carries a non-null `policy` and cannot be cleared; `site` carries a required `siteId` and accepts a nullable `policy`, where `null` clears the override and inherits the installation default. Results carry the same scope discriminator; Site results include `siteId`.
 
@@ -36,12 +36,12 @@ Update and read inputs are discriminated by `scope`: `installation` carries a no
 
 | #   | Procedure               | Method | Path                     | Auth  | CQRS    |
 | --- | ----------------------- | ------ | ------------------------ | ----- | ------- |
-| Q1  | `getRetentionPolicy`    | GET    | `/getRetentionPolicy`    | admin | query   |
-| C1  | `updateRetentionPolicy` | POST   | `/updateRetentionPolicy` | admin | command |
+| Q1  | `getRetentionPolicy`    | GET    | `/retention-policy/getRetentionPolicy`    | scope-dependent admin | query   |
+| C1  | `updateRetentionPolicy` | POST   | `/retention-policy/updateRetentionPolicy` | scope-dependent admin | command |
 
 ## 4. Queries
 
-### Q1: `GET /getRetentionPolicy` — `getRetentionPolicy`
+### Q1: `GET /retention-policy/getRetentionPolicy` — `getRetentionPolicy`
 
 **Audience:** Both
 
@@ -53,7 +53,7 @@ Update and read inputs are discriminated by `scope`: `installation` carries a no
 
 ## 5. Commands
 
-### C1: `POST /updateRetentionPolicy` — `updateRetentionPolicy`
+### C1: `POST /retention-policy/updateRetentionPolicy` — `updateRetentionPolicy`
 
 **Audience:** Both
 
@@ -88,7 +88,7 @@ Update and read inputs are discriminated by `scope`: `installation` carries a no
 
 | Auth Level | Meaning                                                     | Procedures |
 | ---------- | ----------------------------------------------------------- | ---------- |
-| `admin`    | Installation admin or Site-management admin as appropriate. | Q1, C1     |
+| `scope-dependent admin` | Installation admin for `installation` scope; Site-management admin for `site` scope. | Q1, C1     |
 
 ## 8. Event Catalog
 

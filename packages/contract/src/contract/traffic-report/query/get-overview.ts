@@ -21,7 +21,7 @@ export type STrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput
 export const getTrafficOverview = oc
   .route({
     method: 'GET',
-    path: '/getTrafficOverview',
+    path: '/traffic-report/getTrafficOverview',
     operationId: 'getTrafficOverview',
     summary: 'Get traffic overview',
     description: 'Provide aggregate traffic and Session metrics for an authorized Site.',

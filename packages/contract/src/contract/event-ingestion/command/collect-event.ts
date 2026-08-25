@@ -17,7 +17,7 @@ export type SCollectEventOutput = v.InferOutput<typeof SCollectEventOutput>
 export const collectEvent = oc
   .route({
     method: 'POST',
-    path: '/collectEvent',
+    path: '/event-ingestion/collectEvent',
     operationId: 'collectEvent',
     summary: 'Collect an event',
     description: `Accept one telemetry Event for processing. New normalized candidates share a FIFO SQLite acceptance coalescer with a ${EVENT_ACCEPTANCE_WINDOW_MS} ms window, a ${EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS}-candidate flush limit, and ${EVENT_ACCEPTANCE_PENDING_MAX_EVENTS} pending-candidate capacity. Successful responses wait for durable SQLite commit; queue admission is not acknowledgment and DuckDB materialization remains asynchronous. The transport adapter measures the raw UTF-8 request body before JSON parsing against the published byte limit.`,

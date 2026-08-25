@@ -10,7 +10,7 @@ export type SBackupRestoreOutput = v.InferOutput<typeof SBackupRestoreOutput>
 export const restoreBackup = oc
   .route({
     method: 'POST',
-    path: '/restoreBackup',
+    path: '/backup-restore/restoreBackup',
     operationId: 'restoreBackup',
     summary: 'Restore a backup',
     description:

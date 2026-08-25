@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { DuckDBInstance } from '@duckdb/node-api'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createAnalyticsDb } from '../index.ts'
+import { createTestAnalyticsDb } from '../../testing/index.ts'
 
 describe('createAnalyticsDb', () => {
   let dir: string
@@ -67,5 +68,14 @@ describe('createAnalyticsDb', () => {
     })
     await expect(second.ready()).resolves.toBe(true)
     await second.close()
+  })
+
+  it('creates a fresh migrated in-memory database and closes it idempotently', async () => {
+    const analytics = await createTestAnalyticsDb()
+
+    await expect(analytics.ready()).resolves.toBe(true)
+    await expect(analytics.close()).resolves.toBeUndefined()
+    await expect(analytics.close()).resolves.toBeUndefined()
+    await expect(analytics.ready()).resolves.toBe(false)
   })
 })

@@ -12,7 +12,7 @@ export type SGoalUpdateOutput = v.InferOutput<typeof SGoalUpdateOutput>
 export const updateGoal = oc
   .route({
     method: 'POST',
-    path: '/updateGoal',
+    path: '/goal/updateGoal',
     operationId: 'updateGoal',
     summary: 'Update a goal',
     description: 'Update mutable fields of an existing Goal definition.',

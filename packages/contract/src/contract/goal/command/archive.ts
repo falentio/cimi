@@ -10,7 +10,7 @@ export type SGoalArchiveOutput = v.InferOutput<typeof SGoalArchiveOutput>
 export const archiveGoal = oc
   .route({
     method: 'POST',
-    path: '/archiveGoal',
+    path: '/goal/archiveGoal',
     operationId: 'archiveGoal',
     summary: 'Archive a goal',
     description: 'Archive a Goal definition while preserving its historical meaning.',

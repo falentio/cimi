@@ -71,7 +71,7 @@ The planned VM execution would have used an explicit working directory and timeo
 
 ## Accepted Container Benchmark
 
-Container sandboxes are the accepted benchmark environment for this research. Database files stay on the sandbox filesystem and no Daytona volume is mounted. Node `v25.9.0` is accepted for benchmark runs.
+Container sandboxes are the accepted benchmark environment for this research. Database files stay on the sandbox filesystem and no Daytona volume is mounted. The recorded runs use Node `v25.9.0`, outside Cimi's supported `>=24.16.0 <25` range; treat that runtime as benchmark-only evidence and rerun on Node 24 before using results as product-runtime parity evidence.
 
 - Profile: 1,000 base rows, 100 mixed rows, three repetitions, three query repetitions, batch sizes 1/100/1000, two readers, one DuckDB thread, and a 128 MiB DuckDB memory limit.
 - Result: 36 runs across all four candidates completed with no mixed-load errors, 1,100 rows after drain, and valid SQLite/DuckDB backup row counts. The raw result was copied to `/tmp/opencode/cimi-storage-benchmark-results-container-1k-r3.json`.
@@ -142,7 +142,7 @@ Closing issue #18 does not imply that ingestion, projection, versioned migration
 - Wayfinder research ticket: closed as issue #18 and indexed under issue #1.
 - Benchmark runner: `packages/db/benchmarks/storage-benchmark.mjs` with the `@cimi/db` `benchmark` script. It covers direct SQLite, direct DuckDB, SQLite journal plus DuckDB projection, synchronous SQLite plus DuckDB dual write, acceptance, deduplication, representative reports, mixed writer/readers/projector load, SQLite online backup, DuckDB checkpoint/copy, retention maintenance, and close/reopen recovery checks.
 - Local smoke validation: 100 rows, one repetition, batch size 10, four candidates, mixed load, and backup verification passed. This is only a harness check on a high-spec workstation and is not benchmark evidence.
-- Container benchmark execution: accepted as the authoritative environment; Node `v25.9.0` is accepted.
+- Container benchmark execution: accepted as the authoritative environment; recorded runs use benchmark-only Node `v25.9.0`, outside the supported `>=24.16.0 <25` product range.
 - Production-parity benchmark: current defaults match SQLite/DuckDB client settings and the adopted 500-row acceptance flush; the recorded full artifacts are historical 1,000-row runs completed on both 1 GiB and 2 GiB containers.
 - Production client audit: SQLite durability/concurrency pragmas, DuckDB resource/spill limits, explicit DuckDB close checkpoints, and coordinated frontend database shutdown are implemented and covered by focused tests. Astro standalone signal wiring remains host-runtime work.
 - VM execution: intentionally out of scope because Linux VM runners are unavailable in the configured regions.

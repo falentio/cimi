@@ -10,7 +10,7 @@ export type SInstallationUpgradeOutput = v.InferOutput<typeof SInstallationUpgra
 export const upgradeInstallation = oc
   .route({
     method: 'POST',
-    path: '/upgradeInstallation',
+    path: '/installation/upgradeInstallation',
     operationId: 'upgradeInstallation',
     summary: 'Upgrade installation',
     description:

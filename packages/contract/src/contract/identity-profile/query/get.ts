@@ -10,7 +10,7 @@ export type SProfileGetOutput = v.InferOutput<typeof SProfileGetOutput>
 export const getProfile = oc
   .route({
     method: 'GET',
-    path: '/getProfile',
+    path: '/identity-profile/getProfile',
     operationId: 'getProfile',
     summary: 'Get a profile',
     description:

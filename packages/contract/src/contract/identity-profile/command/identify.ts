@@ -15,7 +15,7 @@ export type SIdentifyOutput = v.InferOutput<typeof SIdentifyOutput>
 export const identify = oc
   .route({
     method: 'POST',
-    path: '/identify',
+    path: '/identity-profile/identify',
     operationId: 'identify',
     summary: 'Identify a profile',
     description:

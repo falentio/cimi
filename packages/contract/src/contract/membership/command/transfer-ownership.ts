@@ -14,7 +14,7 @@ export type SMembershipTransferOwnershipOutput = v.InferOutput<
 export const transferOrganizationOwnership = oc
   .route({
     method: 'POST',
-    path: '/transferOrganizationOwnership',
+    path: '/membership/transferOrganizationOwnership',
     operationId: 'transferOrganizationOwnership',
     summary: 'Transfer organization ownership',
     description:

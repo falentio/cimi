@@ -1,3 +1,4 @@
+import { isContractProcedure } from '@orpc/contract'
 import { describe, expect, it } from 'vitest'
 import { contract } from '../contract.ts'
 
@@ -130,6 +131,11 @@ const expectedErrors: Record<string, ErrorMap> = {
   'goal.updateGoal': definitionCreateOrUpdate,
   'goal.archiveGoal': definitionArchive,
   'health.health': catalog('INTERNAL_SERVER_ERROR'),
+  'hello.list': catalog('BAD_REQUEST'),
+  'hello.get': catalog('BAD_REQUEST', 'NOT_FOUND'),
+  'hello.world': catalog('BAD_REQUEST'),
+  'hello.create': catalog('BAD_REQUEST', 'UNAUTHORIZED'),
+  'hello.remove': catalog('BAD_REQUEST', 'UNAUTHORIZED', 'NOT_FOUND'),
   'identityProfile.listProfiles': catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST'),
   'identityProfile.getProfile': administratorRead,
   'identityProfile.getDeletionStatus': administratorRead,
@@ -273,12 +279,84 @@ const getErrorMap = (path: string): ErrorMap => {
   return procedure['~orpc'].errorMap
 }
 
+const getMissingSuccessStatuses = (node: unknown, path: string[] = []): string[] => {
+  if (isContractProcedure(node)) {
+    return node['~orpc'].route.successStatus === undefined ? [path.join('.')] : []
+  }
+
+  if (node === null || typeof node !== 'object') return []
+
+  return Object.entries(node).flatMap(([key, value]) =>
+    getMissingSuccessStatuses(value, [...path, key]),
+  )
+}
+
+const resourcePaths = {
+  backupRestore: 'backup-restore',
+  cohortRetention: 'cohort-retention',
+  collectionPolicy: 'collection-policy',
+  eventIngestion: 'event-ingestion',
+  eventReport: 'event-report',
+  funnel: 'funnel',
+  goal: 'goal',
+  health: 'system',
+  hello: 'hello',
+  identityProfile: 'identity-profile',
+  installation: 'installation',
+  invitation: 'invitation',
+  membership: 'membership',
+  organization: 'organization',
+  publicDashboard: 'public-dashboard',
+  retentionPolicy: 'retention-policy',
+  site: 'site',
+  trafficReport: 'traffic-report',
+} as const
+
+const getRoutes = (
+  node: unknown,
+  path: string[] = [],
+): Array<{ contractPath: string; method: string; routePath: string }> => {
+  if (isContractProcedure(node)) {
+    const route = node['~orpc'].route
+    if (route.method === undefined || route.path === undefined) {
+      throw new Error(`Procedure at ${path.join('.')} is missing route metadata`)
+    }
+
+    return [{ contractPath: path.join('.'), method: route.method, routePath: route.path }]
+  }
+
+  if (node === null || typeof node !== 'object') return []
+
+  return Object.entries(node).flatMap(([key, value]) => getRoutes(value, [...path, key]))
+}
+
 describe('procedure error declarations', () => {
   it('matches every route to its documented exhaustive error catalog', () => {
-    expect(Object.keys(expectedErrors)).toHaveLength(71)
+    expect(Object.keys(expectedErrors)).toHaveLength(76)
 
     for (const [path, expected] of Object.entries(expectedErrors)) {
       expect(getErrorMap(path), path).toEqual(expected)
+    }
+  })
+
+  it('requires every procedure to declare an explicit success status', () => {
+    expect(getMissingSuccessStatuses(contract)).toEqual([])
+  })
+
+  it('namespaces every procedure route by resource and operation', () => {
+    const routes = getRoutes(contract)
+    const routeKeys = new Set<string>()
+
+    expect(routes).toHaveLength(76)
+
+    for (const { contractPath, method, routePath } of routes) {
+      const [resource, operation] = contractPath.split('.') as [keyof typeof resourcePaths, string]
+      const expectedPath = `/${resourcePaths[resource]}/${operation}`
+      const routeKey = `${method} ${routePath}`
+
+      expect(routePath).toBe(expectedPath)
+      expect(routeKeys.has(routeKey), routeKey).toBe(false)
+      routeKeys.add(routeKey)
     }
   })
 })

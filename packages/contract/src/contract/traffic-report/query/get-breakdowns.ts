@@ -36,7 +36,7 @@ export type STrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOu
 export const getTrafficBreakdowns = oc
   .route({
     method: 'GET',
-    path: '/getTrafficBreakdowns',
+    path: '/traffic-report/getTrafficBreakdowns',
     operationId: 'getTrafficBreakdowns',
     summary: 'Get traffic breakdowns',
     description: 'Return bounded traffic dimension breakdowns for an authorized Site.',

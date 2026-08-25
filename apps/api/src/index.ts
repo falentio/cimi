@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
-import { implement } from '@orpc/server'
 import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
-import { onError } from '@orpc/server'
+import { onError, implement } from '@orpc/server'
 import { contract } from '@cimi/contract'
 import type { Db } from '@cimi/db'
-import type { Auth } from '@cimi/auth/server'
+import type { Auth, AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
+import { createHello, helloRouter, type HelloApiContext } from './resources/hello/index.ts'
 import { systemHealthHandler, type HealthLifecycle } from './health.ts'
 
 export interface CreateApiAppDependencies {
@@ -19,10 +19,19 @@ export interface CreateApiAppDependencies {
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): Hono {
-  // Resource handlers are added incrementally; health is the only implemented route today.
-  const router = implement(contract).router({
+  const api = implement(contract).$context<HelloApiContext>()
+  const hello = createHello({ db: deps.db })
+  const helloHandlers = helloRouter(hello.service)
+  const router = api.router({
     health: {
-      health: implement(contract).health.health.handler(async () => systemHealthHandler(deps)),
+      health: api.health.health.handler(async () => systemHealthHandler(deps)),
+    },
+    hello: {
+      list: api.hello.list.handler(helloHandlers.list),
+      get: api.hello.get.handler(helloHandlers.get),
+      world: api.hello.world.handler(helloHandlers.world),
+      create: api.hello.create.handler(helloHandlers.create),
+      remove: api.hello.remove.handler(helloHandlers.remove),
     },
   } as never)
 
@@ -54,11 +63,20 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
   app.on(['GET', 'POST', 'OPTIONS'], '/api/*', async (c) => {
     const { matched, response } = await openAPIHandler.handle(c.req.raw, {
       prefix: '/api',
-      context: {},
+      context: { user: await getUser(deps.auth, c.req.raw) },
     })
     if (matched && response) return response
     return new Response('Not Found', { status: 404 })
   })
 
   return app
+}
+
+async function getUser(auth: Auth, request: Request): Promise<AuthUser | undefined> {
+  try {
+    const session = await auth.api.getSession({ headers: request.headers })
+    return session?.user
+  } catch {
+    return undefined
+  }
 }

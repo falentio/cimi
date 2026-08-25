@@ -1,4 +1,5 @@
 export { TAccount, TSession, TUser, TVerification } from './auth.ts'
+export { THello } from './hello.ts'
 export {
   TAcceptedEvent,
   TCollectionPolicyRevision,

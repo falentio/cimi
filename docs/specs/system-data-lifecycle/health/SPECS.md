@@ -25,8 +25,8 @@ The canonical procedure is `health`; its explicit OpenAPI route is `GET /system/
 | `controlStore`   | `storeHealth`  | `ready`, `degraded`, `rebuilding`, or `unavailable` SQLite/control state.  |
 | `analyticsStore` | `storeHealth`  | `ready`, `degraded`, `rebuilding`, or `unavailable` DuckDB state.           |
 | `cleanupPending` | `boolean`      | Historical retention/deletion cleanup remains after structural readiness. |
-| `version`        | `string256`    | Application version.                                                      |
-| `checkedAt`      | `dateTime`     | Server check time.                                                        |
+| `version`        | bounded string (1-256 chars) | Application version.                                           |
+| `checkedAt`      | `SDateTime`    | Server check time.                                                        |
 
 ### Health state matrix
 

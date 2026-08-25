@@ -10,7 +10,7 @@ export type SRetentionPolicyGetOutput = v.InferOutput<typeof SRetentionPolicyGet
 export const getRetentionPolicy = oc
   .route({
     method: 'GET',
-    path: '/getRetentionPolicy',
+    path: '/retention-policy/getRetentionPolicy',
     operationId: 'getRetentionPolicy',
     summary: 'Get retention policy',
     description: 'Return installation, Site override, and effective retention values.',

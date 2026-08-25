@@ -27,15 +27,15 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 | Field | Schema | Description |
 | --- | --- | --- |
-| `siteId` | `nanoid` | Site scope. |
+| `siteId` | `SId` | Site scope. |
 | `identifiedUserId` | `opaqueUserId` | Application-supplied stable opaque identifier. |
 | `traits` | `scalarTraitMap` | Bounded string, number, boolean, or null values. The compact JSON serialization is at most 16 KiB of UTF-8 bytes. |
 | `aliases` | `aliasList` | Site-scoped Anonymous Identity links. |
 | `status` | `profileDeletionStatus` | Active or deletion lifecycle state. |
 | `profileEpoch` | positive integer (active only) | Current Profile Epoch number; a later re-identification after redaction uses a higher number. |
 | `identityHistory` | bounded `profileEpoch` list (active only) | At most 32 typed epochs. Active epochs have `endedAt: null`; redacted epochs have an end timestamp. |
-| `firstSeenAt` / `lastSeenAt` | `coercedDate` | Derived activity timestamps. |
-| `createdAt` / `updatedAt` | `coercedDate` | Profile lifecycle timestamps. |
+| `firstSeenAt` / `lastSeenAt` | `SDateTime` | Derived activity timestamps. |
+| `createdAt` / `updatedAt` | `SDateTime` | Profile lifecycle timestamps. |
 
 ## 3. Endpoint Quick Index
 
@@ -43,15 +43,15 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 | # | Procedure | Method | Path | Auth | CQRS |
 | --- | --- | --- | --- | --- | --- |
-| Q1 | `listProfiles` | GET | `/listProfiles` | authenticated | query |
-| Q2 | `getProfile` | GET | `/getProfile` | authenticated | query |
-| Q3 | `getDeletionStatus` | GET | `/getDeletionStatus` | authenticated | query |
-| C1 | `identify` | POST | `/identify` | public | command |
-| C2 | `requestProfileDeletion` | POST | `/requestProfileDeletion` | admin | command |
+| Q1 | `listProfiles` | GET | `/identity-profile/listProfiles` | authenticated | query |
+| Q2 | `getProfile` | GET | `/identity-profile/getProfile` | authenticated | query |
+| Q3 | `getDeletionStatus` | GET | `/identity-profile/getDeletionStatus` | authenticated | query |
+| C1 | `identify` | POST | `/identity-profile/identify` | public | command |
+| C2 | `requestProfileDeletion` | POST | `/identity-profile/requestProfileDeletion` | admin | command |
 
 ## 4. Queries
 
-### Q1: `GET /listProfiles` — `listProfiles`
+### Q1: `GET /identity-profile/listProfiles` — `listProfiles`
 
 **Audience:** Both
 
@@ -61,7 +61,7 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 
-### Q2: `GET /getProfile` — `getProfile`
+### Q2: `GET /identity-profile/getProfile` — `getProfile`
 
 **Audience:** Both
 
@@ -71,7 +71,7 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404).
 
-### Q3: `GET /getDeletionStatus` — `getDeletionStatus`
+### Q3: `GET /identity-profile/getDeletionStatus` — `getDeletionStatus`
 
 **Audience:** Both
 
@@ -83,7 +83,7 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 ## 5. Commands
 
-### C1: `POST /identify` — `identify`
+### C1: `POST /identity-profile/identify` — `identify`
 
 **Audience:** Both
 
@@ -95,7 +95,7 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 **Errors:** `BAD_REQUEST` (400), `FORBIDDEN` (403 for generic collection-policy refusal), `NOT_FOUND` (404 for invalid Ingestion Identifier or non-active Site), `CONFLICT` (409 for a profile in deletion), `PAYLOAD_TOO_LARGE` (413), `TOO_MANY_REQUESTS` (429).
 
-### C2: `POST /requestProfileDeletion` — `requestProfileDeletion`
+### C2: `POST /identity-profile/requestProfileDeletion` — `requestProfileDeletion`
 
 **Audience:** Both
 

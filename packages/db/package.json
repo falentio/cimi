@@ -8,7 +8,8 @@
     "./client": "./src/client.ts",
     "./schema": "./src/schema/index.ts",
     "./duckdb": "./src/duckdb/index.ts",
-    "./migrate": "./src/migrate.ts"
+    "./migrate": "./src/migrate.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "benchmark": "node benchmarks/storage-benchmark.mjs",

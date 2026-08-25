@@ -21,8 +21,8 @@ This resource is stateless and read-only.
 
 | Field                       | Schema                                          | Description                                                               |
 | --------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `siteId`                    | `nanoid`                                        | Site scope.                                                               |
-| `fromDate` / `toDate`       | `siteDate`                                      | Inclusive Site-local calendar range resolved through `reportingTimezone`. |
+| `siteId`                    | `SId`                                           | Site scope.                                                               |
+| `fromDate` / `toDate`       | `SDate`                                         | Inclusive Site-local calendar range resolved through `reportingTimezone`. |
 | `eventKind`                 | `eventKind`                                     | One of the standard kinds.                                                |
 | `granularity`               | `granularity`                                   | Required for Q2 timeseries and bounded by the requested range.            |
 | `filters`                   | `eventFilterAllowlist`                          | Typed event/name/property filters plus authenticated same-range action-presence filters. |
@@ -34,14 +34,14 @@ This resource is stateless and read-only.
 
 | #   | Procedure            | Method | Path                  | Auth          | CQRS  |
 | --- | -------------------- | ------ | --------------------- | ------------- | ----- |
-| Q1  | `getEventOverview`   | GET    | `/getEventOverview`   | authenticated | query |
-| Q2  | `getEventTimeseries` | GET    | `/getEventTimeseries` | authenticated | query |
-| Q3  | `listEvents`         | GET    | `/listEvents`         | authenticated | query |
-| Q4  | `getEventBreakdowns` | GET    | `/getEventBreakdowns` | authenticated | query |
+| Q1  | `getEventOverview`   | GET    | `/event-report/getEventOverview`   | authenticated | query |
+| Q2  | `getEventTimeseries` | GET    | `/event-report/getEventTimeseries` | authenticated | query |
+| Q3  | `listEvents`         | GET    | `/event-report/listEvents`         | authenticated | query |
+| Q4  | `getEventBreakdowns` | GET    | `/event-report/getEventBreakdowns` | authenticated | query |
 
 ## 4. Queries
 
-### Q1: `GET /getEventOverview` — `getEventOverview`
+### Q1: `GET /event-report/getEventOverview` — `getEventOverview`
 
 **Audience:** Both
 
@@ -51,7 +51,7 @@ This resource is stateless and read-only.
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422), `SERVICE_UNAVAILABLE` (503). An absent or inaccessible Site is indistinguishable from an unknown Site and never returns `FORBIDDEN`.
 
-### Q2: `GET /getEventTimeseries` — `getEventTimeseries`
+### Q2: `GET /event-report/getEventTimeseries` — `getEventTimeseries`
 
 **Audience:** Both
 
@@ -61,7 +61,7 @@ This resource is stateless and read-only.
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422), `SERVICE_UNAVAILABLE` (503). An absent or inaccessible Site is indistinguishable from an unknown Site and never returns `FORBIDDEN`.
 
-### Q3: `GET /listEvents` — `listEvents`
+### Q3: `GET /event-report/listEvents` — `listEvents`
 
 **Audience:** Both
 
@@ -71,7 +71,7 @@ This resource is stateless and read-only.
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422), `SERVICE_UNAVAILABLE` (503). An absent or inaccessible Site is indistinguishable from an unknown Site and never returns `FORBIDDEN`.
 
-### Q4: `GET /getEventBreakdowns` — `getEventBreakdowns`
+### Q4: `GET /event-report/getEventBreakdowns` — `getEventBreakdowns`
 
 **Audience:** Both
 

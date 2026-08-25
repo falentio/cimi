@@ -15,7 +15,7 @@ export type SSiteRecoverOutput = v.InferOutput<typeof SSiteRecoverOutput>
 export const recoverSite = oc
   .route({
     method: 'POST',
-    path: '/recoverSite',
+    path: '/site/recoverSite',
     operationId: 'recoverSite',
     summary: 'Recover a site',
     description:

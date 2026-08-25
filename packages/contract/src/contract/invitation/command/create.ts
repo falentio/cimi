@@ -13,7 +13,7 @@ export type SInvitationCreateOutput = v.InferOutput<typeof SInvitationCreateOutp
 export const createInvitation = oc
   .route({
     method: 'POST',
-    path: '/createInvitation',
+    path: '/invitation/createInvitation',
     operationId: 'createInvitation',
     summary: 'Create an invitation',
     description:

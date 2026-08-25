@@ -21,10 +21,10 @@ This resource is stateless. It never mutates Events, identity, or Session bounda
 
 | Field                       | Schema                                          | Description                                                               |
 | --------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `siteId`                    | `nanoid`                                        | Site scope.                                                               |
-| `fromDate` / `toDate`       | `siteDate`                                      | Inclusive Site-local calendar range resolved through `reportingTimezone`. |
+| `siteId`                    | `SId`                                           | Site scope.                                                               |
+| `fromDate` / `toDate`       | `SDate`                                         | Inclusive Site-local calendar range resolved through `reportingTimezone`. |
 | `granularity`               | `trafficGranularity`                            | Procedure-specific bucket valid for the range.                            |
-| `filters`                   | `trafficFilterPredicate`                        | Bounded JSON predicates with explicit scope.                              |
+| `filters`                   | `SScopedQueryFilter[]`                          | Bounded predicates with explicit scope.                                   |
 | `dimension`                 | `trafficDimension`                              | Required breakdown dimension for Q2.                                      |
 | `sort` / `offset` / `limit` | `querySort` / `nonNegativeInteger` / `pageSize` | Used by live breakdown pages.                                             |
 
@@ -34,12 +34,12 @@ This resource is stateless. It never mutates Events, identity, or Session bounda
 
 | #   | Procedure              | Method | Path                    | Auth          | CQRS  |
 | --- | ---------------------- | ------ | ----------------------- | ------------- | ----- |
-| Q1  | `getTrafficOverview`   | GET    | `/getTrafficOverview`   | authenticated | query |
-| Q2  | `getTrafficBreakdowns` | GET    | `/getTrafficBreakdowns` | authenticated | query |
+| Q1  | `getTrafficOverview`   | GET    | `/traffic-report/getTrafficOverview`   | authenticated | query |
+| Q2  | `getTrafficBreakdowns` | GET    | `/traffic-report/getTrafficBreakdowns` | authenticated | query |
 
 ## 4. Queries
 
-### Q1: `GET /getTrafficOverview` — `getTrafficOverview`
+### Q1: `GET /traffic-report/getTrafficOverview` — `getTrafficOverview`
 
 **Audience:** Both
 
@@ -49,7 +49,7 @@ This resource is stateless. It never mutates Events, identity, or Session bounda
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400), `QUERY_LIMIT_EXCEEDED` (422), `SERVICE_UNAVAILABLE` (503). An absent or inaccessible Site is indistinguishable from an unknown Site and never returns `FORBIDDEN`.
 
-### Q2: `GET /getTrafficBreakdowns` — `getTrafficBreakdowns`
+### Q2: `GET /traffic-report/getTrafficBreakdowns` — `getTrafficBreakdowns`
 
 **Audience:** Both
 

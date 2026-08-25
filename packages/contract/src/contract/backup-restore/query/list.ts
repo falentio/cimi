@@ -13,7 +13,7 @@ export type SBackupListOutput = v.InferOutput<typeof SBackupListOutput>
 export const listBackups = oc
   .route({
     method: 'GET',
-    path: '/listBackups',
+    path: '/backup-restore/listBackups',
     operationId: 'listBackups',
     summary: 'List backups',
     description: 'List configured backup manifests and their current statuses.',

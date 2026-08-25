@@ -10,7 +10,7 @@ export type SPublicDashboardDisableOutput = v.InferOutput<typeof SPublicDashboar
 export const disablePublicDashboard = oc
   .route({
     method: 'POST',
-    path: '/disablePublicDashboard',
+    path: '/public-dashboard/disablePublicDashboard',
     operationId: 'disablePublicDashboard',
     summary: 'Disable public dashboard',
     description: 'Disable public aggregate access and invalidate the current dashboard identifier.',

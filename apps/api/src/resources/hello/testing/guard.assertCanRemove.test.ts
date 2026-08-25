@@ -1,0 +1,16 @@
+import { describe, expect, it } from 'vitest'
+import { createHelloFixture } from '../fixtures.ts'
+
+describe('HelloGuard.assertCanRemove', () => {
+  it('allows the record owner and hides missing or foreign records', async () => {
+    const { guard } = createHelloFixture()
+
+    await expect(guard.assertCanRemove({ id: 'user_1' }, 'hello_1')).resolves.toBeUndefined()
+    await expect(guard.assertCanRemove({ id: 'user_2' }, 'hello_1')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+    await expect(guard.assertCanRemove({ id: 'user_1' }, 'missing')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+  })
+})

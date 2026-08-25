@@ -14,7 +14,7 @@ export type SOrganizationEnsurePersonalOutput = v.InferOutput<
 export const ensurePersonalOrganization = oc
   .route({
     method: 'POST',
-    path: '/ensurePersonalOrganization',
+    path: '/organization/ensurePersonalOrganization',
     operationId: 'ensurePersonalOrganization',
     summary: 'Ensure personal organization',
     description: "Idempotently obtain the current user's Personal Organization.",

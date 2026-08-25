@@ -28,7 +28,7 @@ export type SEventBreakdownsOutput = v.InferOutput<typeof SEventBreakdownsOutput
 export const getEventBreakdowns = oc
   .route({
     method: 'GET',
-    path: '/getEventBreakdowns',
+    path: '/event-report/getEventBreakdowns',
     operationId: 'getEventBreakdowns',
     summary: 'Get event breakdowns',
     description: 'Provide bounded reports for standard Event dimensions.',

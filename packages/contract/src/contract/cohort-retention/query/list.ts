@@ -15,7 +15,7 @@ export type SCohortListOutput = v.InferOutput<typeof SCohortListOutput>
 export const listCohorts = oc
   .route({
     method: 'GET',
-    path: '/listCohorts',
+    path: '/cohort-retention/listCohorts',
     operationId: 'listCohorts',
     summary: 'List cohorts',
     description: 'List saved cohort definitions visible within the authorized Site scope.',

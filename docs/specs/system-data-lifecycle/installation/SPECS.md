@@ -40,7 +40,7 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 | `cleanupPending` | `boolean` | Historical retention/deletion work remains after structural readiness. |
 | `derivedCleanup` | `cleanupStage` | Active-derived/live cleanup status, timestamp, and safe error. |
 | `backupCleanup` | `cleanupStage` | Historical-backup cleanup status, timestamp, and safe error; it starts only after derived cleanup completes. |
-| `updatedAt` | `coercedDate` | Status timestamp. |
+| `updatedAt` | `SDateTime` | Status timestamp. |
 
 `cleanupStage.status` is `not_applicable`, `not_started`, `pending`, `running`, `completed`, or `failed`. A stage exposes `startedAt`, `completedAt`, and a safe `errorCode` consistent with that status. `cleanupPending` is true while either applicable stage is not complete.
 
@@ -50,13 +50,13 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 | # | Procedure | Method | Path | Auth | CQRS |
 | --- | --- | --- | --- | --- | --- |
-| Q1 | `getInstallationStatus` | GET | `/getInstallationStatus` | admin | query |
-| C1 | `initializeInstallation` | POST | `/initializeInstallation` | admin | command |
-| C2 | `upgradeInstallation` | POST | `/upgradeInstallation` | admin | command |
+| Q1 | `getInstallationStatus` | GET | `/installation/getInstallationStatus` | admin | query |
+| C1 | `initializeInstallation` | POST | `/installation/initializeInstallation` | admin | command |
+| C2 | `upgradeInstallation` | POST | `/installation/upgradeInstallation` | admin | command |
 
 ## 4. Queries
 
-### Q1: `GET /getInstallationStatus` — `getInstallationStatus`
+### Q1: `GET /installation/getInstallationStatus` — `getInstallationStatus`
 
 **Audience:** Both
 
@@ -68,7 +68,7 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 ## 5. Commands
 
-### C1: `POST /initializeInstallation` — `initializeInstallation`
+### C1: `POST /installation/initializeInstallation` — `initializeInstallation`
 
 **Audience:** Both
 
@@ -80,7 +80,7 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `CONFLICT` (409 if initialization is already in an incompatible state), `INTERNAL_SERVER_ERROR` (500).
 
-### C2: `POST /upgradeInstallation` — `upgradeInstallation`
+### C2: `POST /installation/upgradeInstallation` — `upgradeInstallation`
 
 **Audience:** Both
 

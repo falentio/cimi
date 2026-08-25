@@ -16,7 +16,7 @@ export type SDeletionStatusOutput = v.InferOutput<typeof SDeletionStatusOutput>
 export const getDeletionStatus = oc
   .route({
     method: 'GET',
-    path: '/getDeletionStatus',
+    path: '/identity-profile/getDeletionStatus',
     operationId: 'getDeletionStatus',
     summary: 'Get profile deletion status',
     description: 'Report asynchronous deletion progress for a Site-scoped identity profile.',

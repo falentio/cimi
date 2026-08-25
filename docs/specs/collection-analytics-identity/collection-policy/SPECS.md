@@ -24,7 +24,7 @@ Persistence keeps `scope` and `siteId` consistent: installation rows have no `si
 | Field | Schema | Description |
 | --- | --- | --- |
 | `scope` | `installation` or `site` | Discriminator for an installation default or Site override. |
-| `siteId` | `nanoid` | Required only for a Site-scoped policy. |
+| `siteId` | `SId` | Required only for a Site-scoped policy. |
 | `anonymousCollection` | `collectionMode` | Default anonymous cookieless collection posture. |
 | `honorGpcDnt` | `boolean` | Whether GPC/DNT suppresses collection unless explicitly overridden by the Site. |
 | `consentMode` | `consentMode` | Whether consent is required for identity/Traits/replay or for all collection. |
@@ -49,12 +49,12 @@ When `honorGpcDnt` is true, either active signal suppresses collection before ac
 
 | # | Procedure | Method | Path | Auth | CQRS |
 | --- | --- | --- | --- | --- | --- |
-| Q1 | `getCollectionPolicy` | GET | `/getCollectionPolicy` | admin | query |
-| C1 | `updateCollectionPolicy` | POST | `/updateCollectionPolicy` | scope-dependent admin | command |
+| Q1 | `getCollectionPolicy` | GET | `/collection-policy/getCollectionPolicy` | admin | query |
+| C1 | `updateCollectionPolicy` | POST | `/collection-policy/updateCollectionPolicy` | scope-dependent admin | command |
 
 ## 4. Queries
 
-### Q1: `GET /getCollectionPolicy` — `getCollectionPolicy`
+### Q1: `GET /collection-policy/getCollectionPolicy` — `getCollectionPolicy`
 
 **Audience:** Both
 
@@ -66,7 +66,7 @@ When `honorGpcDnt` is true, either active signal suppresses collection before ac
 
 ## 5. Commands
 
-### C1: `POST /updateCollectionPolicy` — `updateCollectionPolicy`
+### C1: `POST /collection-policy/updateCollectionPolicy` — `updateCollectionPolicy`
 
 **Audience:** Both
 

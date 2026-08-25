@@ -43,7 +43,7 @@ export type SSiteDeletionStatusOutput = v.InferOutput<typeof SSiteDeletionStatus
 export const getSiteDeletionStatus = oc
   .route({
     method: 'GET',
-    path: '/getSiteDeletionStatus',
+    path: '/site/getSiteDeletionStatus',
     operationId: 'getSiteDeletionStatus',
     summary: 'Get site deletion status',
     description:

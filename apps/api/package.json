@@ -14,11 +14,14 @@
     "@cimi/auth": "workspace:*",
     "@cimi/contract": "workspace:*",
     "@cimi/db": "workspace:*",
+    "@cimi/guard": "workspace:*",
     "@cimi/utils": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/valibot": "catalog:",
-    "hono": "catalog:"
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "valibot": "catalog:"
   },
   "devDependencies": {
     "@cimi/testing": "workspace:*",

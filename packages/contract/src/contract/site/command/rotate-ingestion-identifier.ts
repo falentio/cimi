@@ -10,7 +10,7 @@ export type SSiteRotateIngestionOutput = v.InferOutput<typeof SSiteRotateIngesti
 export const rotateIngestionIdentifier = oc
   .route({
     method: 'POST',
-    path: '/rotateIngestionIdentifier',
+    path: '/site/rotateIngestionIdentifier',
     operationId: 'rotateIngestionIdentifier',
     summary: 'Rotate ingestion identifier',
     description:

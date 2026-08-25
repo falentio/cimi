@@ -53,8 +53,8 @@ The shared Event envelope is a strict discriminated union defined by the Event, 
 
 | #   | Procedure       | Method | Path             | Auth   | CQRS    |
 | --- | --------------- | ------ | ---------------- | ------ | ------- |
-| C1  | `collectEvent`  | POST   | `/collectEvent`  | public | command |
-| C2  | `collectEvents` | POST   | `/collectEvents` | public | command |
+| C1  | `collectEvent`  | POST   | `/event-ingestion/collectEvent`  | public | command |
+| C2  | `collectEvents` | POST   | `/event-ingestion/collectEvents` | public | command |
 
 ## 4. Queries
 
@@ -62,7 +62,7 @@ This resource has no queries.
 
 ## 5. Commands
 
-### C1: `POST /collectEvent` — `collectEvent`
+### C1: `POST /event-ingestion/collectEvent` — `collectEvent`
 
 **Audience:** Both
 
@@ -76,7 +76,7 @@ Pageviews emit once for initial document load and once per actual SPA route tran
 
 **Errors:** `BAD_REQUEST` (400), `FORBIDDEN` (403 for generic collection-policy refusal), `NOT_FOUND` (404 for invalid Ingestion Identifier), `CONFLICT` (409 for an Event ID payload collision), `PAYLOAD_TOO_LARGE` (413), `TOO_MANY_REQUESTS` (429), `SERVICE_UNAVAILABLE` (503 when the acceptance boundary is unavailable).
 
-### C2: `POST /collectEvents` — `collectEvents`
+### C2: `POST /event-ingestion/collectEvents` — `collectEvents`
 
 **Audience:** Both
 

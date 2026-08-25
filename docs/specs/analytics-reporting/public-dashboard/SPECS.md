@@ -29,10 +29,10 @@ The raw public identifier is first-party durable configuration, while its hash r
 
 | Field                       | Schema                   | Description                                         |
 | --------------------------- | ------------------------ | --------------------------------------------------- |
-| `siteId`                    | `nanoid`                 | Site scope.                                         |
+| `siteId`                    | `SId`                    | Site scope.                                         |
 | `enabled`                   | `boolean`                | Whether the public URL currently resolves.          |
-| `publicDashboardIdentifier` | `randomPublicIdentifier` | Public URL selector, never a management credential. |
-| `updatedAt`                 | `coercedDate`            | Configuration timestamp.                            |
+| `publicDashboardIdentifier` | bounded string (1-128 chars) | In-house generated public URL selector, never a management credential. |
+| `updatedAt`                 | `SPublicAbsoluteDateTime` | Configuration timestamp.                            |
 
 Public Query output contains only approved aggregate metric/dimension values and suppression-safe empty results.
 
@@ -47,15 +47,15 @@ Dimension keys preserve the source canonical bound of 2,048 characters.
 
 | #   | Procedure                         | Method | Path                               | Auth   | CQRS    |
 | --- | --------------------------------- | ------ | ---------------------------------- | ------ | ------- |
-| Q1  | `getPublicDashboardConfig`        | GET    | `/getPublicDashboardConfig`        | admin  | query   |
-| Q2  | `queryPublicDashboard`            | GET    | `/queryPublicDashboard`            | public | query   |
-| C1  | `enablePublicDashboard`           | POST   | `/enablePublicDashboard`           | admin  | command |
-| C2  | `disablePublicDashboard`          | POST   | `/disablePublicDashboard`          | admin  | command |
-| C3  | `rotatePublicDashboardIdentifier` | POST   | `/rotatePublicDashboardIdentifier` | admin  | command |
+| Q1  | `getPublicDashboardConfig`        | GET    | `/public-dashboard/getPublicDashboardConfig`        | admin  | query   |
+| Q2  | `queryPublicDashboard`            | GET    | `/public-dashboard/queryPublicDashboard`            | public | query   |
+| C1  | `enablePublicDashboard`           | POST   | `/public-dashboard/enablePublicDashboard`           | admin  | command |
+| C2  | `disablePublicDashboard`          | POST   | `/public-dashboard/disablePublicDashboard`          | admin  | command |
+| C3  | `rotatePublicDashboardIdentifier` | POST   | `/public-dashboard/rotatePublicDashboardIdentifier` | admin  | command |
 
 ## 4. Queries
 
-### Q1: `GET /getPublicDashboardConfig` — `getPublicDashboardConfig`
+### Q1: `GET /public-dashboard/getPublicDashboardConfig` — `getPublicDashboardConfig`
 
 **Audience:** Both
 
@@ -65,7 +65,7 @@ Dimension keys preserve the source canonical bound of 2,048 characters.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404).
 
-### Q2: `GET /queryPublicDashboard` — `queryPublicDashboard`
+### Q2: `GET /public-dashboard/queryPublicDashboard` — `queryPublicDashboard`
 
 **Audience:** Both
 
@@ -93,7 +93,7 @@ controls.
 
 ## 5. Commands
 
-### C1: `POST /enablePublicDashboard` — `enablePublicDashboard`
+### C1: `POST /public-dashboard/enablePublicDashboard` — `enablePublicDashboard`
 
 **Audience:** Both
 
@@ -105,7 +105,7 @@ controls.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409).
 
-### C2: `POST /disablePublicDashboard` — `disablePublicDashboard`
+### C2: `POST /public-dashboard/disablePublicDashboard` — `disablePublicDashboard`
 
 **Audience:** Both
 
@@ -117,7 +117,7 @@ controls.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404).
 
-### C3: `POST /rotatePublicDashboardIdentifier` — `rotatePublicDashboardIdentifier`
+### C3: `POST /public-dashboard/rotatePublicDashboardIdentifier` — `rotatePublicDashboardIdentifier`
 
 **Audience:** Both
 

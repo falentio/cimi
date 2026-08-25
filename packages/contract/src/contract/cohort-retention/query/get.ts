@@ -10,7 +10,7 @@ export type SCohortGetOutput = v.InferOutput<typeof SCohortGetOutput>
 export const getCohort = oc
   .route({
     method: 'GET',
-    path: '/getCohort',
+    path: '/cohort-retention/getCohort',
     operationId: 'getCohort',
     summary: 'Get a cohort',
     description: 'Return one cohort definition after Site authorization.',

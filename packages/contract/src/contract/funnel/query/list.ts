@@ -15,7 +15,7 @@ export type SFunnelListOutput = v.InferOutput<typeof SFunnelListOutput>
 export const listFunnels = oc
   .route({
     method: 'GET',
-    path: '/listFunnels',
+    path: '/funnel/listFunnels',
     operationId: 'listFunnels',
     summary: 'List funnels',
     description: 'List persisted Funnel definitions visible within the authorized Site scope.',

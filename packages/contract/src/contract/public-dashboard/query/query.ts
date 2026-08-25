@@ -35,7 +35,7 @@ export type SPublicDashboardQueryOutput = v.InferOutput<typeof SPublicDashboardQ
 export const queryPublicDashboard = oc
   .route({
     method: 'GET',
-    path: '/queryPublicDashboard',
+    path: '/public-dashboard/queryPublicDashboard',
     operationId: 'queryPublicDashboard',
     summary: 'Query public dashboard',
     description:

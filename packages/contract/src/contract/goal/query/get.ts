@@ -10,7 +10,7 @@ export type SGoalGetOutput = v.InferOutput<typeof SGoalGetOutput>
 export const getGoal = oc
   .route({
     method: 'GET',
-    path: '/getGoal',
+    path: '/goal/getGoal',
     operationId: 'getGoal',
     summary: 'Get a goal',
     description: 'Return one Goal definition after Site authorization.',
