@@ -12,6 +12,10 @@
   },
   "scripts": {
     "benchmark": "node benchmarks/storage-benchmark.mjs",
+    "db:check": "drizzle-kit check --config drizzle.config.ts",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:push": "drizzle-kit push --config drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config drizzle.config.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
@@ -24,6 +28,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "catalog:",
     "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

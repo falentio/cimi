@@ -1,6 +1,9 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api'
+import { ANALYTICS_MIGRATIONS } from './schema.ts'
+
+export { ANALYTICS_MIGRATIONS, type AnalyticsMigration } from './schema.ts'
 
 export const ANALYTICS_DB_FILENAME = 'analytics.duckdb'
 
@@ -16,14 +19,6 @@ export interface CreateAnalyticsDbOptions {
   tempDirectory?: string
   maxTempDirectorySize?: string
 }
-
-interface Migration {
-  version: number
-  name: string
-  sql: string
-}
-
-const MIGRATIONS: Migration[] = []
 
 export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Promise<AnalyticsDb> {
   const tempDirectory = options.tempDirectory ?? join(dirname(options.path), 'analytics.duckdb.tmp')
@@ -101,7 +96,9 @@ async function applyMigrations(connection: DuckDBConnection): Promise<void> {
     appliedVersions.add(Number(row['version']))
   }
 
-  const pending = MIGRATIONS.filter((migration) => !appliedVersions.has(migration.version))
+  const pending = ANALYTICS_MIGRATIONS.filter(
+    (migration) => !appliedVersions.has(migration.version),
+  )
   if (pending.length === 0) {
     return
   }

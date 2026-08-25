@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "db:check": "pnpm --filter @cimi/db run db:check",
+    "db:generate": "pnpm --filter @cimi/db run db:generate",
+    "db:push": "pnpm --filter @cimi/db run db:push",
+    "db:studio": "pnpm --filter @cimi/db run db:studio",
     "prepare": "vp config --no-agent"
   },
   "devDependencies": {

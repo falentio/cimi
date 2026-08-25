@@ -30,6 +30,53 @@ describe('createDb + migrateControlDb', () => {
     migrateControlDb(db)
     migrateControlDb(db)
 
+    const migrationRows = db.$client
+      .prepare('SELECT hash, created_at FROM __drizzle_migrations')
+      .all() as Array<{ hash: string; created_at: number }>
+    expect(migrationRows).toHaveLength(1)
+    expect(migrationRows[0]?.hash).toMatch(/^[a-f0-9]{64}$/)
+
+    const tableRows = db.$client
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+      .all() as Array<{ name: string }>
+    expect(tableRows.map((row) => row.name)).toEqual(
+      expect.arrayContaining([
+        'accepted_event',
+        'backup_artifact',
+        'backup_cleanup_stage',
+        'backup_operation',
+        'cohort',
+        'cohort_version',
+        'collection_policy_revision',
+        'event_acceptance_journal',
+        'event_custom',
+        'event_error',
+        'event_outbound',
+        'event_page_view',
+        'event_payload',
+        'event_performance',
+        'event_property',
+        'funnel',
+        'funnel_version',
+        'goal',
+        'goal_version',
+        'identity_link',
+        'identity_profile',
+        'identity_profile_epoch',
+        'identity_redaction',
+        'installation',
+        'invitation',
+        'membership',
+        'organization',
+        'public_dashboard',
+        'retention_cleanup_checkpoint',
+        'retention_cleanup_run',
+        'retention_policy',
+        'site',
+        'site_lifecycle_operation',
+      ]),
+    )
+
     const now = new Date()
     const user = {
       id: 'user-1',
