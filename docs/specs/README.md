@@ -4,6 +4,7 @@ These specifications are the normative planning contracts for Cimi's first coher
 
 Cross-resource Given/When/Then acceptance scenarios live in [`ACCEPTANCE.md`](./ACCEPTANCE.md). Resource-specific edge cases remain in each resource's `SPECS.md`.
 
+The cross-resource dependency graph is maintained in [`DEPENDENCIES.md`](./DEPENDENCIES.md).
 The canonical first-release capability disposition is [`CAPABILITIES.md`](../CAPABILITIES.md). The capability research synthesis is linked from that document as evidence and is not a competing product contract.
 
 ## Authority and Precedence
