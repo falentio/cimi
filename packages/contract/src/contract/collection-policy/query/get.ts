@@ -19,9 +19,9 @@ export const getCollectionPolicy = oc
   })
   .meta({ auth: 'admin' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
   })
   .input(SCollectionPolicyGetInput)
   .output(SCollectionPolicyGetOutput)

@@ -19,8 +19,8 @@ export const getFunnel = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    NOT_FOUND: { status: 404 },
+    UNAUTHORIZED: {},
+    NOT_FOUND: {},
   })
   .input(SFunnelGetInput)
   .output(SFunnelGetOutput)

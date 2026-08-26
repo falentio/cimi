@@ -21,11 +21,11 @@ export const updateFunnel = oc
   })
   .meta({ auth: 'admin' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    BAD_REQUEST: { status: 400 },
-    CONFLICT: { status: 409 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    BAD_REQUEST: {},
+    CONFLICT: {},
   })
   .input(SFunnelUpdateInput)
   .output(SFunnelUpdateOutput)

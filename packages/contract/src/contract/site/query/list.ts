@@ -25,9 +25,9 @@ export const listSites = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    BAD_REQUEST: { status: 400 },
-    INTERNAL_SERVER_ERROR: { status: 500 },
+    UNAUTHORIZED: {},
+    BAD_REQUEST: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SSiteListInput)
   .output(SSiteListOutput)

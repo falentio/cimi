@@ -23,10 +23,10 @@ export const createInvitation = oc
   })
   .meta({ auth: 'admin' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    BAD_REQUEST: { status: 400 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    BAD_REQUEST: {},
   })
   .input(SInvitationCreateInput)
   .output(SInvitationCreateOutput)

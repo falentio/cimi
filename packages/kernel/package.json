@@ -1,5 +1,5 @@
 {
-  "name": "@cimi/guard",
+  "name": "@cimi/kernel",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,10 +9,6 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
-  },
-  "dependencies": {
-    "@cimi/auth": "workspace:*",
-    "@orpc/server": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

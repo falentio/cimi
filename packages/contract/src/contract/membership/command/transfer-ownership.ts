@@ -24,10 +24,10 @@ export const transferOrganizationOwnership = oc
   })
   .meta({ auth: 'owner' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    CONFLICT: { status: 409 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    CONFLICT: {},
   })
   .input(SMembershipTransferOwnershipInput)
   .output(SMembershipTransferOwnershipOutput)

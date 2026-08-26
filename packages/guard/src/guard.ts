@@ -1,7 +1,7 @@
 import type { AuthUser } from '@cimi/auth'
 import { ORPCError } from '@orpc/server'
 
-export type AuthorizationLevel = 'public' | 'authenticated' | 'admin' | 'owner'
+export type AuthorizationLevel = 'public' | 'authenticated' | 'admin' | 'installation-admin'
 
 export interface AssertOptions {
   code?: 'FORBIDDEN' | 'NOT_FOUND'
@@ -23,23 +23,25 @@ export function assertInstallationAdmin(user: AuthUser | undefined): void {
 }
 
 export function assertAuthorization(user: AuthUser | undefined, level: AuthorizationLevel): void {
-  if (level === 'public') return
-  if (level === 'authenticated') {
-    assertAuthenticated(user)
-    return
+  switch (level) {
+    case 'public':
+      return
+    case 'authenticated':
+    case 'admin':
+      return assertAuthenticated(user)
+    case 'installation-admin':
+      return assertInstallationAdmin(user)
+    default:
+      throw new ORPCError('FORBIDDEN')
   }
-  if (level === 'admin') {
-    assertInstallationAdmin(user)
-    return
-  }
-  assertAuthenticated(user)
 }
 
 export function assertOwner(
-  user: Pick<AuthUser, 'id'>,
+  user: Pick<AuthUser, 'id'> | undefined,
   ownerId: string,
   options?: AssertOptions,
 ): void {
+  if (user === undefined) throw new ORPCError('UNAUTHORIZED')
   if (user.id !== ownerId) {
     throw new ORPCError(options?.code ?? 'FORBIDDEN')
   }
@@ -50,7 +52,8 @@ export function assertOwnerOrAdmin(
   ownerId: string,
   options?: AssertOptions,
 ): void {
-  if (user?.id !== ownerId && user?.role !== 'admin') {
+  assertAuthenticated(user)
+  if (user.id !== ownerId && user.role !== 'admin') {
     throw new ORPCError(options?.code ?? 'FORBIDDEN')
   }
 }

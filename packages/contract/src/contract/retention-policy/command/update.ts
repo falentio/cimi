@@ -20,12 +20,12 @@ export const updateRetentionPolicy = oc
   })
   .meta({ auth: 'admin' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    BAD_REQUEST: { status: 400 },
-    CONFLICT: { status: 409 },
-    INTERNAL_SERVER_ERROR: { status: 500 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    BAD_REQUEST: {},
+    CONFLICT: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SRetentionPolicyUpdateInput)
   .output(SRetentionPolicyUpdateOutput)

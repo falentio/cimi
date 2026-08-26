@@ -45,11 +45,11 @@ export const getTrafficBreakdowns = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    NOT_FOUND: { status: 404 },
-    BAD_REQUEST: { status: 400 },
-    QUERY_LIMIT_EXCEEDED: { status: 422 },
-    SERVICE_UNAVAILABLE: { status: 503 },
+    UNAUTHORIZED: {},
+    NOT_FOUND: {},
+    BAD_REQUEST: {},
+    QUERY_LIMIT_EXCEEDED: {},
+    SERVICE_UNAVAILABLE: {},
   })
   .input(STrafficBreakdownsInput)
   .output(STrafficBreakdownsOutput)

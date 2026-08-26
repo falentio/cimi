@@ -20,10 +20,10 @@ export const removeMember = oc
   })
   .meta({ auth: 'admin' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    OWNER_PROTECTED: { status: 409 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    OWNER_PROTECTED: {},
   })
   .input(SMembershipRemoveInput)
   .output(SMembershipRemoveOutput)

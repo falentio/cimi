@@ -1,14 +1,14 @@
 import { mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { loadConfig } from '@cimi/config'
 import { createSingleton } from '@cimi/utils'
 import {
   createDb,
   closeDb,
   migrateControlDb,
+  resolveControlDbPath,
   createAnalyticsDb,
   schema,
-  CONTROL_DB_FILENAME,
   ANALYTICS_DB_FILENAME,
 } from '@cimi/db'
 import { createAuth } from '@cimi/auth/server'
@@ -23,7 +23,9 @@ export async function createFrontendServerApp(
 ): Promise<FrontendServerApp> {
   const cfg = loadConfig(env)
   mkdirSync(cfg.dataDir, { recursive: true })
-  const db = createDb({ path: join(cfg.dataDir, CONTROL_DB_FILENAME) })
+  const controlDbPath = resolveControlDbPath(env, process.cwd())
+  mkdirSync(dirname(controlDbPath), { recursive: true })
+  const db = createDb({ path: controlDbPath })
   try {
     migrateControlDb(db)
     const analytics = await createAnalyticsDb({

@@ -33,6 +33,17 @@ describe('backup and restore contract', () => {
     expect(v.parse(SBackup, availableBackup)).toEqual(availableBackup)
   })
 
+  it('accepts the catalog backup failure code in a terminal failed state', () => {
+    expect(
+      v.parse(SBackup, {
+        ...availableBackup,
+        status: 'failed',
+        phase: 'failed',
+        errorCode: 'BACKUP_FAILED',
+      }),
+    ).toMatchObject({ status: 'failed', errorCode: 'BACKUP_FAILED' })
+  })
+
   it('accepts the documented restoring/ready checkpoint before atomic availability', () => {
     expect(
       v.parse(SBackup, {

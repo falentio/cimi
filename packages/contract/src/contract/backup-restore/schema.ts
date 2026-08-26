@@ -11,6 +11,7 @@ export const SBackupPhase = v.picklist([
   'failed',
 ])
 export const SBackupErrorCode = v.picklist([
+  'BACKUP_FAILED',
   'INCOMPATIBLE_BACKUP',
   'INSUFFICIENT_STORAGE',
   'CONFLICT',

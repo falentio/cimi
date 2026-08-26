@@ -1,5 +1,20 @@
 import * as v from 'valibot'
 
+import { SName } from '@cimi/utils'
+
+export {
+  canonicalizeHostname,
+  SHostname,
+  SIanaTimezone,
+  SId,
+  SName,
+  SWeekStart,
+  type Hostname,
+  type IanaTimezone,
+  type Id,
+  type Name,
+  type WeekStart,
+} from '@cimi/utils'
 export {
   ERRORS,
   ERROR_CATALOG,
@@ -9,25 +24,10 @@ export {
   type ContractErrorDefinition,
 } from './errors.ts'
 
-export const SId = v.pipe(v.string(), v.minLength(1), v.maxLength(128))
-export const SName = v.pipe(v.string(), v.minLength(1), v.maxLength(256))
 export const isWithinSerializedByteLimit = (value: unknown, maxBytes: number) => {
   const serialized = JSON.stringify(value)
   return serialized !== undefined && new TextEncoder().encode(serialized).byteLength <= maxBytes
 }
-export const SIanaTimezone = v.pipe(
-  v.string(),
-  v.minLength(1),
-  v.maxLength(64),
-  v.check((value) => {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
-      return true
-    } catch {
-      return false
-    }
-  }, 'Expected a valid IANA timezone.'),
-)
 const isValidCalendarDate = (year: number, month: number, day: number) => {
   const date = new Date(Date.UTC(year, month - 1, day))
   return (
@@ -117,15 +117,6 @@ export const SScalarMap = v.record(SScalarKey, SScalar)
 export const SSortDirection = v.picklist(['asc', 'desc'])
 export const SIdentityKind = v.picklist(['visitor', 'identified_user'])
 export const SGranularity = v.picklist(['minute', 'hour', 'day', 'week', 'month', 'year'])
-export const SWeekStart = v.picklist([
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-])
 export const SEventKind = v.picklist([
   'page_view',
   'custom_event',

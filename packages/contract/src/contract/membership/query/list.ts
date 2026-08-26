@@ -24,10 +24,10 @@ export const listMembers = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    NOT_FOUND: { status: 404 },
-    BAD_REQUEST: { status: 400 },
-    INTERNAL_SERVER_ERROR: { status: 500 },
+    UNAUTHORIZED: {},
+    NOT_FOUND: {},
+    BAD_REQUEST: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SMembershipListInput)
   .output(SMembershipListOutput)

@@ -21,9 +21,9 @@ export const acceptInvitation = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    NOT_FOUND: { status: 404 },
-    CONFLICT: { status: 409 },
+    UNAUTHORIZED: {},
+    NOT_FOUND: {},
+    CONFLICT: {},
   })
   .input(SInvitationAcceptInput)
   .output(SInvitationAcceptOutput)

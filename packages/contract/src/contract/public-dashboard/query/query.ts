@@ -45,11 +45,11 @@ export const queryPublicDashboard = oc
   })
   .meta({ auth: 'public' })
   .errors({
-    BAD_REQUEST: { status: 400 },
-    NOT_FOUND: { status: 404 },
-    SERVICE_UNAVAILABLE: { status: 503 },
-    TOO_MANY_REQUESTS: { status: 429 },
-    QUERY_LIMIT_EXCEEDED: { status: 422 },
+    BAD_REQUEST: {},
+    NOT_FOUND: {},
+    SERVICE_UNAVAILABLE: {},
+    TOO_MANY_REQUESTS: {},
+    QUERY_LIMIT_EXCEEDED: {},
   })
   .input(SPublicDashboardQueryInput)
   .output(SPublicDashboardQueryOutput)

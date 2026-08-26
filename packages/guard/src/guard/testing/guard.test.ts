@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { ORPCError } from '@orpc/server'
-import { assertIsAdmin, assertOwner, assertOwnerOrAdmin } from '../../guard.ts'
+import {
+  assertAuthorization,
+  assertInstallationAdmin,
+  assertIsAdmin,
+  assertOwner,
+  assertOwnerOrAdmin,
+} from '../../guard.ts'
 import type { AuthUser } from '@cimi/auth'
 
 const adminUser = { id: 'u1', role: 'admin' } as unknown as AuthUser
@@ -45,6 +51,15 @@ describe('assertOwner', () => {
 
   it('allows when id matches', () => {
     expect(() => assertOwner({ id: 'a' }, 'a')).not.toThrow()
+  })
+
+  it('fails closed when the owner context has no authenticated user', () => {
+    expect(() => assertOwner(undefined, 'a')).toThrowError(ORPCError<string, unknown>)
+    try {
+      assertOwner(undefined, 'a')
+    } catch (error) {
+      expect((error as ORPCError<string, unknown>).code).toBe('UNAUTHORIZED')
+    }
   })
 })
 
@@ -94,5 +109,29 @@ describe('AssertOptions.code', () => {
       expect(error).toBeInstanceOf(ORPCError)
       expect((error as ORPCError<string, unknown>).code).toBe('NOT_FOUND')
     }
+  })
+})
+
+describe('assertAuthorization', () => {
+  it('treats admin as coarse authenticated admission, not installation authority', () => {
+    expect(() => assertAuthorization(normalUser, 'admin')).not.toThrow()
+    expect(() => assertAuthorization(adminUser, 'installation-admin')).not.toThrow()
+    expect(() => assertAuthorization(normalUser, 'installation-admin')).toThrowError(
+      ORPCError<string, unknown>,
+    )
+  })
+
+  it('fails closed for the removed owner admission level', () => {
+    expect(() => assertAuthorization(normalUser, 'owner' as never)).toThrowError(
+      ORPCError<string, unknown>,
+    )
+    expect(() => assertAuthorization(undefined, 'owner' as never)).toThrowError(
+      ORPCError<string, unknown>,
+    )
+  })
+
+  it('requires an authenticated owner context for an owner-or-admin check', () => {
+    expect(() => assertOwnerOrAdmin(undefined, 'u1')).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertInstallationAdmin(undefined)).toThrowError(ORPCError<string, unknown>)
   })
 })

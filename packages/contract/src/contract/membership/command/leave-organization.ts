@@ -20,9 +20,9 @@ export const leaveOrganization = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    NOT_FOUND: { status: 404 },
-    OWNER_PROTECTED: { status: 409 },
+    UNAUTHORIZED: {},
+    NOT_FOUND: {},
+    OWNER_PROTECTED: {},
   })
   .input(SMembershipLeaveInput)
   .output(SMembershipLeaveOutput)

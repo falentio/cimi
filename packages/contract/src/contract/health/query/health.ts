@@ -22,5 +22,5 @@ export const health = oc
     successStatus: 200,
   })
   .meta({ auth: 'public' })
-  .errors({ INTERNAL_SERVER_ERROR: { status: 500 } })
+  .errors({ INTERNAL_SERVER_ERROR: {} })
   .output(SHealthOutput)

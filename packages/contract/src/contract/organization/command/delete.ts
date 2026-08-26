@@ -20,11 +20,11 @@ export const deleteOrganization = oc
   })
   .meta({ auth: 'owner' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    ORGANIZATION_NOT_EMPTY: { status: 409 },
-    PERSONAL_ORGANIZATION_PROTECTED: { status: 409 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    ORGANIZATION_NOT_EMPTY: {},
+    PERSONAL_ORGANIZATION_PROTECTED: {},
   })
   .input(SOrganizationDeleteInput)
   .output(SOrganizationDeleteOutput)

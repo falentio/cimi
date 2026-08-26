@@ -24,9 +24,9 @@ export const listCohorts = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    NOT_FOUND: { status: 404 },
-    BAD_REQUEST: { status: 400 },
+    UNAUTHORIZED: {},
+    NOT_FOUND: {},
+    BAD_REQUEST: {},
   })
   .input(SCohortListInput)
   .output(SCohortListOutput)

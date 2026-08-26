@@ -24,6 +24,6 @@ export const world = oc
     successStatus: 200,
   })
   .meta({ auth: 'public' })
-  .errors({ BAD_REQUEST: { status: 400 } })
+  .errors({ BAD_REQUEST: {} })
   .input(SHelloWorldInput)
   .output(SHelloWorldOutput)

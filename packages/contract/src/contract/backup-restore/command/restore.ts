@@ -20,14 +20,14 @@ export const restoreBackup = oc
   })
   .meta({ auth: 'admin' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    BAD_REQUEST: { status: 400 },
-    CONFLICT: { status: 409 },
-    INCOMPATIBLE_BACKUP: { status: 422 },
-    INSUFFICIENT_STORAGE: { status: 507 },
-    INTERNAL_SERVER_ERROR: { status: 500 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    BAD_REQUEST: {},
+    CONFLICT: {},
+    INCOMPATIBLE_BACKUP: {},
+    INSUFFICIENT_STORAGE: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SBackupRestoreInput)
   .output(SBackupRestoreOutput)

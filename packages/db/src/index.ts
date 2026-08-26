@@ -4,6 +4,7 @@ export {
   BASE_SKELETON_TABLES,
   migrateControlDb,
   migrateControlDbAtPath,
+  resolveControlDbPath,
   validateBaseSchema,
 } from './migrate.ts'
 export {

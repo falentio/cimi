@@ -23,9 +23,9 @@ export const ensurePersonalOrganization = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    CONFLICT: { status: 409 },
-    INTERNAL_SERVER_ERROR: { status: 500 },
+    UNAUTHORIZED: {},
+    CONFLICT: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SOrganizationEnsurePersonalInput)
   .output(SOrganizationEnsurePersonalOutput)

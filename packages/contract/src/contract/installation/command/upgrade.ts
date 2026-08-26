@@ -20,12 +20,12 @@ export const upgradeInstallation = oc
   })
   .meta({ auth: 'admin' })
   .errors({
-    UNAUTHORIZED: { status: 401 },
-    FORBIDDEN: { status: 403 },
-    CONFLICT: { status: 409 },
-    INCOMPATIBLE_BACKUP: { status: 422 },
-    INSUFFICIENT_STORAGE: { status: 507 },
-    INTERNAL_SERVER_ERROR: { status: 500 },
+    UNAUTHORIZED: {},
+    FORBIDDEN: {},
+    CONFLICT: {},
+    INCOMPATIBLE_BACKUP: {},
+    INSUFFICIENT_STORAGE: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SInstallationUpgradeInput)
   .output(SInstallationUpgradeOutput)

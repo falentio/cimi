@@ -1,17 +1,15 @@
 import * as v from 'valibot'
-import { SCreated, SDateTime, SIanaTimezone, SId, SName, SWeekStart } from '../../schema/index.ts'
+import {
+  SCreated,
+  SDateTime,
+  SHostname,
+  SIanaTimezone,
+  SId,
+  SName,
+  SWeekStart,
+} from '../../schema/index.ts'
 
-export const canonicalizeHostname = (hostname: string) => hostname.toLowerCase().replace(/\.$/, '')
-
-export const SHostname = v.pipe(
-  v.string(),
-  v.minLength(1),
-  v.maxLength(253),
-  v.regex(
-    /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.?$/,
-  ),
-  v.transform(canonicalizeHostname),
-)
+export { SHostname }
 export const SSite = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({

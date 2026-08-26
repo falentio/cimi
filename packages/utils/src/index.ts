@@ -21,25 +21,6 @@ export {
   type WeekStart,
 } from './schema/index.ts'
 export {
-  DEFAULT_RETENTION_POLICY,
-  InMemoryAcceptanceJournalPort,
-  InMemoryAnalyticsReadinessPort,
-  InMemoryCollectionPolicyResolver,
-  InMemoryLifecycleLock,
-  InMemoryRetentionResolver,
-  type AcceptanceJournalPort,
-  type AnalyticsHealth,
-  type AnalyticsReadinessPort,
-  type CollectionPolicy,
-  type CollectionPolicyResolver,
-  type LifecycleLock,
-  type LifecycleOperationKind,
-  type PortResult,
-  type RetentionPolicy,
-  type RetentionResolver,
-  type StoreHealth,
-} from './ports/index.ts'
-export {
   createIpMatcher,
   parseIpPattern,
   type IpFamily,

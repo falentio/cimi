@@ -26,8 +26,8 @@ export const create = oc
   })
   .meta({ auth: 'authenticated' })
   .errors({
-    BAD_REQUEST: { status: 400 },
-    UNAUTHORIZED: { status: 401 },
+    BAD_REQUEST: {},
+    UNAUTHORIZED: {},
   })
   .input(SHelloCreateInput)
   .output(SHelloCreateOutput)

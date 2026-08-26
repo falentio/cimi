@@ -1,9 +1,14 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { closeDb, createDb } from '../../client.ts'
-import { migrateControlDb, validateBaseSchema } from '../../migrate.ts'
+import {
+  migrateControlDb,
+  migrateControlDbAtPath,
+  resolveControlDbPath,
+  validateBaseSchema,
+} from '../../migrate.ts'
 import { TUser } from '../../schema/index.ts'
 import { createMigratedTestDb } from '../../testing/index.ts'
 
@@ -317,5 +322,17 @@ describe('createDb + migrateControlDb', () => {
     ).toThrow()
 
     closeDb(db)
+  })
+
+  it('uses the configured control path and creates its missing parent directory', async () => {
+    const configuredPath = join(dir, 'nested', 'control.sqlite')
+
+    expect(resolveControlDbPath({ CIMI_CONTROL_DB_PATH: configuredPath }, '/ignored/cwd')).toBe(
+      configuredPath,
+    )
+
+    migrateControlDbAtPath(configuredPath)
+
+    await expect(access(configuredPath)).resolves.toBeUndefined()
   })
 })

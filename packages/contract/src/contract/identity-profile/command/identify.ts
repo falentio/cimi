@@ -25,12 +25,12 @@ export const identify = oc
   })
   .meta({ auth: 'public' })
   .errors({
-    BAD_REQUEST: { status: 400 },
-    FORBIDDEN: { status: 403 },
-    NOT_FOUND: { status: 404 },
-    CONFLICT: { status: 409 },
-    PAYLOAD_TOO_LARGE: { status: 413 },
-    TOO_MANY_REQUESTS: { status: 429 },
+    BAD_REQUEST: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    CONFLICT: {},
+    PAYLOAD_TOO_LARGE: {},
+    TOO_MANY_REQUESTS: {},
   })
   .input(SIdentifyInput)
   .output(SIdentifyOutput)

@@ -28,12 +28,19 @@ function withCentralErrorMessages(errors: Record<string, unknown>): Record<strin
   return Object.fromEntries(
     Object.entries(errors).map(([code, definition]) => {
       const catalogDefinition = ERROR_CATALOG[code as ContractErrorCode]
-      if (
-        catalogDefinition === undefined ||
-        definition === null ||
-        typeof definition !== 'object'
-      ) {
-        return [code, definition]
+      if (catalogDefinition === undefined) {
+        throw new TypeError(`Unknown contract error code: ${code}`)
+      }
+      if (definition === null || typeof definition !== 'object') {
+        throw new TypeError(`Contract error ${code} must use an object definition`)
+      }
+
+      const callerDefinition = definition as { status?: unknown; message?: unknown }
+      if ('status' in callerDefinition) {
+        throw new TypeError(`Contract error ${code} must not define catalog status`)
+      }
+      if ('message' in callerDefinition) {
+        throw new TypeError(`Contract error ${code} must not define catalog message`)
       }
 
       return [

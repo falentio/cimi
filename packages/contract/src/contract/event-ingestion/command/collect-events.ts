@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EBatchIngestion, SId } from '../../../schema/index.ts'
+import { SId } from '../../../schema/index.ts'
 import { SCollectionContext } from '../../collection-policy/transport.ts'
 import {
   EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS,
@@ -54,6 +54,12 @@ export const collectEvents = oc
     successStatus: 200,
   })
   .meta({ auth: 'public' })
-  .errors(EBatchIngestion)
+  .errors({
+    BAD_REQUEST: {},
+    NOT_FOUND: {},
+    PAYLOAD_TOO_LARGE: {},
+    TOO_MANY_REQUESTS: {},
+    SERVICE_UNAVAILABLE: {},
+  })
   .input(SCollectEventsInput)
   .output(SCollectEventsOutput)

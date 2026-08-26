@@ -26,8 +26,8 @@ export const get = oc
   })
   .meta({ auth: 'public' })
   .errors({
-    BAD_REQUEST: { status: 400 },
-    NOT_FOUND: { status: 404 },
+    BAD_REQUEST: {},
+    NOT_FOUND: {},
   })
   .input(SHelloGetInput)
   .output(SHelloGetOutput)

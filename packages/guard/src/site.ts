@@ -1,6 +1,7 @@
 import type { AuthUser } from '@cimi/auth'
-import type { PortResult } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
+
+type PortResult<T> = T | PromiseLike<T>
 
 export interface SiteScopePort {
   exists(siteId: string): PortResult<boolean>
@@ -11,7 +12,7 @@ export interface SiteScopePort {
 export type SiteMembershipRole = 'owner' | 'admin' | 'member'
 
 export interface SiteMembershipPort {
-  getRole(siteId: string, userId: string): PortResult<SiteMembershipRole | undefined>
+  getRole(organizationId: string, userId: string): PortResult<SiteMembershipRole | undefined>
 }
 
 export interface SiteScopeGuardDependencies {
@@ -41,7 +42,10 @@ export async function assertSiteScope(
     throw new ORPCError(options.missingSiteCode ?? 'NOT_FOUND')
   }
 
-  const role = await dependencies.membership.getRole(siteId, user.id)
+  const role = await dependencies.membership.getRole(organizationId, user.id)
+  if (role === undefined) {
+    throw new ORPCError('NOT_FOUND')
+  }
   if (!hasRequiredRole(role, options.requiredRole ?? 'member')) {
     throw new ORPCError('FORBIDDEN')
   }
@@ -67,7 +71,14 @@ export class InMemorySiteScopePort implements SiteScopePort, SiteMembershipPort 
   }
 
   setMembership(membership: InMemorySiteMembership): void {
-    this.#memberships.set(membershipKey(membership.siteId, membership.userId), membership.role)
+    this.#memberships.set(
+      membershipKey(membership.organizationId, membership.userId),
+      membership.role,
+    )
+  }
+
+  revokeMembership(organizationId: string, userId: string): void {
+    this.#memberships.delete(membershipKey(organizationId, userId))
   }
 
   exists(siteId: string): boolean {
@@ -82,8 +93,8 @@ export class InMemorySiteScopePort implements SiteScopePort, SiteMembershipPort 
     return this.#sites.get(siteId)?.organizationId
   }
 
-  getRole(siteId: string, userId: string): SiteMembershipRole | undefined {
-    return this.#memberships.get(membershipKey(siteId, userId))
+  getRole(organizationId: string, userId: string): SiteMembershipRole | undefined {
+    return this.#memberships.get(membershipKey(organizationId, userId))
   }
 }
 
@@ -94,7 +105,7 @@ export interface InMemorySiteRecord {
 }
 
 export interface InMemorySiteMembership {
-  readonly siteId: string
+  readonly organizationId: string
   readonly userId: string
   readonly role: SiteMembershipRole
 }
@@ -112,6 +123,6 @@ function hasRequiredRole(
   return rank[actual] >= rank[required]
 }
 
-function membershipKey(siteId: string, userId: string): string {
-  return `${siteId}\u0000${userId}`
+function membershipKey(organizationId: string, userId: string): string {
+  return `${organizationId}\u0000${userId}`
 }

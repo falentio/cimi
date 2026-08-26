@@ -1,6 +1,7 @@
 import { isContractProcedure } from '@orpc/contract'
 import { describe, expect, it } from 'vitest'
 import { contract } from '../contract.ts'
+import { oc } from '../orpc/index.ts'
 import { ERROR_CATALOG } from '../schema/errors.ts'
 
 const statuses = {
@@ -361,5 +362,61 @@ describe('procedure error declarations', () => {
       expect(routeKeys.has(routeKey), routeKey).toBe(false)
       routeKeys.add(routeKey)
     }
+  })
+
+  it('rejects error codes outside the central catalog', () => {
+    expect(() =>
+      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+        UNKNOWN_ERROR: { status: 500 },
+      }),
+    ).toThrow(/unknown contract error code/i)
+  })
+
+  it('rejects caller-supplied status or message metadata that bypasses the catalog', () => {
+    expect(() =>
+      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+        BAD_REQUEST: { status: 400 },
+      }),
+    ).toThrow(/catalog status/i)
+    expect(() =>
+      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+        BAD_REQUEST: { status: 418 },
+      }),
+    ).toThrow(/catalog status/i)
+    expect(() =>
+      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+        BAD_REQUEST: { message: 'database details' },
+      }),
+    ).toThrow(/catalog message/i)
+  })
+
+  it('preserves valid error data while applying catalog metadata', () => {
+    const data = { retryAfter: 30 }
+    const procedure = (
+      oc as never as {
+        errors(errors: Record<string, unknown>): {
+          '~orpc': { errorMap: Record<string, { status: number; message: string; data: unknown }> }
+        }
+      }
+    ).errors({ TOO_MANY_REQUESTS: { data } })
+
+    expect(procedure['~orpc'].errorMap['TOO_MANY_REQUESTS']).toEqual({
+      status: 429,
+      message: ERROR_CATALOG.TOO_MANY_REQUESTS.message,
+      data,
+    })
+  })
+
+  it('includes lifecycle failure codes accepted by the installation schema', () => {
+    expect(ERROR_CATALOG.BACKUP_FAILED).toEqual({
+      code: 'BACKUP_FAILED',
+      status: 500,
+      message: 'The backup operation failed safely.',
+    })
+    expect(ERROR_CATALOG.UPGRADE_FAILED).toEqual({
+      code: 'UPGRADE_FAILED',
+      status: 500,
+      message: 'The upgrade operation failed safely.',
+    })
   })
 })

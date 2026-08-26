@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, expect, test } from 'vitest'
@@ -39,6 +39,23 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
   )
   expect(signup.status).toBe(200)
   expect(signup.headers.get('set-cookie')).toBeTruthy()
+})
+
+test('uses the configured control database path', async () => {
+  const customRoot = await mkdtemp(join(tmpdir(), 'cimi-control-path-'))
+  const controlPath = join(customRoot, 'nested', 'control.sqlite')
+  const customApp = await createFrontendServerApp({
+    ...process.env,
+    CIMI_DATA_DIR: join(customRoot, 'analytics'),
+    CIMI_CONTROL_DB_PATH: controlPath,
+  })
+
+  try {
+    await expect(access(controlPath)).resolves.toBeUndefined()
+  } finally {
+    await customApp.close()
+    await rm(customRoot, { recursive: true, force: true })
+  }
 })
 
 afterAll(async () => {

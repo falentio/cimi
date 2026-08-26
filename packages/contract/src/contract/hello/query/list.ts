@@ -32,6 +32,6 @@ export const list = oc
     successStatus: 200,
   })
   .meta({ auth: 'public' })
-  .errors({ BAD_REQUEST: { status: 400 } })
+  .errors({ BAD_REQUEST: {} })
   .input(SHelloListInput)
   .output(SHelloListOutput)

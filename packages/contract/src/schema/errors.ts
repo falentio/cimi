@@ -56,6 +56,16 @@ export const ERROR_CATALOG = {
     status: 422,
     message: 'The backup is not compatible with this installation.',
   },
+  BACKUP_FAILED: {
+    code: 'BACKUP_FAILED',
+    status: 500,
+    message: 'The backup operation failed safely.',
+  },
+  UPGRADE_FAILED: {
+    code: 'UPGRADE_FAILED',
+    status: 500,
+    message: 'The upgrade operation failed safely.',
+  },
   PAYLOAD_TOO_LARGE: {
     code: 'PAYLOAD_TOO_LARGE',
     status: 413,

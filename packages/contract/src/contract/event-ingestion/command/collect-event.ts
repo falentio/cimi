@@ -1,6 +1,5 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { EIngestion } from '../../../schema/index.ts'
 import {
   EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS,
   EVENT_ACCEPTANCE_PENDING_MAX_EVENTS,
@@ -25,6 +24,14 @@ export const collectEvent = oc
     successStatus: 200,
   })
   .meta({ auth: 'public' })
-  .errors(EIngestion)
+  .errors({
+    BAD_REQUEST: {},
+    FORBIDDEN: {},
+    NOT_FOUND: {},
+    CONFLICT: {},
+    PAYLOAD_TOO_LARGE: {},
+    TOO_MANY_REQUESTS: {},
+    SERVICE_UNAVAILABLE: {},
+  })
   .input(SCollectEventInput)
   .output(SCollectEventOutput)

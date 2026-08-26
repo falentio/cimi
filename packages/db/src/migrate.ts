@@ -44,16 +44,20 @@ export function migrateControlDbAtPath(path: string): void {
   }
 }
 
-function getDefaultDatabasePath(): string {
-  const dataDirectory = process.env['CIMI_DATA_DIR'] ?? '.cimi'
-  return (
-    process.env['CIMI_CONTROL_DB_PATH'] ?? resolve(WORKSPACE_ROOT, dataDirectory, 'control.sqlite')
-  )
+export function resolveControlDbPath(
+  env: Record<string, string | undefined> = process.env,
+  workingDirectory: string = WORKSPACE_ROOT,
+): string {
+  const configuredPath = env['CIMI_CONTROL_DB_PATH']
+  if (configuredPath !== undefined) return resolve(workingDirectory, configuredPath)
+
+  const dataDirectory = env['CIMI_DATA_DIR'] ?? '.cimi'
+  return resolve(workingDirectory, dataDirectory, 'control.sqlite')
 }
 
 if (
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
-  migrateControlDbAtPath(getDefaultDatabasePath())
+  migrateControlDbAtPath(resolveControlDbPath())
 }
