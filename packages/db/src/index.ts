@@ -1,6 +1,11 @@
 export { CONTROL_DB_FILENAME, closeDb, createDb, type CreateDbOptions, type Db } from './client.ts'
 export * as schema from './schema/index.ts'
-export { migrateControlDb } from './migrate.ts'
+export {
+  BASE_SKELETON_TABLES,
+  migrateControlDb,
+  migrateControlDbAtPath,
+  validateBaseSchema,
+} from './migrate.ts'
 export {
   ANALYTICS_DB_FILENAME,
   createAnalyticsDb,

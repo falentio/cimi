@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "@cimi/auth": "workspace:*",
+    "@cimi/utils": "workspace:*",
     "@orpc/server": "catalog:"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

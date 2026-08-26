@@ -1,6 +1,7 @@
 import { isContractProcedure } from '@orpc/contract'
 import { describe, expect, it } from 'vitest'
 import { contract } from '../contract.ts'
+import { ERROR_CATALOG } from '../schema/errors.ts'
 
 const statuses = {
   UNAUTHORIZED: 401,
@@ -22,10 +23,12 @@ const statuses = {
 } as const
 
 type ErrorCode = keyof typeof statuses
-type ErrorMap = Record<string, { status?: number }>
+type ErrorMap = Record<string, { status?: number; message?: string }>
 
 const catalog = (...codes: ErrorCode[]): ErrorMap =>
-  Object.fromEntries(codes.map((code) => [code, { status: statuses[code] }]))
+  Object.fromEntries(
+    codes.map((code) => [code, { status: statuses[code], message: ERROR_CATALOG[code].message }]),
+  )
 
 const authenticatedRead = catalog('UNAUTHORIZED', 'NOT_FOUND')
 const administratorRead = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND')

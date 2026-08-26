@@ -14,7 +14,8 @@
     "ip-address": "catalog:",
     "lru-cache": "catalog:",
     "psl": "catalog:",
-    "ua-parser-js": "catalog:"
+    "ua-parser-js": "catalog:",
+    "valibot": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

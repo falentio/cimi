@@ -17,6 +17,7 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:push": "drizzle-kit push --config drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts",
+    "migrate": "node src/migrate.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },

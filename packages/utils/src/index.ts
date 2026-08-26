@@ -1,7 +1,44 @@
 import './registrable-domain/psl.d.ts'
 
 export { createSingleton } from './singleton/index.ts'
-export { generateId, type EntityId } from './id/index.ts'
+export {
+  createIdGenerator,
+  generateId,
+  type EntityId,
+  type IdGeneratorOptions,
+} from './id/index.ts'
+export {
+  canonicalizeHostname,
+  SHostname,
+  SIanaTimezone,
+  SId,
+  SName,
+  SWeekStart,
+  type Hostname,
+  type IanaTimezone,
+  type Id,
+  type Name,
+  type WeekStart,
+} from './schema/index.ts'
+export {
+  DEFAULT_RETENTION_POLICY,
+  InMemoryAcceptanceJournalPort,
+  InMemoryAnalyticsReadinessPort,
+  InMemoryCollectionPolicyResolver,
+  InMemoryLifecycleLock,
+  InMemoryRetentionResolver,
+  type AcceptanceJournalPort,
+  type AnalyticsHealth,
+  type AnalyticsReadinessPort,
+  type CollectionPolicy,
+  type CollectionPolicyResolver,
+  type LifecycleLock,
+  type LifecycleOperationKind,
+  type PortResult,
+  type RetentionPolicy,
+  type RetentionResolver,
+  type StoreHealth,
+} from './ports/index.ts'
 export {
   createIpMatcher,
   parseIpPattern,

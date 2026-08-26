@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { closeDb, createDb } from '../../client.ts'
-import { migrateControlDb } from '../../migrate.ts'
+import { migrateControlDb, validateBaseSchema } from '../../migrate.ts'
 import { TUser } from '../../schema/index.ts'
 import { createMigratedTestDb } from '../../testing/index.ts'
 
@@ -30,6 +30,7 @@ describe('createDb + migrateControlDb', () => {
 
     migrateControlDb(db)
     migrateControlDb(db)
+    validateBaseSchema(db)
 
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')

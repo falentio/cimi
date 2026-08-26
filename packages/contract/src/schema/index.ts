@@ -1,5 +1,14 @@
 import * as v from 'valibot'
 
+export {
+  ERRORS,
+  ERROR_CATALOG,
+  getErrorDefinition,
+  toORPCErrorMap,
+  type ContractErrorCode,
+  type ContractErrorDefinition,
+} from './errors.ts'
+
 export const SId = v.pipe(v.string(), v.minLength(1), v.maxLength(128))
 export const SName = v.pipe(v.string(), v.minLength(1), v.maxLength(256))
 export const isWithinSerializedByteLimit = (value: unknown, maxBytes: number) => {
