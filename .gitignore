@@ -17,5 +17,8 @@ coverage/
 *.duckdb.wal
 .vite/
 
+# herdr skill: vendored libghostty-vt (regeneratable via herdr/scripts/vendor_libghostty_vt.py)
+.agents/skills/skills/herdr/vendor/libghostty-vt/
+
 # linked worktrees
 .worktrees/
