@@ -1,5 +1,5 @@
-import { afterEach, expect, test } from 'vitest'
-import { SSystemHealthOutput } from '@cimi/contract'
+import { afterEach, expect, test, vi } from 'vitest'
+import { ERROR_CATALOG, SSystemHealthOutput } from '@cimi/contract'
 import { closeDb, schema, type Db } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
@@ -93,6 +93,44 @@ test('system health reports live control and analytics stores', async () => {
     status: 'maintenance',
     cleanupPending: true,
   })
+})
+
+test('rejects an unauthenticated authenticated hello procedure before input handling', async () => {
+  const { app } = await createFixture()
+
+  const response = await app.fetch(
+    new Request('http://localhost/api/hello/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    }),
+  )
+
+  expect(response.status).toBe(401)
+  await expect(response.json()).resolves.toMatchObject({
+    code: 'UNAUTHORIZED',
+    status: 401,
+    message: ERROR_CATALOG.UNAUTHORIZED.message,
+  })
+})
+
+test('normalizes provider errors before the public response', async () => {
+  const { app, db } = await createFixture()
+  vi.spyOn(db, 'select').mockImplementation(() => {
+    throw new Error('provider connection secret')
+  })
+
+  const response = await app.fetch(new Request('http://localhost/api/hello/get?id=hello-1'))
+
+  expect(response.status).toBe(500)
+  const body = await response.json()
+  expect(body).toEqual({
+    defined: false,
+    code: 'INTERNAL_SERVER_ERROR',
+    status: 500,
+    message: ERROR_CATALOG.INTERNAL_SERVER_ERROR.message,
+  })
+  expect(JSON.stringify(body)).not.toContain('provider connection secret')
 })
 
 test('auth sign-up route is mounted and sets a session cookie', async () => {

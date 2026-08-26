@@ -45,7 +45,7 @@ Anything outside those globs is invisible to `pnpm -r` and `pnpm install`.
 
 ```
 apps/api/
-├── package.json  # depends on @cimi/auth, @cimi/contract, @cimi/db, @cimi/utils
+├── package.json  # depends on @cimi/auth, @cimi/contract, @cimi/db, @cimi/guard, @cimi/utils
 ├── tsconfig.json # extends ../../tsconfig.base.json
 └── src/
     ├── index.ts  # createApiApp(deps: {db, auth, analytics}) — Hono + oRPC OpenAPIHandler
@@ -82,7 +82,7 @@ apps/frontend/
 | `packages/contract` | `@cimi/contract` | oRPC contract declaration layer — single source for API shapes | `packages/contract/src/contract.ts:19-37` → all 17 resource groups; `packages/contract/src/contract/{resource}`; `src/orpc/meta.ts`; shared schemas from `@cimi/utils` |
 | `packages/db`       | `@cimi/db`       | control (sqlite/drizzle) + analytics (duckdb) | `packages/db/src/index.ts:1` → `createDb`, `schema`, `migrateControlDb`, `createAnalyticsDb`                                |
 | `packages/auth`     | `@cimi/auth`     | better-auth wrapper                           | `packages/auth/src/server.ts`, `src/client.ts`, `src/first-user-admin.ts`                                                   |
-| `packages/guard`    | `@cimi/guard`    | authz guards                                  | `packages/guard/src/guard.ts`, `src/index.ts`                                                                               |
+| `packages/guard`    | `@cimi/guard`    | authz guards                                  | `packages/guard/src/guard.ts`, `src/index.ts`, `src/testing/index.ts`                                                       |
 | `packages/kernel`   | `@cimi/kernel`   | cross-domain lifecycle and readiness ports    | `packages/kernel/src/ports.ts`, `src/index.ts`                                                                              |
 | `packages/client`   | `@cimi/client`   | typed oRPC client for frontend                | `packages/client/src/index.ts` (wraps `@orpc/client` + `@orpc/openapi-client`)                                              |
 | `packages/utils`    | `@cimi/utils`    | cross-cutting only                            | `packages/utils/src/index.ts:1-25` → `createSingleton`, `loadConfig`, `generateId`, `EntityId`, IP, user-agent, registrable-domain, and bot utilities |
@@ -91,6 +91,8 @@ apps/frontend/
 ### packages/utils — Allowed vs. forbidden
 
 Allowed (today): `src/singleton/`, `src/config/`, `src/id/`, `src/ip/`, `src/user-agent/`, `src/registrable-domain/`, `src/user-agent-bots/`, and `src/schema/` — generic, no domain nouns, no imports from `@cimi/*` except other utils.
+
+`src/schema/` is an explicit issue #35 exception to the normal two-consumer utility gate. It currently has one production consumer, `@cimi/contract`, but remains the shared source for first-wave boundary schemas; do not move these schemas back or duplicate them in a domain package.
 
 Forbidden: anything importing `@cimi/db`, `@cimi/auth`, `@cimi/contract`; any code used by only one consumer.
 
@@ -171,14 +173,16 @@ Allowed direction (no cycles):
 contract  →  utils
 db        →  utils
 auth      →  db
-guard     →  auth, @orpc/server
+guard     →  auth, @orpc/server, kernel
 kernel    →  (no @cimi deps)
 client    →  contract
 utils     →  (no @cimi domain deps)
 testing   →  @orpc/server (for orpc-error helpers)
-api       →  auth, contract, db, utils
+api       →  auth, contract, db, guard, utils
 frontend  →  api, auth, client, contract, db, utils
 ```
+
+The `guard → kernel` edge is intentional and limited to the shared `PortResult` type used by `SiteScopePort` and `SiteMembershipPort`. `@cimi/kernel` remains dependency-free; do not move or duplicate `PortResult` merely to remove this type-only dependency.
 
 If a proposed import violates this direction, the placement is wrong — move the code, not the edge.
 

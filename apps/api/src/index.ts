@@ -2,13 +2,17 @@ import { Hono } from 'hono'
 import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
-import { onError, implement } from '@orpc/server'
+import { onError, ORPCError, implement } from '@orpc/server'
 import { contract } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import type { Auth, AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
+import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { createHello, helloRouter, type HelloApiContext } from './resources/hello/index.ts'
 import { systemHealthHandler, type HealthLifecycle } from './health.ts'
+import { normalizeApiError } from './errors.ts'
+
+export { normalizeApiError } from './errors.ts'
 
 export interface CreateApiAppDependencies {
   db: Db
@@ -38,8 +42,28 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
   const openAPIHandler = new OpenAPIHandler(router, {
     interceptors: [
       onError((error) => {
-        console.error(error)
+        if (error instanceof ORPCError) {
+          console.error({ code: error.code, status: error.status })
+          return
+        }
+        console.error('API request failed')
       }),
+    ],
+    clientInterceptors: [
+      async (options) => {
+        try {
+          return await options.next()
+        } catch (error) {
+          throw await normalizeApiError(error, options.procedure)
+        }
+      },
+      (options) => {
+        assertAuthorization(
+          options.context['user'],
+          getCoarseAuthorizationLevel(options.procedure['~orpc'].meta['auth']),
+        )
+        return options.next()
+      },
     ],
     plugins: [
       new OpenAPIReferencePlugin({
@@ -70,6 +94,21 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
   })
 
   return app
+}
+
+function getCoarseAuthorizationLevel(auth: string | undefined): AuthorizationLevel {
+  switch (auth) {
+    case 'public':
+      return 'public'
+    case 'installation-admin':
+      return 'installation-admin'
+    case 'authenticated':
+    case 'admin':
+    case 'owner':
+      return auth
+    default:
+      return 'authenticated'
+  }
 }
 
 async function getUser(auth: Auth, request: Request): Promise<AuthUser | undefined> {
