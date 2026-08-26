@@ -18,7 +18,17 @@ export type LifecycleOperationKind =
   | 'site_deletion'
   | 'site_recovery'
   | 'purge'
+  | 'site_purge'
   | 'cleanup'
+
+export type PersistedLifecycleOperationKind = Exclude<LifecycleOperationKind, 'purge'>
+
+/** Normalize the issue-facing purge alias to the contract and DB name. */
+export function normalizeLifecycleOperationKind(
+  kind: LifecycleOperationKind,
+): PersistedLifecycleOperationKind {
+  return kind === 'purge' ? 'site_purge' : kind
+}
 
 export interface LifecycleLock {
   acquire(kind: LifecycleOperationKind): PortResult<boolean>
@@ -75,11 +85,11 @@ export class InMemoryRetentionResolver implements RetentionResolver {
 }
 
 export class InMemoryLifecycleLock implements LifecycleLock {
-  #kind: LifecycleOperationKind | undefined
+  #kind: PersistedLifecycleOperationKind | undefined
 
   acquire(kind: LifecycleOperationKind): boolean {
     if (this.#kind !== undefined) return false
-    this.#kind = kind
+    this.#kind = normalizeLifecycleOperationKind(kind)
     return true
   }
 
@@ -91,7 +101,7 @@ export class InMemoryLifecycleLock implements LifecycleLock {
     return this.#kind !== undefined
   }
 
-  get kind(): LifecycleOperationKind | undefined {
+  get kind(): PersistedLifecycleOperationKind | undefined {
     return this.#kind
   }
 }

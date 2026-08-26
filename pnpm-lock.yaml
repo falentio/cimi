@@ -370,6 +370,9 @@ importers:
       '@cimi/auth':
         specifier: workspace:*
         version: link:../auth
+      '@cimi/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       '@orpc/server':
         specifier: 'catalog:'
         version: 1.15.0(crossws@0.3.5)(ws@8.21.3)

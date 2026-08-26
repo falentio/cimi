@@ -20,10 +20,15 @@ import { STrafficOverview } from '../contract/traffic-report/schema.ts'
 import {
   MAX_MINUTE_REPORT_BUCKETS,
   MAX_PUBLIC_DASHBOARD_BUCKETS,
+  EAdministratorRead,
+  EAuthenticatedCommand,
   EAuthenticatedRead,
   EAnalyticsExecution,
   EConfigurationRead,
+  EIngestion,
+  EBatchIngestion,
   EQuery,
+  ERROR_CATALOG,
   SAuthenticatedFilter,
   SAuthenticatedFilterOperator,
   SDateTime,
@@ -38,17 +43,60 @@ import {
 describe('shared report schemas', () => {
   it('keeps shared error catalogs narrow and distinct', () => {
     expect(EAuthenticatedRead).toEqual({
-      UNAUTHORIZED: { status: 401 },
-      NOT_FOUND: { status: 404 },
+      UNAUTHORIZED: { status: 401, message: 'Authentication is required.' },
+      NOT_FOUND: { status: 404, message: 'The requested resource was not found.' },
     })
     expect(EConfigurationRead).not.toHaveProperty('SERVICE_UNAVAILABLE')
     expect(EConfigurationRead).not.toHaveProperty('QUERY_LIMIT_EXCEEDED')
-    expect(EAnalyticsExecution.SERVICE_UNAVAILABLE).toEqual({ status: 503 })
-    expect(EAnalyticsExecution.QUERY_LIMIT_EXCEEDED).toEqual({ status: 422 })
+    expect(EAnalyticsExecution.SERVICE_UNAVAILABLE).toEqual({
+      status: 503,
+      message: 'The service is temporarily unavailable.',
+    })
+    expect(EAnalyticsExecution['QUERY_LIMIT_EXCEEDED']).toEqual({
+      status: 422,
+      message: 'The requested query exceeds the available data or work budget.',
+    })
+  })
+
+  it('derives every legacy error map entry from the central catalog', () => {
+    const entry = (code: keyof typeof ERROR_CATALOG) => ({
+      status: ERROR_CATALOG[code].status,
+      message: ERROR_CATALOG[code].message,
+    })
+
+    expect(EAdministratorRead).toEqual({
+      UNAUTHORIZED: entry('UNAUTHORIZED'),
+      NOT_FOUND: entry('NOT_FOUND'),
+      FORBIDDEN: entry('FORBIDDEN'),
+    })
+    expect(EAuthenticatedCommand).toEqual({
+      UNAUTHORIZED: entry('UNAUTHORIZED'),
+      NOT_FOUND: entry('NOT_FOUND'),
+      CONFLICT: entry('CONFLICT'),
+    })
+    expect(EIngestion).toEqual({
+      BAD_REQUEST: entry('BAD_REQUEST'),
+      FORBIDDEN: entry('FORBIDDEN'),
+      NOT_FOUND: entry('NOT_FOUND'),
+      CONFLICT: entry('CONFLICT'),
+      PAYLOAD_TOO_LARGE: entry('PAYLOAD_TOO_LARGE'),
+      TOO_MANY_REQUESTS: entry('TOO_MANY_REQUESTS'),
+      SERVICE_UNAVAILABLE: entry('SERVICE_UNAVAILABLE'),
+    })
+    expect(EBatchIngestion).toEqual({
+      BAD_REQUEST: entry('BAD_REQUEST'),
+      NOT_FOUND: entry('NOT_FOUND'),
+      PAYLOAD_TOO_LARGE: entry('PAYLOAD_TOO_LARGE'),
+      TOO_MANY_REQUESTS: entry('TOO_MANY_REQUESTS'),
+      SERVICE_UNAVAILABLE: entry('SERVICE_UNAVAILABLE'),
+    })
   })
 
   it('declares analytics-store unavailability only for execution catalogs', () => {
-    expect(EQuery.SERVICE_UNAVAILABLE).toEqual({ status: 503 })
+    expect(EQuery.SERVICE_UNAVAILABLE).toEqual({
+      status: 503,
+      message: 'The service is temporarily unavailable.',
+    })
   })
 
   it('requires absolute date-times and supports authenticated action filters', () => {

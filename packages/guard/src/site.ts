@@ -1,7 +1,6 @@
 import type { AuthUser } from '@cimi/auth'
+import type { PortResult } from '@cimi/kernel'
 import { ORPCError } from '@orpc/server'
-
-type PortResult<T> = T | PromiseLike<T>
 
 export interface SiteScopePort {
   exists(siteId: string): PortResult<boolean>
@@ -22,7 +21,6 @@ export interface SiteScopeGuardDependencies {
 
 export interface SiteScopeGuardOptions {
   readonly requiredRole?: SiteMembershipRole
-  readonly missingSiteCode?: 'NOT_FOUND' | 'FORBIDDEN'
 }
 
 export async function assertSiteScope(
@@ -39,7 +37,7 @@ export async function assertSiteScope(
     ? await dependencies.siteScope.getOrganizationId(siteId)
     : undefined
   if (!siteExists || !siteIsActive || organizationId === undefined) {
-    throw new ORPCError(options.missingSiteCode ?? 'NOT_FOUND')
+    throw new ORPCError('NOT_FOUND')
   }
 
   const role = await dependencies.membership.getRole(organizationId, user.id)

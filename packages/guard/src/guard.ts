@@ -1,7 +1,12 @@
 import type { AuthUser } from '@cimi/auth'
 import { ORPCError } from '@orpc/server'
 
-export type AuthorizationLevel = 'public' | 'authenticated' | 'admin' | 'installation-admin'
+export type AuthorizationLevel =
+  | 'public'
+  | 'authenticated'
+  | 'admin'
+  | 'owner'
+  | 'installation-admin'
 
 export interface AssertOptions {
   code?: 'FORBIDDEN' | 'NOT_FOUND'
@@ -28,6 +33,7 @@ export function assertAuthorization(user: AuthUser | undefined, level: Authoriza
       return
     case 'authenticated':
     case 'admin':
+    case 'owner':
       return assertAuthenticated(user)
     case 'installation-admin':
       return assertInstallationAdmin(user)

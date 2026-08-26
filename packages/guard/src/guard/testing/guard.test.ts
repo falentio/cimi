@@ -121,13 +121,9 @@ describe('assertAuthorization', () => {
     )
   })
 
-  it('fails closed for the removed owner admission level', () => {
-    expect(() => assertAuthorization(normalUser, 'owner' as never)).toThrowError(
-      ORPCError<string, unknown>,
-    )
-    expect(() => assertAuthorization(undefined, 'owner' as never)).toThrowError(
-      ORPCError<string, unknown>,
-    )
+  it('treats owner as coarse authenticated admission', () => {
+    expect(() => assertAuthorization(normalUser, 'owner')).not.toThrow()
+    expect(() => assertAuthorization(undefined, 'owner')).toThrowError(ORPCError<string, unknown>)
   })
 
   it('requires an authenticated owner context for an owner-or-admin check', () => {

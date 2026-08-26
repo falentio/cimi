@@ -1,6 +1,7 @@
 import * as v from 'valibot'
 
 import { SName } from '@cimi/utils'
+import { toORPCErrorMap } from './errors.ts'
 
 export {
   canonicalizeHostname,
@@ -322,29 +323,24 @@ export const SCreated = v.strictObject({
 })
 
 export const EAuthenticatedRead = {
-  UNAUTHORIZED: { status: 401 },
-  NOT_FOUND: { status: 404 },
-} as const
+  ...toORPCErrorMap('UNAUTHORIZED', 'NOT_FOUND'),
+}
 
 export const EConfigurationRead = {
   ...EAuthenticatedRead,
 } as const
 
 export const EAdministratorRead = {
-  ...EAuthenticatedRead,
-  FORBIDDEN: { status: 403 },
-} as const
+  ...toORPCErrorMap('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND'),
+}
 
 export const EAnalyticsExecution = {
-  ...EAuthenticatedRead,
-  SERVICE_UNAVAILABLE: { status: 503 },
-  QUERY_LIMIT_EXCEEDED: { status: 422 },
-} as const
+  ...toORPCErrorMap('UNAUTHORIZED', 'NOT_FOUND', 'SERVICE_UNAVAILABLE', 'QUERY_LIMIT_EXCEEDED'),
+}
 
 export const EAuthenticatedCommand = {
-  ...EAuthenticatedRead,
-  CONFLICT: { status: 409 },
-} as const
+  ...toORPCErrorMap('UNAUTHORIZED', 'NOT_FOUND', 'CONFLICT'),
+}
 
 // These names remain stable for existing imports; new procedures should choose
 // the narrow catalog that matches their documented behavior.
@@ -353,19 +349,23 @@ export const EQuery = EAnalyticsExecution
 export const ECommand = EAuthenticatedCommand
 
 export const EIngestion = {
-  BAD_REQUEST: { status: 400 },
-  FORBIDDEN: { status: 403 },
-  NOT_FOUND: { status: 404 },
-  CONFLICT: { status: 409 },
-  PAYLOAD_TOO_LARGE: { status: 413 },
-  TOO_MANY_REQUESTS: { status: 429 },
-  SERVICE_UNAVAILABLE: { status: 503 },
-} as const
+  ...toORPCErrorMap(
+    'BAD_REQUEST',
+    'FORBIDDEN',
+    'NOT_FOUND',
+    'CONFLICT',
+    'PAYLOAD_TOO_LARGE',
+    'TOO_MANY_REQUESTS',
+    'SERVICE_UNAVAILABLE',
+  ),
+}
 
 export const EBatchIngestion = {
-  BAD_REQUEST: { status: 400 },
-  NOT_FOUND: { status: 404 },
-  PAYLOAD_TOO_LARGE: { status: 413 },
-  TOO_MANY_REQUESTS: { status: 429 },
-  SERVICE_UNAVAILABLE: { status: 503 },
-} as const
+  ...toORPCErrorMap(
+    'BAD_REQUEST',
+    'NOT_FOUND',
+    'PAYLOAD_TOO_LARGE',
+    'TOO_MANY_REQUESTS',
+    'SERVICE_UNAVAILABLE',
+  ),
+}

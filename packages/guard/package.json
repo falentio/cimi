@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@cimi/auth": "workspace:*",
+    "@cimi/kernel": "workspace:*",
     "@orpc/server": "catalog:"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import {
   InMemoryCollectionPolicyResolver,
   InMemoryLifecycleLock,
   InMemoryRetentionResolver,
+  normalizeLifecycleOperationKind,
 } from '../index.ts'
 
 describe('in-memory kernel ports', () => {
@@ -31,6 +32,15 @@ describe('in-memory kernel ports', () => {
     expect(lock.kind).toBe('backup')
     lock.release()
     expect(lock.isLocked()).toBe(false)
+  })
+
+  it('normalizes the issue alias purge to the persisted site_purge kind', () => {
+    expect(normalizeLifecycleOperationKind('purge')).toBe('site_purge')
+    expect(normalizeLifecycleOperationKind('site_purge')).toBe('site_purge')
+
+    const lock = new InMemoryLifecycleLock()
+    expect(lock.acquire('purge')).toBe(true)
+    expect(lock.kind).toBe('site_purge')
   })
 
   it('resolves collection policy and exposes readiness state', () => {

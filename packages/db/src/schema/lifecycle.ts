@@ -229,7 +229,13 @@ export const TBackupOperation = sqliteTable(
     structuralReadiness: text('structural_readiness', { enum: ['not_ready', 'ready'] }).notNull(),
     cleanupPending: integer('cleanup_pending', { mode: 'boolean' }).notNull().default(false),
     errorCode: text('error_code', {
-      enum: ['INCOMPATIBLE_BACKUP', 'INSUFFICIENT_STORAGE', 'CONFLICT', 'INTERNAL_SERVER_ERROR'],
+      enum: [
+        'BACKUP_FAILED',
+        'INCOMPATIBLE_BACKUP',
+        'INSUFFICIENT_STORAGE',
+        'CONFLICT',
+        'INTERNAL_SERVER_ERROR',
+      ],
     }),
     recoveryKey: text('recovery_key').unique(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
@@ -303,7 +309,13 @@ export const TBackupCleanupStage = sqliteTable(
     startedAt: integer('started_at', { mode: 'timestamp_ms' }),
     completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
     errorCode: text('error_code', {
-      enum: ['INCOMPATIBLE_BACKUP', 'INSUFFICIENT_STORAGE', 'CONFLICT', 'INTERNAL_SERVER_ERROR'],
+      enum: [
+        'BACKUP_FAILED',
+        'INCOMPATIBLE_BACKUP',
+        'INSUFFICIENT_STORAGE',
+        'CONFLICT',
+        'INTERNAL_SERVER_ERROR',
+      ],
     }),
   },
   (table) => [

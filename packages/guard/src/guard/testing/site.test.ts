@@ -36,15 +36,10 @@ describe('authorization guards', () => {
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
     await expect(
-      assertSiteScope(
-        nonMember,
-        'site-1',
-        {
-          siteScope: scope,
-          membership: scope,
-        },
-        { missingSiteCode: 'FORBIDDEN' },
-      ),
+      assertSiteScope(nonMember, 'site-1', {
+        siteScope: scope,
+        membership: scope,
+      }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     await expect(
       assertSiteScope(user, 'missing', { siteScope: scope, membership: scope }),
@@ -89,5 +84,18 @@ describe('authorization guards', () => {
     await expect(
       assertSiteScope(user, 'site-1', { siteScope: scope, membership: scope }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('does not disclose an active Site with no accessible Organization scope', async () => {
+    const siteScope = {
+      exists: () => true,
+      isActive: () => true,
+      getOrganizationId: () => undefined,
+    }
+    const membership = { getRole: () => 'member' as const }
+
+    await expect(assertSiteScope(user, 'site-1', { siteScope, membership })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
   })
 })
