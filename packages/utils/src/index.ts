@@ -1,6 +1,10 @@
 import './registrable-domain/psl.d.ts'
 
-export { createSingleton } from './singleton/index.ts'
+export {
+  createSettableSingleton,
+  createSingleton,
+  type SettableSingleton,
+} from './singleton/index.ts'
 export {
   createIdGenerator,
   generateId,
