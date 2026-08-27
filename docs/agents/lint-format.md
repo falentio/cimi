@@ -60,3 +60,17 @@ Record reusable fixes here using this structure:
 
 Update an existing lesson when it covers the same rule. Do not add a duplicate
 entry for every run.
+
+### Lesson: Vitest mock methods and `unbound-method`
+
+- **Symptom:** `vp check` reports `typescript(unbound-method)` on a Vitest
+  matcher such as `expect(repo.method).toHaveBeenCalled()`.
+- **Root cause:** The type-aware rule cannot determine that the matcher safely
+  consumes the mock method reference without invoking it as an unbound
+  callback.
+- **Correct pattern:** Keep the intentional Vitest matcher and add a
+  `// oxlint-disable-next-line typescript/unbound-method` comment immediately
+  above that assertion, with a brief reason.
+- **Avoid:** Broadly disabling `unbound-method` or extracting repository
+  methods merely to silence the warning.
+- **Validation:** `vp check path/to/test.ts`

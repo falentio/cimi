@@ -12,7 +12,7 @@ describe('HelloRepositoryDrizzle.list', () => {
   afterEach(() => destroyHelloDbFixture(fixture))
 
   it('filters names and paginates with a stable next offset', async () => {
-    const repo = new HelloRepositoryDrizzle(fixture.db)
+    const repo = new HelloRepositoryDrizzle({ db: fixture.db })
     await repo.insert(createHelloRecord({ id: 'hello_1', name: 'Ada' }))
     await repo.insert(
       createHelloRecord({

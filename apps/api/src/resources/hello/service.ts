@@ -12,24 +12,32 @@ type HelloWorldInput = InferOutput<typeof schema.SHelloWorldInput>
 type HelloCreateInput = InferOutput<typeof schema.SHelloCreateInput>
 type HelloRemoveInput = InferOutput<typeof schema.SHelloRemoveInput>
 
+export interface HelloServiceDependencies {
+  repository: HelloRepository
+  guard?: HelloGuard
+}
+
 export class HelloService {
-  constructor(
-    private readonly repo: HelloRepository,
-    private readonly guard: HelloGuard = new HelloGuard(repo),
-  ) {}
+  private readonly repository: HelloRepository
+  private readonly guard: HelloGuard
+
+  constructor({ repository, guard = new HelloGuard(repository) }: HelloServiceDependencies) {
+    this.repository = repository
+    this.guard = guard
+  }
 
   world(input: HelloWorldInput): InferOutput<typeof schema.SHelloWorldOutput> {
     return { message: `Hello, ${input.name}!` }
   }
 
   async get(input: HelloGetInput): Promise<InferOutput<typeof schema.SHelloGetOutput>> {
-    const hello = await this.repo.findById(input.id)
+    const hello = await this.repository.findById(input.id)
     if (hello === undefined) throw new ORPCError('NOT_FOUND')
     return hello
   }
 
   async list(input: HelloListInput): Promise<InferOutput<typeof schema.SHelloListOutput>> {
-    const result = await this.repo.findMany({
+    const result = await this.repository.findMany({
       offset: input.offset ?? 0,
       limit: input.limit ?? 20,
       ...(input.name !== undefined && { nameFilter: input.name }),
@@ -41,7 +49,7 @@ export class HelloService {
     input: HelloCreateInput,
     ownerId: AuthUser['id'],
   ): Promise<InferOutput<typeof schema.SHelloCreateOutput>> {
-    return this.repo.insert({
+    return this.repository.insert({
       id: generateId('hello'),
       ownerId,
       name: input.name,
@@ -55,7 +63,7 @@ export class HelloService {
     user: Pick<AuthUser, 'id'>,
   ): Promise<InferOutput<typeof schema.SHelloRemoveOutput>> {
     await this.guard.assertCanRemove(user, input.id)
-    const deleted = await this.repo.deleteById(input.id, user.id)
+    const deleted = await this.repository.deleteById(input.id, user.id)
     if (!deleted) throw new ORPCError('NOT_FOUND')
     return { id: input.id }
   }

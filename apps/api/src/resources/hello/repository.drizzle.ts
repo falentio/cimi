@@ -2,8 +2,16 @@ import { and, count, desc, eq, like } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import type { HelloRepository } from './repository.ts'
 
+export interface HelloRepositoryDrizzleDependencies {
+  db: Db
+}
+
 export class HelloRepositoryDrizzle implements HelloRepository {
-  constructor(private readonly db: Db) {}
+  private readonly db: Db
+
+  constructor({ db }: HelloRepositoryDrizzleDependencies) {
+    this.db = db
+  }
 
   async findById(id: string): Promise<HelloRepository.Hello | undefined> {
     const rows = await this.db.select().from(schema.THello).where(eq(schema.THello.id, id)).limit(1)

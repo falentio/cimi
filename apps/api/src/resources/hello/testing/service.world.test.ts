@@ -3,10 +3,12 @@ import { createHelloFixture } from '../fixtures.ts'
 
 describe('HelloService.world', () => {
   it('computes a personalized greeting without using the repository', () => {
-    const { service, findById, findMany } = createHelloFixture()
+    const { service, repo } = createHelloFixture()
 
     expect(service.world({ name: 'Ada' })).toEqual({ message: 'Hello, Ada!' })
-    expect(findById).not.toHaveBeenCalled()
-    expect(findMany).not.toHaveBeenCalled()
+    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
+    expect(repo.findById).not.toHaveBeenCalled()
+    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
+    expect(repo.findMany).not.toHaveBeenCalled()
   })
 })

@@ -12,7 +12,7 @@ describe('HelloRepositoryDrizzle.remove', () => {
   afterEach(() => destroyHelloDbFixture(fixture))
 
   it('deletes only the matching owner and reports missing rows', async () => {
-    const repo = new HelloRepositoryDrizzle(fixture.db)
+    const repo = new HelloRepositoryDrizzle({ db: fixture.db })
     await repo.insert(createHelloRecord())
 
     await expect(repo.deleteById('hello_1', 'user_2')).resolves.toBe(false)

@@ -3,8 +3,8 @@ import { createHelloFixture, createHello } from '../fixtures.ts'
 
 describe('HelloService.list', () => {
   it('passes list defaults and the name filter to the repository', async () => {
-    const { service, findMany } = createHelloFixture()
-    findMany.mockResolvedValueOnce({
+    const { service, repo } = createHelloFixture()
+    repo.findMany.mockResolvedValueOnce({
       items: [createHello()],
       nextOffset: null,
       hasMore: false,
@@ -15,6 +15,7 @@ describe('HelloService.list', () => {
       items: [{ id: 'hello_1' }],
       totalCount: 1,
     })
-    expect(findMany).toHaveBeenCalledWith({ offset: 0, limit: 20, nameFilter: 'ad' })
+    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
+    expect(repo.findMany).toHaveBeenCalledWith({ offset: 0, limit: 20, nameFilter: 'ad' })
   })
 })

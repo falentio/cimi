@@ -12,7 +12,7 @@ describe('HelloRepositoryDrizzle.create', () => {
   afterEach(() => destroyHelloDbFixture(fixture))
 
   it('persists and returns a greeting', async () => {
-    const repo = new HelloRepositoryDrizzle(fixture.db)
+    const repo = new HelloRepositoryDrizzle({ db: fixture.db })
 
     await expect(repo.insert(createHelloRecord())).resolves.toMatchObject({
       id: 'hello_1',

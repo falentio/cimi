@@ -8,7 +8,7 @@ import type { Db } from '@cimi/db'
 import type { Auth, AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
-import { createHello, helloRouter, type HelloApiContext } from './resources/hello/index.ts'
+import { createHello, type HelloApiContext } from './resources/hello/index.ts'
 import { systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
 
@@ -23,21 +23,17 @@ export interface CreateApiAppDependencies {
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): Hono {
-  const api = implement(contract).$context<HelloApiContext>()
+  const api = implement({
+    health: contract.health,
+    hello: contract.hello,
+  }).$context<HelloApiContext>()
   const hello = createHello({ db: deps.db })
-  const helloHandlers = helloRouter(hello.service)
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler(deps)),
     },
-    hello: {
-      list: api.hello.list.handler(helloHandlers.list),
-      get: api.hello.get.handler(helloHandlers.get),
-      world: api.hello.world.handler(helloHandlers.world),
-      create: api.hello.create.handler(helloHandlers.create),
-      remove: api.hello.remove.handler(helloHandlers.remove),
-    },
-  } as never)
+    hello: hello.router,
+  })
 
   const openAPIHandler = new OpenAPIHandler(router, {
     interceptors: [

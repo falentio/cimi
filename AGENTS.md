@@ -11,6 +11,12 @@
 - Always parallel subagents whenver the tasks are READ only, sequence otherwise.
 - all pnpm/vp/npm scripts must be run-ed in sequence rather than parallel.
 
+### Implementation Conventions
+
+- Resource modules own their oRPC implementation: create one reusable `implement(contract.<resource>).$context(...)`, define handlers with it, return the implemented resource router from `create<Resource>()`, and let the API composition root assemble those routers.
+- Constructors with dependencies receive one named dependency object with explicit property names rather than positional arguments.
+- Sociable fixtures use `vitest-mock-extended` for typed repository mocks, configure behavior in each test, and expose assertions through the repository mock rather than returning duplicate method references.
+
 ### Narrow lint and format fixes
 
 Use `@lint-fmt-fixer` for focused lint and format fixes on known files. See

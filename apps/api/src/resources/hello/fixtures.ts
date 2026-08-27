@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { closeDb, schema, type Db } from '@cimi/db'
 import { createMigratedTestDb } from '@cimi/db/testing'
-import { vi } from 'vitest'
+import { mock } from 'vitest-mock-extended'
 import { HelloGuard } from './guard.ts'
 import type { HelloRepository } from './repository.ts'
 import { HelloService } from './service.ts'
@@ -9,25 +9,10 @@ import { HelloService } from './service.ts'
 const createdAt = '2026-08-25T00:00:00.000Z'
 
 export function createHelloFixture() {
-  const findById = vi.fn(async (id: string) => (id === 'hello_1' ? createHello() : undefined))
-  const findOwnerId = vi.fn(async (id: string) => (id === 'hello_1' ? 'user_1' : undefined))
-  const findMany = vi.fn(
-    async (_options: HelloRepository.FindManyOptions): Promise<HelloRepository.FindManyResult> => ({
-      items: [],
-      nextOffset: null,
-      hasMore: false,
-      totalCount: 0,
-    }),
-  )
-  const insert = vi.fn(async (record: HelloRepository.HelloRecord) => ({
-    ...record,
-    createdAt: record.createdAt.toISOString(),
-  }))
-  const deleteById = vi.fn(async (_id: string, _ownerId: string) => true)
-  const repo: HelloRepository = { findById, findOwnerId, findMany, insert, deleteById }
+  const repo = mock<HelloRepository>()
   const guard = new HelloGuard(repo)
-  const service = new HelloService(repo, guard)
-  return { repo, guard, service, findById, findOwnerId, findMany, insert, deleteById }
+  const service = new HelloService({ repository: repo, guard })
+  return { repo, guard, service }
 }
 
 export function createHello(overrides: Partial<HelloRepository.Hello> = {}): HelloRepository.Hello {
