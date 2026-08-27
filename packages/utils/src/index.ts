@@ -4,6 +4,7 @@ export {
   createSettableSingleton,
   createSingleton,
   type SettableSingleton,
+  type SettableSingletonSetOptions,
 } from './singleton/index.ts'
 export {
   createIdGenerator,

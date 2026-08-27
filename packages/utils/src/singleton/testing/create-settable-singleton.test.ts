@@ -26,6 +26,15 @@ describe('createSettableSingleton', () => {
     expect(singleton.get()).toBe('first')
   })
 
+  it('replaces the value when set with force', () => {
+    const singleton = createSettableSingleton<string>()
+
+    singleton.set('first')
+    singleton.set('second', { force: true })
+
+    expect(singleton.get()).toBe('second')
+  })
+
   it('allows undefined and null as values', () => {
     const undefinedSingleton = createSettableSingleton<string | undefined>()
     const nullSingleton = createSettableSingleton<string | null>()

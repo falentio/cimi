@@ -10,7 +10,11 @@ export function createSingleton<T>(create: () => T): () => T {
 
 export interface SettableSingleton<T> {
   get(): T
-  set(value: T): void
+  set(value: T, options?: SettableSingletonSetOptions): void
+}
+
+export interface SettableSingletonSetOptions {
+  force?: boolean
 }
 
 export function createSettableSingleton<T>(): SettableSingleton<T> {
@@ -23,8 +27,8 @@ export function createSettableSingleton<T>(): SettableSingleton<T> {
       }
       return value
     },
-    set(nextValue) {
-      if (value === UNSET) {
+    set(nextValue, options) {
+      if (value === UNSET || options?.force === true) {
         value = nextValue
       }
     },
