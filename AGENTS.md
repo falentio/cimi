@@ -9,6 +9,7 @@
 - Always run test/lint/fmt as a narrow, not broad, so we save much compute.
 - need an source code access for 3rd party library? create git submodule, vendored at ./docs/research/vendor/
 - Always parallel subagents whenver the tasks are READ only, sequence otherwise.
+- all pnpm/vp/npm scripts must be run-ed in sequence rather than parallel.
 
 ### Narrow lint and format fixes
 
