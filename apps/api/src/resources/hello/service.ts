@@ -21,7 +21,7 @@ export class HelloService {
   private readonly repository: HelloRepository
   private readonly guard: HelloGuard
 
-  constructor({ repository, guard = new HelloGuard(repository) }: HelloServiceDependencies) {
+  constructor({ repository, guard = new HelloGuard({ repository }) }: HelloServiceDependencies) {
     this.repository = repository
     this.guard = guard
   }

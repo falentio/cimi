@@ -10,7 +10,7 @@ const createdAt = '2026-08-25T00:00:00.000Z'
 
 export function createHelloFixture() {
   const repo = mock<HelloRepository>()
-  const guard = new HelloGuard(repo)
+  const guard = new HelloGuard({ repository: repo })
   const service = new HelloService({ repository: repo, guard })
   return { repo, guard, service }
 }
