@@ -13,7 +13,7 @@
 
 ### Implementation Conventions
 
-- Resource modules own their oRPC implementation: create one reusable `implement(contract.<resource>).$context(...)`, define handlers with it, return the implemented resource router from `create<Resource>()`, and let the API composition root assemble those routers.
+- The API module owns one reusable aggregate oRPC implementer for server-supported resources: create it with `implement({ ... }).$context<ApiContext>()`, define resource handlers from its branches, return implemented resource routers from `create<Resource>()`, and let the API composition root assemble those routers.
 - Constructors with dependencies receive one named dependency object with explicit property names rather than positional arguments.
 - Sociable fixtures use `vitest-mock-extended` for typed repository mocks, configure behavior in each test, and expose assertions through the repository mock rather than returning duplicate method references.
 

@@ -5,7 +5,6 @@ import { helloRouter } from './router.ts'
 import { HelloService } from './service.ts'
 
 export { helloRouter }
-export type { HelloApiContext } from './router.ts'
 export { HelloGuard, type HelloGuardDependencies } from './guard.ts'
 export { HelloService, type HelloServiceDependencies } from './service.ts'
 export {

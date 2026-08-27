@@ -1,28 +1,18 @@
-import type { AuthUser } from '@cimi/auth'
-import { contract } from '@cimi/contract'
-import { assertAuthenticated } from '@cimi/guard'
-import { implement } from '@orpc/server'
+import { api, authenticatedApi } from '../../orpc.ts'
 import type { HelloService } from './service.ts'
 
-export interface HelloApiContext {
-  user: AuthUser | undefined
-}
+const helloApi = api.hello
+const authenticatedHelloApi = authenticatedApi.hello
 
 export function helloRouter(service: HelloService) {
-  const api = implement(contract.hello).$context<HelloApiContext>()
-  const authenticated = api.use(({ context, next }) => {
-    assertAuthenticated(context.user)
-    return next({ context: { user: context.user } })
-  })
-
-  return api.router({
-    world: api.world.handler(({ input }) => service.world(input)),
-    get: api.get.handler(({ input }) => service.get(input)),
-    list: api.list.handler(({ input }) => service.list(input)),
-    create: authenticated.create.handler(({ input, context }) =>
+  return helloApi.router({
+    world: helloApi.world.handler(({ input }) => service.world(input)),
+    get: helloApi.get.handler(({ input }) => service.get(input)),
+    list: helloApi.list.handler(({ input }) => service.list(input)),
+    create: authenticatedHelloApi.create.handler(({ input, context }) =>
       service.create(input, context.user.id),
     ),
-    remove: authenticated.remove.handler(({ input, context }) =>
+    remove: authenticatedHelloApi.remove.handler(({ input, context }) =>
       service.remove(input, context.user),
     ),
   })

@@ -2,13 +2,13 @@ import { Hono } from 'hono'
 import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
-import { onError, ORPCError, implement } from '@orpc/server'
-import { contract } from '@cimi/contract'
+import { onError, ORPCError } from '@orpc/server'
 import type { Db } from '@cimi/db'
 import type { Auth, AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
-import { createHello, type HelloApiContext } from './resources/hello/index.ts'
+import { api } from './orpc.ts'
+import { createHello } from './resources/hello/index.ts'
 import { systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
 
@@ -23,10 +23,6 @@ export interface CreateApiAppDependencies {
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): Hono {
-  const api = implement({
-    health: contract.health,
-    hello: contract.hello,
-  }).$context<HelloApiContext>()
   const hello = createHello({ db: deps.db })
   const router = api.router({
     health: {
