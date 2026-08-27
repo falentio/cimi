@@ -1,4 +1,13 @@
-export { TAccount, TSession, TUser, TVerification } from './auth.ts'
+export {
+  betterAuthSchema,
+  TAccount,
+  TAuthInvitation,
+  TAuthMember,
+  TAuthOrganization,
+  TSession,
+  TUser,
+  TVerification,
+} from './auth.ts'
 export { THello } from './hello.ts'
 export {
   TAcceptedEvent,

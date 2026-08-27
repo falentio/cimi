@@ -9,6 +9,7 @@
     "./client": "./src/client.ts"
   },
   "scripts": {
+    "auth:generate": "better-auth generate --config src/auth.codegen.ts --adapter drizzle --dialect sqlite --output ../db/src/schema/auth.generated.ts --yes",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
@@ -18,6 +19,7 @@
   "devDependencies": {
     "@cimi/db": "workspace:*",
     "@types/node": "catalog:",
+    "auth": "catalog:",
     "drizzle-orm": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

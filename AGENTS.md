@@ -10,6 +10,7 @@
 - need an source code access for 3rd party library? create git submodule, vendored at ./docs/research/vendor/
 - Always parallel subagents whenver the tasks are READ only, sequence otherwise.
 - all pnpm/vp/npm scripts must be run-ed in sequence rather than parallel.
+- specs, and docs are token expensive, it drain out context window so fast, so use subagents for specs and docs reading that output the narrowed summary wit file references.
 
 ### Implementation Conventions
 

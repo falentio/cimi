@@ -35,12 +35,7 @@ export async function createFrontendServerApp(
     try {
       const auth = createAuth({
         db,
-        schema: {
-          user: schema.TUser,
-          session: schema.TSession,
-          account: schema.TAccount,
-          verification: schema.TVerification,
-        },
+        schema: schema.betterAuthSchema,
         baseURL: cfg.baseUrl,
         secret: cfg.authSecret,
       })

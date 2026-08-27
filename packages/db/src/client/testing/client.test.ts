@@ -40,7 +40,7 @@ describe('createDb + migrateControlDb', () => {
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
-    expect(migrationRows).toHaveLength(5)
+    expect(migrationRows).toHaveLength(1)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
     const tableRows = db.$client
@@ -49,6 +49,10 @@ describe('createDb + migrateControlDb', () => {
     expect(tableRows.map((row) => row.name)).toEqual(
       expect.arrayContaining([
         'accepted_event',
+        'account',
+        'auth_invitation',
+        'auth_member',
+        'auth_organization',
         'backup_artifact',
         'backup_cleanup_stage',
         'backup_operation',
@@ -83,9 +87,12 @@ describe('createDb + migrateControlDb', () => {
         'retention_cleanup_checkpoint',
         'retention_cleanup_run',
         'retention_policy',
+        'session',
         'site',
         'site_lifecycle_operation',
         'site_tombstone',
+        'user',
+        'verification',
       ]),
     )
 

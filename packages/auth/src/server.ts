@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import type { DB } from 'better-auth/adapters/drizzle'
-import { admin } from 'better-auth/plugins'
+import { admin, organization } from 'better-auth/plugins'
 import { firstUserAdmin } from './first-user-admin.ts'
 
 export interface CreateAuthDependencies {
@@ -20,7 +20,19 @@ export function createAuth(deps: CreateAuthDependencies) {
       ...(deps.schema && { schema: deps.schema }),
     }),
     emailAndPassword: { enabled: true },
-    plugins: [admin(), firstUserAdmin()],
+    plugins: [
+      admin(),
+      organization({
+        allowUserToCreateOrganization: false,
+        disableOrganizationDeletion: true,
+        schema: {
+          organization: { modelName: 'authOrganization' },
+          member: { modelName: 'authMember' },
+          invitation: { modelName: 'authInvitation' },
+        },
+      }),
+      firstUserAdmin(),
+    ],
   })
 }
 

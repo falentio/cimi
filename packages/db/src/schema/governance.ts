@@ -15,6 +15,7 @@ export const TOrganization = sqliteTable(
   {
     id: text('id').primaryKey().notNull(),
     name: text('name').notNull(),
+    authorityOrganizationId: text('authority_organization_id').unique(),
     ownerUserId: text('owner_user_id')
       .notNull()
       .references(() => TUser.id, { onDelete: 'restrict' }),

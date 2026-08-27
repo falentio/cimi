@@ -17,6 +17,7 @@ export default defineConfig({
       'dist/**',
       '.astro/**',
       '.cimi/**',
+      'packages/db/src/schema/auth.generated.ts',
     ],
     singleQuote: true,
     semi: false,
@@ -29,6 +30,7 @@ export default defineConfig({
       'dist/**',
       '.astro/**',
       '.cimi/**',
+      'packages/db/src/schema/auth.generated.ts',
     ],
     options: {
       typeAware: true,

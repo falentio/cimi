@@ -12,6 +12,7 @@ overrides:
   vitest: 4.1.10
 
 catalog:
+  auth: 1.7.1
   vite-plus: ^0.2.9
   vite: npm:@voidzero-dev/vite-plus-core@0.2.9
   typescript: ^6.0.2

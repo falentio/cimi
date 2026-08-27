@@ -33,12 +33,7 @@ async function createFixture() {
     try {
       const auth = createAuth({
         db,
-        schema: {
-          user: schema.TUser,
-          session: schema.TSession,
-          account: schema.TAccount,
-          verification: schema.TVerification,
-        },
+        schema: schema.betterAuthSchema,
         secret: 'test-secret-1234567890',
         baseURL: 'http://localhost',
       })

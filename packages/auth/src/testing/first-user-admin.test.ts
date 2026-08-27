@@ -17,12 +17,7 @@ test('first signed-up user becomes admin, later users keep non-admin role', asyn
 
   const auth = createAuth({
     db,
-    schema: {
-      user: schema.TUser,
-      session: schema.TSession,
-      account: schema.TAccount,
-      verification: schema.TVerification,
-    },
+    schema: schema.betterAuthSchema,
     secret: 'test-secret-1234567890',
   })
 
