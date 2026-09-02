@@ -51,9 +51,6 @@ const analyticsReport = catalog(
 )
 const siteCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST', 'CONFLICT')
 const siteLifecycleCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT')
-const siteRead = catalog('UNAUTHORIZED', 'NOT_FOUND', 'BAD_REQUEST')
-const siteDeletionStatus = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST')
-
 const expectedErrors: Record<string, ErrorMap> = {
   'backupRestore.listBackups': catalog(
     'UNAUTHORIZED',
@@ -193,6 +190,7 @@ const expectedErrors: Record<string, ErrorMap> = {
     'UNAUTHORIZED',
     'NOT_FOUND',
     'BAD_REQUEST',
+    'CONFLICT',
     'INTERNAL_SERVER_ERROR',
   ),
   'membership.changeMemberRole': catalog(
@@ -200,18 +198,45 @@ const expectedErrors: Record<string, ErrorMap> = {
     'FORBIDDEN',
     'NOT_FOUND',
     'BAD_REQUEST',
+    'CONFLICT',
     'OWNER_PROTECTED',
+    'INTERNAL_SERVER_ERROR',
   ),
-  'membership.removeMember': catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'OWNER_PROTECTED'),
-  'membership.leaveOrganization': catalog('UNAUTHORIZED', 'NOT_FOUND', 'OWNER_PROTECTED'),
+  'membership.removeMember': catalog(
+    'UNAUTHORIZED',
+    'FORBIDDEN',
+    'NOT_FOUND',
+    'CONFLICT',
+    'OWNER_PROTECTED',
+    'INTERNAL_SERVER_ERROR',
+  ),
+  'membership.leaveOrganization': catalog(
+    'UNAUTHORIZED',
+    'NOT_FOUND',
+    'CONFLICT',
+    'OWNER_PROTECTED',
+    'INTERNAL_SERVER_ERROR',
+  ),
   'membership.transferOrganizationOwnership': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
     'NOT_FOUND',
     'CONFLICT',
+    'INTERNAL_SERVER_ERROR',
   ),
-  'organization.listOrganizations': catalog('UNAUTHORIZED', 'BAD_REQUEST', 'INTERNAL_SERVER_ERROR'),
-  'organization.getOrganization': siteRead,
+  'organization.listOrganizations': catalog(
+    'UNAUTHORIZED',
+    'BAD_REQUEST',
+    'CONFLICT',
+    'INTERNAL_SERVER_ERROR',
+  ),
+  'organization.getOrganization': catalog(
+    'UNAUTHORIZED',
+    'NOT_FOUND',
+    'BAD_REQUEST',
+    'CONFLICT',
+    'INTERNAL_SERVER_ERROR',
+  ),
   'organization.ensurePersonalOrganization': catalog(
     'UNAUTHORIZED',
     'CONFLICT',
@@ -228,13 +253,17 @@ const expectedErrors: Record<string, ErrorMap> = {
     'FORBIDDEN',
     'NOT_FOUND',
     'BAD_REQUEST',
+    'CONFLICT',
+    'INTERNAL_SERVER_ERROR',
   ),
   'organization.deleteOrganization': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
     'NOT_FOUND',
+    'CONFLICT',
     'ORGANIZATION_NOT_EMPTY',
     'PERSONAL_ORGANIZATION_PROTECTED',
+    'INTERNAL_SERVER_ERROR',
   ),
   'publicDashboard.getPublicDashboardConfig': administratorRead,
   'publicDashboard.queryPublicDashboard': catalog(
@@ -262,9 +291,22 @@ const expectedErrors: Record<string, ErrorMap> = {
     'CONFLICT',
     'INTERNAL_SERVER_ERROR',
   ),
-  'site.listSites': catalog('UNAUTHORIZED', 'BAD_REQUEST', 'INTERNAL_SERVER_ERROR'),
-  'site.getSite': siteRead,
-  'site.getSiteDeletionStatus': siteDeletionStatus,
+  'site.listSites': catalog('UNAUTHORIZED', 'BAD_REQUEST', 'CONFLICT', 'INTERNAL_SERVER_ERROR'),
+  'site.getSite': catalog(
+    'UNAUTHORIZED',
+    'NOT_FOUND',
+    'BAD_REQUEST',
+    'CONFLICT',
+    'INTERNAL_SERVER_ERROR',
+  ),
+  'site.getSiteDeletionStatus': catalog(
+    'UNAUTHORIZED',
+    'FORBIDDEN',
+    'NOT_FOUND',
+    'BAD_REQUEST',
+    'CONFLICT',
+    'INTERNAL_SERVER_ERROR',
+  ),
   'site.createSite': siteCommand,
   'site.updateSiteV2': siteCommand,
   'site.deleteSite': siteLifecycleCommand,

@@ -298,4 +298,12 @@ test('hides pending Organization state from an inaccessible caller', async () =>
   expect(pendingGet.status).toBe(404)
   expect(pendingUpdate.status).toBe(404)
   expect(pendingDelete.status).toBe(404)
+
+  const pendingOwnerGet = await request(app, organizationPath, owner.cookie)
+  expect(pendingOwnerGet.status).toBe(409)
+  expect(await pendingOwnerGet.json()).toMatchObject({
+    defined: true,
+    code: 'CONFLICT',
+    status: 409,
+  })
 })

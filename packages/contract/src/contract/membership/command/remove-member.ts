@@ -23,7 +23,9 @@ export const removeMember = oc
     UNAUTHORIZED: {},
     FORBIDDEN: {},
     NOT_FOUND: {},
+    CONFLICT: {},
     OWNER_PROTECTED: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SMembershipRemoveInput)
   .output(SMembershipRemoveOutput)

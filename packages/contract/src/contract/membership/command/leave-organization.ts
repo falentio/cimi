@@ -22,7 +22,9 @@ export const leaveOrganization = oc
   .errors({
     UNAUTHORIZED: {},
     NOT_FOUND: {},
+    CONFLICT: {},
     OWNER_PROTECTED: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SMembershipLeaveInput)
   .output(SMembershipLeaveOutput)

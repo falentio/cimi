@@ -24,7 +24,9 @@ export const changeMemberRole = oc
     FORBIDDEN: {},
     NOT_FOUND: {},
     BAD_REQUEST: {},
+    CONFLICT: {},
     OWNER_PROTECTED: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SMembershipChangeRoleInput)
   .output(SMembershipChangeRoleOutput)
