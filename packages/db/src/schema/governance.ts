@@ -165,7 +165,7 @@ export const TOrganizationGovernanceOperation = sqliteTable(
     check(
       'organization_governance_operation_target_role_check',
       sql`(
-        (${table.operationType} = 'change-member-role' AND ${table.targetRole} IN ('admin', 'member'))
+        (${table.operationType} = 'change-member-role' AND ${table.targetRole} IS NOT NULL AND ${table.targetRole} IN ('admin', 'member'))
         OR
         (${table.operationType} IN ('transfer-ownership', 'remove-member', 'leave-organization', 'delete-organization') AND ${table.targetRole} IS NULL)
       )`,

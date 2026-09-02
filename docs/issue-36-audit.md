@@ -326,17 +326,19 @@ Verification: the focused Membership suite passed 27 tests; the governance accep
 
 ### 15. Database tests do not exercise governance constraints
 
-The schema and migrations define governance constraints, but the current database tests mainly verify that the migrated tables exist.
+**Remediated in `feat/governance`.**
 
-Missing runtime checks include:
+The migrated SQLite database now has direct runtime coverage for:
 
-- Partial unique Personal Organization ownership.
-- Partial unique single-Owner membership.
-- Invalid membership roles.
-- Invalid governance operation target-role combinations.
-- One active operation per Organization.
-- Governance foreign-key behavior.
-- Transfer rollback and final Owner state.
+- The partial unique Personal Organization owner index, including the distinction between Personal and non-Personal Organizations.
+- The Membership composite identity key, single-Owner index, role check, and Organization/User foreign keys.
+- Governance operation pending uniqueness, target-role shape, nonnegative attempt counts, and Organization/User foreign keys.
+- Organization repair operation shape, pending uniqueness, nonnegative attempt counts, and owner foreign keys.
+- Foreign-key enforcement after migration and Organization delete cascades for Membership and governance operations.
+
+The new runtime test also exposed that SQLite treats a `CHECK` expression evaluating to `NULL` as satisfied. A `change-member-role` operation with a `NULL` target role could therefore bypass the intended target-role constraint. The schema now explicitly requires `target_role IS NOT NULL` for role-change operations, with migration `0006_previous_the_leader.sql` applying the corrected constraint to existing databases.
+
+Transfer transaction rollback and final Owner state are covered by the focused Membership repository tests recorded under finding 14.
 
 Evidence:
 
@@ -344,7 +346,11 @@ Evidence:
 - `packages/db/src/migrations/0001_dry_lester.sql`
 - `packages/db/src/migrations/0002_cooing_scalphunter.sql`
 - `packages/db/src/migrations/0003_even_winter_soldier.sql`
-- `packages/db/src/client/testing/client.test.ts`
+- `packages/db/src/migrations/0006_previous_the_leader.sql`
+- `packages/db/src/client/testing/client.test.ts` — one runtime constraint test covering the governance tables.
+- `apps/api/src/resources/membership/testing/repository.drizzle.transfer.test.ts` — transfer transaction rollback and final Owner state.
+
+Verification: the focused database client suite passed 6 tests; narrow lint/format, database schema checks, database typecheck, and `git diff --check` passed.
 
 ### 16. Contract and Better Auth adapter coverage is narrow
 
