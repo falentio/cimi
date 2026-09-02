@@ -92,11 +92,7 @@ export class OrganizationService {
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationEnsurePersonalOutput>> {
     const existing = await this.repository.findPersonalByOwner(user.id)
-    if (existing !== undefined) {
-      await this.reconcileOrganization(existing.id, headers, user.id)
-      await this.assertReadable(existing.id)
-      return toOrganization(existing)
-    }
+    if (existing !== undefined) return this.reusePersonal(existing, user.id, headers)
 
     const slug = `personal-${user.id}`
     const name = `${user.name}'s Organization`
@@ -147,10 +143,20 @@ export class OrganizationService {
       return toOrganization(organization)
     } catch (error) {
       const winner = await this.repository.findPersonalByOwner(user.id)
-      if (winner !== undefined) return toOrganization(winner)
+      if (winner !== undefined) return this.reusePersonal(winner, user.id, headers)
       if (isConstraintError(error)) throw new ORPCError('CONFLICT')
       throw error
     }
+  }
+
+  private async reusePersonal(
+    organization: OrganizationRecord,
+    userId: string,
+    headers: Headers,
+  ): Promise<InferOutput<typeof SOrganizationEnsurePersonalOutput>> {
+    await this.reconcileOrganization(organization.id, headers, userId)
+    await this.assertReadable(organization.id)
+    return toOrganization(organization)
   }
 
   async create(
