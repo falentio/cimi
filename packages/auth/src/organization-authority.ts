@@ -180,12 +180,18 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
     let offset = 0
     const limit = 100
     for (;;) {
-      const result = await this.listMembers({
-        organizationId: input.organizationId,
-        offset,
-        limit,
-        headers: input.headers,
-      })
+      let result: Awaited<ReturnType<OrganizationAuthority['listMembers']>>
+      try {
+        result = await this.listMembers({
+          organizationId: input.organizationId,
+          offset,
+          limit,
+          headers: input.headers,
+        })
+      } catch (error) {
+        if (isRequesterNotOrganizationMember(error)) return undefined
+        throw error
+      }
       const member = result.members.find((candidate) => candidate.userId === input.userId)
       if (member !== undefined) return member
       if (result.members.length === 0 || offset + result.members.length >= result.totalCount) {
@@ -399,4 +405,11 @@ function isOrganizationNotFound(error: unknown): boolean {
   const body = error.body
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
   return body.code === 'ORGANIZATION_NOT_FOUND'
+}
+
+function isRequesterNotOrganizationMember(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('body' in error)) return false
+  const body = error.body
+  if (typeof body !== 'object' || body === null || !('code' in body)) return false
+  return body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
 }

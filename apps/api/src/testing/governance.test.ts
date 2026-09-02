@@ -188,3 +188,54 @@ test('serves organization and membership governance through the Cimi API', async
   expect(replayResponse.status).toBe(403)
   expect(await replayResponse.json()).toMatchObject({ code: 'FORBIDDEN', status: 403 })
 })
+
+test('returns not found when Better Auth independently removes a projected member', async () => {
+  const { app, auth, db } = await createFixture()
+  const owner = await signUp(app, 'authority-owner@example.com', 'Owner')
+  const member = await signUp(app, 'authority-member@example.com', 'Member')
+
+  const createResponse = await request(app, '/organization/createOrganization', owner.cookie, {
+    name: 'Authority Drift',
+  })
+  expect(createResponse.status).toBe(201)
+  const organization = await createResponse.json()
+  const persistedOrganization = (
+    await db
+      .select({ authorityOrganizationId: schema.TOrganization.authorityOrganizationId })
+      .from(schema.TOrganization)
+      .where(eq(schema.TOrganization.id, organization.id))
+  )[0]
+  expect(persistedOrganization?.authorityOrganizationId).toBeTruthy()
+
+  const addedMember = await auth.api.addMember({
+    headers: new Headers({ cookie: owner.cookie }),
+    body: {
+      organizationId: persistedOrganization!.authorityOrganizationId!,
+      userId: member.userId,
+      role: 'member',
+    },
+  })
+
+  const initialList = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    owner.cookie,
+  )
+  expect(initialList.status).toBe(200)
+
+  await auth.api.removeMember({
+    headers: new Headers({ cookie: owner.cookie }),
+    body: {
+      organizationId: persistedOrganization!.authorityOrganizationId!,
+      memberIdOrEmail: addedMember.id,
+    },
+  })
+
+  const staleMemberResponse = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    member.cookie,
+  )
+  expect(staleMemberResponse.status).toBe(404)
+  expect(await staleMemberResponse.json()).toMatchObject({ code: 'NOT_FOUND', status: 404 })
+})

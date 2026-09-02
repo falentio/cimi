@@ -134,4 +134,39 @@ describe('BetterAuthOrganizationAuthority', () => {
       expect.objectContaining({ query: { organizationId: 'authority_1', offset: 2, limit: 100 } }),
     )
   })
+
+  it('treats a removed requester as an absent member', async () => {
+    db = createMigratedTestDb()
+    const auth = createAuth({
+      db,
+      schema: schema.betterAuthSchema,
+      secret: 'test-secret-1234567890',
+    })
+    const authority = new BetterAuthOrganizationAuthority({ auth })
+    vi.spyOn(auth.api, 'listMembers').mockRejectedValue(
+      Object.assign(new Error('You are not a member of this organization'), {
+        body: { code: 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION' },
+      }),
+    )
+
+    await expect(
+      authority.getMember({ organizationId: 'authority_1', userId: 'user_1', headers }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('propagates unknown member lookup failures', async () => {
+    db = createMigratedTestDb()
+    const auth = createAuth({
+      db,
+      schema: schema.betterAuthSchema,
+      secret: 'test-secret-1234567890',
+    })
+    const authority = new BetterAuthOrganizationAuthority({ auth })
+    const providerError = new Error('authority unavailable')
+    vi.spyOn(auth.api, 'listMembers').mockRejectedValue(providerError)
+
+    await expect(
+      authority.getMember({ organizationId: 'authority_1', userId: 'user_1', headers }),
+    ).rejects.toBe(providerError)
+  })
 })
