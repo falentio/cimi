@@ -89,9 +89,19 @@ export const SDate = v.pipe(
 )
 export const SPageSize = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))
 export const SOffset = v.pipe(v.number(), v.integer(), v.minValue(0))
+const SQueryNumber = v.union([
+  v.number(),
+  v.pipe(
+    v.string(),
+    v.check((value) => value.trim() !== ''),
+    v.toNumber(),
+  ),
+])
+const SQueryPageSize = v.pipe(SQueryNumber, v.integer(), v.minValue(1), v.maxValue(100))
+const SQueryOffset = v.pipe(SQueryNumber, v.integer(), v.minValue(0))
 export const SOffsetPaginationInput = v.strictObject({
-  offset: v.optional(SOffset),
-  limit: v.optional(SPageSize),
+  offset: v.optional(SQueryOffset),
+  limit: v.optional(SQueryPageSize),
 })
 export const SOffsetPage = v.strictObject({
   nextOffset: v.nullable(SOffset),

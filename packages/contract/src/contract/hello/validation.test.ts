@@ -5,6 +5,7 @@ import { SHelloCreateInput } from './command/create.ts'
 import { SHelloRemoveInput } from './command/remove.ts'
 import { SHelloGetInput } from './query/get.ts'
 import { SHelloListInput } from './query/list.ts'
+import { SOffsetPaginationInput } from '../../schema/index.ts'
 import { SHelloWorldInput } from './query/world.ts'
 
 describe('hello contract', () => {
@@ -35,8 +36,14 @@ describe('hello contract', () => {
     ).toThrow(v.ValiError)
   })
 
-  it('rejects invalid list bounds', () => {
+  it('accepts numeric query pagination values and rejects invalid values', () => {
+    expect(v.parse(SOffsetPaginationInput, { offset: '2', limit: '10' })).toEqual({
+      offset: 2,
+      limit: 10,
+    })
     expect(() => v.parse(SHelloListInput, { offset: -1 })).toThrow(v.ValiError)
     expect(() => v.parse(SHelloListInput, { limit: 101 })).toThrow(v.ValiError)
+    expect(() => v.parse(SHelloListInput, { offset: '' })).toThrow(v.ValiError)
+    expect(() => v.parse(SHelloListInput, { limit: '1.5' })).toThrow(v.ValiError)
   })
 })

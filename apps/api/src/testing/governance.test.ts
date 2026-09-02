@@ -4,8 +4,10 @@ import {
   SMembershipListOutput,
   SOrganizationCreateOutput,
   SOrganizationEnsurePersonalOutput,
+  SOrganizationListOutput,
 } from '@cimi/contract'
 import { eq } from 'drizzle-orm'
+import { parse } from 'valibot'
 import { closeDb, schema, type Db } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createApiApp } from '../index.ts'
@@ -187,6 +189,293 @@ test('serves organization and membership governance through the Cimi API', async
   )
   expect(replayResponse.status).toBe(403)
   expect(await replayResponse.json()).toMatchObject({ code: 'FORBIDDEN', status: 403 })
+})
+
+test('converges concurrent Personal Organization provisioning requests', async () => {
+  const { app, db } = await createFixture()
+  const owner = await signUp(app, 'personal-concurrent@example.com', 'Concurrent Owner')
+
+  const [first, second] = await Promise.all([
+    request(app, '/organization/ensurePersonalOrganization', owner.cookie, {}),
+    request(app, '/organization/ensurePersonalOrganization', owner.cookie, {}),
+  ])
+  expect(first.status).toBe(200)
+  expect(second.status).toBe(200)
+  const firstOrganization = await first.json()
+  const secondOrganization = await second.json()
+  expect(firstOrganization.id).toBe(secondOrganization.id)
+
+  const organizations = await db
+    .select()
+    .from(schema.TOrganization)
+    .where(eq(schema.TOrganization.ownerUserId, owner.userId))
+  expect(organizations).toHaveLength(1)
+  expect(organizations[0]).toMatchObject({
+    id: firstOrganization.id,
+    ownerUserId: owner.userId,
+    isPersonal: true,
+  })
+  await expect(
+    db
+      .select()
+      .from(schema.TMembership)
+      .where(eq(schema.TMembership.organizationId, firstOrganization.id)),
+  ).resolves.toMatchObject([expect.objectContaining({ userId: owner.userId, role: 'owner' })])
+})
+
+test('deletes an empty Personal Organization and its membership', async () => {
+  const { app, db } = await createFixture()
+  const owner = await signUp(app, 'personal-delete@example.com', 'Personal Owner')
+
+  const ensureResponse = await request(
+    app,
+    '/organization/ensurePersonalOrganization',
+    owner.cookie,
+    {},
+  )
+  expect(ensureResponse.status).toBe(200)
+  const organization = await ensureResponse.json()
+
+  const deleteResponse = await request(app, '/organization/deleteOrganization', owner.cookie, {
+    organizationId: organization.id,
+  })
+  expect(deleteResponse.status).toBe(204)
+  await expect(
+    db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
+  ).resolves.toHaveLength(0)
+  await expect(
+    db
+      .select()
+      .from(schema.TMembership)
+      .where(eq(schema.TMembership.organizationId, organization.id)),
+  ).resolves.toHaveLength(0)
+})
+
+test('prioritizes Personal Organization protection when a Site exists', async () => {
+  const { app, db } = await createFixture()
+  const owner = await signUp(app, 'personal-site-delete@example.com', 'Personal Site Owner')
+
+  const ensureResponse = await request(
+    app,
+    '/organization/ensurePersonalOrganization',
+    owner.cookie,
+    {},
+  )
+  expect(ensureResponse.status).toBe(200)
+  const organization = await ensureResponse.json()
+  const siteResponse = await request(app, '/site/createSite', owner.cookie, {
+    organizationId: organization.id,
+    name: 'Personal Site',
+    hostname: 'personal.example.com',
+  })
+  expect(siteResponse.status).toBe(201)
+  const site = await siteResponse.json()
+  const beforeOrganization = await db
+    .select()
+    .from(schema.TOrganization)
+    .where(eq(schema.TOrganization.id, organization.id))
+  const beforeMembership = await db
+    .select()
+    .from(schema.TMembership)
+    .where(eq(schema.TMembership.organizationId, organization.id))
+
+  const deleteResponse = await request(app, '/organization/deleteOrganization', owner.cookie, {
+    organizationId: organization.id,
+  })
+  expect(deleteResponse.status).toBe(409)
+  await expect(deleteResponse.json()).resolves.toMatchObject({
+    code: 'PERSONAL_ORGANIZATION_PROTECTED',
+    status: 409,
+  })
+  await expect(
+    db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
+  ).resolves.toEqual(beforeOrganization)
+  await expect(
+    db
+      .select()
+      .from(schema.TMembership)
+      .where(eq(schema.TMembership.organizationId, organization.id)),
+  ).resolves.toEqual(beforeMembership)
+  await expect(
+    db.select().from(schema.TSite).where(eq(schema.TSite.id, site.id)),
+  ).resolves.toHaveLength(1)
+})
+
+test('rejects deletion of a non-personal Organization that owns a Site', async () => {
+  const { app, db } = await createFixture()
+  const owner = await signUp(app, 'non-personal-site-delete@example.com', 'Organization Owner')
+
+  const createResponse = await request(app, '/organization/createOrganization', owner.cookie, {
+    name: 'Site Organization',
+  })
+  expect(createResponse.status).toBe(201)
+  const organization = await createResponse.json()
+  const siteResponse = await request(app, '/site/createSite', owner.cookie, {
+    organizationId: organization.id,
+    name: 'Production',
+    hostname: 'production.example.com',
+  })
+  expect(siteResponse.status).toBe(201)
+  const site = await siteResponse.json()
+  const beforeOrganization = await db
+    .select()
+    .from(schema.TOrganization)
+    .where(eq(schema.TOrganization.id, organization.id))
+  const beforeMembership = await db
+    .select()
+    .from(schema.TMembership)
+    .where(eq(schema.TMembership.organizationId, organization.id))
+
+  const deleteResponse = await request(app, '/organization/deleteOrganization', owner.cookie, {
+    organizationId: organization.id,
+  })
+  expect(deleteResponse.status).toBe(409)
+  await expect(deleteResponse.json()).resolves.toMatchObject({
+    code: 'ORGANIZATION_NOT_EMPTY',
+    status: 409,
+  })
+  await expect(
+    db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
+  ).resolves.toEqual(beforeOrganization)
+  await expect(
+    db
+      .select()
+      .from(schema.TMembership)
+      .where(eq(schema.TMembership.organizationId, organization.id)),
+  ).resolves.toEqual(beforeMembership)
+  await expect(
+    db.select().from(schema.TSite).where(eq(schema.TSite.id, site.id)),
+  ).resolves.toHaveLength(1)
+})
+
+test('authorizes Organization updates and persists the new name', async () => {
+  const { app, auth, db } = await createFixture()
+  const owner = await signUp(app, 'organization-update-owner@example.com', 'Update Owner')
+  const member = await signUp(app, 'organization-update-member@example.com', 'Update Member')
+
+  const createResponse = await request(app, '/organization/createOrganization', owner.cookie, {
+    name: 'Before Update',
+  })
+  expect(createResponse.status).toBe(201)
+  const organization = await createResponse.json()
+  const persistedOrganization = (
+    await db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id))
+  )[0]
+  expect(persistedOrganization).toBeDefined()
+  await auth.api.addMember({
+    headers: new Headers({ cookie: owner.cookie }),
+    body: {
+      organizationId: persistedOrganization!.authorityOrganizationId!,
+      userId: member.userId,
+      role: 'member',
+    },
+  })
+  const membersResponse = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    owner.cookie,
+  )
+  expect(membersResponse.status).toBe(200)
+
+  const memberUpdate = await request(app, '/organization/updateOrganization', member.cookie, {
+    organizationId: organization.id,
+    name: 'Unauthorized Update',
+  })
+  expect(memberUpdate.status).toBe(403)
+
+  const promoteResponse = await request(app, '/membership/changeMemberRole', owner.cookie, {
+    organizationId: organization.id,
+    userId: member.userId,
+    role: 'admin',
+  })
+  expect(promoteResponse.status).toBe(200)
+  const updateResponse = await request(app, '/organization/updateOrganization', member.cookie, {
+    organizationId: organization.id,
+    name: 'Updated by Administrator',
+  })
+  expect(updateResponse.status).toBe(200)
+  await expect(updateResponse.json()).resolves.toMatchObject({
+    id: organization.id,
+    name: 'Updated by Administrator',
+    ownerUserId: owner.userId,
+    isPersonal: false,
+  })
+
+  const getResponse = await request(
+    app,
+    `/organization/getOrganization?organizationId=${encodeURIComponent(organization.id)}`,
+    owner.cookie,
+  )
+  expect(getResponse.status).toBe(200)
+  await expect(getResponse.json()).resolves.toMatchObject({ name: 'Updated by Administrator' })
+  await expect(
+    db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
+  ).resolves.toMatchObject([
+    expect.objectContaining({
+      name: 'Updated by Administrator',
+      ownerUserId: owner.userId,
+      isPersonal: false,
+    }),
+  ])
+  await expect(
+    auth.api.getOrganization({
+      headers: new Headers({ cookie: owner.cookie }),
+      query: { organizationId: persistedOrganization!.authorityOrganizationId! },
+    }),
+  ).resolves.toMatchObject({ name: 'Updated by Administrator' })
+})
+
+test('isolates Organization lists and returns live offset pagination', async () => {
+  const { app } = await createFixture()
+  const owner = await signUp(app, 'organization-list-owner@example.com', 'List Owner')
+  const outsider = await signUp(app, 'organization-list-outsider@example.com', 'List Outsider')
+  const names = ['First Organization', 'Second Organization', 'Third Organization']
+  for (const name of names) {
+    const response = await request(app, '/organization/createOrganization', owner.cookie, { name })
+    expect(response.status).toBe(201)
+  }
+  const outsiderCreate = await request(app, '/organization/createOrganization', outsider.cookie, {
+    name: 'Outsider Organization',
+  })
+  expect(outsiderCreate.status).toBe(201)
+
+  const pageOneResponse = await request(
+    app,
+    '/organization/listOrganizations?offset=0&limit=1',
+    owner.cookie,
+  )
+  const pageTwoResponse = await request(
+    app,
+    '/organization/listOrganizations?offset=1&limit=1',
+    owner.cookie,
+  )
+  const pageThreeResponse = await request(
+    app,
+    '/organization/listOrganizations?offset=2&limit=1',
+    owner.cookie,
+  )
+  expect(pageOneResponse.status).toBe(200)
+  expect(pageTwoResponse.status).toBe(200)
+  expect(pageThreeResponse.status).toBe(200)
+  const pageOne = parse(SOrganizationListOutput, await pageOneResponse.json())
+  const pageTwo = parse(SOrganizationListOutput, await pageTwoResponse.json())
+  const pageThree = parse(SOrganizationListOutput, await pageThreeResponse.json())
+  expect(pageOne).toMatchObject({ nextOffset: 1, hasMore: true, totalCount: 3 })
+  expect(pageTwo).toMatchObject({ nextOffset: 2, hasMore: true, totalCount: 3 })
+  expect(pageThree).toMatchObject({ nextOffset: null, hasMore: false, totalCount: 3 })
+  expect(
+    [pageOne, pageTwo, pageThree].flatMap((page) => page.items.map((item) => item.name)),
+  ).toEqual(expect.arrayContaining(names))
+  expect(
+    [pageOne, pageTwo, pageThree].flatMap((page) => page.items.map((item) => item.name)),
+  ).not.toContain('Outsider Organization')
+
+  const outsiderList = await request(app, '/organization/listOrganizations', outsider.cookie)
+  expect(outsiderList.status).toBe(200)
+  await expect(outsiderList.json()).resolves.toMatchObject({
+    totalCount: 1,
+    items: [expect.objectContaining({ name: 'Outsider Organization' })],
+  })
 })
 
 test('returns not found when Better Auth independently removes a projected member', async () => {
