@@ -50,6 +50,25 @@ async function createFixture() {
   }
 }
 
+async function signUp(
+  app: ReturnType<typeof createApiApp>,
+  email: string,
+  name: string,
+): Promise<{ cookie: string; userId: string }> {
+  const response = await app.fetch(
+    new Request('http://localhost/api/auth/sign-up/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, email, password: 'password123' }),
+    }),
+  )
+  expect(response.status).toBe(200)
+  const body = await response.json()
+  const setCookie = response.headers.get('set-cookie')
+  expect(setCookie).toBeTruthy()
+  return { cookie: setCookie!.split(';', 1)[0]!, userId: body.user.id }
+}
+
 test('system health reports live control and analytics stores', async () => {
   const { app, auth, db, analytics } = await createFixture()
 
@@ -147,27 +166,108 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
   expect(signup.headers.get('set-cookie')).toBeTruthy()
 })
 
-test('blocks native Better Auth governance mutations but keeps non-mutating auth routes mounted', async () => {
-  const { app } = await createFixture()
+test('blocks every native Better Auth governance mutation without changing authority state', async () => {
+  const { app, auth, db } = await createFixture()
+  const owner = await signUp(app, 'native-owner@example.com', 'Native Owner')
+  const member = await signUp(app, 'native-member@example.com', 'Native Member')
+  const invitee = await signUp(app, 'native-invitee@example.com', 'Native Invitee')
 
-  for (const path of [
-    '/organization/create',
-    '/organization/update',
-    '/organization/delete',
-    '/organization/add-member',
-    '/organization/remove-member',
-    '/organization/update-member-role',
-    '/organization/leave',
-  ]) {
+  const createdAuthorityOrganization = await auth.api.createOrganization({
+    body: { name: 'Native Governance', slug: 'native-governance', userId: owner.userId },
+  })
+  const authorityOrganizationId = createdAuthorityOrganization.id
+  const addedMember = await auth.api.addMember({
+    headers: new Headers({ cookie: owner.cookie }),
+    body: {
+      organizationId: authorityOrganizationId,
+      userId: member.userId,
+      role: 'member',
+    },
+  })
+  const invitation = await auth.api.createInvitation({
+    headers: new Headers({ cookie: owner.cookie }),
+    body: {
+      organizationId: authorityOrganizationId,
+      email: 'native-invitee@example.com',
+      role: 'member',
+    },
+  })
+  const before = await readNativeGovernanceState(db)
+
+  const nativeMutations = [
+    {
+      path: '/organization/create',
+      cookie: owner.cookie,
+      body: { name: 'Blocked Organization', slug: 'blocked-organization' },
+    },
+    {
+      path: '/organization/update',
+      cookie: owner.cookie,
+      body: { organizationId: authorityOrganizationId, data: { name: 'Blocked Rename' } },
+    },
+    {
+      path: '/organization/delete',
+      cookie: owner.cookie,
+      body: { organizationId: authorityOrganizationId },
+    },
+    {
+      path: '/organization/invite-member',
+      cookie: owner.cookie,
+      body: {
+        organizationId: authorityOrganizationId,
+        email: 'blocked@example.com',
+        role: 'member',
+      },
+    },
+    {
+      path: '/organization/add-member',
+      cookie: owner.cookie,
+      body: { organizationId: authorityOrganizationId, userId: invitee.userId, role: 'member' },
+    },
+    {
+      path: '/organization/remove-member',
+      cookie: owner.cookie,
+      body: { organizationId: authorityOrganizationId, memberIdOrEmail: addedMember.id },
+    },
+    {
+      path: '/organization/update-member-role',
+      cookie: owner.cookie,
+      body: { organizationId: authorityOrganizationId, memberId: addedMember.id, role: 'admin' },
+    },
+    {
+      path: '/organization/leave',
+      cookie: member.cookie,
+      body: { organizationId: authorityOrganizationId },
+    },
+    {
+      path: '/organization/accept-invitation',
+      cookie: invitee.cookie,
+      body: { invitationId: invitation.id },
+    },
+    {
+      path: '/organization/reject-invitation',
+      cookie: invitee.cookie,
+      body: { invitationId: invitation.id },
+    },
+    {
+      path: '/organization/cancel-invitation',
+      cookie: owner.cookie,
+      body: { invitationId: invitation.id },
+    },
+  ]
+
+  for (const mutation of nativeMutations) {
     const response = await app.fetch(
-      new Request(`http://localhost/api/auth${path}`, {
+      new Request(`http://localhost/api/auth${mutation.path}`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
+        headers: { 'content-type': 'application/json', cookie: mutation.cookie },
+        body: JSON.stringify(mutation.body),
       }),
     )
-    expect(response.status, path).toBe(404)
+    expect(response.status, mutation.path).toBe(404)
   }
+
+  await expect(readNativeGovernanceState(db)).resolves.toEqual(before)
 
   const harmlessResponse = await app.fetch(
     new Request('http://localhost/api/auth/organization/set-active', {
@@ -178,6 +278,15 @@ test('blocks native Better Auth governance mutations but keeps non-mutating auth
   )
   expect(harmlessResponse.status).not.toBe(404)
 })
+
+async function readNativeGovernanceState(db: Db) {
+  const [organizations, members, invitations] = await Promise.all([
+    db.select().from(schema.TAuthOrganization),
+    db.select().from(schema.TAuthMember),
+    db.select().from(schema.TAuthInvitation),
+  ])
+  return { organizations, members, invitations }
+}
 
 test('unknown api route returns 404', async () => {
   const { app } = await createFixture()
