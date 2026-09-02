@@ -384,14 +384,15 @@ Verification: focused Auth tests passed 15 tests; narrow lint/format and type-aw
 
 ### 18. Session-provider failures are treated as missing authentication
 
-`apps/api/src/index.ts` catches every `auth.api.getSession()` failure and returns `undefined`. A Better Auth database or provider outage can therefore become an unauthenticated request and return 401 instead of a provider-safe 500.
+Session lookup failures are now handled at the API boundary as a safe `INTERNAL_SERVER_ERROR` response with HTTP 500. Only a successful lookup with no session continues to produce an absent user and the normal 401 response for authenticated procedures. Provider details are excluded from the public response.
 
 Evidence:
 
-- `apps/api/src/index.ts`, `getUser`
-- `apps/api/src/testing/api.test.ts`, provider-error test
+- `apps/api/src/index.ts`, session lookup boundary and `getUser`
+- `apps/api/src/testing/api.test.ts`, session-provider failure regression and unauthenticated access coverage
+- `apps/api/src/errors.ts`, safe public error definition
 
-The existing provider-error test exercises a Hello repository failure, not a session lookup failure.
+Verification: the focused API suite passed 82 tests, including the session-provider failure regression; API typecheck, narrow lint/format, and `git diff --check` passed.
 
 ## Better Auth route caveat
 

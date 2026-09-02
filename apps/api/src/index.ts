@@ -3,6 +3,7 @@ import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
 import { onError, ORPCError } from '@orpc/server'
+import { ERROR_CATALOG } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
@@ -98,9 +99,24 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
   })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/*', async (c) => {
+    let user: AuthUser | undefined
+    try {
+      user = await getUser(deps.auth, c.req.raw)
+    } catch {
+      return c.json(
+        {
+          defined: false,
+          code: 'INTERNAL_SERVER_ERROR',
+          status: ERROR_CATALOG.INTERNAL_SERVER_ERROR.status,
+          message: ERROR_CATALOG.INTERNAL_SERVER_ERROR.message,
+        },
+        500,
+      )
+    }
+
     const { matched, response } = await openAPIHandler.handle(c.req.raw, {
       prefix: '/api',
-      context: { user: await getUser(deps.auth, c.req.raw), headers: c.req.raw.headers },
+      context: { user, headers: c.req.raw.headers },
     })
     if (matched && response) return response
     return new Response('Not Found', { status: 404 })
@@ -145,10 +161,6 @@ function getCoarseAuthorizationLevel(auth: string | undefined): AuthorizationLev
 }
 
 async function getUser(auth: Auth, request: Request): Promise<AuthUser | undefined> {
-  try {
-    const session = await auth.api.getSession({ headers: request.headers })
-    return session?.user
-  } catch {
-    return undefined
-  }
+  const session = await auth.api.getSession({ headers: request.headers })
+  return session?.user
 }

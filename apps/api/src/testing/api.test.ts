@@ -128,6 +128,30 @@ test('rejects an unauthenticated authenticated hello procedure before input hand
   })
 })
 
+test('returns a safe internal error when session lookup fails', async () => {
+  const { app, auth } = await createFixture()
+  const providerError = new Error('provider connection secret')
+  vi.spyOn(auth.api, 'getSession').mockRejectedValueOnce(providerError)
+
+  const response = await app.fetch(
+    new Request('http://localhost/api/hello/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Ada', message: 'Hello, Ada!' }),
+    }),
+  )
+
+  expect(response.status).toBe(500)
+  const body = await response.json()
+  expect(body).toEqual({
+    defined: false,
+    code: 'INTERNAL_SERVER_ERROR',
+    status: 500,
+    message: ERROR_CATALOG.INTERNAL_SERVER_ERROR.message,
+  })
+  expect(JSON.stringify(body)).not.toContain('provider connection secret')
+})
+
 test('normalizes provider errors before the public response', async () => {
   const { app, db } = await createFixture()
   vi.spyOn(db, 'select').mockImplementation(() => {
