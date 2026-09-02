@@ -178,4 +178,13 @@ test('serves organization and membership governance through the Cimi API', async
     owner.cookie,
   )
   expect(staleSiteResponse.status).toBe(404)
+
+  const replayResponse = await request(
+    app,
+    '/membership/transferOrganizationOwnership',
+    owner.cookie,
+    { organizationId: organization.id, userId: member.userId },
+  )
+  expect(replayResponse.status).toBe(403)
+  expect(await replayResponse.json()).toMatchObject({ code: 'FORBIDDEN', status: 403 })
 })

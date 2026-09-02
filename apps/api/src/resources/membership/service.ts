@@ -180,6 +180,11 @@ export class MembershipService {
       return this.reconcileTransfer(pending, headers)
     }
 
+    await this.reconcile(input.organizationId, headers, user.id)
+    await this.assertOrganizationCommandAvailable(input.organizationId)
+    const actor = await this.assertMember(input.organizationId, user.id, 'FORBIDDEN')
+    if (actor.role !== 'owner') throw new ORPCError('FORBIDDEN')
+
     const completed = await this.repository.findCompletedTransfer({
       organizationId: input.organizationId,
       previousOwnerUserId: user.id,
@@ -187,10 +192,6 @@ export class MembershipService {
     })
     if (completed !== undefined) return toOwnerMembership(completed)
 
-    await this.reconcile(input.organizationId, headers, user.id)
-    await this.assertOrganizationCommandAvailable(input.organizationId)
-    const actor = await this.assertMember(input.organizationId, user.id, 'FORBIDDEN')
-    if (actor.role !== 'owner') throw new ORPCError('FORBIDDEN')
     const target = await this.repository.findById({
       organizationId: input.organizationId,
       userId: input.userId,
