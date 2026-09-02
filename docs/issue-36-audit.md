@@ -299,21 +299,30 @@ The current tests do not cover most of these cases.
 
 ### 14. Membership implementation has no focused service or repository suite
 
-The Membership implementation directory contains service and repository code but no focused Membership testing directory.
+**Remediated in `078fc14` and the finding-14 follow-up commit.**
 
-Missing direct evidence includes:
+Focused Membership coverage now exercises:
 
-- Owner and Administrator authorization.
-- Invalid roles and invalid targets.
-- Owner demotion, removal, and leave protection.
-- Authority reconciliation.
-- Pending operation lifecycle.
-- Provider failure compensation.
-- Transfer transaction rollback.
-- Exactly-one-Owner enforcement.
-- Full service-path Site revocation after removal or leave.
+- Member, Administrator, and Owner authorization boundaries.
+- Invalid and already-owner transfer targets.
+- Owner role-change, removal, and leave protection.
+- Authority-to-Cimi membership reconciliation, stale-member removal, malformed authority payloads, and missing authority correlation IDs.
+- Pending role-operation and transfer authorization fencing before replay.
+- Removal and leave recovery, provider failures, and failure metadata.
+- Authority role compensation when local role persistence fails.
+- Repository replacement rollback and ownership-transfer transaction rollback.
+- Service ordering that revokes local access before Better Auth removal or leave.
 
-The end-to-end governance test covers one successful role change, one transfer, and one removal.
+Evidence:
+
+- `apps/api/src/resources/membership/testing/service.authorization.test.ts` — 17 focused service tests.
+- `apps/api/src/resources/membership/testing/service.recovery.test.ts` — pending removal and leave recovery.
+- `apps/api/src/resources/membership/testing/service.transfer.test.ts` — transfer retry and concurrent replay coverage.
+- `apps/api/src/resources/membership/testing/repository.drizzle.replaceMembers.test.ts` — Owner ordering and replacement rollback.
+- `apps/api/src/resources/membership/testing/repository.drizzle.transfer.test.ts` — transfer transaction rollback.
+- `apps/api/src/testing/governance.test.ts` — 11 end-to-end governance tests, including Site access revocation.
+
+Verification: the focused Membership suite passed 27 tests; the governance acceptance suite passed 11 tests; API typecheck, narrow lint/format, and `git diff --check` passed.
 
 ### 15. Database tests do not exercise governance constraints
 

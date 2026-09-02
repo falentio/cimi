@@ -42,6 +42,14 @@ describe('MembershipService.transferOwnership', () => {
     const authority = mock<OrganizationAuthority>()
     const service = new MembershipService({ repository, authority })
     repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+    repository.findById.mockResolvedValue({
+      organizationId: pendingTransfer.organizationId,
+      userId: pendingTransfer.previousOwnerUserId,
+      role: 'owner',
+      createdAt: previousOwner.createdAt,
+      updatedAt: previousOwner.createdAt,
+    })
     repository.markTransferAttempt.mockResolvedValue()
     repository.findAuthorityOrganizationId.mockResolvedValue('authority_1')
     repository.completeTransfer
@@ -89,6 +97,31 @@ describe('MembershipService.transferOwnership', () => {
     expect(authority.reconcileOwnership).toHaveBeenCalledTimes(2)
   })
 
+  it('rejects a pending transfer for a caller who is no longer the persisted Owner', async () => {
+    const repository = mock<MembershipRepository>()
+    const authority = mock<OrganizationAuthority>()
+    const service = new MembershipService({ repository, authority })
+    repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
+    repository.findById.mockResolvedValue(undefined)
+    repository.findOwner.mockResolvedValue(undefined)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+
+    await expect(
+      service.transferOwnership(
+        { organizationId: pendingTransfer.organizationId, userId: pendingTransfer.targetUserId },
+        { id: pendingTransfer.previousOwnerUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
+
+    // Vitest consumes the mock method reference as a matcher target.
+    // oxlint-disable-next-line typescript/unbound-method
+    expect(authority.reconcileOwnership).not.toHaveBeenCalled()
+    // Vitest consumes the mock method reference as a matcher target.
+    // oxlint-disable-next-line typescript/unbound-method
+    expect(repository.markTransferAttempt).not.toHaveBeenCalled()
+  })
+
   it('returns the completed transfer to overlapping callers', async () => {
     const repository = mock<MembershipRepository>()
     const authority = mock<OrganizationAuthority>()
@@ -105,6 +138,14 @@ describe('MembershipService.transferOwnership', () => {
       if (pendingReads === 2) resolvePendingReads?.()
       await bothPendingReads
       return pendingTransfer
+    })
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+    repository.findById.mockResolvedValue({
+      organizationId: pendingTransfer.organizationId,
+      userId: pendingTransfer.previousOwnerUserId,
+      role: 'owner',
+      createdAt: previousOwner.createdAt,
+      updatedAt: previousOwner.createdAt,
     })
     repository.markTransferAttempt.mockResolvedValue()
     repository.findAuthorityOrganizationId.mockResolvedValue('authority_1')

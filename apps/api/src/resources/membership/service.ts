@@ -212,6 +212,7 @@ export class MembershipService {
       if (pending.previousOwnerUserId !== user.id || pending.targetUserId !== input.userId) {
         throw new ORPCError('CONFLICT', { status: 409 })
       }
+      await this.assertPendingTransferOwner(input.organizationId, user.id)
       return this.reconcileTransfer(pending, headers)
     }
 
@@ -253,6 +254,14 @@ export class MembershipService {
     return this.reconcileTransfer(admission.transfer, headers)
   }
 
+  private async assertPendingTransferOwner(organizationId: string, userId: string): Promise<void> {
+    if (!(await this.repository.isOwnerInvariantValid(organizationId))) {
+      throw new ORPCError('CONFLICT', { status: 409 })
+    }
+    const membership = await this.repository.findById({ organizationId, userId })
+    if (membership?.role !== 'owner') throw new ORPCError('FORBIDDEN')
+  }
+
   private async createMembershipOperation(
     input: MembershipRepository.CreateMembershipOperationInput,
   ): Promise<MembershipRepository.MembershipOperation> {
@@ -284,12 +293,6 @@ export class MembershipService {
     headers: Headers,
     currentUserId?: string,
   ): Promise<void> {
-    if (
-      operation.operationType !== 'remove-member' &&
-      operation.operationType !== 'leave-organization'
-    ) {
-      return
-    }
     if (currentUserId === undefined) throw new ORPCError('NOT_FOUND')
     if (
       operation.operationType === 'leave-organization' &&
@@ -475,6 +478,9 @@ export class MembershipService {
         organizationId: authorityOrganizationId,
         headers,
       })
+      if (authorityMembers.some((member) => member.organizationId !== authorityOrganizationId)) {
+        throw new Error('Membership authority returned members from another organization')
+      }
       const members: MembershipRecord[] = authorityMembers.map((member) => ({
         organizationId,
         userId: member.userId,
@@ -499,7 +505,10 @@ export class MembershipService {
     const persisted = await this.repository.findById({ organizationId, userId: currentUserId })
     const authorityOrganizationId =
       await this.repository.findAuthorityOrganizationId(organizationId)
-    if (authorityOrganizationId === undefined) return true
+    if (authorityOrganizationId === undefined) {
+      if (persisted === undefined) return false
+      throw new ORPCError('INTERNAL_SERVER_ERROR')
+    }
     let authorityMember: MembershipAuthorityMember | undefined
     try {
       authorityMember = await this.findAuthorityMemberInAuthority(
