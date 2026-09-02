@@ -35,6 +35,21 @@ const memberTwo = {
   createdAt: Date
   user: { id: string; email: string; name: string; image?: string | undefined }
 }
+const memberThree = {
+  id: 'member_3',
+  organizationId: 'authority_1',
+  userId: 'user_3',
+  role: 'owner',
+  createdAt: new Date('2026-08-31T00:00:02.000Z'),
+  user: { id: 'user_3', email: 'lin@example.com', name: 'Lin', image: undefined },
+} satisfies {
+  id: string
+  organizationId: string
+  userId: string
+  role: 'owner'
+  createdAt: Date
+  user: { id: string; email: string; name: string; image?: string | undefined }
+}
 
 let db: Db
 
@@ -82,6 +97,41 @@ describe('BetterAuthOrganizationAuthority', () => {
       expect.objectContaining({
         body: { organizationId: 'authority_1', memberIdOrEmail: 'member_2' },
       }),
+    )
+  })
+
+  it('rejects an ownership transfer when another authority owner survives', async () => {
+    db = createMigratedTestDb()
+    const auth = createAuth({
+      db,
+      schema: schema.betterAuthSchema,
+      secret: 'test-secret-1234567890',
+    })
+    const authority = new BetterAuthOrganizationAuthority({ auth })
+    const listMembers = vi.spyOn(auth.api, 'listMembers')
+    const updateMemberRole = vi.spyOn(auth.api, 'updateMemberRole')
+    const memberThreeAdmin = { ...memberThree, role: 'admin' as const }
+    const memberOneAdmin = { ...memberOne, role: 'admin' as const }
+    const memberTwoOwner = { ...memberTwo, role: 'owner' as const }
+    listMembers
+      .mockResolvedValueOnce({ members: [memberOne, memberTwo], total: 3 })
+      .mockResolvedValueOnce({ members: [memberThreeAdmin], total: 3 })
+      .mockResolvedValueOnce({ members: [memberOneAdmin, memberTwoOwner], total: 3 })
+      .mockResolvedValueOnce({ members: [memberThree], total: 3 })
+    updateMemberRole.mockResolvedValueOnce(memberTwoOwner).mockResolvedValueOnce(memberOneAdmin)
+
+    await expect(
+      authority.reconcileOwnership({
+        organizationId: 'authority_1',
+        previousOwnerUserId: 'user_1',
+        targetUserId: 'user_2',
+        headers,
+      }),
+    ).rejects.toThrow('Better Auth ownership transfer did not converge')
+
+    expect(updateMemberRole).toHaveBeenCalledTimes(2)
+    expect(listMembers).toHaveBeenCalledWith(
+      expect.objectContaining({ query: { organizationId: 'authority_1', offset: 2, limit: 100 } }),
     )
   })
 })

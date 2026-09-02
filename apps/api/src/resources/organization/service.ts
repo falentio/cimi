@@ -108,27 +108,27 @@ export class OrganizationService {
           slug,
           ownerUserId: user.id,
         })
-        assertAuthorityOwner(created.organization.id, created.member, user.id)
         authorityOrganization = created.organization
+        const members = await this.authority.listAllMembers({
+          organizationId: authorityOrganization.id,
+          headers,
+        })
+        assertAuthorityOwner(authorityOrganization.id, members, user.id)
       } catch {
         authorityOrganization = await this.authority.getOrganizationBySlug({ slug, headers })
         if (authorityOrganization === undefined) throw new ORPCError('CONFLICT')
-        const member = await this.authority.getMember({
+        const members = await this.authority.listAllMembers({
           organizationId: authorityOrganization.id,
-          userId: user.id,
           headers,
         })
-        if (member === undefined) throw new ORPCError('CONFLICT')
-        assertAuthorityOwner(authorityOrganization.id, member, user.id)
+        assertAuthorityOwner(authorityOrganization.id, members, user.id)
       }
     } else {
-      const member = await this.authority.getMember({
+      const members = await this.authority.listAllMembers({
         organizationId: authorityOrganization.id,
-        userId: user.id,
         headers,
       })
-      if (member === undefined) throw new ORPCError('CONFLICT')
-      assertAuthorityOwner(authorityOrganization.id, member, user.id)
+      assertAuthorityOwner(authorityOrganization.id, members, user.id)
     }
 
     try {
@@ -163,7 +163,7 @@ export class OrganizationService {
       slug: `${generateId('organization')}-${user.id}`,
       ownerUserId: user.id,
     })
-    assertAuthorityOwner(
+    assertCreatedAuthorityOwner(
       authorityOrganization.organization.id,
       authorityOrganization.member,
       user.id,
@@ -379,7 +379,7 @@ function toOrganization(record: OrganizationRecord): InferOutput<typeof SOrganiz
   }
 }
 
-function assertAuthorityOwner(
+function assertCreatedAuthorityOwner(
   organizationId: string,
   member: { organizationId: string; userId: string; role: string },
   userId: string,
@@ -388,6 +388,23 @@ function assertAuthorityOwner(
     member.organizationId !== organizationId ||
     member.userId !== userId ||
     member.role !== 'owner'
+  ) {
+    throw new ORPCError('CONFLICT')
+  }
+}
+
+function assertAuthorityOwner(
+  organizationId: string,
+  members: Array<{ organizationId: string; userId: string; role: string }>,
+  userId: string,
+): void {
+  const owners = members.filter((member) => member.role === 'owner')
+  if (
+    owners.length !== 1 ||
+    owners[0]?.organizationId !== organizationId ||
+    owners[0]?.userId !== userId ||
+    members.some((member) => member.organizationId !== organizationId) ||
+    new Set(members.map((member) => member.userId)).size !== members.length
   ) {
     throw new ORPCError('CONFLICT')
   }

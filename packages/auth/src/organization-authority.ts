@@ -44,6 +44,7 @@ export interface OrganizationAuthority {
     limit: number
     headers: Headers
   }): Promise<{ members: AuthorityMember[]; totalCount: number }>
+  listAllMembers(input: { organizationId: string; headers: Headers }): Promise<AuthorityMember[]>
   getMember(input: {
     organizationId: string
     userId: string
@@ -234,16 +235,14 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
     targetUserId: string
     headers: Headers
   }): Promise<{ previousOwner: AuthorityMember; target: AuthorityMember }> {
-    let previousOwner = await this.getMember({
+    const members = await this.listAllMembers({
       organizationId: input.organizationId,
-      userId: input.previousOwnerUserId,
       headers: input.headers,
     })
-    let target = await this.getMember({
-      organizationId: input.organizationId,
-      userId: input.targetUserId,
-      headers: input.headers,
-    })
+    assertTransferInputState(members, input)
+
+    let previousOwner = findMember(members, input.previousOwnerUserId)
+    let target = findMember(members, input.targetUserId)
     if (previousOwner === undefined || target === undefined) {
       throw new Error('Better Auth ownership transfer members are unavailable')
     }
@@ -264,30 +263,99 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
         headers: input.headers,
       })
     }
-    const finalPreviousOwner = await this.getMember({
+
+    const finalMembers = await this.listAllMembers({
       organizationId: input.organizationId,
-      userId: input.previousOwnerUserId,
       headers: input.headers,
     })
-    const finalTarget = await this.getMember({
-      organizationId: input.organizationId,
-      userId: input.targetUserId,
-      headers: input.headers,
-    })
-    if (
-      finalPreviousOwner?.role !== 'admin' ||
-      finalTarget?.role !== 'owner' ||
-      finalPreviousOwner.organizationId !== input.organizationId ||
-      finalTarget.organizationId !== input.organizationId
-    ) {
+    assertTransferFinalState(finalMembers, input)
+    const finalPreviousOwner = findMember(finalMembers, input.previousOwnerUserId)
+    const finalTarget = findMember(finalMembers, input.targetUserId)
+    if (finalPreviousOwner === undefined || finalTarget === undefined) {
       throw new Error('Better Auth ownership transfer did not converge')
     }
     return { previousOwner: finalPreviousOwner, target: finalTarget }
+  }
+
+  async listAllMembers(input: {
+    organizationId: string
+    headers: Headers
+  }): Promise<AuthorityMember[]> {
+    const members: AuthorityMember[] = []
+    let offset = 0
+    const limit = 100
+    for (;;) {
+      const page = await this.listMembers({
+        organizationId: input.organizationId,
+        offset,
+        limit,
+        headers: input.headers,
+      })
+      members.push(...page.members)
+      if (page.members.length === 0 || offset + page.members.length >= page.totalCount) {
+        return members
+      }
+      offset += page.members.length
+    }
   }
 }
 
 export function createOrganizationAuthority(auth: Auth): OrganizationAuthority {
   return new BetterAuthOrganizationAuthority({ auth })
+}
+
+function assertTransferInputState(
+  members: AuthorityMember[],
+  input: {
+    organizationId: string
+    previousOwnerUserId: string
+    targetUserId: string
+  },
+): void {
+  assertAuthorityMembers(members, input.organizationId)
+  const previousOwner = findMember(members, input.previousOwnerUserId)
+  const target = findMember(members, input.targetUserId)
+  const owners = members.filter((member) => member.role === 'owner')
+  const isPendingTransfer = previousOwner?.role === 'owner' && target?.role !== 'owner'
+  const isCompletedTransfer = previousOwner?.role === 'admin' && target?.role === 'owner'
+  if (owners.length !== 1 || (!isPendingTransfer && !isCompletedTransfer)) {
+    throw new Error('Better Auth ownership transfer members are unavailable')
+  }
+}
+
+function assertTransferFinalState(
+  members: AuthorityMember[],
+  input: {
+    organizationId: string
+    previousOwnerUserId: string
+    targetUserId: string
+  },
+): void {
+  assertAuthorityMembers(members, input.organizationId)
+  const owners = members.filter((member) => member.role === 'owner')
+  const previousOwner = findMember(members, input.previousOwnerUserId)
+  const target = findMember(members, input.targetUserId)
+  if (
+    owners.length !== 1 ||
+    owners[0]?.userId !== input.targetUserId ||
+    previousOwner?.role !== 'admin' ||
+    target?.role !== 'owner'
+  ) {
+    throw new Error('Better Auth ownership transfer did not converge')
+  }
+}
+
+function assertAuthorityMembers(members: AuthorityMember[], organizationId: string): void {
+  if (
+    members.some((member) => member.organizationId !== organizationId) ||
+    new Set(members.map((member) => member.userId)).size !== members.length
+  ) {
+    throw new Error('Better Auth organization membership state is invalid')
+  }
+}
+
+function findMember(members: AuthorityMember[], userId: string): AuthorityMember | undefined {
+  return members.find((member) => member.userId === userId)
 }
 
 function toOrganization(value: {

@@ -18,7 +18,7 @@ import type { MembershipRecord, MembershipRepository } from './repository.ts'
 
 type MembershipAuthorityPort = Pick<
   OrganizationAuthority,
-  'listMembers' | 'getMember' | 'changeMemberRole' | 'removeMember' | 'leaveOrganization'
+  'getMember' | 'changeMemberRole' | 'removeMember' | 'leaveOrganization'
 >
 type MembershipAuthorityMember = NonNullable<
   Awaited<ReturnType<MembershipAuthorityPort['getMember']>>
@@ -401,27 +401,17 @@ export class MembershipService {
       const authorityOrganizationId =
         await this.repository.findAuthorityOrganizationId(organizationId)
       if (authorityOrganizationId === undefined) return
-      const members: MembershipRecord[] = []
-      let offset = 0
-      for (;;) {
-        const page = await this.authority.listMembers({
-          organizationId: authorityOrganizationId,
-          offset,
-          limit: 100,
-          headers,
-        })
-        members.push(
-          ...page.members.map((member) => ({
-            organizationId,
-            userId: member.userId,
-            role: member.role,
-            createdAt: member.createdAt,
-            updatedAt: member.createdAt,
-          })),
-        )
-        offset += page.members.length
-        if (page.members.length === 0 || offset >= page.totalCount) break
-      }
+      const authorityMembers = await this.authority.listAllMembers({
+        organizationId: authorityOrganizationId,
+        headers,
+      })
+      const members: MembershipRecord[] = authorityMembers.map((member) => ({
+        organizationId,
+        userId: member.userId,
+        role: member.role,
+        createdAt: member.createdAt,
+        updatedAt: member.createdAt,
+      }))
       await this.assertAuthorityOwner(organizationId, members)
       await this.repository.replaceMembers(organizationId, members)
     } catch (error) {
