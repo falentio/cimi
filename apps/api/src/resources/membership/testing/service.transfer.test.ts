@@ -37,6 +37,58 @@ const targetAuthorityMember: AuthorityMember = {
 }
 
 describe('MembershipService.transferOwnership', () => {
+  it('retries after Cimi completion fails following authority convergence', async () => {
+    const repository = mock<MembershipRepository>()
+    const authority = mock<OrganizationAuthority>()
+    const service = new MembershipService({ repository, authority })
+    repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
+    repository.markTransferAttempt.mockResolvedValue()
+    repository.findAuthorityOrganizationId.mockResolvedValue('authority_1')
+    repository.completeTransfer
+      .mockRejectedValueOnce(new Error('Cimi transaction unavailable'))
+      .mockResolvedValueOnce(target)
+    repository.failTransfer.mockResolvedValue()
+    authority.reconcileOwnership.mockResolvedValue({
+      previousOwner,
+      target: targetAuthorityMember,
+    })
+
+    await expect(
+      service.transferOwnership(
+        { organizationId: pendingTransfer.organizationId, userId: pendingTransfer.targetUserId },
+        { id: pendingTransfer.previousOwnerUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+
+    await expect(
+      service.transferOwnership(
+        { organizationId: pendingTransfer.organizationId, userId: pendingTransfer.targetUserId },
+        { id: pendingTransfer.previousOwnerUserId },
+        new Headers(),
+      ),
+    ).resolves.toMatchObject({ organizationId: 'organization_1', userId: 'user_2' })
+
+    // Vitest consumes the mock method reference as a matcher target.
+    // oxlint-disable-next-line typescript/unbound-method
+    expect(repository.failTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'operation_1',
+        failureCode: 'CONFLICT',
+        failureMessage: 'Cimi transaction unavailable',
+      }),
+    )
+    // Vitest consumes the mock method reference as a matcher target.
+    // oxlint-disable-next-line typescript/unbound-method
+    expect(repository.markTransferAttempt).toHaveBeenCalledTimes(2)
+    // Vitest consumes the mock method reference as a matcher target.
+    // oxlint-disable-next-line typescript/unbound-method
+    expect(repository.completeTransfer).toHaveBeenCalledTimes(2)
+    // Vitest consumes the mock method reference as a matcher target.
+    // oxlint-disable-next-line typescript/unbound-method
+    expect(authority.reconcileOwnership).toHaveBeenCalledTimes(2)
+  })
+
   it('returns the completed transfer to overlapping callers', async () => {
     const repository = mock<MembershipRepository>()
     const authority = mock<OrganizationAuthority>()

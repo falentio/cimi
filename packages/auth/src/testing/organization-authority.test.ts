@@ -135,6 +135,51 @@ describe('BetterAuthOrganizationAuthority', () => {
     )
   })
 
+  it('recovers a transfer after target promotion succeeds but owner demotion fails', async () => {
+    db = createMigratedTestDb()
+    const auth = createAuth({
+      db,
+      schema: schema.betterAuthSchema,
+      secret: 'test-secret-1234567890',
+    })
+    const authority = new BetterAuthOrganizationAuthority({ auth })
+    const listMembers = vi.spyOn(auth.api, 'listMembers')
+    const updateMemberRole = vi.spyOn(auth.api, 'updateMemberRole')
+    const targetOwner = { ...memberTwo, role: 'owner' as const }
+    const previousOwnerAdmin = { ...memberOne, role: 'admin' as const }
+    const demotionError = new Error('authority demotion unavailable')
+
+    listMembers
+      .mockResolvedValueOnce({ members: [memberOne, memberTwo], total: 2 })
+      .mockResolvedValueOnce({ members: [memberOne, targetOwner], total: 2 })
+      .mockResolvedValueOnce({ members: [previousOwnerAdmin, targetOwner], total: 2 })
+    updateMemberRole
+      .mockResolvedValueOnce(targetOwner)
+      .mockRejectedValueOnce(demotionError)
+      .mockResolvedValueOnce(previousOwnerAdmin)
+
+    await expect(
+      authority.reconcileOwnership({
+        organizationId: 'authority_1',
+        previousOwnerUserId: 'user_1',
+        targetUserId: 'user_2',
+        headers,
+      }),
+    ).rejects.toBe(demotionError)
+
+    await expect(
+      authority.reconcileOwnership({
+        organizationId: 'authority_1',
+        previousOwnerUserId: 'user_1',
+        targetUserId: 'user_2',
+        headers,
+      }),
+    ).resolves.toMatchObject({
+      previousOwner: { userId: 'user_1', role: 'admin' },
+      target: { userId: 'user_2', role: 'owner' },
+    })
+  })
+
   it('treats a removed requester as an absent member', async () => {
     db = createMigratedTestDb()
     const auth = createAuth({

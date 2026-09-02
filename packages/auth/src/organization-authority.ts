@@ -323,8 +323,18 @@ function assertTransferInputState(
   const target = findMember(members, input.targetUserId)
   const owners = members.filter((member) => member.role === 'owner')
   const isPendingTransfer = previousOwner?.role === 'owner' && target?.role !== 'owner'
+  const isPartiallyAppliedTransfer =
+    previousOwner?.role === 'owner' &&
+    target?.role === 'owner' &&
+    owners.length === 2 &&
+    owners.every(
+      (owner) => owner.userId === input.previousOwnerUserId || owner.userId === input.targetUserId,
+    )
   const isCompletedTransfer = previousOwner?.role === 'admin' && target?.role === 'owner'
-  if (owners.length !== 1 || (!isPendingTransfer && !isCompletedTransfer)) {
+  if (
+    (!isPendingTransfer && !isPartiallyAppliedTransfer && !isCompletedTransfer) ||
+    (isPendingTransfer && owners.length !== 1)
+  ) {
     throw new Error('Better Auth ownership transfer members are unavailable')
   }
 }
