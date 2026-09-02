@@ -369,13 +369,18 @@ Verification: focused contract tests passed 116 tests; focused Auth tests passed
 
 ### 17. `listOrganizations()` ignores its user ID argument
 
-`BetterAuthOrganizationAuthority.listOrganizations()` accepts `userId` but discards it and delegates to Better Auth's header-based session operation.
+`BetterAuthOrganizationAuthority.listOrganizations()` now makes its session-scoped behavior explicit by accepting only `headers`; the misleading unused `userId` argument was removed. Better Auth derives the subject from the authenticated session and does not expose an explicit user-ID parameter on its public organization-list endpoint.
+
+The current Organization service remains repository-backed and scopes persisted Cimi memberships by the authenticated user. It does not call this authority method, so the public Cimi listing behavior and its existing cross-user isolation remain unchanged.
 
 Evidence:
 
-- `packages/auth/src/organization-authority.ts`, `listOrganizations`
+- `packages/auth/src/organization-authority.ts`, `OrganizationAuthority.listOrganizations`
+- `packages/auth/src/testing/organization-authority.test.ts`, session-scoped list coverage
+- `apps/api/src/resources/organization/service.ts`, repository-backed user-scoped list
+- `apps/api/src/testing/governance.test.ts`, cross-user list isolation
 
-The current Organization service lists persisted Cimi memberships and does not call this authority method. This is a latent boundary defect, not an exposed Issue #36 HTTP failure in the current composition.
+Verification: focused Auth tests passed 15 tests; narrow lint/format and type-aware checks passed for the changed Auth files.
 
 ### 18. Session-provider failures are treated as missing authentication
 

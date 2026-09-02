@@ -98,6 +98,35 @@ describe('BetterAuthOrganizationAuthority', () => {
     })
   })
 
+  it('lists Organizations for the authenticated session and forwards headers', async () => {
+    db = createMigratedTestDb()
+    const auth = createAuth({
+      db,
+      schema: schema.betterAuthSchema,
+      secret: 'test-secret-1234567890',
+    })
+    const authority = new BetterAuthOrganizationAuthority({ auth })
+    const listOrganizations = vi.spyOn(auth.api, 'listOrganizations').mockResolvedValue([
+      {
+        id: 'authority_1',
+        name: 'Analytics',
+        slug: 'analytics',
+        createdAt: memberOne.createdAt,
+        metadata: {},
+      },
+    ])
+
+    await expect(authority.listOrganizations({ headers })).resolves.toEqual([
+      {
+        id: 'authority_1',
+        name: 'Analytics',
+        slug: 'analytics',
+        createdAt: memberOne.createdAt,
+      },
+    ])
+    expect(listOrganizations).toHaveBeenCalledWith({ headers })
+  })
+
   it('maps Organization reads and updates while forwarding headers', async () => {
     db = createMigratedTestDb()
     const auth = createAuth({

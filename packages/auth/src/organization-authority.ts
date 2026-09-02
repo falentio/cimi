@@ -23,7 +23,7 @@ export interface OrganizationAuthority {
     slug: string
     ownerUserId: string
   }): Promise<{ organization: AuthorityOrganization; member: AuthorityMember }>
-  listOrganizations(input: { userId: string; headers: Headers }): Promise<AuthorityOrganization[]>
+  listOrganizations(input: { headers: Headers }): Promise<AuthorityOrganization[]>
   getOrganization(input: {
     organizationId: string
     headers: Headers
@@ -94,11 +94,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
     return { organization: toOrganization(result), member: toMember(member) }
   }
 
-  async listOrganizations(input: {
-    userId: string
-    headers: Headers
-  }): Promise<AuthorityOrganization[]> {
-    void input.userId
+  async listOrganizations(input: { headers: Headers }): Promise<AuthorityOrganization[]> {
     const organizations = await this.auth.api.listOrganizations({ headers: input.headers })
     return organizations.map(toOrganization)
   }
