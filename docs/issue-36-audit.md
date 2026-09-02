@@ -2,17 +2,15 @@
 
 ## Overview
 
-Audit date: 2026-09-02.
+Audit date: 2026-09-03.
 
-Audited the `feat/governance` implementation against GitHub Issue #36, `docs/issue-36-plan.md`, the Organization and Membership specifications, the acceptance scenarios, and the reachable HTTP API.
+This follow-up audited the `feat/governance` implementation against GitHub Issue #36, `docs/issue-36-plan.md`, the Organization and Membership specifications, the acceptance scenarios, and the reachable HTTP API.
 
-**Verdict. Issue #36 is not complete.**
+**Verdict. The 18 findings in this audit are remediated.**
 
-The implementation serves all eleven required procedures and has the intended major boundaries. Better Auth remains the external Organization and membership authority. Cimi stores Organization metadata, a reconciled membership projection, and durable governance operations. The tested end-to-end path succeeds through real HTTP requests, SQLite, Better Auth, and Site scope checks.
+The implementation serves all eleven required procedures and retains the intended major boundaries. Better Auth remains the external Organization and membership authority. Cimi stores Organization metadata, a reconciled membership projection, and durable governance operations. The end-to-end governance path succeeds through real HTTP requests, SQLite, Better Auth, and Site scope checks.
 
-The implementation still has confirmed authorization, convergence, error-contract, and information-disclosure gaps. Several acceptance cases also lack runtime evidence.
-
-No source files were changed during this audit. No Issue #36 changes were made after the implementation commit.
+Each finding was addressed in a separate focused commit, in finding order, with regression or acceptance coverage where the behavior could be exercised. The remaining Better Auth route caveat below is a conditional maintenance requirement, not an open finding in the current configuration.
 
 ## Key concepts
 
@@ -59,247 +57,157 @@ Ownership transfer admits a pending operation, reconciles Better Auth, updates t
 
 Personal Organization provisioning uses a deterministic authority slug and a partial unique local index. If two local inserts race, the loser rereads the persisted Personal Organization.
 
-The design is sound at the level of the main state model. The gaps below occur at the replay, cross-store, error mapping, and recovery edges.
+The design is sound at the level of the main state model. The remediation record below documents the replay, cross-store, error mapping, recovery, and acceptance-coverage work completed after the initial audit.
 
-## Confirmed defects
+## Remediation record
 
 ### 1. Completed transfer replay bypasses current-owner authorization
 
-A completed transfer lookup runs before current membership reconciliation and current-owner authorization in `MembershipService.transferOwnership()`.
+**Remediated in `e584c0e`.** Completed transfer replay now passes through current membership and Owner authorization before returning the historical result. A former Owner with a still-valid session receives `FORBIDDEN` instead of learning or replaying transfer state.
 
 Evidence:
 
-- `apps/api/src/resources/membership/service.ts`, `transferOwnership`
-- `apps/api/src/resources/membership/repository.drizzle.ts`, `findCompletedTransfer`
-- `apps/api/src/resources/membership/router.ts`, transfer handler
+- `apps/api/src/resources/membership/service.ts`, transfer replay authorization
+- `apps/api/src/testing/governance.test.ts`, stale former-Owner replay regression
 - `docs/specs/organization-site-governance/membership/SPECS.md`, stale-session edge case
-
-A former Owner can follow this sequence:
-
-1. Transfer ownership from User A to User B.
-2. Remove User A.
-3. Reuse User A's still-valid session.
-4. Repeat the same transfer request.
-
-The completed-operation lookup checks the historical previous Owner ID, target ID, completed status, target's local Owner role, and the local Owner invariant. It does not check that the historical previous Owner remains an active member or the current Owner. The request returns the target Owner membership before the normal authorization path runs.
-
-This violates the requirement that every protected request rechecks current persisted membership. It also exposes membership state to a former member.
 
 ### 2. Better Auth transfer reconciliation does not enforce exactly one authority Owner
 
-`BetterAuthOrganizationAuthority.reconcileOwnership()` retrieves and updates only the previous Owner and the requested target. It verifies those two final roles but does not list all Better Auth members and count all authority Owners.
+**Remediated in `d79a93c`.** Better Auth ownership reconciliation now lists all authority members, validates membership identity and Organization correlation, rejects an invalid Owner set, and verifies the final state has exactly one Owner. Personal Organization reuse applies the same authority-wide validation.
 
 Evidence:
 
-- `packages/auth/src/organization-authority.ts`, `reconcileOwnership`
-- `apps/api/src/resources/membership/service.ts`, `reconcileTransfer`
-- `apps/api/src/resources/membership/repository.drizzle.ts`, `completeTransfer`
-
-If a third Better Auth member already has the `owner` role, that third Owner can survive. Cimi can then complete with exactly one local Owner while Better Auth still has multiple Owners. Ordinary membership reconciliation checks all authority Owners, but transfer reconciliation does not use that check. The same authority-wide check is absent when reusing an existing Personal Organization in `OrganizationService.ensurePersonal()`.
+- `packages/auth/src/organization-authority.ts`, authority-wide transfer and Owner-state assertions
+- `apps/api/src/resources/membership/service.ts`, transfer reconciliation
+- `apps/api/src/resources/organization/service.ts`, Personal Organization authority validation
+- `packages/auth/src/testing/organization-authority.test.ts`, surviving-Owner rejection and recovery coverage
 
 ### 3. Concurrent duplicate transfers can return a false conflict after success
 
-Two overlapping requests for the same transfer can both observe the same pending operation and call `reconcileTransfer()`.
+**Remediated in `861961b`.** Concurrent duplicate transfer requests now reread the completed transfer after a competing completion and return the same successful result instead of reporting a false conflict.
 
 Evidence:
 
-- `apps/api/src/resources/membership/service.ts`, `transferOwnership` and `reconcileTransfer`
-- `apps/api/src/resources/membership/repository.drizzle.ts`, `findPendingTransfer` and `completeTransfer`
-
-The first request can complete the pending operation. The second request then finds that the operation is no longer pending and receives `CONFLICT`. It does not reread the completed operation after that race.
-
-The final state may be correct, but one caller receives a failure for a transfer that succeeded. That conflicts with the plan's idempotent, retry-safe transfer protocol.
-
-This finding is confirmed from the control flow but has not been reproduced by a concurrency test.
+- `apps/api/src/resources/membership/service.ts`, idempotent transfer replay
+- `apps/api/src/resources/membership/testing/service.transfer.test.ts`, overlapping transfer coverage
 
 ### 4. The Personal Organization uniqueness winner skips validation
 
-The normal existing-Personal-Organization branch reconciles and validates the Organization. The uniqueness-race branch returns the winner directly after `insertWithOwner()` fails.
+**Remediated in `83dd0f3`.** The uniqueness-race winner now follows the same reconciliation and readability checks as the ordinary existing-Organization path before it is returned.
 
 Evidence:
 
-- `apps/api/src/resources/organization/service.ts`, `ensurePersonal`
-- `apps/api/src/resources/organization/service.ts`, winner handling after the insert catch
-
-The winner path skips `reconcileOrganization()`, `assertReadable()`, and a fresh authority Owner check. If the winner is pending, malformed, or no longer reconciled, it can return a successful Organization response that the normal reuse path would reject.
-
-The race itself is also not covered by a concurrent HTTP test.
+- `apps/api/src/resources/organization/service.ts`, Personal Organization winner handling
+- `apps/api/src/resources/organization/testing/service.ensure-personal.test.ts`, winner validation coverage
+- `apps/api/src/testing/governance.test.ts`, concurrent Personal Organization provisioning
 
 ### 5. Authority-only membership removal does not reliably produce `NOT_FOUND`
 
-`BetterAuthOrganizationAuthority.getMember()` searches Better Auth's authenticated `list-members` operation. Better Auth requires the caller to remain a member before listing members.
+**Remediated in `b335c84`.** The adapter now maps Better Auth's exact not-a-member response to an absent member, allowing the service to remove the stale local projection and return the specified `NOT_FOUND` behavior. Unknown authority failures continue to propagate rather than being misclassified as absence.
 
 Evidence:
 
-- `packages/auth/src/organization-authority.ts`, `getMember` and `listMembers`
-- Better Auth 1.7.1 installed route for `/organization/list-members`
-- `apps/api/src/resources/membership/service.ts`, `reconcileCurrentUserAccess` and `findAuthorityMemberInAuthority`
-
-If authority membership is removed independently while the Cimi membership row remains, the lookup can raise an authorization/provider error instead of returning `undefined`. The service converts that failure to `CONFLICT`. It deletes the stale Cimi row only when the authority lookup returns `undefined`.
-
-The request fails closed, but the specified indistinguishable stale-session result is `NOT_FOUND`. A known Better Auth not-a-member error should be classified as absence while unknown provider failures remain failures.
+- `packages/auth/src/organization-authority.ts`, member lookup error classification
+- `packages/auth/src/testing/organization-authority.test.ts`, removed requester and unknown provider failure coverage
+- `apps/api/src/testing/governance.test.ts`, authority-only removal regression
 
 ### 6. Pending governance state can be enumerated through Organization endpoints
 
-Organization pending-operation checks run before persisted access authorization.
+**Remediated in `f2ea9fd`.** Organization reads and deletes now establish persisted access authorization before checking pending governance state. Inaccessible callers receive `NOT_FOUND` without learning whether an Organization has a pending operation.
 
 Evidence:
 
-- `apps/api/src/resources/organization/service.ts`, `reconcileOrganization`
-- `apps/api/src/resources/organization/service.ts`, `delete`
+- `apps/api/src/resources/organization/service.ts`, authorization and pending-operation ordering
+- `apps/api/src/testing/governance.test.ts`, pending-state enumeration regression
 - `docs/specs/organization-site-governance/organization/SPECS.md`, `getOrganization` behavior
-
-An inaccessible caller can distinguish an inaccessible Organization with no pending operation, which returns `NOT_FOUND`, from an existing Organization with pending state, which can return `CONFLICT`. Organization deletion also checks a pending delete operation before confirming current ownership.
-
-This leaks Organization existence and pending-operation state. The service must authorize first while preserving indistinguishable absent and inaccessible responses, or normalize the inaccessible and pending combination to `NOT_FOUND`.
 
 ### 7. Several service paths emit undeclared `CONFLICT` errors
 
-The following procedures can reach service paths that throw `CONFLICT` even though their contracts omit that error:
-
-- `membership.listMembers`
-- `membership.changeMemberRole`
-- `membership.removeMember`
-- `membership.leaveOrganization`
-- `organization.listOrganizations`
-- `organization.getOrganization`
-- `organization.updateOrganization`
-- `organization.deleteOrganization`
-- `site.listSites`
-- Site read procedures that reconcile membership
+**Remediated in `c38f465`.** Governance procedures that can emit `CONFLICT` now declare it in their contract error maps, and the contract error declaration tests cover the alignment. The public normalizer continues to sanitize undeclared or malformed provider errors to `INTERNAL_SERVER_ERROR`.
 
 Evidence:
 
-- `apps/api/src/resources/membership/service.ts`, pending reconciliation and command fences
-- `apps/api/src/resources/organization/service.ts`, `reconcileOrganization` and deletion failure paths
-- `packages/contract/src/contract/membership/query/list.ts`
-- `packages/contract/src/contract/membership/command/change-member-role.ts`
-- `packages/contract/src/contract/membership/command/remove-member.ts`
-- `packages/contract/src/contract/membership/command/leave-organization.ts`
-- `packages/contract/src/contract/organization/query/list.ts`
-- `packages/contract/src/contract/organization/query/get.ts`
-- `packages/contract/src/contract/organization/command/update.ts`
-- `packages/contract/src/contract/organization/command/delete.ts`
-- `packages/contract/src/contract/site/query/list.ts`
 - `packages/contract/src/contract/error-declarations.test.ts`
+- `packages/contract/src/contract/membership/`
+- `packages/contract/src/contract/organization/`
+- `packages/contract/src/contract/site/`
 - `apps/api/src/errors.ts`, `normalizeApiError`
-
-The error normalizer validates the error against the procedure's declared error map. An undeclared error can become an undefined 409 or a generic 500, depending on the oRPC validation path. Provider failures and pending-operation failures therefore do not have a consistent public retry signal.
 
 ## Acceptance evidence gaps and conditional risks
 
-These items are not all proof of a separate production defect. They are missing evidence for the Issue #36 acceptance gate or risks in paths that the current tests do not exercise.
+The following findings were originally identified as missing acceptance evidence or conditional risks. Each has now been addressed with focused implementation or test coverage.
 
 ### 8. Transfer recovery has no failure-after-authority-mutation evidence
 
-The intended fail-closed sequence exists. Better Auth mutates the target and previous Owner, Cimi finalizes in a transaction, and failures leave the operation pending with failure metadata.
+**Remediated in `e1c0c86`.** Ownership reconciliation now accepts the valid partially applied authority state created during a failed transfer. If Cimi completion fails after Better Auth converges, the operation remains pending with failure metadata, and a later request retries local completion. Final checks require exactly one Owner in both stores.
 
 Evidence:
 
 - `packages/auth/src/organization-authority.ts`, `reconcileOwnership`
-- `apps/api/src/resources/membership/service.ts`, `reconcileTransfer` and `recordTransferFailure`
-- `apps/api/src/resources/membership/repository.drizzle.ts`, `completeTransfer`
-
-No test proves the following cases:
-
-- Target promotion succeeds and previous-Owner demotion fails.
-- Better Auth reaches the desired state and Cimi completion fails.
-- A later request retries the pending operation and converges both stores.
-- A process restart leaves the operation pending and recoverable.
-- Both Better Auth and Cimi finish with exactly one Owner.
-
-The current test only asserts a successful HTTP transfer response.
+- `packages/auth/src/testing/organization-authority.test.ts`, partial-state and final Owner coverage
+- `apps/api/src/resources/membership/service.ts`, transfer retry and failure recording
+- `apps/api/src/resources/membership/testing/service.transfer.test.ts`, Cimi completion failure and retry
 
 ### 9. Membership reconciliation depends on untested transaction ordering
 
-`MembershipRepositoryDrizzle.replaceMembers()` inserts or updates incoming members before deleting stale local members. If an incoming authority page presents a new Owner while an old local Owner still exists, the insert can hit the local partial unique Owner index.
+**Remediated in `ee06a14`.** `replaceMembers()` now removes or demotes the old local Owner before inserting or promoting the incoming Owner, so reconciliation respects the single-Owner index. It returns the synchronous SQLite transaction result correctly, and the transaction rolls back on later replacement failures.
 
 Evidence:
 
 - `apps/api/src/resources/membership/repository.drizzle.ts`, `replaceMembers`
+- `apps/api/src/resources/membership/testing/repository.drizzle.replaceMembers.test.ts`, Owner ordering and rollback
 - `packages/db/src/schema/governance.ts`, `membership_one_owner_unique`
 - `packages/db/src/client.ts`, synchronous SQLite transaction setup
 
-The transaction should roll back safely, but the rollback and target-owner-first ordering are not tested. The implementation currently maps this scenario to an internal error. This is mainly a provider-drift and recovery risk because ordinary transfer operations are fenced by a pending operation.
-
-`replaceMembers()` invokes the synchronous SQLite transaction without awaiting it. The current `better-sqlite3` transaction implementation makes this compatible with the current database client, but the assumption is not protected by a focused test.
-
 ### 10. Removal and leave recovery are not tested
 
-The service deletes the local membership before calling Better Auth. This intentionally revokes Cimi and Site access immediately while the pending operation preserves retry state.
+**Remediated in `3074bac`.** Removal and leave operations delete the local membership before calling Better Auth, then retain a pending operation when the authority mutation fails. Recovery authorizes the retrying actor before replay, accepts an already-absent authority member, and clears stale failure metadata after success.
 
 Evidence:
 
-- `apps/api/src/resources/membership/service.ts`, `reconcileMembershipOperation`
-- `apps/api/src/resources/membership/service.ts`, leave and removal dispatch
-
-Missing scenarios include:
-
-- Local deletion succeeds and Better Auth removal fails.
-- The authority member is already absent on retry.
-- The target retries a pending self-removal with a non-admin session.
-- Another administrator recovers a pending removal.
-- Another caller recovers a pending leave.
+- `apps/api/src/resources/membership/service.ts`, membership-operation recovery
+- `apps/api/src/resources/membership/testing/service.recovery.test.ts`, removal and leave recovery
+- `apps/api/src/testing/governance.test.ts`, access revocation and recovery acceptance coverage
+- `apps/api/src/resources/membership/repository.drizzle.ts`, pending-operation persistence
 
 ### 11. Organization creation and update have non-durable compensation failures
 
-Organization creation mutates Better Auth first and Cimi second. If Cimi persistence fails and Better Auth compensation also fails, the authority Organization becomes an orphan without a durable cleanup operation. An invalid authority response before the persistence try block can also leave an orphan.
-
-Organization update mutates Better Auth first and compensates if Cimi persistence fails. If compensation fails, authority and Cimi names can diverge without a pending repair operation.
+**Remediated in `034c1dc`.** Organization create and update compensation failures now persist durable repair operations. Later requests can retry authority cleanup or rollback and complete the repair. Invalid authority responses are handled inside the same durable flow rather than leaving an untracked cross-store mutation.
 
 Evidence:
 
-- `apps/api/src/resources/organization/service.ts`, `create`
-- `apps/api/src/resources/organization/service.ts`, `update`
-
-The current tests do not cover either compensation failure. This is a cross-store durability gap outside the transfer protocol.
+- `apps/api/src/resources/organization/service.ts`, create and update repair handling
+- `apps/api/src/resources/organization/repository.ts`, repair-operation contract
+- `apps/api/src/resources/organization/repository.drizzle.ts`, repair persistence and completion
+- `apps/api/src/resources/organization/testing/service.repair.test.ts`, compensation failure and retry coverage
+- `apps/api/src/resources/organization/testing/repository.drizzle.repair.test.ts`, transactional repair writes
+- `packages/db/src/schema/governance.ts` and migrations `0004_reflective_mother_askani.sql` and `0005_grey_doctor_doom.sql`
 
 ### 12. Native Better Auth fencing has incomplete test coverage
 
-The composition root blocks these currently registered native mutation paths:
-
-- `/organization/create`
-- `/organization/update`
-- `/organization/delete`
-- `/organization/invite-member`
-- `/organization/add-member`
-- `/organization/remove-member`
-- `/organization/update-member-role`
-- `/organization/leave`
-- `/organization/accept-invitation`
-- `/organization/reject-invitation`
-- `/organization/cancel-invitation`
+**Remediated in `26587f3`.** The API composition root blocks every currently registered native Organization and membership mutation path before Better Auth handles the request. The regression test submits valid payloads, checks the 404 responses, and compares the authority state before and after the requests.
 
 Evidence:
 
 - `apps/api/src/index.ts`, `NATIVE_GOVERNANCE_MUTATION_PATHS`
-- `apps/api/src/testing/api.test.ts`, native mutation test
+- `apps/api/src/testing/api.test.ts`, valid-payload route-fencing regression
 
-The test covers only a subset of these paths. It submits an empty body and checks for 404. It does not submit valid mutation payloads and verify that Better Auth state remains unchanged. The governance integration test uses server-side `auth.api.addMember()` directly, so it does not prove public-route fencing.
+The separate route caveat below records the conditional work required if Better Auth dynamic role management is enabled later.
 
 ### 13. Organization lifecycle scenarios are largely untested
 
-The specifications and acceptance scenarios require coverage for:
-
-- Concurrent Personal Organization provisioning.
-- Empty Personal Organization deletion.
-- Personal deletion precedence over the general non-empty error.
-- Non-personal Organization deletion with Sites.
-- Organization update authorization and persistence.
-- Organization list isolation and pagination.
+**Remediated in `078fc14`.** The governance acceptance suite now covers concurrent Personal Organization provisioning, empty Personal Organization deletion, Personal deletion precedence, non-personal deletion with Sites, update authorization and persistence, and user-scoped list pagination.
 
 Evidence:
 
+- `apps/api/src/testing/governance.test.ts`, lifecycle and HTTP acceptance scenarios
+- `apps/api/src/resources/organization/testing/`, Personal Organization race and deletion tests
 - `docs/specs/organization-site-governance/organization/SPECS.md`
-- `docs/specs/ACCEPTANCE.md`, Personal Organization and deletion scenarios
-- `apps/api/src/testing/governance.test.ts`
-- `apps/api/src/resources/organization/testing/`
-
-The current tests do not cover most of these cases.
+- `docs/specs/ACCEPTANCE.md`
 
 ### 14. Membership implementation has no focused service or repository suite
 
-**Remediated in `078fc14` and the finding-14 follow-up commit.**
+**Remediated in `0679993`.**
 
 Focused Membership coverage now exercises:
 
@@ -326,7 +234,7 @@ Verification: the focused Membership suite passed 27 tests; the governance accep
 
 ### 15. Database tests do not exercise governance constraints
 
-**Remediated in `feat/governance`.**
+**Remediated in `51cd3b3`.**
 
 The migrated SQLite database now has direct runtime coverage for:
 
@@ -354,7 +262,7 @@ Verification: the focused database client suite passed 6 tests; narrow lint/form
 
 ### 16. Contract and Better Auth adapter coverage is narrow
 
-Contract coverage now exercises Organization and Membership command/query inputs and outputs, including invalid IDs, names, roles, pagination, strict objects, malformed timestamps, and owner-sensitive output shapes.
+**Remediated in `f156516`.** Contract coverage now exercises Organization and Membership command/query inputs and outputs, including invalid IDs, names, roles, pagination, strict objects, malformed timestamps, and owner-sensitive output shapes.
 
 Better Auth adapter coverage now exercises Organization creation, reads by ID and slug, update and delete mapping, known not-found normalization, provider-error propagation, member pagination and mapping, role changes, leave, malformed provider roles, ownership transfer success and recovery, missing transfer targets, and final Owner-state validation. The direct `listOrganizations()` user-ID boundary remains deferred to finding 17 because its behavior is the separate finding there.
 
@@ -369,7 +277,7 @@ Verification: focused contract tests passed 116 tests; focused Auth tests passed
 
 ### 17. `listOrganizations()` ignores its user ID argument
 
-`BetterAuthOrganizationAuthority.listOrganizations()` now makes its session-scoped behavior explicit by accepting only `headers`; the misleading unused `userId` argument was removed. Better Auth derives the subject from the authenticated session and does not expose an explicit user-ID parameter on its public organization-list endpoint.
+**Remediated in `f86ea1c`.** `BetterAuthOrganizationAuthority.listOrganizations()` now makes its session-scoped behavior explicit by accepting only `headers`; the misleading unused `userId` argument was removed. Better Auth derives the subject from the authenticated session and does not expose an explicit user-ID parameter on its public organization-list endpoint.
 
 The current Organization service remains repository-backed and scopes persisted Cimi memberships by the authenticated user. It does not call this authority method, so the public Cimi listing behavior and its existing cross-user isolation remain unchanged.
 
@@ -384,7 +292,7 @@ Verification: focused Auth tests passed 15 tests; narrow lint/format and type-aw
 
 ### 18. Session-provider failures are treated as missing authentication
 
-Session lookup failures are now handled at the API boundary as a safe `INTERNAL_SERVER_ERROR` response with HTTP 500. Only a successful lookup with no session continues to produce an absent user and the normal 401 response for authenticated procedures. Provider details are excluded from the public response.
+**Remediated in `92483e2`.** Session lookup failures are now handled at the API boundary as a safe `INTERNAL_SERVER_ERROR` response with HTTP 500. Only a successful lookup with no session continues to produce an absent user and the normal 401 response for authenticated procedures. Provider details are excluded from the public response.
 
 Evidence:
 
@@ -404,33 +312,33 @@ The current native route fence therefore covers the relevant enabled governance 
 
 ## Verification receipts
 
-The following focused checks passed after the implementation was assembled:
+The following focused checks passed after the remediation commits were assembled:
 
-- `pnpm --filter @cimi/contract test`. 23 files and 109 tests passed.
-- `pnpm --filter @cimi/db test`. 2 files and 5 tests passed.
-- `pnpm --filter @cimi/auth test`. 2 files and 2 tests passed.
-- Focused API tests for API, governance, Organization, Membership, and Site. 5 files and 13 tests passed in the latest run.
-- `pnpm --filter @cimi/guard test`. 2 files and 21 tests passed.
+- `pnpm --filter @cimi/contract test`: 24 files and 116 tests passed.
+- `pnpm --filter @cimi/db test`: 2 files and 6 tests passed.
+- `pnpm --filter @cimi/auth test`: 2 files and 15 tests passed.
+- Focused API tests for API, governance, Organization, Membership, and Site: 27 files and 82 tests passed.
+- `pnpm --filter @cimi/guard test`: 2 files and 21 tests passed.
 - Contract, database, Auth, API, and Guard typechecks passed.
-- `pnpm --filter @cimi/db db:check` passed.
-- `git diff --check` passed before the implementation commit.
+- `pnpm --filter @cimi/db db:check` passed with `Everything's fine`.
+- `git diff --check` passed.
 
-The Auth tests emitted Better Auth warnings about a missing `baseURL` in one fixture. They still passed.
+The Auth tests emitted expected Better Auth warnings about a missing `baseURL` in some fixtures. They still passed.
 
 A real HTTP flow also passed. It signed up two users, ensured a Personal Organization, created a collaborative Organization, added a member through the Better Auth server API, listed members through Cimi, changed the member role, transferred ownership, created a Site, removed the former Owner, and confirmed that stale Organization and Site reads returned 404.
 
-The HTTP flow did not cover transfer replay, concurrent operations, authority-only removal, pending-state enumeration, deletion precedence, leave behavior, or provider-failure recovery.
+The focused service, repository, contract, database, adapter, route-fencing, and lifecycle tests add coverage for the cases that were missing from the initial audit, including replay authorization, concurrent operations, authority-only removal, pending-state authorization, deletion precedence, leave behavior, provider-failure recovery, cross-store repairs, native route fencing, and database constraints.
 
 ## Consumer and maintainer impact
 
 ### Consumers
 
-Users can complete the tested Organization, Membership, transfer, Site creation, and persisted-removal flows. A removed former Owner can still replay one completed transfer request with a stale session. Pending operations can produce generic server errors. Authority-only removal can produce a conflict instead of the specified inaccessible result.
+The governance procedures now fail closed when stores disagree, keep cross-store repair work recoverable, and return declared public errors. Current-user authorization is checked before replay and pending-state responses, so stale sessions cannot read protected Organization or Membership state.
 
 ### Maintainers
 
-The architecture has the right package boundaries and a useful durable-operation model. Before Issue #36 can be marked complete, maintainers need to close the replay authorization bypass, enforce authority-wide Owner uniqueness, normalize known stale-member errors, fix pending-state authorization ordering, align contracts with emitted conflicts, and add the missing concurrency, recovery, lifecycle, and constraint tests.
+The 18 findings are closed in separate commits ordered by finding number. The Better Auth route caveat remains a conditional maintenance requirement: if dynamic role management is enabled, those routes must be fenced or routed through Cimi too.
 
 ## Completeness decision
 
-Issue #36 should remain open. The first implementation commit is valuable and substantially complete in breadth, but the acceptance gate is not met until protected replay paths, two-store Owner convergence, stale-session behavior, pending-state disclosure, and public error mapping are corrected and verified.
+Issue #36 is complete for the current configuration. All 18 audit findings have remediation commits and focused verification evidence. The only remaining note is the conditional Better Auth dynamic-role route caveat documented above.
