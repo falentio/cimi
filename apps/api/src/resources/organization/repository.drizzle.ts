@@ -154,6 +154,215 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
     return row === undefined ? undefined : toOrganization(row)
   }
 
+  async findPendingCreateRepair(
+    ownerUserId: string,
+  ): Promise<OrganizationRepository.RepairOperation | undefined> {
+    const rows = await this.db
+      .select()
+      .from(schema.TOrganizationRepairOperation)
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.ownerUserId, ownerUserId),
+          eq(schema.TOrganizationRepairOperation.operationType, 'create-organization'),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+      .limit(1)
+    const row = rows[0]
+    return row === undefined ? undefined : toRepairOperation(row)
+  }
+
+  async findPendingUpdateRepair(
+    organizationId: string,
+  ): Promise<OrganizationRepository.RepairOperation | undefined> {
+    const rows = await this.db
+      .select()
+      .from(schema.TOrganizationRepairOperation)
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.organizationId, organizationId),
+          eq(schema.TOrganizationRepairOperation.operationType, 'update-organization'),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+      .limit(1)
+    const row = rows[0]
+    return row === undefined ? undefined : toRepairOperation(row)
+  }
+
+  async createRepairOperation(
+    input: OrganizationRepository.CreateRepairOperationInput,
+  ): Promise<OrganizationRepository.RepairOperation> {
+    const rows = await this.db
+      .insert(schema.TOrganizationRepairOperation)
+      .values({
+        ...input,
+        status: 'pending',
+        attemptCount: 0,
+        lastAttemptAt: null,
+        completedAt: null,
+        failureCode: null,
+        failureMessage: null,
+      })
+      .returning()
+    const row = rows[0]
+    if (row === undefined) throw new Error('Organization repair insert returned no row')
+    return toRepairOperation(row)
+  }
+
+  async incrementRepairAttempt(repairId: string): Promise<void> {
+    await this.db
+      .update(schema.TOrganizationRepairOperation)
+      .set({
+        attemptCount: sql`${schema.TOrganizationRepairOperation.attemptCount} + 1`,
+        lastAttemptAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.id, repairId),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+  }
+
+  async setRepairAuthorityCleanupRequired(repairId: string): Promise<void> {
+    await this.db
+      .update(schema.TOrganizationRepairOperation)
+      .set({ authorityCleanupRequired: true, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.id, repairId),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+  }
+
+  async setRepairAuthorityOrganization(
+    repairId: string,
+    authorityOrganizationId: string,
+    authorityCleanupRequired: boolean,
+  ): Promise<void> {
+    await this.db
+      .update(schema.TOrganizationRepairOperation)
+      .set({ authorityOrganizationId, authorityCleanupRequired, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.id, repairId),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+  }
+
+  async recordRepairFailure(repairId: string, failureMessage: string): Promise<void> {
+    await this.db
+      .update(schema.TOrganizationRepairOperation)
+      .set({ failureCode: 'CONFLICT', failureMessage, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.id, repairId),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+  }
+
+  async completeRepairOperation(repairId: string): Promise<boolean> {
+    const rows = await this.db
+      .update(schema.TOrganizationRepairOperation)
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        failureCode: null,
+        failureMessage: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.id, repairId),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+      .returning({ id: schema.TOrganizationRepairOperation.id })
+    return rows.length > 0
+  }
+
+  async insertWithOwnerAndCompleteRepair(
+    input: OrganizationRepository.InsertInput,
+    membership: { readonly userId: string; readonly now: Date },
+    repairId: string,
+  ): Promise<OrganizationRecord> {
+    return this.db.transaction((tx) => {
+      const organizations = tx.insert(schema.TOrganization).values(input).returning().all()
+      const organization = organizations[0]
+      if (organization === undefined) throw new Error('Organization insert returned no row')
+      tx.insert(schema.TMembership)
+        .values({
+          organizationId: organization.id,
+          userId: membership.userId,
+          role: 'owner',
+          createdAt: membership.now,
+          updatedAt: membership.now,
+        })
+        .run()
+      const repairs = tx
+        .update(schema.TOrganizationRepairOperation)
+        .set({
+          organizationId: organization.id,
+          status: 'completed',
+          completedAt: new Date(),
+          failureCode: null,
+          failureMessage: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.TOrganizationRepairOperation.id, repairId),
+            eq(schema.TOrganizationRepairOperation.status, 'pending'),
+          ),
+        )
+        .returning({ id: schema.TOrganizationRepairOperation.id })
+        .all()
+      if (repairs.length === 0) throw new Error('Organization repair completion failed')
+      return toOrganization(organization)
+    })
+  }
+
+  async updateNameAndCompleteRepair(
+    id: string,
+    name: string,
+    repairId: string,
+  ): Promise<OrganizationRecord | undefined> {
+    return this.db.transaction((tx) => {
+      const rows = tx
+        .update(schema.TOrganization)
+        .set({ name, updatedAt: new Date() })
+        .where(eq(schema.TOrganization.id, id))
+        .returning()
+        .all()
+      const organization = rows[0]
+      if (organization === undefined) return undefined
+      const repairs = tx
+        .update(schema.TOrganizationRepairOperation)
+        .set({
+          status: 'completed',
+          completedAt: new Date(),
+          failureCode: null,
+          failureMessage: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.TOrganizationRepairOperation.id, repairId),
+            eq(schema.TOrganizationRepairOperation.status, 'pending'),
+          ),
+        )
+        .returning({ id: schema.TOrganizationRepairOperation.id })
+        .all()
+      if (repairs.length === 0) throw new Error('Organization repair completion failed')
+      return toOrganization(organization)
+    })
+  }
+
   async checkDelete(id: string): Promise<OrganizationRepository.DeleteResult> {
     const organizations = await this.db
       .select({ isPersonal: schema.TOrganization.isPersonal })
@@ -393,7 +602,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
   }
 
   async hasPendingGovernanceOperation(organizationId: string): Promise<boolean> {
-    const rows = await this.db
+    const governanceRows = await this.db
       .select({ id: schema.TOrganizationGovernanceOperation.id })
       .from(schema.TOrganizationGovernanceOperation)
       .where(
@@ -403,7 +612,37 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
-    return rows.length > 0
+    if (governanceRows.length > 0) return true
+
+    const repairRows = await this.db
+      .select({ id: schema.TOrganizationRepairOperation.id })
+      .from(schema.TOrganizationRepairOperation)
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.organizationId, organizationId),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+      .limit(1)
+    return repairRows.length > 0
+  }
+}
+
+function toRepairOperation(
+  row: typeof schema.TOrganizationRepairOperation.$inferSelect,
+): OrganizationRepository.RepairOperation {
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    localOrganizationId: row.localOrganizationId,
+    operationType: row.operationType,
+    ownerUserId: row.ownerUserId,
+    authorityOrganizationId: row.authorityOrganizationId,
+    authorityCleanupRequired: row.authorityCleanupRequired,
+    authoritySlug: row.authoritySlug,
+    previousName: row.previousName,
+    desiredName: row.desiredName,
+    attemptCount: row.attemptCount,
   }
 }
 

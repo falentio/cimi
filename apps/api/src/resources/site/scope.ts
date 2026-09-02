@@ -51,7 +51,7 @@ export function createSiteScopeDependencies({
     },
     membership: {
       async hasPendingGovernanceOperation(organizationId) {
-        const rows = await db
+        const governanceRows = await db
           .select({ id: schema.TOrganizationGovernanceOperation.id })
           .from(schema.TOrganizationGovernanceOperation)
           .where(
@@ -61,7 +61,19 @@ export function createSiteScopeDependencies({
             ),
           )
           .limit(1)
-        return rows.length > 0
+        if (governanceRows.length > 0) return true
+
+        const repairRows = await db
+          .select({ id: schema.TOrganizationRepairOperation.id })
+          .from(schema.TOrganizationRepairOperation)
+          .where(
+            and(
+              eq(schema.TOrganizationRepairOperation.organizationId, organizationId),
+              eq(schema.TOrganizationRepairOperation.status, 'pending'),
+            ),
+          )
+          .limit(1)
+        return repairRows.length > 0
       },
       async getRole(organizationId, userId) {
         if (!(await isOwnerInvariantValid(db, organizationId))) return undefined

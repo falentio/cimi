@@ -60,6 +60,65 @@ export const TMembership = sqliteTable(
   ],
 )
 
+export const TOrganizationRepairOperation = sqliteTable(
+  'organization_repair_operation',
+  {
+    id: text('id').primaryKey().notNull(),
+    organizationId: text('organization_id').references(() => TOrganization.id, {
+      onDelete: 'cascade',
+    }),
+    localOrganizationId: text('local_organization_id').notNull(),
+    operationType: text('operation_type', {
+      enum: ['create-organization', 'update-organization'],
+    }).notNull(),
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => TUser.id, { onDelete: 'restrict' }),
+    authorityOrganizationId: text('authority_organization_id'),
+    authorityCleanupRequired: integer('authority_cleanup_required', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    authoritySlug: text('authority_slug'),
+    previousName: text('previous_name'),
+    desiredName: text('desired_name').notNull(),
+    status: text('status', { enum: ['pending', 'completed'] }).notNull(),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    requestedAt: integer('requested_at', { mode: 'timestamp_ms' }).notNull(),
+    lastAttemptAt: integer('last_attempt_at', { mode: 'timestamp_ms' }),
+    completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+    failureCode: text('failure_code'),
+    failureMessage: text('failure_message'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    index('organization_repair_operation_organization_status_idx').on(
+      table.organizationId,
+      table.status,
+      table.createdAt,
+    ),
+    index('organization_repair_operation_local_status_idx').on(
+      table.localOrganizationId,
+      table.status,
+    ),
+    uniqueIndex('organization_repair_operation_create_active_unique')
+      .on(table.ownerUserId)
+      .where(sql`${table.operationType} = 'create-organization' AND ${table.status} = 'pending'`),
+    uniqueIndex('organization_repair_operation_update_active_unique')
+      .on(table.organizationId)
+      .where(sql`${table.operationType} = 'update-organization' AND ${table.status} = 'pending'`),
+    check('organization_repair_operation_attempt_count_check', sql`${table.attemptCount} >= 0`),
+    check(
+      'organization_repair_operation_shape_check',
+      sql`(
+        (${table.operationType} = 'create-organization' AND ${table.authoritySlug} IS NOT NULL AND ${table.previousName} IS NULL)
+        OR
+        (${table.operationType} = 'update-organization' AND ${table.organizationId} IS NOT NULL AND ${table.authorityOrganizationId} IS NOT NULL AND ${table.authoritySlug} IS NULL AND ${table.previousName} IS NOT NULL)
+      )`,
+    ),
+  ],
+)
+
 export const TOrganizationGovernanceOperation = sqliteTable(
   'organization_governance_operation',
   {

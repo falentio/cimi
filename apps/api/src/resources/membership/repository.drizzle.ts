@@ -103,7 +103,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
   }
 
   async hasPendingGovernanceOperation(organizationId: string): Promise<boolean> {
-    const rows = await this.db
+    const governanceRows = await this.db
       .select({ id: schema.TOrganizationGovernanceOperation.id })
       .from(schema.TOrganizationGovernanceOperation)
       .where(
@@ -113,12 +113,24 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
-    return rows.length > 0
+    if (governanceRows.length > 0) return true
+
+    const repairRows = await this.db
+      .select({ id: schema.TOrganizationRepairOperation.id })
+      .from(schema.TOrganizationRepairOperation)
+      .where(
+        and(
+          eq(schema.TOrganizationRepairOperation.organizationId, organizationId),
+          eq(schema.TOrganizationRepairOperation.status, 'pending'),
+        ),
+      )
+      .limit(1)
+    return repairRows.length > 0
   }
 
   async replaceMembers(organizationId: string, members: MembershipRecord[]): Promise<void> {
     return this.db.transaction((tx) => {
-      const pending = tx
+      const pendingGovernance = tx
         .select({ id: schema.TOrganizationGovernanceOperation.id })
         .from(schema.TOrganizationGovernanceOperation)
         .where(
@@ -129,7 +141,20 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         )
         .limit(1)
         .all()
-      if (pending.length > 0) throw new Error('Membership reconciliation is fenced')
+      const pendingRepairs = tx
+        .select({ id: schema.TOrganizationRepairOperation.id })
+        .from(schema.TOrganizationRepairOperation)
+        .where(
+          and(
+            eq(schema.TOrganizationRepairOperation.organizationId, organizationId),
+            eq(schema.TOrganizationRepairOperation.status, 'pending'),
+          ),
+        )
+        .limit(1)
+        .all()
+      if (pendingGovernance.length > 0 || pendingRepairs.length > 0) {
+        throw new Error('Membership reconciliation is fenced')
+      }
 
       const organizations = tx
         .select({ ownerUserId: schema.TOrganization.ownerUserId })

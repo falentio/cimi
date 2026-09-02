@@ -1,0 +1,1 @@
+ALTER TABLE `organization_repair_operation` ADD `authority_cleanup_required` integer DEFAULT false NOT NULL;

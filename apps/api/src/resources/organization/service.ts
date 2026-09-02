@@ -166,41 +166,232 @@ export class OrganizationService {
     user: Pick<AuthUser, 'id'>,
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationCreateOutput>> {
-    const authorityOrganization = await this.authority.createOrganization({
-      name: input.name,
-      slug: `${generateId('organization')}-${user.id}`,
-      ownerUserId: user.id,
-    })
-    assertCreatedAuthorityOwner(
-      authorityOrganization.organization.id,
-      authorityOrganization.member,
-      user.id,
-    )
+    let repair: OrganizationRepository.RepairOperation | undefined
     try {
-      const organization = await this.repository.insertWithOwner(
-        {
-          id: generateId('organization'),
-          name: input.name,
-          authorityOrganizationId: authorityOrganization.organization.id,
+      repair = await this.repository.findPendingCreateRepair(user.id)
+      if (repair !== undefined) {
+        if (repair.desiredName !== input.name) throw new ORPCError('CONFLICT')
+      } else {
+        const now = new Date()
+        const localOrganizationId = generateId('organization')
+        repair = await this.repository.createRepairOperation({
+          id: generateId('organization-repair'),
+          organizationId: null,
+          localOrganizationId,
+          operationType: 'create-organization',
           ownerUserId: user.id,
+          authorityOrganizationId: null,
+          authorityCleanupRequired: false,
+          authoritySlug: `${localOrganizationId}-${user.id}`,
+          previousName: null,
+          desiredName: input.name,
+          requestedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
+    } catch (error) {
+      if (error instanceof ORPCError) throw error
+      throw new ORPCError('CONFLICT')
+    }
+    return toOrganization(await this.reconcileCreateRepair(repair, user.id, headers))
+  }
+
+  private async reconcileCreateRepair(
+    repair: OrganizationRepository.RepairOperation,
+    userId: string,
+    headers: Headers,
+  ): Promise<OrganizationRecord> {
+    let authorityOrganizationId = repair.authorityOrganizationId
+    let localOrganizationMaterialized = false
+    let authorityCreatedInAttempt = repair.authorityCleanupRequired
+    try {
+      await this.repository.incrementRepairAttempt(repair.id)
+      const authoritySlug = requireAuthoritySlug(repair)
+      if (authorityOrganizationId === null) {
+        const existingAuthority = await this.authority.getOrganizationBySlug({
+          slug: authoritySlug,
+          headers,
+        })
+        if (existingAuthority !== undefined) {
+          authorityOrganizationId = existingAuthority.id
+          await this.repository.setRepairAuthorityOrganization(
+            repair.id,
+            authorityOrganizationId,
+            authorityCreatedInAttempt,
+          )
+          const members = await this.authority.listAllMembers({
+            organizationId: authorityOrganizationId,
+            headers,
+          })
+          assertAuthorityOwner(authorityOrganizationId, members, userId)
+        } else {
+          await this.repository.setRepairAuthorityCleanupRequired(repair.id)
+          authorityCreatedInAttempt = true
+          const created = await this.authority.createOrganization({
+            name: repair.desiredName,
+            slug: authoritySlug,
+            ownerUserId: userId,
+          })
+          authorityOrganizationId = created.organization.id
+          authorityCreatedInAttempt = true
+          await this.repository.setRepairAuthorityOrganization(
+            repair.id,
+            authorityOrganizationId,
+            true,
+          )
+          assertCreatedAuthorityOwner(authorityOrganizationId, created.member, userId)
+        }
+      } else {
+        const members = await this.authority.listAllMembers({
+          organizationId: authorityOrganizationId,
+          headers,
+        })
+        assertAuthorityOwner(authorityOrganizationId, members, userId)
+      }
+
+      const existingLocal = await this.repository.findById(repair.localOrganizationId)
+      if (existingLocal !== undefined) {
+        if (
+          existingLocal.name !== repair.desiredName ||
+          existingLocal.ownerUserId !== userId ||
+          existingLocal.authorityOrganizationId !== authorityOrganizationId ||
+          existingLocal.isPersonal
+        ) {
+          throw new Error('Organization create repair local state is invalid')
+        }
+        localOrganizationMaterialized = true
+        try {
+          if (!(await this.repository.completeRepairOperation(repair.id))) {
+            throw new Error('Organization repair completion failed')
+          }
+        } catch (completionError) {
+          await this.recordRepairFailure(repair.id, completionError)
+          throw new ORPCError('CONFLICT')
+        }
+        return existingLocal
+      }
+      const createdLocal = await this.repository.insertWithOwnerAndCompleteRepair(
+        {
+          id: repair.localOrganizationId,
+          name: repair.desiredName,
+          authorityOrganizationId,
+          ownerUserId: userId,
           isPersonal: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
-        { userId: user.id, now: new Date() },
+        { userId, now: new Date() },
+        repair.id,
       )
-      return toOrganization(organization)
+      localOrganizationMaterialized = true
+      return createdLocal
     } catch (error) {
-      try {
-        await this.authority.deleteOrganization({
-          organizationId: authorityOrganization.organization.id,
-          headers,
-        })
-      } catch {
-        throw new ORPCError('CONFLICT')
+      if (
+        authorityCreatedInAttempt &&
+        authorityOrganizationId !== null &&
+        !localOrganizationMaterialized
+      ) {
+        try {
+          await this.authority.deleteOrganization({
+            organizationId: authorityOrganizationId,
+            headers,
+          })
+          if (!(await this.repository.completeRepairOperation(repair.id))) {
+            throw new Error('Organization repair completion failed')
+          }
+        } catch (compensationError) {
+          await this.recordRepairFailure(repair.id, compensationError)
+          throw new ORPCError('CONFLICT')
+        }
+      } else {
+        await this.recordRepairFailure(repair.id, error)
       }
+      if (error instanceof ORPCError) throw error
       if (isConstraintError(error)) throw new ORPCError('CONFLICT')
       throw error
+    }
+  }
+
+  private async assertUpdateRepairRecoverable(
+    repair: OrganizationRepository.RepairOperation,
+    userId: string,
+    headers: Headers,
+  ): Promise<void> {
+    await this.assertCommandRole(repair.localOrganizationId, userId, 'admin')
+    const authorityMember = await this.authority.getMember({
+      organizationId: repair.authorityOrganizationId!,
+      userId,
+      headers,
+    })
+    if (authorityMember === undefined || authorityMember.role === 'member') {
+      throw new ORPCError('FORBIDDEN')
+    }
+  }
+
+  private async recordRepairFailure(repairId: string, error: unknown): Promise<void> {
+    try {
+      await this.repository.recordRepairFailure(
+        repairId,
+        error instanceof Error ? error.message : 'Organization repair did not complete',
+      )
+    } catch {
+      // Keep the repair pending when failure metadata cannot be recorded.
+    }
+  }
+
+  private async reconcileUpdateRepair(
+    repair: OrganizationRepository.RepairOperation,
+    headers: Headers,
+  ): Promise<OrganizationRecord> {
+    if (repair.authorityOrganizationId === null || repair.previousName === null) {
+      throw new ORPCError('CONFLICT')
+    }
+    await this.repository.incrementRepairAttempt(repair.id)
+    let authorityMutationAttempted = false
+    try {
+      const currentAuthority = await this.authority.getOrganization({
+        organizationId: repair.authorityOrganizationId,
+        headers,
+      })
+      if (currentAuthority === undefined) throw new Error('Authority Organization is unavailable')
+      if (currentAuthority.name !== repair.desiredName) {
+        authorityMutationAttempted = true
+        const updatedAuthority = await this.authority.updateOrganization({
+          organizationId: repair.authorityOrganizationId,
+          name: repair.desiredName,
+          headers,
+        })
+        if (updatedAuthority === undefined || updatedAuthority.name !== repair.desiredName) {
+          throw new Error('Organization name update did not converge')
+        }
+      }
+      const updated = await this.repository.updateNameAndCompleteRepair(
+        repair.localOrganizationId,
+        repair.desiredName,
+        repair.id,
+      )
+      if (updated === undefined) throw new ORPCError('NOT_FOUND')
+      return updated
+    } catch (error) {
+      if (authorityMutationAttempted) {
+        try {
+          const restored = await this.authority.updateOrganization({
+            organizationId: repair.authorityOrganizationId,
+            name: repair.previousName,
+            headers,
+          })
+          if (restored === undefined || restored.name !== repair.previousName) {
+            throw new Error('Organization name rollback did not converge')
+          }
+        } catch (compensationError) {
+          await this.recordRepairFailure(repair.id, compensationError)
+          throw new ORPCError('CONFLICT')
+        }
+      }
+      await this.recordRepairFailure(repair.id, error)
+      if (error instanceof ORPCError) throw error
+      throw new ORPCError('CONFLICT')
     }
   }
 
@@ -210,35 +401,37 @@ export class OrganizationService {
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationUpdateOutput>> {
     const organization = await this.requireOrganizationForUser(input.organizationId, user.id)
+    const pendingRepair = await this.repository.findPendingUpdateRepair(organization.id)
+    if (pendingRepair !== undefined) {
+      await this.assertUpdateRepairRecoverable(pendingRepair, user.id, headers)
+      if (pendingRepair.desiredName !== input.name) throw new ORPCError('CONFLICT')
+      return toOrganization(await this.reconcileUpdateRepair(pendingRepair, headers))
+    }
     await this.reconcileOrganization(organization.id, headers, user.id)
     await this.assertCommandRole(organization.id, user.id, 'admin')
-    const oldName = organization.name
     if (organization.authorityOrganizationId !== null) {
-      const updatedAuthority = await this.authority.updateOrganization({
-        organizationId: organization.authorityOrganizationId,
-        name: input.name,
-        headers,
-      })
-      if (updatedAuthority === undefined || updatedAuthority.name !== input.name) {
-        throw new ORPCError('CONFLICT')
-      }
+      const now = new Date()
+      let repair: OrganizationRepository.RepairOperation
       try {
-        const updated = await this.repository.updateName(organization.id, input.name)
-        if (updated === undefined) throw new ORPCError('NOT_FOUND')
-        return toOrganization(updated)
-      } catch (error) {
-        try {
-          await this.authority.updateOrganization({
-            organizationId: organization.authorityOrganizationId,
-            name: oldName,
-            headers,
-          })
-        } catch {
-          throw new ORPCError('CONFLICT')
-        }
-        if (error instanceof ORPCError) throw error
+        repair = await this.repository.createRepairOperation({
+          id: generateId('organization-repair'),
+          organizationId: organization.id,
+          localOrganizationId: organization.id,
+          operationType: 'update-organization',
+          ownerUserId: user.id,
+          authorityOrganizationId: organization.authorityOrganizationId,
+          authorityCleanupRequired: false,
+          authoritySlug: null,
+          previousName: organization.name,
+          desiredName: input.name,
+          requestedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        })
+      } catch {
         throw new ORPCError('CONFLICT')
       }
+      return toOrganization(await this.reconcileUpdateRepair(repair, headers))
     }
     const updated = await this.repository.updateName(organization.id, input.name)
     if (updated === undefined) throw new ORPCError('NOT_FOUND')
@@ -389,6 +582,13 @@ function toOrganization(record: OrganizationRecord): InferOutput<typeof SOrganiz
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   }
+}
+
+function requireAuthoritySlug(repair: OrganizationRepository.RepairOperation): string {
+  if (repair.authoritySlug === null) {
+    throw new Error('Organization create repair is missing authority slug')
+  }
+  return repair.authoritySlug
 }
 
 function assertCreatedAuthorityOwner(

@@ -28,6 +28,34 @@ export interface OrganizationRepository {
     membership: { readonly userId: string; readonly now: Date },
   ): Promise<OrganizationRecord>
   updateName(id: string, name: string): Promise<OrganizationRecord | undefined>
+  findPendingCreateRepair(
+    ownerUserId: string,
+  ): Promise<OrganizationRepository.RepairOperation | undefined>
+  findPendingUpdateRepair(
+    organizationId: string,
+  ): Promise<OrganizationRepository.RepairOperation | undefined>
+  createRepairOperation(
+    input: OrganizationRepository.CreateRepairOperationInput,
+  ): Promise<OrganizationRepository.RepairOperation>
+  incrementRepairAttempt(repairId: string): Promise<void>
+  setRepairAuthorityCleanupRequired(repairId: string): Promise<void>
+  setRepairAuthorityOrganization(
+    repairId: string,
+    authorityOrganizationId: string,
+    authorityCleanupRequired: boolean,
+  ): Promise<void>
+  recordRepairFailure(repairId: string, failureMessage: string): Promise<void>
+  completeRepairOperation(repairId: string): Promise<boolean>
+  insertWithOwnerAndCompleteRepair(
+    input: OrganizationRepository.InsertInput,
+    membership: { readonly userId: string; readonly now: Date },
+    repairId: string,
+  ): Promise<OrganizationRecord>
+  updateNameAndCompleteRepair(
+    id: string,
+    name: string,
+    repairId: string,
+  ): Promise<OrganizationRecord | undefined>
   checkDelete(id: string): Promise<OrganizationRepository.DeleteResult>
   delete(id: string): Promise<boolean>
   deleteIfEmpty(id: string): Promise<OrganizationRepository.DeleteResult>
@@ -59,6 +87,36 @@ export namespace OrganizationRepository {
     readonly nextOffset: number | null
     readonly hasMore: boolean
     readonly totalCount: number
+  }
+
+  export interface CreateRepairOperationInput {
+    readonly id: string
+    readonly organizationId: string | null
+    readonly localOrganizationId: string
+    readonly operationType: 'create-organization' | 'update-organization'
+    readonly ownerUserId: string
+    readonly authorityOrganizationId: string | null
+    readonly authorityCleanupRequired: boolean
+    readonly authoritySlug: string | null
+    readonly previousName: string | null
+    readonly desiredName: string
+    readonly requestedAt: Date
+    readonly createdAt: Date
+    readonly updatedAt: Date
+  }
+
+  export interface RepairOperation {
+    readonly id: string
+    readonly organizationId: string | null
+    readonly localOrganizationId: string
+    readonly operationType: 'create-organization' | 'update-organization'
+    readonly ownerUserId: string
+    readonly authorityOrganizationId: string | null
+    readonly authorityCleanupRequired: boolean
+    readonly authoritySlug: string | null
+    readonly previousName: string | null
+    readonly desiredName: string
+    readonly attemptCount: number
   }
 
   export interface CreateDeleteOperationInput {
