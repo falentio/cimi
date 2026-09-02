@@ -239,3 +239,63 @@ test('returns not found when Better Auth independently removes a projected membe
   expect(staleMemberResponse.status).toBe(404)
   expect(await staleMemberResponse.json()).toMatchObject({ code: 'NOT_FOUND', status: 404 })
 })
+
+test('hides pending Organization state from an inaccessible caller', async () => {
+  const { app, db } = await createFixture()
+  const owner = await signUp(app, 'pending-owner@example.com', 'Owner')
+  const outsider = await signUp(app, 'pending-outsider@example.com', 'Outsider')
+
+  const createResponse = await request(app, '/organization/createOrganization', owner.cookie, {
+    name: 'Pending Organization',
+  })
+  expect(createResponse.status).toBe(201)
+  const organization = await createResponse.json()
+
+  const organizationPath = `/organization/getOrganization?organizationId=${encodeURIComponent(organization.id)}`
+  const deletePath = '/organization/deleteOrganization'
+  const updatePath = '/organization/updateOrganization'
+  const initialGet = await request(app, organizationPath, outsider.cookie)
+  const initialUpdate = await request(app, updatePath, outsider.cookie, {
+    organizationId: organization.id,
+    name: 'Unauthorized update',
+  })
+  const initialDelete = await request(app, deletePath, outsider.cookie, {
+    organizationId: organization.id,
+  })
+  expect(initialGet.status).toBe(404)
+  expect(initialUpdate.status).toBe(404)
+  expect(initialDelete.status).toBe(404)
+
+  const now = new Date()
+  db.insert(schema.TOrganizationGovernanceOperation)
+    .values({
+      id: 'pending-enumeration-operation',
+      organizationId: organization.id,
+      operationType: 'delete-organization',
+      previousOwnerUserId: owner.userId,
+      targetUserId: owner.userId,
+      targetRole: null,
+      status: 'pending',
+      attemptCount: 0,
+      requestedAt: now,
+      lastAttemptAt: null,
+      completedAt: null,
+      failureCode: null,
+      failureMessage: null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run()
+
+  const pendingGet = await request(app, organizationPath, outsider.cookie)
+  const pendingUpdate = await request(app, updatePath, outsider.cookie, {
+    organizationId: organization.id,
+    name: 'Unauthorized pending update',
+  })
+  const pendingDelete = await request(app, deletePath, outsider.cookie, {
+    organizationId: organization.id,
+  })
+  expect(pendingGet.status).toBe(404)
+  expect(pendingUpdate.status).toBe(404)
+  expect(pendingDelete.status).toBe(404)
+})

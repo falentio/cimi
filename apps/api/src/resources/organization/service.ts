@@ -79,11 +79,13 @@ export class OrganizationService {
     user: Pick<AuthUser, 'id'>,
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationGetOutput>> {
-    await this.reconcileOrganization(input.organizationId, headers, user.id)
     const organization = await this.repository.findByIdForUser(input.organizationId, user.id)
     if (organization === undefined) throw new ORPCError('NOT_FOUND')
-    await this.assertReadable(organization.id)
-    return toOrganization(organization)
+    await this.reconcileOrganization(organization.id, headers, user.id)
+    const refreshed = await this.repository.findByIdForUser(input.organizationId, user.id)
+    if (refreshed === undefined) throw new ORPCError('NOT_FOUND')
+    await this.assertReadable(refreshed.id)
+    return toOrganization(refreshed)
   }
 
   async ensurePersonal(
@@ -207,7 +209,7 @@ export class OrganizationService {
     user: Pick<AuthUser, 'id'>,
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationUpdateOutput>> {
-    const organization = await this.requireOrganization(input.organizationId)
+    const organization = await this.requireOrganizationForUser(input.organizationId, user.id)
     await this.reconcileOrganization(organization.id, headers, user.id)
     await this.assertCommandRole(organization.id, user.id, 'admin')
     const oldName = organization.name
@@ -248,7 +250,8 @@ export class OrganizationService {
     user: Pick<AuthUser, 'id'>,
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationDeleteOutput>> {
-    const organization = await this.requireOrganization(input.organizationId)
+    const organization = await this.requireOrganizationForUser(input.organizationId, user.id)
+    await this.assertCommandRole(organization.id, user.id, 'owner')
     let operation = await this.repository.findPendingDeleteOperation(organization.id)
 
     if (operation !== undefined) {
@@ -336,8 +339,11 @@ export class OrganizationService {
     }
   }
 
-  private async requireOrganization(id: string): Promise<OrganizationRecord> {
-    const organization = await this.repository.findById(id)
+  private async requireOrganizationForUser(
+    id: string,
+    userId: string,
+  ): Promise<OrganizationRecord> {
+    const organization = await this.repository.findByIdForUser(id, userId)
     if (organization === undefined) throw new ORPCError('NOT_FOUND')
     return organization
   }

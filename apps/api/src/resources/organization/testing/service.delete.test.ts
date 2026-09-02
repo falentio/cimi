@@ -29,6 +29,7 @@ describe('OrganizationService.delete', () => {
     const service = new OrganizationService({ repository, authority })
 
     repository.findById.mockResolvedValue(organization)
+    repository.findByIdForUser.mockResolvedValue(organization)
     repository.findPendingDeleteOperation
       .mockResolvedValueOnce(undefined)
       .mockResolvedValue(operation)
