@@ -354,15 +354,18 @@ Verification: the focused database client suite passed 6 tests; narrow lint/form
 
 ### 16. Contract and Better Auth adapter coverage is narrow
 
-Contract tests cover the Membership transfer shape but do not comprehensively test Organization validation or invalid inputs for IDs, names, roles, pagination, strict objects, and outputs.
+Contract coverage now exercises Organization and Membership command/query inputs and outputs, including invalid IDs, names, roles, pagination, strict objects, malformed timestamps, and owner-sensitive output shapes.
 
-The Better Auth adapter test covers paginated member lookup and removal by authority member ID. It does not cover create, update, delete, ownership reconciliation, missing headers, provider errors, or malformed role mapping.
+Better Auth adapter coverage now exercises Organization creation, reads by ID and slug, update and delete mapping, known not-found normalization, provider-error propagation, member pagination and mapping, role changes, leave, malformed provider roles, ownership transfer success and recovery, missing transfer targets, and final Owner-state validation. The direct `listOrganizations()` user-ID boundary remains deferred to finding 17 because its behavior is the separate finding there.
 
 Evidence:
 
+- `packages/contract/src/contract/organization/validation.test.ts`
 - `packages/contract/src/contract/membership/validation.test.ts`
 - `packages/contract/src/contract/error-declarations.test.ts`
 - `packages/auth/src/testing/organization-authority.test.ts`
+
+Verification: focused contract tests passed 116 tests; focused Auth tests passed 14 tests; narrow lint/format and type-aware checks passed for all changed TypeScript files.
 
 ### 17. `listOrganizations()` ignores its user ID argument
 
