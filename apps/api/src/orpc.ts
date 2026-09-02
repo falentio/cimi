@@ -5,16 +5,20 @@ import { implement } from '@orpc/server'
 
 export interface ApiContext {
   user: AuthUser | undefined
+  headers: Headers
 }
 
 export const api = implement({
   health: contract.health,
   hello: contract.hello,
+  organization: contract.organization,
+  membership: contract.membership,
+  site: contract.site,
 }).$context<ApiContext>()
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {
   assertAuthenticated(context.user)
-  return next({ context: { user: context.user } })
+  return next({ context: { user: context.user, headers: context.headers } })
 })
 
 export const authenticatedApi = api.use(authenticatedMiddleware)

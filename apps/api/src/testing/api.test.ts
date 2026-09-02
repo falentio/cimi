@@ -147,6 +147,38 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
   expect(signup.headers.get('set-cookie')).toBeTruthy()
 })
 
+test('blocks native Better Auth governance mutations but keeps non-mutating auth routes mounted', async () => {
+  const { app } = await createFixture()
+
+  for (const path of [
+    '/organization/create',
+    '/organization/update',
+    '/organization/delete',
+    '/organization/add-member',
+    '/organization/remove-member',
+    '/organization/update-member-role',
+    '/organization/leave',
+  ]) {
+    const response = await app.fetch(
+      new Request(`http://localhost/api/auth${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      }),
+    )
+    expect(response.status, path).toBe(404)
+  }
+
+  const harmlessResponse = await app.fetch(
+    new Request('http://localhost/api/auth/organization/set-active', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    }),
+  )
+  expect(harmlessResponse.status).not.toBe(404)
+})
+
 test('unknown api route returns 404', async () => {
   const { app } = await createFixture()
 

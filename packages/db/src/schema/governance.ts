@@ -60,6 +60,60 @@ export const TMembership = sqliteTable(
   ],
 )
 
+export const TOrganizationGovernanceOperation = sqliteTable(
+  'organization_governance_operation',
+  {
+    id: text('id').primaryKey().notNull(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => TOrganization.id, { onDelete: 'cascade' }),
+    operationType: text('operation_type', {
+      enum: [
+        'transfer-ownership',
+        'change-member-role',
+        'remove-member',
+        'leave-organization',
+        'delete-organization',
+      ],
+    }).notNull(),
+    previousOwnerUserId: text('previous_owner_user_id')
+      .notNull()
+      .references(() => TUser.id, { onDelete: 'restrict' }),
+    targetUserId: text('target_user_id')
+      .notNull()
+      .references(() => TUser.id, { onDelete: 'restrict' }),
+    targetRole: text('target_role', { enum: ['admin', 'member'] }),
+    status: text('status', { enum: ['pending', 'completed', 'failed'] }).notNull(),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    requestedAt: integer('requested_at', { mode: 'timestamp_ms' }).notNull(),
+    lastAttemptAt: integer('last_attempt_at', { mode: 'timestamp_ms' }),
+    completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+    failureCode: text('failure_code'),
+    failureMessage: text('failure_message'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    index('organization_governance_operation_organization_status_idx').on(
+      table.organizationId,
+      table.status,
+      table.createdAt,
+    ),
+    uniqueIndex('organization_governance_operation_active_unique')
+      .on(table.organizationId)
+      .where(sql`${table.status} = 'pending'`),
+    check('organization_governance_operation_attempt_count_check', sql`${table.attemptCount} >= 0`),
+    check(
+      'organization_governance_operation_target_role_check',
+      sql`(
+        (${table.operationType} = 'change-member-role' AND ${table.targetRole} IN ('admin', 'member'))
+        OR
+        (${table.operationType} IN ('transfer-ownership', 'remove-member', 'leave-organization', 'delete-organization') AND ${table.targetRole} IS NULL)
+      )`,
+    ),
+  ],
+)
+
 export const TSite = sqliteTable(
   'site',
   {

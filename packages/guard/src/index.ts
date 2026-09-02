@@ -9,6 +9,7 @@ export {
   type AuthorizationLevel,
 } from './guard.ts'
 export {
+  assertSiteManagementScope,
   assertSiteScope,
   InMemorySiteScopePort,
   type InMemorySiteMembership,

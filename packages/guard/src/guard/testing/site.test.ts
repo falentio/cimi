@@ -92,7 +92,10 @@ describe('authorization guards', () => {
       isActive: () => true,
       getOrganizationId: () => undefined,
     }
-    const membership = { getRole: () => 'member' as const }
+    const membership = {
+      getRole: () => 'member' as const,
+      hasPendingGovernanceOperation: () => false,
+    }
 
     await expect(assertSiteScope(user, 'site-1', { siteScope, membership })).rejects.toMatchObject({
       code: 'NOT_FOUND',
