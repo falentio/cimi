@@ -563,13 +563,24 @@ export class MembershipService {
         'admin',
       )
       assertAuthorityMember(result.target, authorityOrganizationId, transfer.targetUserId, 'owner')
-      const completed = await this.repository.completeTransfer({
-        id: transfer.id,
-        organizationId: transfer.organizationId,
-        previousOwnerUserId: transfer.previousOwnerUserId,
-        targetUserId: transfer.targetUserId,
-        now: new Date(),
-      })
+      let completed: MembershipRecord
+      try {
+        completed = await this.repository.completeTransfer({
+          id: transfer.id,
+          organizationId: transfer.organizationId,
+          previousOwnerUserId: transfer.previousOwnerUserId,
+          targetUserId: transfer.targetUserId,
+          now: new Date(),
+        })
+      } catch (error) {
+        const replay = await this.repository.findCompletedTransfer({
+          organizationId: transfer.organizationId,
+          previousOwnerUserId: transfer.previousOwnerUserId,
+          targetUserId: transfer.targetUserId,
+        })
+        if (replay !== undefined) return toOwnerMembership(replay)
+        throw error
+      }
       return toOwnerMembership(completed)
     } catch (error) {
       await this.recordTransferFailure(transfer.id, error)
