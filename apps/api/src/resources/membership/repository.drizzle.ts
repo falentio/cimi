@@ -117,7 +117,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
   }
 
   async replaceMembers(organizationId: string, members: MembershipRecord[]): Promise<void> {
-    this.db.transaction((tx) => {
+    return this.db.transaction((tx) => {
       const pending = tx
         .select({ id: schema.TOrganizationGovernanceOperation.id })
         .from(schema.TOrganizationGovernanceOperation)
@@ -148,6 +148,25 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         throw new Error('Membership reconciliation owner state is invalid')
       }
 
+      const existing = tx
+        .select()
+        .from(schema.TMembership)
+        .where(eq(schema.TMembership.organizationId, organizationId))
+        .all()
+      const existingOwner = existing.find((member) => member.role === 'owner')
+      if (existingOwner !== undefined && existingOwner.userId !== owners[0]?.userId) {
+        tx.update(schema.TMembership)
+          .set({ role: 'admin', updatedAt: owners[0]?.updatedAt ?? existingOwner.updatedAt })
+          .where(
+            and(
+              eq(schema.TMembership.organizationId, organizationId),
+              eq(schema.TMembership.userId, existingOwner.userId),
+              eq(schema.TMembership.role, 'owner'),
+            ),
+          )
+          .run()
+      }
+
       for (const member of members) {
         tx.insert(schema.TMembership)
           .values({
@@ -164,11 +183,6 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
           .run()
       }
 
-      const existing = tx
-        .select({ userId: schema.TMembership.userId })
-        .from(schema.TMembership)
-        .where(eq(schema.TMembership.organizationId, organizationId))
-        .all()
       const keep = new Set(members.map((member) => member.userId))
       for (const member of existing) {
         if (keep.has(member.userId)) continue
