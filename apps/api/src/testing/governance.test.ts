@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { createAuth } from '@cimi/auth/server'
 import {
   SMembershipListOutput,
@@ -238,6 +238,206 @@ test('returns not found when Better Auth independently removes a projected membe
   )
   expect(staleMemberResponse.status).toBe(404)
   expect(await staleMemberResponse.json()).toMatchObject({ code: 'NOT_FOUND', status: 404 })
+})
+
+test('does not let an outsider recover a pending member removal', async () => {
+  const { app, auth, db } = await createFixture()
+  const owner = await signUp(app, 'removal-owner@example.com', 'Owner')
+  const target = await signUp(app, 'removal-target@example.com', 'Target')
+  const outsider = await signUp(app, 'removal-outsider@example.com', 'Outsider')
+
+  const createResponse = await request(app, '/organization/createOrganization', owner.cookie, {
+    name: 'Removal Recovery',
+  })
+  expect(createResponse.status).toBe(201)
+  const organization = await createResponse.json()
+  const persistedOrganization = (
+    await db
+      .select({ authorityOrganizationId: schema.TOrganization.authorityOrganizationId })
+      .from(schema.TOrganization)
+      .where(eq(schema.TOrganization.id, organization.id))
+  )[0]
+  const authorityOrganizationId = persistedOrganization?.authorityOrganizationId
+  expect(authorityOrganizationId).toBeTruthy()
+
+  await auth.api.addMember({
+    headers: new Headers({ cookie: owner.cookie }),
+    body: { organizationId: authorityOrganizationId!, userId: target.userId, role: 'member' },
+  })
+  const initialList = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    owner.cookie,
+  )
+  expect(initialList.status).toBe(200)
+
+  const removeMember = vi
+    .spyOn(auth.api, 'removeMember')
+    .mockRejectedValueOnce(new Error('authority unavailable'))
+  const firstRemoval = await request(app, '/membership/removeMember', owner.cookie, {
+    organizationId: organization.id,
+    userId: target.userId,
+  })
+  expect(firstRemoval.status).toBe(409)
+
+  const pendingOperation = (
+    await db
+      .select()
+      .from(schema.TOrganizationGovernanceOperation)
+      .where(eq(schema.TOrganizationGovernanceOperation.organizationId, organization.id))
+  )[0]
+  expect(pendingOperation).toMatchObject({
+    operationType: 'remove-member',
+    status: 'pending',
+    attemptCount: 1,
+    failureCode: 'CONFLICT',
+    failureMessage: 'authority unavailable',
+  })
+  await expect(
+    db.select().from(schema.TMembership).where(eq(schema.TMembership.userId, target.userId)),
+  ).resolves.toHaveLength(0)
+
+  const outsiderList = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    outsider.cookie,
+  )
+  expect(outsiderList.status).toBe(404)
+  expect(
+    (
+      await db
+        .select({
+          status: schema.TOrganizationGovernanceOperation.status,
+          attemptCount: schema.TOrganizationGovernanceOperation.attemptCount,
+        })
+        .from(schema.TOrganizationGovernanceOperation)
+        .where(eq(schema.TOrganizationGovernanceOperation.id, pendingOperation!.id))
+    )[0],
+  ).toMatchObject({ status: 'pending', attemptCount: 1 })
+
+  const ownerRecovery = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    owner.cookie,
+  )
+  expect(ownerRecovery.status).toBe(200)
+  expect(removeMember).toHaveBeenCalledTimes(2)
+  const completedOperation = (
+    await db
+      .select({
+        status: schema.TOrganizationGovernanceOperation.status,
+        failureCode: schema.TOrganizationGovernanceOperation.failureCode,
+        failureMessage: schema.TOrganizationGovernanceOperation.failureMessage,
+      })
+      .from(schema.TOrganizationGovernanceOperation)
+      .where(eq(schema.TOrganizationGovernanceOperation.id, pendingOperation!.id))
+  )[0]
+  expect(completedOperation).toMatchObject({
+    status: 'completed',
+    failureCode: null,
+    failureMessage: null,
+  })
+  await expect(
+    auth.api.listMembers({
+      headers: new Headers({ cookie: owner.cookie }),
+      query: { organizationId: authorityOrganizationId!, offset: 0, limit: 100 },
+    }),
+  ).resolves.toMatchObject({
+    members: expect.not.arrayContaining([expect.objectContaining({ userId: target.userId })]),
+  })
+})
+
+test('recovers a pending member leave through another administrator', async () => {
+  const { app, auth, db } = await createFixture()
+  const owner = await signUp(app, 'leave-owner@example.com', 'Owner')
+  const administrator = await signUp(app, 'leave-administrator@example.com', 'Administrator')
+  const target = await signUp(app, 'leave-target@example.com', 'Target')
+
+  const createResponse = await request(app, '/organization/createOrganization', owner.cookie, {
+    name: 'Leave Recovery',
+  })
+  expect(createResponse.status).toBe(201)
+  const organization = await createResponse.json()
+  const persistedOrganization = (
+    await db
+      .select({ authorityOrganizationId: schema.TOrganization.authorityOrganizationId })
+      .from(schema.TOrganization)
+      .where(eq(schema.TOrganization.id, organization.id))
+  )[0]
+  const authorityOrganizationId = persistedOrganization?.authorityOrganizationId
+  expect(authorityOrganizationId).toBeTruthy()
+
+  for (const member of [
+    { userId: administrator.userId, role: 'admin' as const },
+    { userId: target.userId, role: 'member' as const },
+  ]) {
+    await auth.api.addMember({
+      headers: new Headers({ cookie: owner.cookie }),
+      body: { organizationId: authorityOrganizationId!, ...member },
+    })
+  }
+  const initialList = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    owner.cookie,
+  )
+  expect(initialList.status).toBe(200)
+
+  const leaveOrganization = vi
+    .spyOn(auth.api, 'leaveOrganization')
+    .mockRejectedValueOnce(new Error('authority unavailable'))
+  const firstLeave = await request(app, '/membership/leaveOrganization', target.cookie, {
+    organizationId: organization.id,
+  })
+  expect(firstLeave.status).toBe(409)
+  expect(leaveOrganization).toHaveBeenCalledTimes(1)
+
+  const pendingOperation = (
+    await db
+      .select()
+      .from(schema.TOrganizationGovernanceOperation)
+      .where(eq(schema.TOrganizationGovernanceOperation.organizationId, organization.id))
+  )[0]
+  expect(pendingOperation).toMatchObject({
+    operationType: 'leave-organization',
+    status: 'pending',
+    attemptCount: 1,
+    failureCode: 'CONFLICT',
+    failureMessage: 'authority unavailable',
+  })
+  await expect(
+    db.select().from(schema.TMembership).where(eq(schema.TMembership.userId, target.userId)),
+  ).resolves.toHaveLength(0)
+
+  const recovery = await request(
+    app,
+    `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
+    owner.cookie,
+  )
+  expect(recovery.status).toBe(200)
+  const completedOperation = (
+    await db
+      .select({
+        status: schema.TOrganizationGovernanceOperation.status,
+        failureCode: schema.TOrganizationGovernanceOperation.failureCode,
+        failureMessage: schema.TOrganizationGovernanceOperation.failureMessage,
+      })
+      .from(schema.TOrganizationGovernanceOperation)
+      .where(eq(schema.TOrganizationGovernanceOperation.id, pendingOperation!.id))
+  )[0]
+  expect(completedOperation).toMatchObject({
+    status: 'completed',
+    failureCode: null,
+    failureMessage: null,
+  })
+  await expect(
+    auth.api.listMembers({
+      headers: new Headers({ cookie: owner.cookie }),
+      query: { organizationId: authorityOrganizationId!, offset: 0, limit: 100 },
+    }),
+  ).resolves.toMatchObject({
+    members: expect.not.arrayContaining([expect.objectContaining({ userId: target.userId })]),
+  })
 })
 
 test('hides pending Organization state from an inaccessible caller', async () => {

@@ -43,10 +43,25 @@ export class MembershipService {
     headers?: Headers,
     currentUserId?: string,
   ): Promise<void> {
+    await this.reconcileMembershipState(organizationId, headers, currentUserId)
+  }
+
+  private async reconcileMembershipState(
+    organizationId: string,
+    headers?: Headers,
+    currentUserId?: string,
+  ): Promise<MembershipRepository.MembershipOperation | undefined> {
     if (headers === undefined) throw new ORPCError('INTERNAL_SERVER_ERROR')
-    await this.reconcilePendingMembershipOperation(organizationId, headers, currentUserId)
-    if (!(await this.reconcileCurrentUserAccess(organizationId, headers, currentUserId))) return
+    const operation = await this.reconcilePendingMembershipOperation(
+      organizationId,
+      headers,
+      currentUserId,
+    )
+    if (!(await this.reconcileCurrentUserAccess(organizationId, headers, currentUserId))) {
+      return operation
+    }
     await this.reconcileAuthorityMembers(organizationId, headers)
+    return operation
   }
 
   async list(
@@ -124,7 +139,17 @@ export class MembershipService {
     user: Pick<AuthUser, 'id'>,
     headers: Headers,
   ): Promise<InferOutput<typeof SMembershipRemoveOutput>> {
-    await this.reconcile(input.organizationId, headers, user.id)
+    const reconciledOperation = await this.reconcileMembershipState(
+      input.organizationId,
+      headers,
+      user.id,
+    )
+    if (
+      reconciledOperation?.operationType === 'remove-member' &&
+      reconciledOperation.targetUserId === input.userId
+    ) {
+      return
+    }
     await this.assertOrganizationCommandAvailable(input.organizationId)
     const actor = await this.assertMember(input.organizationId, user.id, 'FORBIDDEN')
     if (actor.role === 'member') throw new ORPCError('FORBIDDEN')
@@ -151,7 +176,17 @@ export class MembershipService {
     user: Pick<AuthUser, 'id'>,
     headers: Headers,
   ): Promise<InferOutput<typeof SMembershipLeaveOutput>> {
-    await this.reconcile(input.organizationId, headers, user.id)
+    const reconciledOperation = await this.reconcileMembershipState(
+      input.organizationId,
+      headers,
+      user.id,
+    )
+    if (
+      reconciledOperation?.operationType === 'leave-organization' &&
+      reconciledOperation.targetUserId === user.id
+    ) {
+      return
+    }
     await this.assertOrganizationCommandAvailable(input.organizationId)
     const membership = await this.assertMember(input.organizationId, user.id, 'NOT_FOUND')
     if (membership.role === 'owner') throw new ORPCError('OWNER_PROTECTED', { status: 409 })
@@ -232,15 +267,49 @@ export class MembershipService {
     organizationId: string,
     headers: Headers,
     currentUserId?: string,
-  ): Promise<void> {
+  ): Promise<MembershipRepository.MembershipOperation | undefined> {
     let operation: MembershipRepository.MembershipOperation | undefined
     try {
       operation = await this.repository.findPendingMembershipOperation(organizationId)
     } catch {
       throw new ORPCError('CONFLICT', { status: 409 })
     }
-    if (operation === undefined) return
+    if (operation === undefined) return undefined
     await this.reconcileMembershipOperation(operation, headers, currentUserId)
+    return operation
+  }
+
+  private async assertPendingMembershipOperationRecoverable(
+    operation: MembershipRepository.MembershipOperation,
+    headers: Headers,
+    currentUserId?: string,
+  ): Promise<void> {
+    if (
+      operation.operationType !== 'remove-member' &&
+      operation.operationType !== 'leave-organization'
+    ) {
+      return
+    }
+    if (currentUserId === undefined) throw new ORPCError('NOT_FOUND')
+    if (
+      operation.operationType === 'leave-organization' &&
+      currentUserId === operation.targetUserId
+    ) {
+      return
+    }
+    const membership = await this.repository.findById({
+      organizationId: operation.organizationId,
+      userId: currentUserId,
+    })
+    if (membership === undefined) throw new ORPCError('NOT_FOUND')
+    if (membership.role === 'member') throw new ORPCError('CONFLICT', { status: 409 })
+    const authorityMember = await this.findAuthorityMember(
+      operation.organizationId,
+      currentUserId,
+      headers,
+    )
+    if (authorityMember === undefined) throw new ORPCError('NOT_FOUND')
+    if (authorityMember.role === 'member') throw new ORPCError('FORBIDDEN')
   }
 
   private async reconcileMembershipOperation(
@@ -248,6 +317,7 @@ export class MembershipService {
     headers: Headers,
     currentUserId?: string,
   ): Promise<MembershipRecord | undefined> {
+    await this.assertPendingMembershipOperationRecoverable(operation, headers, currentUserId)
     try {
       await this.repository.incrementMembershipAttempt(operation.id)
       const authorityOrganizationId = await this.requireAuthorityOrganizationId(

@@ -487,7 +487,13 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
   async completeMembershipOperation(id: string): Promise<void> {
     const result = await this.db
       .update(schema.TOrganizationGovernanceOperation)
-      .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        failureCode: null,
+        failureMessage: null,
+        updatedAt: new Date(),
+      })
       .where(
         and(
           eq(schema.TOrganizationGovernanceOperation.id, id),
