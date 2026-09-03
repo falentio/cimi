@@ -72,6 +72,18 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     ])
   })
 
+  it('returns the in-flight operation when a recover is repeated', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+    await repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_2', requestedAt })
+
+    await expect(
+      repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_3', requestedAt }),
+    ).resolves.toEqual({ status: 'accepted', operationId: 'sop_2' })
+  })
+
   it('reports a conflict when beginning a recover for an active site', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
@@ -96,6 +108,34 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
         requestedAt: new Date(deleted?.recoveryDeadline as string),
       }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'deleted' })
+  })
+
+  it('reports a purged conflict when beginning a recover for a purged site', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+    const deleted = await repo.findById('ste_1')
+    const purgeAt = new Date(deleted?.purgeAt as string)
+    await repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt })
+
+    await expect(
+      repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_2', requestedAt: purgeAt }),
+    ).resolves.toEqual({ status: 'conflict', currentStatus: 'purged' })
+  })
+
+  it('reports a purged conflict when completing a recover for a purged site', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+    const deleted = await repo.findById('ste_1')
+    const purgeAt = new Date(deleted?.purgeAt as string)
+    await repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt })
+
+    await expect(
+      repo.completeRecover({ siteId: 'ste_1', operationId: 'sop_2', completedAt: purgeAt }),
+    ).resolves.toEqual({ status: 'conflict', currentStatus: 'purged' })
   })
 
   it('completes a delete and replays idempotently', async () => {

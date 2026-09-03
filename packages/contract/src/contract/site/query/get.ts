@@ -22,7 +22,6 @@ export const getSite = oc
     UNAUTHORIZED: {},
     NOT_FOUND: {},
     BAD_REQUEST: {},
-    CONFLICT: {},
     INTERNAL_SERVER_ERROR: {},
   })
   .input(SSiteGetInput)
