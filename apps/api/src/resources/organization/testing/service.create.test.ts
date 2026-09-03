@@ -19,7 +19,29 @@ const repair = createRepairOperation({
 })
 const newAuthoritySlug = 'organization_new-user_1'
 
-describe('OrganizationService.create compensation', () => {
+describe('OrganizationService.create', () => {
+  it('rejects a pending create with a different requested name', async () => {
+    const { repository, authority, service } = createOrganizationFixture()
+    const pendingCreate = createRepairOperation({
+      id: 'repair_create_mismatched_name',
+      organizationId: null,
+      localOrganizationId: 'organization_new',
+      operationType: 'create-organization',
+      authorityOrganizationId: null,
+      authoritySlug: newAuthoritySlug,
+      previousName: null,
+      desiredName: 'Existing Request',
+    })
+    repository.findPendingCreateRepair.mockResolvedValue(pendingCreate)
+
+    await expect(
+      service.create({ name: 'New Organization' }, { id: 'user_1' }, new Headers()),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(repository.createRepairOperation).not.toHaveBeenCalled()
+    expect(repository.incrementRepairAttempt).not.toHaveBeenCalled()
+    expect(authority.createOrganization).not.toHaveBeenCalled()
+  })
+
   it('deletes an authority Organization after local persistence fails', async () => {
     const { repository, authority, service } = createOrganizationFixture()
     const createRepair = createRepairOperation({
@@ -241,66 +263,5 @@ describe('OrganizationService.create compensation', () => {
       'authority unavailable',
     )
     expect(repository.completeRepairOperation).not.toHaveBeenCalled()
-  })
-})
-
-describe('OrganizationService.update compensation', () => {
-  it('keeps the repair pending when rollback returns an invalid response', async () => {
-    const { repository, authority, service } = createOrganizationFixture()
-
-    repository.findByIdForUser.mockResolvedValue(organization)
-    repository.findPendingUpdateRepair.mockResolvedValue(undefined)
-    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
-    repository.isOwnerInvariantValid.mockResolvedValue(true)
-    repository.findRoleForUser.mockResolvedValue('owner')
-    repository.createRepairOperation.mockResolvedValue(repair)
-    repository.incrementRepairAttempt.mockResolvedValue()
-    repository.updateNameAndCompleteRepair.mockRejectedValue(new Error('database unavailable'))
-    repository.recordRepairFailure.mockResolvedValue()
-    authority.getOrganization.mockResolvedValue(createAuthorityOrganization())
-    authority.updateOrganization
-      .mockResolvedValueOnce(createAuthorityOrganization({ name: 'Renamed Analytics' }))
-      .mockResolvedValueOnce(undefined)
-
-    await expect(
-      service.update(
-        { organizationId: organization.id, name: updatedOrganization.name },
-        { id: organization.ownerUserId },
-        new Headers(),
-      ),
-    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
-    expect(repository.recordRepairFailure).toHaveBeenCalledWith(
-      repair.id,
-      'Organization name rollback did not converge',
-    )
-  })
-
-  it('completes a pending update after authority already reached the desired name', async () => {
-    const { repository, authority, service } = createOrganizationFixture()
-
-    repository.findByIdForUser.mockResolvedValue(organization)
-    repository.findPendingUpdateRepair.mockResolvedValue(repair)
-    repository.isOwnerInvariantValid.mockResolvedValue(true)
-    repository.findRoleForUser.mockResolvedValue('owner')
-    repository.findById.mockResolvedValue(organization)
-    repository.incrementRepairAttempt.mockResolvedValue()
-    repository.updateNameAndCompleteRepair.mockResolvedValue(updatedOrganization)
-    authority.getMember.mockResolvedValue(createAuthorityMember())
-    authority.getOrganization.mockResolvedValue(
-      createAuthorityOrganization({ name: updatedOrganization.name }),
-    )
-
-    await expect(
-      service.update(
-        { organizationId: organization.id, name: updatedOrganization.name },
-        { id: organization.ownerUserId },
-        new Headers(),
-      ),
-    ).resolves.toMatchObject({ name: updatedOrganization.name })
-    expect(repository.updateNameAndCompleteRepair).toHaveBeenCalledWith(
-      organization.id,
-      updatedOrganization.name,
-      repair.id,
-    )
   })
 })

@@ -6,26 +6,30 @@ import {
   createTransfer,
 } from '../fixture.ts'
 
+const organizationId = 'organization_1'
+const ownerUserId = 'user_1'
+const adminUserId = 'user_admin'
+const targetUserId = 'user_2'
+
 const pendingTransfer = createTransfer()
 const previousOwner = createAuthorityMember({
   id: 'member_1',
-  userId: 'user_1',
+  userId: ownerUserId,
   role: 'admin',
   createdAt: new Date('2026-08-31T00:00:00.000Z'),
 })
 const target = createMembershipRecord({
-  userId: 'user_2',
+  userId: targetUserId,
   role: 'owner',
   createdAt: new Date('2026-08-31T00:00:01.000Z'),
   updatedAt: new Date('2026-08-31T00:00:02.000Z'),
 })
 const targetAuthorityMember = createAuthorityMember({
   id: 'member_2',
-  userId: 'user_2',
+  userId: targetUserId,
   role: 'owner',
   createdAt: target.createdAt,
 })
-
 const previousOwnerMembership = createMembershipRecord({
   userId: pendingTransfer.previousOwnerUserId,
   role: 'owner',
@@ -34,6 +38,63 @@ const previousOwnerMembership = createMembershipRecord({
 })
 
 describe('MembershipService.transferOwnership', () => {
+  it('rejects an Administrator from transferring ownership', async () => {
+    const fixture = createMembershipFixture(
+      [
+        createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
+        createMembershipRecord({ userId: adminUserId, role: 'admin' }),
+        createMembershipRecord({ userId: targetUserId, role: 'member' }),
+      ],
+      [
+        createAuthorityMember({ userId: 'user_owner', role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
+      ],
+    )
+
+    await expect(
+      fixture.service.transferOwnership(
+        { organizationId, userId: targetUserId },
+        { id: adminUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
+    expect(fixture.repository.createTransfer).not.toHaveBeenCalled()
+  })
+
+  it('rejects an absent transfer target without creating an operation', async () => {
+    const fixture = createMembershipFixture([
+      createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
+      createMembershipRecord({ userId: targetUserId, role: 'member' }),
+    ])
+
+    await expect(
+      fixture.service.transferOwnership(
+        { organizationId, userId: 'missing-user' },
+        { id: 'user_owner' },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+    expect(fixture.repository.createTransfer).not.toHaveBeenCalled()
+    expect(fixture.authority.reconcileOwnership).not.toHaveBeenCalled()
+  })
+
+  it('rejects an already-owner transfer target without creating an operation', async () => {
+    const fixture = createMembershipFixture([
+      createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
+      createMembershipRecord({ userId: targetUserId, role: 'member' }),
+    ])
+
+    await expect(
+      fixture.service.transferOwnership(
+        { organizationId, userId: 'user_owner' },
+        { id: 'user_owner' },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(fixture.repository.createTransfer).not.toHaveBeenCalled()
+  })
+
   it('retries after Cimi completion fails following authority convergence', async () => {
     const { repository, authority, service } = createMembershipFixture([previousOwnerMembership])
     repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
@@ -62,7 +123,7 @@ describe('MembershipService.transferOwnership', () => {
         { id: pendingTransfer.previousOwnerUserId },
         new Headers(),
       ),
-    ).resolves.toMatchObject({ organizationId: 'organization_1', userId: 'user_2' })
+    ).resolves.toMatchObject({ organizationId, userId: targetUserId })
 
     expect(repository.failTransfer).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -137,7 +198,7 @@ describe('MembershipService.transferOwnership', () => {
     ])
 
     expect(results).toHaveLength(2)
-    expect(results[0]).toMatchObject({ organizationId: 'organization_1', userId: 'user_2' })
+    expect(results[0]).toMatchObject({ organizationId, userId: targetUserId })
     expect(results[1]).toEqual(results[0])
     expect(repository.findCompletedTransfer).toHaveBeenCalledTimes(1)
     expect(repository.failTransfer).not.toHaveBeenCalled()
