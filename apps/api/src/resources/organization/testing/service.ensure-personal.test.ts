@@ -59,4 +59,47 @@ describe('OrganizationService.ensurePersonal', () => {
     expect(membership.reconcile).toHaveBeenCalledWith(winner.id, expect.any(Headers), 'user_1')
     expect(repository.isOwnerInvariantValid).toHaveBeenCalledWith(winner.id)
   })
+
+  it('reuses an existing personal organization', async () => {
+    const membership = mock<OrganizationMembershipReconciler>()
+    membership.reconcile.mockResolvedValue()
+    const { repository, authority, service } = createOrganizationFixture({ membership })
+
+    repository.findPersonalByOwner.mockResolvedValue(winner)
+    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+
+    await expect(
+      service.ensurePersonal({}, { id: 'user_1', name: 'Ada' }, new Headers()),
+    ).resolves.toMatchObject({ id: winner.id })
+    expect(authority.createOrganization).not.toHaveBeenCalled()
+    expect(repository.insertWithOwner).not.toHaveBeenCalled()
+    expect(membership.reconcile).toHaveBeenCalledWith(winner.id, expect.any(Headers), 'user_1')
+  })
+
+  it('creates a personal organization with a new authority organization', async () => {
+    const { repository, authority, service } = createOrganizationFixture()
+    const personal = createOrganizationRecord({
+      name: "Ada's Organization",
+      authorityOrganizationId: authorityOrganization.id,
+      isPersonal: true,
+    })
+
+    repository.findPersonalByOwner.mockResolvedValue(undefined)
+    repository.insertWithOwner.mockResolvedValue(personal)
+    authority.getOrganizationBySlug.mockResolvedValue(undefined)
+    authority.createOrganization.mockResolvedValue({
+      organization: authorityOrganization,
+      member: members[0]!,
+    })
+    authority.listAllMembers.mockResolvedValue([members[0]!])
+
+    await expect(
+      service.ensurePersonal({}, { id: 'user_1', name: 'Ada' }, new Headers()),
+    ).resolves.toMatchObject({ name: "Ada's Organization", isPersonal: true })
+    expect(repository.insertWithOwner).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerUserId: 'user_1', isPersonal: true }),
+      expect.objectContaining({ userId: 'user_1' }),
+    )
+  })
 })

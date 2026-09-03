@@ -49,4 +49,32 @@ describe('OrganizationService.get', () => {
     expect(repository.hasPendingGovernanceOperation).not.toHaveBeenCalled()
     expect(repository.isOwnerInvariantValid).not.toHaveBeenCalled()
   })
+
+  it('rejects an organization that disappears during reconciliation', async () => {
+    const { repository, service } = createOrganizationFixture()
+    repository.findByIdForUser.mockResolvedValueOnce(organization).mockResolvedValueOnce(undefined)
+    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
+
+    await expect(
+      service.get(
+        { organizationId: organization.id },
+        { id: organization.ownerUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+  })
+
+  it('fails closed while a governance operation is pending', async () => {
+    const { repository, service } = createOrganizationFixture()
+    repository.findByIdForUser.mockResolvedValue(organization)
+    repository.hasPendingGovernanceOperation.mockResolvedValue(true)
+
+    await expect(
+      service.get(
+        { organizationId: organization.id },
+        { id: organization.ownerUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+  })
 })

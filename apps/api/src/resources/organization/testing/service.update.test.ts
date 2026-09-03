@@ -76,4 +76,100 @@ describe('OrganizationService.update', () => {
       repair.id,
     )
   })
+
+  it('renames an organization through a fresh repair', async () => {
+    const { repository, authority, service } = createOrganizationFixture()
+
+    repository.findByIdForUser.mockResolvedValue(organization)
+    repository.findPendingUpdateRepair.mockResolvedValue(undefined)
+    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+    repository.findRoleForUser.mockResolvedValue('owner')
+    repository.createRepairOperation.mockResolvedValue(repair)
+    repository.incrementRepairAttempt.mockResolvedValue()
+    repository.updateNameAndCompleteRepair.mockResolvedValue(updatedOrganization)
+    authority.getOrganization.mockResolvedValue(createAuthorityOrganization())
+    authority.updateOrganization.mockResolvedValue(
+      createAuthorityOrganization({ name: updatedOrganization.name }),
+    )
+
+    await expect(
+      service.update(
+        { organizationId: organization.id, name: updatedOrganization.name },
+        { id: organization.ownerUserId },
+        new Headers(),
+      ),
+    ).resolves.toMatchObject({ name: updatedOrganization.name })
+    expect(repository.createRepairOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationType: 'update-organization',
+        previousName: organization.name,
+        desiredName: updatedOrganization.name,
+      }),
+    )
+  })
+
+  it('rejects a rename that diverges from the pending repair', async () => {
+    const { repository, authority, service } = createOrganizationFixture()
+
+    repository.findByIdForUser.mockResolvedValue(organization)
+    repository.findPendingUpdateRepair.mockResolvedValue(repair)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+    repository.findRoleForUser.mockResolvedValue('owner')
+    authority.getMember.mockResolvedValue(createAuthorityMember())
+
+    await expect(
+      service.update(
+        { organizationId: organization.id, name: 'Another Name' },
+        { id: organization.ownerUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(repository.incrementRepairAttempt).not.toHaveBeenCalled()
+  })
+
+  it('rejects a member without the admin role', async () => {
+    const { repository, service } = createOrganizationFixture()
+
+    repository.findByIdForUser.mockResolvedValue(organization)
+    repository.findPendingUpdateRepair.mockResolvedValue(undefined)
+    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+    repository.findRoleForUser.mockResolvedValue('member')
+
+    await expect(
+      service.update(
+        { organizationId: organization.id, name: updatedOrganization.name },
+        { id: organization.ownerUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
+    expect(repository.createRepairOperation).not.toHaveBeenCalled()
+  })
+
+  it('renames a local-only organization without an authority repair', async () => {
+    const { repository, authority, service } = createOrganizationFixture()
+    const localOrganization = createOrganizationRecord({ authorityOrganizationId: null })
+
+    repository.findByIdForUser.mockResolvedValue(localOrganization)
+    repository.findPendingUpdateRepair.mockResolvedValue(undefined)
+    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+    repository.findRoleForUser.mockResolvedValue('owner')
+    repository.updateName.mockResolvedValue(updatedOrganization)
+
+    await expect(
+      service.update(
+        { organizationId: localOrganization.id, name: updatedOrganization.name },
+        { id: localOrganization.ownerUserId },
+        new Headers(),
+      ),
+    ).resolves.toMatchObject({ name: updatedOrganization.name })
+    expect(repository.updateName).toHaveBeenCalledWith(
+      localOrganization.id,
+      updatedOrganization.name,
+    )
+    expect(repository.createRepairOperation).not.toHaveBeenCalled()
+    expect(authority.updateOrganization).not.toHaveBeenCalled()
+  })
 })

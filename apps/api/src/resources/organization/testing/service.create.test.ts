@@ -264,4 +264,59 @@ describe('OrganizationService.create', () => {
     )
     expect(repository.completeRepairOperation).not.toHaveBeenCalled()
   })
+
+  it('creates an organization through a fresh repair', async () => {
+    const { repository, authority, service } = createOrganizationFixture()
+    const createRepair = createRepairOperation({
+      ...repair,
+      id: 'repair_create_happy',
+      organizationId: null,
+      localOrganizationId: 'organization_new',
+      operationType: 'create-organization',
+      authorityOrganizationId: null,
+      authoritySlug: newAuthoritySlug,
+      previousName: null,
+      desiredName: 'New Organization',
+    })
+    const created = createOrganizationRecord({ id: 'organization_new', name: 'New Organization' })
+
+    repository.findPendingCreateRepair.mockResolvedValue(undefined)
+    repository.createRepairOperation.mockResolvedValue(createRepair)
+    repository.incrementRepairAttempt.mockResolvedValue()
+    repository.setRepairAuthorityCleanupRequired.mockResolvedValue()
+    repository.setRepairAuthorityOrganization.mockResolvedValue()
+    repository.findById.mockResolvedValue(undefined)
+    repository.insertWithOwnerAndCompleteRepair.mockResolvedValue(created)
+    authority.getOrganizationBySlug.mockResolvedValue(undefined)
+    authority.createOrganization.mockResolvedValue({
+      organization: createAuthorityOrganization({
+        id: 'authority_new',
+        name: 'New Organization',
+        slug: newAuthoritySlug,
+      }),
+      member: createAuthorityMember({ id: 'member_new', organizationId: 'authority_new' }),
+    })
+
+    await expect(
+      service.create({ name: 'New Organization' }, { id: 'user_1' }, new Headers()),
+    ).resolves.toMatchObject({ id: 'organization_new', name: 'New Organization' })
+    expect(repository.insertWithOwnerAndCompleteRepair).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'organization_new', name: 'New Organization' }),
+      expect.objectContaining({ userId: 'user_1' }),
+      createRepair.id,
+    )
+    expect(authority.deleteOrganization).not.toHaveBeenCalled()
+  })
+
+  it('maps a repair admission failure to a conflict', async () => {
+    const { repository, authority, service } = createOrganizationFixture()
+    repository.findPendingCreateRepair.mockResolvedValue(undefined)
+    repository.createRepairOperation.mockRejectedValue(new Error('database unavailable'))
+
+    await expect(
+      service.create({ name: 'New Organization' }, { id: 'user_1' }, new Headers()),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(repository.incrementRepairAttempt).not.toHaveBeenCalled()
+    expect(authority.createOrganization).not.toHaveBeenCalled()
+  })
 })

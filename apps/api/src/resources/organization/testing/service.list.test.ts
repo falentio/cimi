@@ -72,4 +72,36 @@ describe('OrganizationService.list', () => {
     expect(repository.findManyForUser).toHaveBeenCalledTimes(1)
     expect(repository.hasPendingGovernanceOperation).not.toHaveBeenCalled()
   })
+
+  it('fails closed while a listed organization has a pending operation', async () => {
+    const { repository, service } = createOrganizationFixture()
+    repository.findManyForUser.mockResolvedValue({
+      items: [organization],
+      nextOffset: null,
+      hasMore: false,
+      totalCount: 1,
+    })
+    repository.hasPendingGovernanceOperation.mockResolvedValue(true)
+
+    await expect(
+      service.list({}, { id: organization.ownerUserId }, new Headers()),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(repository.findManyForUser).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails closed while a listed organization breaks the owner invariant', async () => {
+    const { repository, service } = createOrganizationFixture()
+    repository.findManyForUser.mockResolvedValue({
+      items: [organization],
+      nextOffset: null,
+      hasMore: false,
+      totalCount: 1,
+    })
+    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
+    repository.isOwnerInvariantValid.mockResolvedValue(false)
+
+    await expect(
+      service.list({}, { id: organization.ownerUserId }, new Headers()),
+    ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR', status: 500 })
+  })
 })
