@@ -32,6 +32,14 @@ export default defineConfig({
       '.cimi/**',
       'packages/db/src/schema/auth.generated.ts',
     ],
+    overrides: [
+      {
+        files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
+        rules: {
+          'typescript/unbound-method': 'off',
+        },
+      },
+    ],
     options: {
       typeAware: true,
       typeCheck: true,

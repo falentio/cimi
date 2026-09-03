@@ -15,7 +15,6 @@ describe('HelloService.list', () => {
       items: [{ id: 'hello_1' }],
       totalCount: 1,
     })
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.findMany).toHaveBeenCalledWith({ offset: 0, limit: 20, nameFilter: 'ad' })
   })
 })

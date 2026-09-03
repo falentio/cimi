@@ -9,9 +9,7 @@ describe('HelloService.create', () => {
 
     await service.create({ name: 'Ada', message: 'Hello, Ada!' }, 'user_1')
 
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.insert).toHaveBeenCalledTimes(1)
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         ownerId: 'user_1',

@@ -6,9 +6,7 @@ describe('HelloService.world', () => {
     const { service, repo } = createHelloFixture()
 
     expect(service.world({ name: 'Ada' })).toEqual({ message: 'Hello, Ada!' })
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.findById).not.toHaveBeenCalled()
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.findMany).not.toHaveBeenCalled()
   })
 })

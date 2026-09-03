@@ -68,9 +68,8 @@ entry for every run.
 - **Root cause:** The type-aware rule cannot determine that the matcher safely
   consumes the mock method reference without invoking it as an unbound
   callback.
-- **Correct pattern:** Keep the intentional Vitest matcher and add a
-  `// oxlint-disable-next-line typescript/unbound-method` comment immediately
-  above that assertion, with a brief reason.
-- **Avoid:** Broadly disabling `unbound-method` or extracting repository
+- **Correct pattern:** Disable `typescript/unbound-method` in a `lint.overrides`
+  entry matching test files in the root `vite.config.ts`.
+- **Avoid:** Per-assertion suppression comments, or extracting repository
   methods merely to silence the warning.
 - **Validation:** `vp check path/to/test.ts`

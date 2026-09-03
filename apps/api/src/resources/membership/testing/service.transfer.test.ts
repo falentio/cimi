@@ -64,7 +64,6 @@ describe('MembershipService.transferOwnership', () => {
       ),
     ).resolves.toMatchObject({ organizationId: 'organization_1', userId: 'user_2' })
 
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.failTransfer).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'operation_1',
@@ -72,14 +71,8 @@ describe('MembershipService.transferOwnership', () => {
         failureMessage: 'Cimi transaction unavailable',
       }),
     )
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.markTransferAttempt).toHaveBeenCalledTimes(2)
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.completeTransfer).toHaveBeenCalledTimes(2)
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.reconcileOwnership).toHaveBeenCalledTimes(2)
   })
 
@@ -98,11 +91,7 @@ describe('MembershipService.transferOwnership', () => {
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.reconcileOwnership).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.markTransferAttempt).not.toHaveBeenCalled()
   })
 
@@ -150,11 +139,7 @@ describe('MembershipService.transferOwnership', () => {
     expect(results).toHaveLength(2)
     expect(results[0]).toMatchObject({ organizationId: 'organization_1', userId: 'user_2' })
     expect(results[1]).toEqual(results[0])
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.findCompletedTransfer).toHaveBeenCalledTimes(1)
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.failTransfer).not.toHaveBeenCalled()
   })
 })

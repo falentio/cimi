@@ -38,7 +38,6 @@ describe('OrganizationService.ensurePersonal', () => {
     await expect(
       service.ensurePersonal({}, { id: 'user_1', name: 'Ada' }, new Headers()),
     ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.insertWithOwner).not.toHaveBeenCalled()
   })
 
@@ -57,9 +56,7 @@ describe('OrganizationService.ensurePersonal', () => {
     await expect(
       service.ensurePersonal({}, { id: 'user_1', name: 'Ada' }, new Headers()),
     ).resolves.toMatchObject({ id: winner.id })
-    // oxlint-disable-next-line typescript/unbound-method
     expect(membership.reconcile).toHaveBeenCalledWith(winner.id, expect.any(Headers), 'user_1')
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.isOwnerInvariantValid).toHaveBeenCalledWith(winner.id)
   })
 })

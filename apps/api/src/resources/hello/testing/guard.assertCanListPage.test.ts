@@ -12,7 +12,6 @@ describe('HelloGuard list access', () => {
     })
 
     await expect(service.list({})).resolves.toMatchObject({ items: [] })
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.findOwnerId).not.toHaveBeenCalled()
   })
 })

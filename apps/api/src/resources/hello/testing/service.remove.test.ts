@@ -10,7 +10,6 @@ describe('HelloService.remove', () => {
     await expect(service.remove({ id: 'hello_1' }, { id: 'user_1' })).resolves.toEqual({
       id: 'hello_1',
     })
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.deleteById).toHaveBeenCalledWith('hello_1', 'user_1')
     await expect(service.remove({ id: 'hello_1' }, { id: 'user_2' })).rejects.toMatchObject({
       code: 'NOT_FOUND',

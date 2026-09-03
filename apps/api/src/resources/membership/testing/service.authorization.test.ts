@@ -50,11 +50,7 @@ describe('MembershipService authorization', () => {
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.createMembershipOperation).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.changeMemberRole).not.toHaveBeenCalled()
   })
 
@@ -89,8 +85,6 @@ describe('MembershipService authorization', () => {
         new Headers(),
       ),
     ).resolves.toMatchObject({ userId: targetUserId, role: 'member' })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.changeMemberRole).toHaveBeenCalledWith(
       expect.objectContaining({ memberId: `authority-member-${targetUserId}`, role: 'member' }),
     )
@@ -116,17 +110,9 @@ describe('MembershipService authorization', () => {
       ),
     ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.incrementMembershipAttempt).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.updateRole).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.completeMembershipOperation).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.changeMemberRole).not.toHaveBeenCalled()
   })
 
@@ -147,8 +133,6 @@ describe('MembershipService authorization', () => {
         new Headers(),
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
   })
 
@@ -169,8 +153,6 @@ describe('MembershipService authorization', () => {
         new Headers(),
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.createTransfer).not.toHaveBeenCalled()
   })
 
@@ -278,13 +260,9 @@ describe('MembershipService authorization', () => {
         new Headers(),
       ),
     ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.failMembershipOperation).toHaveBeenCalledWith(
       expect.objectContaining({ id: operation.id, failureCode: 'CONFLICT' }),
     )
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.completeMembershipOperation).not.toHaveBeenCalled()
   })
 
@@ -312,20 +290,10 @@ describe('MembershipService authorization', () => {
       leave.service.leave({ organizationId }, { id: ownerUserId }, new Headers()),
     ).rejects.toMatchObject({ code: 'OWNER_PROTECTED', status: 409 })
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(roleChange.repository.createMembershipOperation).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(removal.repository.delete).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(leave.repository.delete).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(removal.authority.removeMember).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(leave.authority.leaveOrganization).not.toHaveBeenCalled()
   })
 
@@ -348,14 +316,8 @@ describe('MembershipService authorization', () => {
       ),
     ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(absent.repository.createTransfer).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(alreadyOwner.repository.createTransfer).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(absent.authority.reconcileOwnership).not.toHaveBeenCalled()
   })
 
@@ -379,8 +341,6 @@ describe('MembershipService authorization', () => {
         totalCount: 2,
       }),
     )
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.replaceMembers).toHaveBeenCalledWith(organizationId, [
       expect.objectContaining({ userId: ownerUserId, role: 'owner' }),
       expect.objectContaining({ userId: 'user_new', role: 'member' }),
@@ -394,8 +354,6 @@ describe('MembershipService authorization', () => {
     await expect(
       fixture.service.list({ organizationId }, { id: ownerUserId }, new Headers()),
     ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR', status: 500 })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.replaceMembers).not.toHaveBeenCalled()
   })
 
@@ -441,16 +399,10 @@ describe('MembershipService authorization', () => {
       ),
     ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
     expect(authorityTargetRole).toBe('member')
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.failMembershipOperation).toHaveBeenCalledWith(
       expect.objectContaining({ id: operation.id }),
     )
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.completeMembershipOperation).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.authority.changeMemberRole).toHaveBeenCalledTimes(2)
   })
 
@@ -468,11 +420,7 @@ describe('MembershipService authorization', () => {
       code: 'NOT_FOUND',
       status: 404,
     })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.delete).toHaveBeenCalledWith({ organizationId, userId: memberUserId })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.authority.listAllMembers).not.toHaveBeenCalled()
   })
 
@@ -495,8 +443,6 @@ describe('MembershipService authorization', () => {
         new Headers(),
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
   })
 
@@ -516,8 +462,6 @@ describe('MembershipService authorization', () => {
     await expect(
       fixture.service.list({ organizationId }, { id: memberUserId }, new Headers()),
     ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR', status: 500 })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.repository.replaceMembers).not.toHaveBeenCalled()
   })
 
@@ -528,8 +472,6 @@ describe('MembershipService authorization', () => {
     await expect(
       fixture.service.list({ organizationId }, { id: memberUserId }, new Headers()),
     ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR', status: 500 })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(fixture.authority.listAllMembers).not.toHaveBeenCalled()
   })
 })

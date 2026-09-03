@@ -42,19 +42,13 @@ describe('OrganizationService.delete', () => {
     })
     await expect(service.delete(input, user, headers)).resolves.toBeUndefined()
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.createDeleteOperation).toHaveBeenCalledTimes(1)
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.incrementDeleteAttempt).toHaveBeenCalledTimes(2)
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.recordDeleteFailure).toHaveBeenCalledWith(
       'operation_1',
       'authority unavailable',
     )
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.deleteOrganization).toHaveBeenCalledTimes(2)
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.finalizeDeleteOperation).toHaveBeenCalledWith('operation_1')
   })
 })

@@ -9,7 +9,6 @@ describe('HelloGuard removal filtering', () => {
     await expect(service.remove({ id: 'hello_1' }, { id: 'user_2' })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     })
-    // oxlint-disable-next-line typescript/unbound-method -- Vitest matcher inspects the mock method
     expect(repo.deleteById).not.toHaveBeenCalled()
   })
 })

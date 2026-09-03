@@ -59,15 +59,11 @@ describe('MembershipService membership operation recovery', () => {
       service.remove({ organizationId, userId: targetUserId }, { id: adminUserId }, new Headers()),
     ).resolves.toBeUndefined()
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.removeMember).toHaveBeenCalledWith({
       organizationId: authorityOrganizationId,
       userId: targetUserId,
       headers: expect.any(Headers),
     })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.completeMembershipOperation).toHaveBeenCalledWith(pendingRemoval.id)
   })
 
@@ -87,11 +83,7 @@ describe('MembershipService membership operation recovery', () => {
       service.remove({ organizationId, userId: targetUserId }, { id: adminUserId }, new Headers()),
     ).resolves.toBeUndefined()
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.removeMember).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.completeMembershipOperation).toHaveBeenCalledWith(pendingRemoval.id)
   })
 
@@ -109,17 +101,11 @@ describe('MembershipService membership operation recovery', () => {
       service.leave({ organizationId }, { id: targetUserId }, new Headers()),
     ).resolves.toBeUndefined()
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.leaveOrganization).toHaveBeenCalledWith({
       organizationId: authorityOrganizationId,
       headers: expect.any(Headers),
     })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.removeMember).not.toHaveBeenCalled()
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(repository.completeMembershipOperation).toHaveBeenCalledWith(pendingLeave.id)
   })
 
@@ -137,15 +123,11 @@ describe('MembershipService membership operation recovery', () => {
       service.reconcile(organizationId, new Headers(), adminUserId),
     ).resolves.toBeUndefined()
 
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.removeMember).toHaveBeenCalledWith({
       organizationId: authorityOrganizationId,
       userId: targetUserId,
       headers: expect.any(Headers),
     })
-    // Vitest consumes the mock method reference as a matcher target.
-    // oxlint-disable-next-line typescript/unbound-method
     expect(authority.leaveOrganization).not.toHaveBeenCalled()
   })
 })
