@@ -21,6 +21,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Sync Astro types
+        run: pnpm --filter @cimi/frontend exec astro sync
+
       - name: Check (format, lint, typecheck)
         run: vp check
 
