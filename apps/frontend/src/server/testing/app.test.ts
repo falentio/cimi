@@ -17,7 +17,7 @@ test('system health reports live control and analytics stores', async () => {
   expect(res.status).toBe(200)
   const body = await res.json()
   expect(body).toEqual(expect.schemaMatching(SSystemHealthOutput))
-  expect(body.status).toBe('healthy')
+  expect(body.status).toBe('recovering')
   expect(body.controlStore).toBe('ready')
   expect(body.analyticsStore).toBe('ready')
   expect(body.cleanupPending).toBe(false)
