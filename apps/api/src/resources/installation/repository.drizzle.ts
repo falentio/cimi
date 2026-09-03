@@ -185,6 +185,12 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
 }
 
 function toRecord(row: typeof schema.TInstallation.$inferSelect): InstallationRepository.Record {
+  if (
+    row.activeOperationId !== null &&
+    (row.activeOperationKind === null || row.activeOperationPhase === null)
+  ) {
+    throw new Error('Installation active operation is inconsistent')
+  }
   return {
     id: row.id,
     status: row.status,
@@ -199,8 +205,8 @@ function toRecord(row: typeof schema.TInstallation.$inferSelect): InstallationRe
         ? null
         : {
             operationId: row.activeOperationId,
-            kind: row.activeOperationKind ?? 'upgrade',
-            phase: row.activeOperationPhase ?? 'pending',
+            kind: row.activeOperationKind as InstallationRepository.ActiveOperation['kind'],
+            phase: row.activeOperationPhase as string,
             progress: row.activeOperationProgress,
             lastSafeSequence: row.activeOperationLastSafeSequence,
             errorCode:

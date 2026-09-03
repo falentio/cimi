@@ -32,14 +32,14 @@ The canonical procedure is `health`; its explicit OpenAPI route is `GET /system/
 
 The contract accepts only these combinations:
 
-| `status`      | `controlStore`              | `analyticsStore`                           | `cleanupPending` | Meaning                                                        |
-| ------------- | --------------------------- | ------------------------------------------ | ---------------- | -------------------------------------------------------------- |
-| `healthy`     | `ready`                     | `ready`                                    | `false`          | Both stores are ready and no lifecycle cleanup is outstanding. |
-| `degraded`    | `ready`                     | `degraded`, `rebuilding`, or `unavailable` | any              | Durable collection is available in accept-only mode.           |
-| `degraded`    | `ready`                     | `ready`                                    | `true`           | Structural readiness is complete but cleanup remains.          |
-| `recovering`  | `ready`                     | any store state                            | any              | Restore or recovery checks have not completed.                 |
-| `maintenance` | `ready`                     | any store state                            | any              | Writes are intentionally quiesced for maintenance.             |
-| `unavailable` | `degraded` or `unavailable` | any store state                            | any              | The control store cannot provide durable acceptance.           |
+| `status`      | `controlStore`                             | `analyticsStore`                           | `cleanupPending` | Meaning                                                        |
+| ------------- | ------------------------------------------ | ------------------------------------------ | ---------------- | -------------------------------------------------------------- |
+| `healthy`     | `ready`                                    | `ready`                                    | `false`          | Both stores are ready and no lifecycle cleanup is outstanding. |
+| `degraded`    | `ready`                                    | `degraded`, `rebuilding`, or `unavailable` | any              | Durable collection is available in accept-only mode.           |
+| `degraded`    | `ready`                                    | `ready`                                    | `true`           | Structural readiness is complete but cleanup remains.          |
+| `recovering`  | `ready`                                    | any store state                            | any              | Restore or recovery checks have not completed.                 |
+| `maintenance` | `ready`                                    | any store state                            | any              | Writes are intentionally quiesced for maintenance.             |
+| `unavailable` | `degraded`, `rebuilding`, or `unavailable` | any store state                            | any              | The control store cannot provide durable acceptance.           |
 
 ## 3. Endpoint Quick Index
 

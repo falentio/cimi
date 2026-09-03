@@ -30,18 +30,22 @@ export interface InstallationHealthInput {
   cleanupPending: boolean
 }
 
-const INSTALLATION_STATUSES: readonly string[] = [
-  'uninitialized',
-  'ready',
-  'degraded',
-  'maintenance',
-  'recovering',
-]
+const LEGACY_INSTALLATION_STATUS_MAP: Record<string, InstallationStatus> = {
+  healthy: 'ready',
+  unavailable: 'recovering',
+  degraded: 'degraded',
+  maintenance: 'maintenance',
+  recovering: 'recovering',
+  ready: 'ready',
+  uninitialized: 'uninitialized',
+}
 
 export function resolveInstallationHealth(input: InstallationHealthInput): HealthStatus {
   if (input.controlStore !== 'ready') return 'unavailable'
   if (input.installationStatus === 'recovering') return 'recovering'
   if (input.installationStatus === 'maintenance') return 'maintenance'
+  if (input.installationStatus === 'degraded') return 'degraded'
+  if (input.installationStatus === 'uninitialized') return 'recovering'
   if (input.analyticsStore !== 'ready' || input.cleanupPending) return 'degraded'
   return 'healthy'
 }
@@ -132,5 +136,5 @@ async function getLifecycleSnapshot(
 
 function toInstallationStatus(status: HealthStatus | undefined): InstallationStatus | undefined {
   if (status === undefined) return undefined
-  return INSTALLATION_STATUSES.includes(status) ? (status as InstallationStatus) : undefined
+  return LEGACY_INSTALLATION_STATUS_MAP[status] ?? 'recovering'
 }

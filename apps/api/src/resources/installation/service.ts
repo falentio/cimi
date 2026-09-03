@@ -34,6 +34,8 @@ export interface InstallationServiceDependencies {
   upgradeArtifact?: UpgradeArtifactPort | undefined
 }
 
+// Upgrade and resume may enter maintenance/recovering from any non-uninitialized state,
+// wider than the steady-state spec diagram.
 const ALLOWED_TRANSITIONS: Record<
   InstallationRepository.Status,
   readonly InstallationRepository.Status[]
@@ -164,25 +166,31 @@ export class InstallationService {
       }
       const now = this.clock()
       const operationId = this.ids.operationId()
-      const record = await this.repository.beginUpgrade({
-        operationId,
-        activeOperation: {
-          phase: 'pre_upgrade_safety',
-          progress: 0,
-          lastSafeSequence: null,
-          errorCode: null,
-        },
-        artifact: {
-          id: this.ids.artifactId(),
-          generationId: operationId,
-          storageKey: `safety/${operationId}`,
-          schemaVersion: '1',
-          sizeBytes: 0,
-          checksumAlgorithm: 'sha256',
-          checksumValue: EMPTY_SHA256,
-        },
-        now,
-      })
+      let record: InstallationRepository.Record
+      try {
+        record = await this.repository.beginUpgrade({
+          operationId,
+          activeOperation: {
+            phase: 'pre_upgrade_safety',
+            progress: 0,
+            lastSafeSequence: null,
+            errorCode: null,
+          },
+          artifact: {
+            id: this.ids.artifactId(),
+            generationId: operationId,
+            storageKey: `safety/${operationId}`,
+            schemaVersion: '1',
+            sizeBytes: 0,
+            checksumAlgorithm: 'sha256',
+            checksumValue: EMPTY_SHA256,
+          },
+          now,
+        })
+      } catch (error) {
+        if (!isConstraintError(error)) throw error
+        throw new ORPCError('CONFLICT', { status: 409 })
+      }
       return toPublicInstallation(record)
     } finally {
       await this.lock.release()
