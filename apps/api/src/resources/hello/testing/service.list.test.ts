@@ -16,5 +16,6 @@ describe('HelloService.list', () => {
       totalCount: 1,
     })
     expect(repo.findMany).toHaveBeenCalledWith({ offset: 0, limit: 20, nameFilter: 'ad' })
+    expect(repo.findOwnerId).not.toHaveBeenCalled()
   })
 })

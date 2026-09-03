@@ -17,6 +17,7 @@ describe('HelloService.remove', () => {
     await expect(service.remove({ id: 'missing' }, { id: 'user_1' })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     })
+    expect(repo.deleteById).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a removal when the atomic delete observes no row', async () => {
