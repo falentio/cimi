@@ -1,30 +1,9 @@
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { ERROR_CATALOG, SSystemHealthOutput } from '@cimi/contract'
 import { closeDb, schema, type Db } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
 import { createApiApp } from '../index.ts'
-
-const fixtures: Array<{
-  db: Db
-  analytics: Awaited<ReturnType<typeof createTestAnalyticsDb>>
-}> = []
-
-afterEach(async () => {
-  try {
-    await Promise.all(
-      fixtures.map(async ({ db, analytics }) => {
-        try {
-          await analytics.close()
-        } finally {
-          closeDb(db)
-        }
-      }),
-    )
-  } finally {
-    fixtures.length = 0
-  }
-})
 
 async function createFixture() {
   const db = createMigratedTestDb()
@@ -38,8 +17,19 @@ async function createFixture() {
         baseURL: 'http://localhost',
       })
       const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
-      fixtures.push({ db, analytics })
-      return { app, auth, db, analytics }
+      return {
+        app,
+        auth,
+        db,
+        analytics,
+        async [Symbol.asyncDispose]() {
+          try {
+            await analytics.close()
+          } finally {
+            closeDb(db)
+          }
+        },
+      }
     } catch (error) {
       await analytics.close()
       throw error
@@ -70,7 +60,8 @@ async function signUp(
 }
 
 test('system health reports live control and analytics stores', async () => {
-  const { app, auth, db, analytics } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth, db, analytics } = fixture
 
   const res = await app.fetch(new Request('http://localhost/api/system/health'))
   expect(res.status).toBe(200)
@@ -110,7 +101,8 @@ test('system health reports live control and analytics stores', async () => {
 })
 
 test('rejects an unauthenticated authenticated hello procedure before input handling', async () => {
-  const { app } = await createFixture()
+  await using fixture = await createFixture()
+  const { app } = fixture
 
   const response = await app.fetch(
     new Request('http://localhost/api/hello/create', {
@@ -129,7 +121,8 @@ test('rejects an unauthenticated authenticated hello procedure before input hand
 })
 
 test('returns a safe internal error when session lookup fails', async () => {
-  const { app, auth } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth } = fixture
   const providerError = new Error('provider connection secret')
   vi.spyOn(auth.api, 'getSession').mockRejectedValueOnce(providerError)
 
@@ -153,7 +146,8 @@ test('returns a safe internal error when session lookup fails', async () => {
 })
 
 test('normalizes provider errors before the public response', async () => {
-  const { app, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, db } = fixture
   vi.spyOn(db, 'select').mockImplementation(() => {
     throw new Error('provider connection secret')
   })
@@ -172,7 +166,8 @@ test('normalizes provider errors before the public response', async () => {
 })
 
 test('auth sign-up route is mounted and sets a session cookie', async () => {
-  const { app } = await createFixture()
+  await using fixture = await createFixture()
+  const { app } = fixture
 
   const signup = await app.fetch(
     new Request('http://localhost/api/auth/sign-up/email', {
@@ -191,7 +186,8 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
 })
 
 test('blocks every native Better Auth governance mutation without changing authority state', async () => {
-  const { app, auth, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth, db } = fixture
   const owner = await signUp(app, 'native-owner@example.com', 'Native Owner')
   const member = await signUp(app, 'native-member@example.com', 'Native Member')
   const invitee = await signUp(app, 'native-invitee@example.com', 'Native Invitee')
@@ -313,7 +309,8 @@ async function readNativeGovernanceState(db: Db) {
 }
 
 test('unknown api route returns 404', async () => {
-  const { app } = await createFixture()
+  await using fixture = await createFixture()
+  const { app } = fixture
 
   const res = await app.fetch(new Request('http://localhost/api/does-not-exist'))
   expect(res.status).toBe(404)

@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { createAuth } from '@cimi/auth/server'
 import {
   SMembershipListOutput,
@@ -8,24 +8,11 @@ import {
 } from '@cimi/contract'
 import { eq } from 'drizzle-orm'
 import { parse } from 'valibot'
-import { closeDb, schema, type Db } from '@cimi/db'
+import { closeDb, schema } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createApiApp } from '../index.ts'
 
-const fixtures: Array<{
-  db: Db
-  analytics: Awaited<ReturnType<typeof createTestAnalyticsDb>>
-}> = []
-
 const jsonHeaders = { 'content-type': 'application/json' }
-
-afterEach(async () => {
-  for (const { analytics, db } of fixtures) {
-    await analytics.close()
-    closeDb(db)
-  }
-  fixtures.length = 0
-})
 
 async function createFixture() {
   const db = createMigratedTestDb()
@@ -39,8 +26,15 @@ async function createFixture() {
         baseURL: 'http://localhost',
       })
       const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
-      fixtures.push({ db, analytics })
-      return { app, auth, db }
+      return {
+        app,
+        auth,
+        db,
+        async [Symbol.asyncDispose]() {
+          await analytics.close()
+          closeDb(db)
+        },
+      }
     } catch (error) {
       await analytics.close()
       throw error
@@ -87,7 +81,8 @@ async function request(
 }
 
 test('serves organization and membership governance through the Cimi API', async () => {
-  const { app, auth, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth, db } = fixture
   const owner = await signUp(app, 'owner@example.com', 'Owner')
   const member = await signUp(app, 'member@example.com', 'Member')
 
@@ -192,7 +187,8 @@ test('serves organization and membership governance through the Cimi API', async
 })
 
 test('converges concurrent Personal Organization provisioning requests', async () => {
-  const { app, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, db } = fixture
   const owner = await signUp(app, 'personal-concurrent@example.com', 'Concurrent Owner')
 
   const [first, second] = await Promise.all([
@@ -224,7 +220,8 @@ test('converges concurrent Personal Organization provisioning requests', async (
 })
 
 test('deletes an empty Personal Organization and its membership', async () => {
-  const { app, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, db } = fixture
   const owner = await signUp(app, 'personal-delete@example.com', 'Personal Owner')
 
   const ensureResponse = await request(
@@ -252,7 +249,8 @@ test('deletes an empty Personal Organization and its membership', async () => {
 })
 
 test('prioritizes Personal Organization protection when a Site exists', async () => {
-  const { app, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, db } = fixture
   const owner = await signUp(app, 'personal-site-delete@example.com', 'Personal Site Owner')
 
   const ensureResponse = await request(
@@ -302,7 +300,8 @@ test('prioritizes Personal Organization protection when a Site exists', async ()
 })
 
 test('rejects deletion of a non-personal Organization that owns a Site', async () => {
-  const { app, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, db } = fixture
   const owner = await signUp(app, 'non-personal-site-delete@example.com', 'Organization Owner')
 
   const createResponse = await request(app, '/organization/createOrganization', owner.cookie, {
@@ -349,7 +348,8 @@ test('rejects deletion of a non-personal Organization that owns a Site', async (
 })
 
 test('authorizes Organization updates and persists the new name', async () => {
-  const { app, auth, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth, db } = fixture
   const owner = await signUp(app, 'organization-update-owner@example.com', 'Update Owner')
   const member = await signUp(app, 'organization-update-member@example.com', 'Update Member')
 
@@ -426,7 +426,8 @@ test('authorizes Organization updates and persists the new name', async () => {
 })
 
 test('isolates Organization lists and returns live offset pagination', async () => {
-  const { app } = await createFixture()
+  await using fixture = await createFixture()
+  const { app } = fixture
   const owner = await signUp(app, 'organization-list-owner@example.com', 'List Owner')
   const outsider = await signUp(app, 'organization-list-outsider@example.com', 'List Outsider')
   const names = ['First Organization', 'Second Organization', 'Third Organization']
@@ -479,7 +480,8 @@ test('isolates Organization lists and returns live offset pagination', async () 
 })
 
 test('returns not found when Better Auth independently removes a projected member', async () => {
-  const { app, auth, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth, db } = fixture
   const owner = await signUp(app, 'authority-owner@example.com', 'Owner')
   const member = await signUp(app, 'authority-member@example.com', 'Member')
 
@@ -530,7 +532,8 @@ test('returns not found when Better Auth independently removes a projected membe
 })
 
 test('does not let an outsider recover a pending member removal', async () => {
-  const { app, auth, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth, db } = fixture
   const owner = await signUp(app, 'removal-owner@example.com', 'Owner')
   const target = await signUp(app, 'removal-target@example.com', 'Target')
   const outsider = await signUp(app, 'removal-outsider@example.com', 'Outsider')
@@ -637,7 +640,8 @@ test('does not let an outsider recover a pending member removal', async () => {
 })
 
 test('recovers a pending member leave through another administrator', async () => {
-  const { app, auth, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, auth, db } = fixture
   const owner = await signUp(app, 'leave-owner@example.com', 'Owner')
   const administrator = await signUp(app, 'leave-administrator@example.com', 'Administrator')
   const target = await signUp(app, 'leave-target@example.com', 'Target')
@@ -730,7 +734,8 @@ test('recovers a pending member leave through another administrator', async () =
 })
 
 test('hides pending Organization state from an inaccessible caller', async () => {
-  const { app, db } = await createFixture()
+  await using fixture = await createFixture()
+  const { app, db } = fixture
   const owner = await signUp(app, 'pending-owner@example.com', 'Owner')
   const outsider = await signUp(app, 'pending-outsider@example.com', 'Outsider')
 
