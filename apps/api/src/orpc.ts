@@ -14,6 +14,7 @@ export const api = implement({
   organization: contract.organization,
   membership: contract.membership,
   site: contract.site,
+  invitation: contract.invitation,
 }).$context<ApiContext>()
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {

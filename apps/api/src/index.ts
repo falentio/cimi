@@ -10,6 +10,7 @@ import type { AnalyticsDb } from '@cimi/db'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
+import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createSite } from './resources/site/index.ts'
@@ -42,6 +43,7 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     membership: membership.service,
   })
   const site = createSite({ db: deps.db, membership: membership.service })
+  const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler(deps)),
@@ -50,6 +52,7 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     organization: organization.router,
     membership: membership.router,
     site: site.router,
+    invitation: invitation.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
