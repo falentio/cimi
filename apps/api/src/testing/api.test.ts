@@ -1,66 +1,11 @@
 import { expect, test, vi } from 'vitest'
 import { ERROR_CATALOG, SSystemHealthOutput } from '@cimi/contract'
-import { closeDb, schema, type Db } from '@cimi/db'
-import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
-import { createAuth } from '@cimi/auth/server'
+import { schema, type Db } from '@cimi/db'
 import { createApiApp } from '../index.ts'
-
-async function createFixture() {
-  const db = createMigratedTestDb()
-  try {
-    const analytics = await createTestAnalyticsDb()
-    try {
-      const auth = createAuth({
-        db,
-        schema: schema.betterAuthSchema,
-        secret: 'test-secret-1234567890',
-        baseURL: 'http://localhost',
-      })
-      const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
-      return {
-        app,
-        auth,
-        db,
-        analytics,
-        async [Symbol.asyncDispose]() {
-          try {
-            await analytics.close()
-          } finally {
-            closeDb(db)
-          }
-        },
-      }
-    } catch (error) {
-      await analytics.close()
-      throw error
-    }
-  } catch (error) {
-    closeDb(db)
-    throw error
-  }
-}
-
-async function signUp(
-  app: ReturnType<typeof createApiApp>,
-  email: string,
-  name: string,
-): Promise<{ cookie: string; userId: string }> {
-  const response = await app.fetch(
-    new Request('http://localhost/api/auth/sign-up/email', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, email, password: 'password123' }),
-    }),
-  )
-  expect(response.status).toBe(200)
-  const body = await response.json()
-  const setCookie = response.headers.get('set-cookie')
-  expect(setCookie).toBeTruthy()
-  return { cookie: setCookie!.split(';', 1)[0]!, userId: body.user.id }
-}
+import { createApiTestFixture, signUpTestUser } from './fixture.ts'
 
 test('system health reports live control and analytics stores', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app, auth, db, analytics } = fixture
 
   const res = await app.fetch(new Request('http://localhost/api/system/health'))
@@ -101,7 +46,7 @@ test('system health reports live control and analytics stores', async () => {
 })
 
 test('rejects an unauthenticated authenticated hello procedure before input handling', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app } = fixture
 
   const response = await app.fetch(
@@ -121,7 +66,7 @@ test('rejects an unauthenticated authenticated hello procedure before input hand
 })
 
 test('returns a safe internal error when session lookup fails', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app, auth } = fixture
   const providerError = new Error('provider connection secret')
   vi.spyOn(auth.api, 'getSession').mockRejectedValueOnce(providerError)
@@ -146,7 +91,7 @@ test('returns a safe internal error when session lookup fails', async () => {
 })
 
 test('normalizes provider errors before the public response', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app, db } = fixture
   vi.spyOn(db, 'select').mockImplementation(() => {
     throw new Error('provider connection secret')
@@ -166,7 +111,7 @@ test('normalizes provider errors before the public response', async () => {
 })
 
 test('auth sign-up route is mounted and sets a session cookie', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app } = fixture
 
   const signup = await app.fetch(
@@ -186,11 +131,11 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
 })
 
 test('blocks every native Better Auth governance mutation without changing authority state', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app, auth, db } = fixture
-  const owner = await signUp(app, 'native-owner@example.com', 'Native Owner')
-  const member = await signUp(app, 'native-member@example.com', 'Native Member')
-  const invitee = await signUp(app, 'native-invitee@example.com', 'Native Invitee')
+  const owner = await signUpTestUser(app, 'native-owner@example.com', 'Native Owner')
+  const member = await signUpTestUser(app, 'native-member@example.com', 'Native Member')
+  const invitee = await signUpTestUser(app, 'native-invitee@example.com', 'Native Invitee')
 
   const createdAuthorityOrganization = await auth.api.createOrganization({
     body: { name: 'Native Governance', slug: 'native-governance', userId: owner.userId },
@@ -309,7 +254,7 @@ async function readNativeGovernanceState(db: Db) {
 }
 
 test('unknown api route returns 404', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app } = fixture
 
   const res = await app.fetch(new Request('http://localhost/api/does-not-exist'))

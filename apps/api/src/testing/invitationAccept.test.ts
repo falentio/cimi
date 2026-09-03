@@ -1,66 +1,9 @@
 import { expect, test } from 'vitest'
 import { ERROR_CATALOG } from '@cimi/contract'
-import { closeDb, schema } from '@cimi/db'
-import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
-import { createAuth } from '@cimi/auth/server'
-import { createApiApp } from '../index.ts'
-
-async function createFixture() {
-  const db = createMigratedTestDb()
-  try {
-    const analytics = await createTestAnalyticsDb()
-    try {
-      const auth = createAuth({
-        db,
-        schema: schema.betterAuthSchema,
-        secret: 'test-secret-1234567890',
-        baseURL: 'http://localhost',
-      })
-      const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
-      return {
-        app,
-        auth,
-        db,
-        analytics,
-        async [Symbol.asyncDispose]() {
-          try {
-            await analytics.close()
-          } finally {
-            closeDb(db)
-          }
-        },
-      }
-    } catch (error) {
-      await analytics.close()
-      throw error
-    }
-  } catch (error) {
-    closeDb(db)
-    throw error
-  }
-}
-
-async function signUp(
-  app: ReturnType<typeof createApiApp>,
-  email: string,
-  name: string,
-): Promise<{ cookie: string; userId: string }> {
-  const response = await app.fetch(
-    new Request('http://localhost/api/auth/sign-up/email', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, email, password: 'password123' }),
-    }),
-  )
-  expect(response.status).toBe(200)
-  const body = await response.json()
-  const setCookie = response.headers.get('set-cookie')
-  expect(setCookie).toBeTruthy()
-  return { cookie: setCookie!.split(';', 1)[0]!, userId: body.user.id }
-}
+import { createApiTestFixture, signUpTestUser } from './fixture.ts'
 
 test('rejects unauthenticated invitation acceptance', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app } = fixture
 
   const response = await app.fetch(
@@ -80,10 +23,10 @@ test('rejects unauthenticated invitation acceptance', async () => {
 })
 
 test('an unauthenticated replay consumes nothing', async () => {
-  await using fixture = await createFixture()
+  await using fixture = await createApiTestFixture()
   const { app } = fixture
-  const owner = await signUp(app, 'invite-owner@example.com', 'Invite Owner')
-  const invitee = await signUp(app, 'invite-guest@example.com', 'Invite Guest')
+  const owner = await signUpTestUser(app, 'invite-owner@example.com', 'Invite Owner')
+  const invitee = await signUpTestUser(app, 'invite-guest@example.com', 'Invite Guest')
 
   const createResponse = await app.fetch(
     new Request('http://localhost/api/organization/createOrganization', {
