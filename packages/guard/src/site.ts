@@ -86,11 +86,11 @@ export async function assertOrganizationRole(
   dependencies: Pick<SiteScopeGuardDependencies, 'membership'>,
   options: OrganizationScopeGuardOptions = {},
 ): Promise<void> {
+  const role = await dependencies.membership.getRole(organizationId, user.id)
+  if (role === undefined) throw new ORPCError(options.missingCode ?? 'NOT_FOUND')
   if (await dependencies.membership.hasPendingGovernanceOperation(organizationId)) {
     throw new ORPCError('CONFLICT', { status: 409 })
   }
-  const role = await dependencies.membership.getRole(organizationId, user.id)
-  if (role === undefined) throw new ORPCError(options.missingCode ?? 'NOT_FOUND')
   if (!hasRequiredRole(role, options.requiredRole ?? 'admin')) {
     throw new ORPCError('FORBIDDEN')
   }

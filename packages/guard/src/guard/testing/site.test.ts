@@ -139,4 +139,13 @@ describe('authorization guards', () => {
       assertOrganizationRole(organizationAdmin, 'org-1', { membership: admin }),
     ).resolves.toBeUndefined()
   })
+
+  it('hides pending governance operations from non-members', async () => {
+    const pendingStranger = new InMemorySiteScopePort()
+    pendingStranger.setPendingGovernanceOperation('org-1')
+
+    await expect(
+      assertOrganizationRole(nonMember, 'org-1', { membership: pendingStranger }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
 })

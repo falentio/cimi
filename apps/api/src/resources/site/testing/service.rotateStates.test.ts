@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createSiteFixture, createSiteRecord } from '../fixture.ts'
 
-function createDeletionStatus(status: 'recovering' | 'purged') {
+function createDeletionStatus(status: 'deleting' | 'deleted' | 'recovering' | 'purged') {
   return {
     siteId: 'ste_1',
     status,
@@ -15,6 +15,34 @@ function createDeletionStatus(status: 'recovering' | 'purged') {
 }
 
 describe('SiteService.rotateIngestionIdentifier states', () => {
+  it('rejects a rotation while deleting as a conflict', async () => {
+    const { repository, service } = createSiteFixture({
+      sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleting' }],
+    })
+    repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
+    repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleting' }))
+    repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('deleting'))
+
+    await expect(
+      service.rotateIngestionIdentifier({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(repository.findById).toHaveBeenCalledWith('ste_1')
+  })
+
+  it('rejects a rotation while deleted as a conflict', async () => {
+    const { repository, service } = createSiteFixture({
+      sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
+    })
+    repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
+    repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
+    repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('deleted'))
+
+    await expect(
+      service.rotateIngestionIdentifier({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(repository.findById).toHaveBeenCalledWith('ste_1')
+  })
+
   it('rejects a rotation while recovering as a conflict', async () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'recovering' }],

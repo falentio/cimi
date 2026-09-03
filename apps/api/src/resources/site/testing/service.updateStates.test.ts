@@ -9,7 +9,7 @@ const input = {
   weekStartsOn: 'monday' as const,
 }
 
-function createDeletionStatus(status: 'deleting' | 'recovering' | 'purged') {
+function createDeletionStatus(status: 'deleting' | 'deleted' | 'recovering' | 'purged') {
   return {
     siteId: 'ste_1',
     status,
@@ -44,6 +44,20 @@ describe('SiteService.update states', () => {
     repository.updateActive.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'recovering' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('recovering'))
+
+    await expect(service.update(input, { id: 'user_1' }, new Headers())).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
+    expect(repository.findById).toHaveBeenCalledWith('ste_1')
+  })
+
+  it('rejects an update while deleted as a conflict', async () => {
+    const { repository, service } = createSiteFixture({
+      sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
+    })
+    repository.updateActive.mockResolvedValue(undefined)
+    repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
+    repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('deleted'))
 
     await expect(service.update(input, { id: 'user_1' }, new Headers())).rejects.toMatchObject({
       code: 'CONFLICT',

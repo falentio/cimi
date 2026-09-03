@@ -104,7 +104,6 @@ export class SiteService {
     headers?: Headers,
   ): Promise<InferOutput<typeof schema.SSiteUpdateV2Output>> {
     await this.reconcileSiteOrganization(input.siteId, user, headers)
-    await this.assertNoPendingGovernanceOperation(input.siteId)
     await assertSiteManagementScope(user, input.siteId, this.scope, { requiredRole: 'admin' })
     try {
       const site = await this.repository.updateActive({
@@ -169,7 +168,6 @@ export class SiteService {
     headers?: Headers,
   ): Promise<InferOutput<typeof schema.SSiteRotateIngestionOutput>> {
     await this.reconcileSiteOrganization(input.siteId, user, headers)
-    await this.assertNoPendingGovernanceOperation(input.siteId)
     await assertSiteManagementScope(user, input.siteId, this.scope, { requiredRole: 'admin' })
     const site = await this.repository.rotateIngestionIdentifier(input.siteId, generateId('ing'))
     if (site !== undefined) return site
@@ -181,16 +179,6 @@ export class SiteService {
       throw new ORPCError('CONFLICT', { status: 409 })
     }
     throw new ORPCError('CONFLICT', { status: 409 })
-  }
-
-  private async assertNoPendingGovernanceOperation(siteId: string): Promise<void> {
-    const organizationId = await this.scope.siteScope.getOrganizationId(siteId)
-    if (
-      organizationId !== undefined &&
-      (await this.scope.membership.hasPendingGovernanceOperation(organizationId))
-    ) {
-      throw new ORPCError('CONFLICT', { status: 409 })
-    }
   }
 
   private async reconcileOrganization(
