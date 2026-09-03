@@ -17,15 +17,15 @@ const repair = createRepairOperation({
   previousName: organization.name,
   desiredName: updatedOrganization.name,
 })
-const newAuthoritySlug = 'organization_new-user_1'
+const newAuthoritySlug = 'org_new-user_1'
 
 describe('OrganizationService.create', () => {
   it('rejects a pending create with a different requested name', async () => {
     const { repository, authority, service } = createOrganizationFixture()
     const pendingCreate = createRepairOperation({
-      id: 'repair_create_mismatched_name',
+      id: 'orp_create_mismatched_name',
       organizationId: null,
-      localOrganizationId: 'organization_new',
+      localOrganizationId: 'org_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
       authoritySlug: newAuthoritySlug,
@@ -46,9 +46,9 @@ describe('OrganizationService.create', () => {
     const { repository, authority, service } = createOrganizationFixture()
     const createRepair = createRepairOperation({
       ...repair,
-      id: 'repair_create_1',
+      id: 'orp_create_1',
       organizationId: null,
-      localOrganizationId: 'organization_new',
+      localOrganizationId: 'org_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
       authoritySlug: newAuthoritySlug,
@@ -92,9 +92,9 @@ describe('OrganizationService.create', () => {
     const { repository, authority, service } = createOrganizationFixture()
     const createRepair = createRepairOperation({
       ...repair,
-      id: 'repair_create_invalid_owner',
+      id: 'orp_create_invalid_owner',
       organizationId: null,
-      localOrganizationId: 'organization_new',
+      localOrganizationId: 'org_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
       authoritySlug: newAuthoritySlug,
@@ -137,9 +137,9 @@ describe('OrganizationService.create', () => {
     const { repository, authority, service } = createOrganizationFixture()
     const createRepair = createRepairOperation({
       ...repair,
-      id: 'repair_create_existing_authority',
+      id: 'orp_create_existing_authority',
       organizationId: null,
-      localOrganizationId: 'organization_new',
+      localOrganizationId: 'org_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
       authorityCleanupRequired: false,
@@ -184,9 +184,9 @@ describe('OrganizationService.create', () => {
     const { repository, authority, service } = createOrganizationFixture()
     const createRepair = createRepairOperation({
       ...repair,
-      id: 'repair_create_retry_cleanup',
+      id: 'orp_create_retry_cleanup',
       organizationId: null,
-      localOrganizationId: 'organization_new',
+      localOrganizationId: 'org_new',
       operationType: 'create-organization',
       authorityOrganizationId: 'authority_new',
       authorityCleanupRequired: true,
@@ -226,9 +226,9 @@ describe('OrganizationService.create', () => {
     const { repository, authority, service } = createOrganizationFixture()
     const createRepair = createRepairOperation({
       ...repair,
-      id: 'repair_create_2',
+      id: 'orp_create_2',
       organizationId: null,
-      localOrganizationId: 'organization_new',
+      localOrganizationId: 'org_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
       authoritySlug: newAuthoritySlug,
@@ -269,16 +269,16 @@ describe('OrganizationService.create', () => {
     const { repository, authority, service } = createOrganizationFixture()
     const createRepair = createRepairOperation({
       ...repair,
-      id: 'repair_create_happy',
+      id: 'orp_create_happy',
       organizationId: null,
-      localOrganizationId: 'organization_new',
+      localOrganizationId: 'org_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
       authoritySlug: newAuthoritySlug,
       previousName: null,
       desiredName: 'New Organization',
     })
-    const created = createOrganizationRecord({ id: 'organization_new', name: 'New Organization' })
+    const created = createOrganizationRecord({ id: 'org_new', name: 'New Organization' })
 
     repository.findPendingCreateRepair.mockResolvedValue(undefined)
     repository.createRepairOperation.mockResolvedValue(createRepair)
@@ -299,9 +299,9 @@ describe('OrganizationService.create', () => {
 
     await expect(
       service.create({ name: 'New Organization' }, { id: 'user_1' }, new Headers()),
-    ).resolves.toMatchObject({ id: 'organization_new', name: 'New Organization' })
+    ).resolves.toMatchObject({ id: 'org_new', name: 'New Organization' })
     expect(repository.insertWithOwnerAndCompleteRepair).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'organization_new', name: 'New Organization' }),
+      expect.objectContaining({ id: 'org_new', name: 'New Organization' }),
       expect.objectContaining({ userId: 'user_1' }),
       createRepair.id,
     )

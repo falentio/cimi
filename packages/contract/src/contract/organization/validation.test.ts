@@ -12,7 +12,7 @@ import { SOrganizationGetInput, SOrganizationGetOutput } from './query/get.ts'
 import { SOrganizationListInput, SOrganizationListOutput } from './query/list.ts'
 
 const organization = {
-  id: 'organization-1',
+  id: 'org-1',
   name: 'Analytics',
   ownerUserId: 'user-1',
   isPersonal: false,
@@ -32,14 +32,14 @@ describe('organization contract', () => {
     expect(v.parse(SOrganizationCreateInput, { name: 'Analytics' })).toEqual({
       name: 'Analytics',
     })
-    expect(
-      v.parse(SOrganizationUpdateInput, { organizationId: 'organization-1', name: 'Reports' }),
-    ).toEqual({ organizationId: 'organization-1', name: 'Reports' })
-    expect(v.parse(SOrganizationGetInput, { organizationId: 'organization-1' })).toEqual({
-      organizationId: 'organization-1',
+    expect(v.parse(SOrganizationUpdateInput, { organizationId: 'org-1', name: 'Reports' })).toEqual(
+      { organizationId: 'org-1', name: 'Reports' },
+    )
+    expect(v.parse(SOrganizationGetInput, { organizationId: 'org-1' })).toEqual({
+      organizationId: 'org-1',
     })
-    expect(v.parse(SOrganizationDeleteInput, { organizationId: 'organization-1' })).toEqual({
-      organizationId: 'organization-1',
+    expect(v.parse(SOrganizationDeleteInput, { organizationId: 'org-1' })).toEqual({
+      organizationId: 'org-1',
     })
     expect(v.parse(SOrganizationEnsurePersonalInput, {})).toEqual({})
   })
@@ -48,7 +48,7 @@ describe('organization contract', () => {
     expect(() => v.parse(SOrganizationCreateInput, { name: '' })).toThrow(v.ValiError)
     expect(() => v.parse(SOrganizationCreateInput, { name: 'x'.repeat(257) })).toThrow(v.ValiError)
     expect(() =>
-      v.parse(SOrganizationCreateInput, { name: 'Analytics', organizationId: 'organization-1' }),
+      v.parse(SOrganizationCreateInput, { name: 'Analytics', organizationId: 'org-1' }),
     ).toThrow(v.ValiError)
     expect(() =>
       v.parse(SOrganizationUpdateInput, { organizationId: '', name: 'Analytics' }),
@@ -59,12 +59,12 @@ describe('organization contract', () => {
         name: 'Analytics',
       }),
     ).toThrow(v.ValiError)
-    expect(() =>
-      v.parse(SOrganizationUpdateInput, { organizationId: 'organization-1', name: '' }),
-    ).toThrow(v.ValiError)
-    expect(() =>
-      v.parse(SOrganizationGetInput, { organizationId: 'organization-1', extra: true }),
-    ).toThrow(v.ValiError)
+    expect(() => v.parse(SOrganizationUpdateInput, { organizationId: 'org-1', name: '' })).toThrow(
+      v.ValiError,
+    )
+    expect(() => v.parse(SOrganizationGetInput, { organizationId: 'org-1', extra: true })).toThrow(
+      v.ValiError,
+    )
     expect(() => v.parse(SOrganizationEnsurePersonalInput, { extra: true })).toThrow(v.ValiError)
   })
 

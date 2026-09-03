@@ -44,7 +44,7 @@ describe('event report contract', () => {
 
   it('uses occurrence time only for Event list sorting', () => {
     const base = {
-      siteId: 'site-1',
+      siteId: 'ste-1',
       eventKind: 'page_view',
       fromDate: '2026-08-24',
       toDate: '2026-08-24',

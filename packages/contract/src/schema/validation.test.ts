@@ -352,7 +352,7 @@ describe('shared report schemas', () => {
     }
     expect({
       scope: 'site',
-      policy: { siteId: 'site-2', ...policy },
+      policy: { siteId: 'ste-2', ...policy },
     }).toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
     expect({
       scope: 'site',
@@ -363,9 +363,9 @@ describe('shared report schemas', () => {
     )
     expect({
       scope: 'installation',
-      policy: { siteId: 'site-1', ...policy },
+      policy: { siteId: 'ste-1', ...policy },
     }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
-    expect({ siteId: 'site-2', policy }).not.toEqual(
+    expect({ siteId: 'ste-2', policy }).not.toEqual(
       expect.schemaMatching(SCollectionPolicyUpdateFields),
     )
   })
@@ -405,7 +405,7 @@ describe('shared report schemas', () => {
 
   it('redacts traits and aliases for non-active profiles', () => {
     const profile = {
-      siteId: 'site-1',
+      siteId: 'ste-1',
       identifiedUserId: 'user-1',
       firstSeenAt: '2026-08-01T00:00:00Z',
       lastSeenAt: '2026-08-01T00:00:00Z',
@@ -448,9 +448,9 @@ describe('shared report schemas', () => {
 describe('site deletion schemas', () => {
   it('accepts recoverable and purged lifecycle status', () => {
     const status = {
-      siteId: 'site-1',
+      siteId: 'ste-1',
       status: 'deleted',
-      operationId: 'operation-1',
+      operationId: 'sop-1',
       requestedAt: '2026-08-24T00:00:00Z',
       deletedAt: '2026-08-24T00:01:00Z',
       recoveryDeadline: '2026-09-23T00:01:00Z',
@@ -469,13 +469,13 @@ describe('site deletion schemas', () => {
     expect({ ...status, status: 'unknown' }).not.toEqual(
       expect.schemaMatching(SSiteDeletionStatusOutput),
     )
-    expect({ accepted: true, status: 'deleting', operationId: 'op-1' }).toEqual(
+    expect({ accepted: true, status: 'deleting', operationId: 'sop-1' }).toEqual(
       expect.schemaMatching(SSiteDeleteOutput),
     )
     expect({
       accepted: true,
       status: 'recovering',
-      operationId: 'op-2',
+      operationId: 'sop-2',
     }).toEqual(expect.schemaMatching(SSiteRecoverOutput))
     expect({
       ...status,

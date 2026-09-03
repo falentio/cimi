@@ -33,7 +33,7 @@ export function createSiteOrganizationRow(
   overrides: Partial<OrganizationRow> = {},
 ): OrganizationRow {
   return {
-    id: 'organization_1',
+    id: 'org_1',
     name: 'Analytics',
     authorityOrganizationId: 'authority_1',
     ownerUserId: 'user_1',
@@ -46,7 +46,7 @@ export function createSiteOrganizationRow(
 
 export function createSiteMembershipRow(overrides: Partial<MembershipRow> = {}): MembershipRow {
   return {
-    organizationId: 'organization_1',
+    organizationId: 'org_1',
     userId: 'user_1',
     role: 'owner',
     createdAt,
@@ -57,11 +57,11 @@ export function createSiteMembershipRow(overrides: Partial<MembershipRow> = {}):
 
 export function createSiteRow(overrides: Partial<SiteRow> = {}): SiteRow {
   return {
-    id: 'site_1',
-    organizationId: 'organization_1',
+    id: 'ste_1',
+    organizationId: 'org_1',
     name: 'Production',
     hostname: 'example.com',
-    ingestionIdentifier: 'ingest_1',
+    ingestionIdentifier: 'ing_1',
     reportingTimezone: 'UTC',
     weekStartsOn: 'monday',
     status: 'active',
@@ -84,8 +84,8 @@ export function createSiteGovernanceOperationRow(
   overrides: Partial<OrganizationGovernanceOperationRow> = {},
 ): OrganizationGovernanceOperationRow {
   return {
-    id: 'operation_1',
-    organizationId: 'organization_1',
+    id: 'sop_1',
+    organizationId: 'org_1',
     operationType: 'transfer-ownership',
     previousOwnerUserId: 'user_1',
     targetUserId: 'user_1',
@@ -107,9 +107,9 @@ export function createSiteRepairOperationRow(
   overrides: Partial<OrganizationRepairOperationRow> = {},
 ): OrganizationRepairOperationRow {
   return {
-    id: 'repair_1',
-    organizationId: 'organization_1',
-    localOrganizationId: 'organization_1',
+    id: 'orp_1',
+    organizationId: 'org_1',
+    localOrganizationId: 'org_1',
     operationType: 'update-organization',
     ownerUserId: 'user_1',
     authorityOrganizationId: 'authority_1',
@@ -134,10 +134,10 @@ export function createSiteTombstoneRow(
   overrides: Partial<SiteTombstoneRow> = {},
 ): SiteTombstoneRow {
   return {
-    siteId: 'site_1',
-    organizationId: 'organization_1',
+    siteId: 'ste_1',
+    organizationId: 'org_1',
     hostname: 'example.com',
-    purgeOperationId: 'operation_purge_1',
+    purgeOperationId: 'sop_purge_1',
     purgedAt: createdAt,
     createdAt,
     ...overrides,

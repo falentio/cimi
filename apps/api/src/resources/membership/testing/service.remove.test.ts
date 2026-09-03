@@ -6,7 +6,7 @@ import {
   createMembershipRecord,
 } from '../fixture.ts'
 
-const organizationId = 'organization_1'
+const organizationId = 'org_1'
 const authorityOrganizationId = 'authority_1'
 const ownerUserId = 'user_owner'
 const adminUserId = 'user_admin'
@@ -30,7 +30,7 @@ const targetAuthorityMember = createAuthorityMember({
 })
 
 const pendingRemoval = createMembershipOperation({
-  id: 'operation_remove',
+  id: 'gop_remove',
   organizationId,
   operationType: 'remove-member',
   targetUserId,
@@ -65,7 +65,7 @@ describe('MembershipService.remove', () => {
       [ownerAuthorityMember, adminAuthorityMember, targetAuthorityMember],
     )
     const operation = createMembershipOperation({
-      id: 'operation_remove',
+      id: 'gop_remove',
       organizationId,
       operationType: 'remove-member',
       targetUserId,
@@ -101,7 +101,7 @@ describe('MembershipService.remove', () => {
       [ownerAuthorityMember, adminAuthorityMember, targetAuthorityMember],
     )
     const operation = createMembershipOperation({
-      id: 'operation_remove_failure',
+      id: 'gop_remove_failure',
       organizationId,
       operationType: 'remove-member',
       targetUserId,

@@ -18,21 +18,21 @@ describe('SiteLifecycleWorker', () => {
   it('completes pending delete and recover operations', async () => {
     const { repository, onError, worker } = createWorker()
     repository.findPendingLifecycleOperations.mockResolvedValue([
-      { siteId: 'site_1', operationId: 'operation_1', operationType: 'delete', status: 'pending' },
-      { siteId: 'site_2', operationId: 'operation_2', operationType: 'recover', status: 'running' },
+      { siteId: 'ste_1', operationId: 'sop_1', operationType: 'delete', status: 'pending' },
+      { siteId: 'ste_2', operationId: 'sop_2', operationType: 'recover', status: 'running' },
     ])
     repository.completeDelete.mockResolvedValue({ status: 'completed' })
     repository.completeRecover.mockResolvedValue({ status: 'completed' })
 
     await expect(worker.runOnce(now)).resolves.toBeUndefined()
     expect(repository.completeDelete).toHaveBeenCalledWith({
-      siteId: 'site_1',
-      operationId: 'operation_1',
+      siteId: 'ste_1',
+      operationId: 'sop_1',
       completedAt: now,
     })
     expect(repository.completeRecover).toHaveBeenCalledWith({
-      siteId: 'site_2',
-      operationId: 'operation_2',
+      siteId: 'ste_2',
+      operationId: 'sop_2',
       completedAt: now,
     })
     expect(onError).not.toHaveBeenCalled()
@@ -41,8 +41,8 @@ describe('SiteLifecycleWorker', () => {
   it('reports a failing operation and continues with the rest', async () => {
     const { repository, onError, worker } = createWorker()
     repository.findPendingLifecycleOperations.mockResolvedValue([
-      { siteId: 'site_1', operationId: 'operation_1', operationType: 'delete', status: 'pending' },
-      { siteId: 'site_2', operationId: 'operation_2', operationType: 'recover', status: 'pending' },
+      { siteId: 'ste_1', operationId: 'sop_1', operationType: 'delete', status: 'pending' },
+      { siteId: 'ste_2', operationId: 'sop_2', operationType: 'recover', status: 'pending' },
     ])
     repository.completeDelete.mockRejectedValue(new Error('completion lost'))
     repository.completeRecover.mockResolvedValue({ status: 'completed' })
@@ -50,7 +50,7 @@ describe('SiteLifecycleWorker', () => {
     await expect(worker.runOnce(now)).resolves.toBeUndefined()
     expect(onError).toHaveBeenCalledTimes(1)
     expect(repository.completeRecover).toHaveBeenCalledWith(
-      expect.objectContaining({ siteId: 'site_2' }),
+      expect.objectContaining({ siteId: 'ste_2' }),
     )
   })
 
@@ -64,7 +64,7 @@ describe('SiteLifecycleWorker', () => {
 
   it('purges due sites and reports a failing purge while continuing', async () => {
     const { repository, onError, worker } = createWorker()
-    repository.findDuePurges.mockResolvedValue([{ siteId: 'site_1' }, { siteId: 'site_2' }])
+    repository.findDuePurges.mockResolvedValue([{ siteId: 'ste_1' }, { siteId: 'ste_2' }])
     repository.purge
       .mockRejectedValueOnce(new Error('purge lost'))
       .mockResolvedValueOnce({ status: 'completed' })
@@ -73,7 +73,7 @@ describe('SiteLifecycleWorker', () => {
     expect(repository.purge).toHaveBeenCalledTimes(2)
     expect(repository.purge).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ siteId: 'site_2', requestedAt: now }),
+      expect.objectContaining({ siteId: 'ste_2', requestedAt: now }),
     )
     expect(onError).toHaveBeenCalledTimes(1)
   })

@@ -13,10 +13,10 @@ describe('in-memory kernel ports', () => {
     const resolver = new InMemoryRetentionResolver()
     const sitePolicy = { eventMonths: 6, profileMonths: 6, replayMonths: null }
 
-    resolver.set('site-1', sitePolicy)
+    resolver.set('ste-1', sitePolicy)
 
-    expect(resolver.effective('site-1')).toEqual(sitePolicy)
-    expect(resolver.effective('site-2')).toEqual({
+    expect(resolver.effective('ste-1')).toEqual(sitePolicy)
+    expect(resolver.effective('ste-2')).toEqual({
       eventMonths: 12,
       profileMonths: 12,
       replayMonths: null,
@@ -48,10 +48,10 @@ describe('in-memory kernel ports', () => {
     const policies = new InMemoryCollectionPolicyResolver()
     const readiness = new InMemoryAnalyticsReadinessPort()
 
-    policies.set('site-1', policy)
+    policies.set('ste-1', policy)
     readiness.setHealth({ controlStore: 'ready', analyticsStore: 'rebuilding' })
 
-    expect(policies.effective('site-1')).toEqual(policy)
+    expect(policies.effective('ste-1')).toEqual(policy)
     expect(readiness.getHealth()).toEqual({
       controlStore: 'ready',
       analyticsStore: 'rebuilding',

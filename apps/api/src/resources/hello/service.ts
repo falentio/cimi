@@ -50,7 +50,7 @@ export class HelloService {
     ownerId: AuthUser['id'],
   ): Promise<InferOutput<typeof schema.SHelloCreateOutput>> {
     return this.repository.insert({
-      id: generateId('hello'),
+      id: generateId('hel'),
       ownerId,
       name: input.name,
       message: input.message,

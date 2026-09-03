@@ -33,8 +33,8 @@ describe('MembershipRepositoryDrizzle.completeTransfer', () => {
 
     const repository = new MembershipRepositoryDrizzle({ db })
     const transfer = await repository.createTransfer({
-      id: 'operation_1',
-      organizationId: 'organization_1',
+      id: 'gop_1',
+      organizationId: 'org_1',
       previousOwnerUserId: 'user_1',
       targetUserId: 'user_2',
       now,
@@ -53,7 +53,7 @@ describe('MembershipRepositoryDrizzle.completeTransfer', () => {
     await expect(
       repository.completeTransfer({
         id: transfer.transfer.id,
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_1',
         targetUserId: 'user_2',
         now: new Date('2026-09-01T00:00:01.000Z'),
@@ -64,7 +64,7 @@ describe('MembershipRepositoryDrizzle.completeTransfer', () => {
       db
         .select({ userId: schema.TMembership.userId, role: schema.TMembership.role })
         .from(schema.TMembership)
-        .where(eq(schema.TMembership.organizationId, 'organization_1')),
+        .where(eq(schema.TMembership.organizationId, 'org_1')),
     ).resolves.toEqual([
       { userId: 'user_1', role: 'owner' },
       { userId: 'user_2', role: 'member' },
@@ -73,7 +73,7 @@ describe('MembershipRepositoryDrizzle.completeTransfer', () => {
       db
         .select({ ownerUserId: schema.TOrganization.ownerUserId })
         .from(schema.TOrganization)
-        .where(eq(schema.TOrganization.id, 'organization_1')),
+        .where(eq(schema.TOrganization.id, 'org_1')),
     ).resolves.toEqual([{ ownerUserId: 'user_1' }])
     await expect(
       db

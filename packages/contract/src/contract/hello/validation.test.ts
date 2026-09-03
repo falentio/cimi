@@ -24,9 +24,9 @@ describe('hello contract', () => {
   it('accepts valid create, list, get, world, and remove inputs', () => {
     expect(() => v.parse(SHelloCreateInput, { name: 'Ada', message: 'Hello, Ada!' })).not.toThrow()
     expect(() => v.parse(SHelloListInput, { offset: 0, limit: 20, name: 'Ada' })).not.toThrow()
-    expect(() => v.parse(SHelloGetInput, { id: 'hello_1' })).not.toThrow()
+    expect(() => v.parse(SHelloGetInput, { id: 'hel_1' })).not.toThrow()
     expect(() => v.parse(SHelloWorldInput, { name: 'Ada' })).not.toThrow()
-    expect(() => v.parse(SHelloRemoveInput, { id: 'hello_1' })).not.toThrow()
+    expect(() => v.parse(SHelloRemoveInput, { id: 'hel_1' })).not.toThrow()
   })
 
   it('rejects empty messages and unknown input keys', () => {

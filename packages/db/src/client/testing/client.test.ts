@@ -143,13 +143,13 @@ describe('createDb + migrateControlDb', () => {
         `INSERT INTO organization (id, name, owner_user_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?)`,
       )
-      .run('organization-1', 'Organization', 'user-1', now, now)
+      .run('org-1', 'Organization', 'user-1', now, now)
     db.$client
       .prepare(
         `INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run('site-1', 'organization-1', 'Site', 'example.com', 'ingestion-1', now, now)
+      .run('ste-1', 'org-1', 'Site', 'example.com', 'ing-1', now, now)
     db.$client
       .prepare(
         `INSERT INTO installation (id, created_at, updated_at)
@@ -167,7 +167,7 @@ describe('createDb + migrateControlDb', () => {
         'collection-policy-invalid',
         'installation-1',
         'installation',
-        'site-1',
+        'ste-1',
         1,
         '{}',
         now,
@@ -196,7 +196,7 @@ describe('createDb + migrateControlDb', () => {
       )
       .run(
         1,
-        'site-1',
+        'ste-1',
         'event-1',
         'custom_event',
         now,
@@ -254,14 +254,14 @@ describe('createDb + migrateControlDb', () => {
           (profile_id, site_id, identified_user_id, status, profile_epoch, first_seen_at, last_seen_at, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run('profile-1', 'site-1', 'identified-1', 'active', 1, now, now, now, now)
+      .run('profile-1', 'ste-1', 'identified-1', 'active', 1, now, now, now, now)
     db.$client
       .prepare(
         `INSERT INTO identity_profile_epoch
           (profile_id, site_id, identified_user_id, epoch, status, started_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run('profile-1', 'site-1', 'identified-1', 1, 'active', now)
+      .run('profile-1', 'ste-1', 'identified-1', 1, 'active', now)
     const insertIdentityLink = db.$client.prepare(
       `INSERT INTO identity_link
         (id, site_id, profile_id, profile_epoch, anonymous_identity_id, effective_from, linked_at)
@@ -270,7 +270,7 @@ describe('createDb + migrateControlDb', () => {
     expect(() =>
       insertIdentityLink.run(
         'identity-link-invalid',
-        'site-1',
+        'ste-1',
         'profile-1',
         2,
         'anonymous-1',
@@ -358,24 +358,8 @@ describe('createDb + migrateControlDb', () => {
         insertOrganization.run('personal-2', 'Personal 2', null, 'user-1', 1, now, now),
       ).toThrow()
       insertOrganization.run('personal-2', 'Personal 2', null, 'user-2', 1, now, now)
-      insertOrganization.run(
-        'organization-1',
-        'Organization 1',
-        'authority-1',
-        'user-1',
-        0,
-        now,
-        now,
-      )
-      insertOrganization.run(
-        'organization-2',
-        'Organization 2',
-        'authority-2',
-        'user-2',
-        0,
-        now,
-        now,
-      )
+      insertOrganization.run('org-1', 'Organization 1', 'authority-1', 'user-1', 0, now, now)
+      insertOrganization.run('org-2', 'Organization 2', 'authority-2', 'user-2', 0, now, now)
       insertOrganization.run(
         'organization-3',
         'Organization 3',
@@ -401,19 +385,15 @@ describe('createDb + migrateControlDb', () => {
         `INSERT INTO membership (organization_id, user_id, role, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?)`,
       )
-      insertMembership.run('organization-1', 'user-1', 'owner', now, now)
-      insertMembership.run('organization-1', 'user-2', 'admin', now, now)
-      expect(() => insertMembership.run('organization-1', 'user-2', 'admin', now, now)).toThrow()
-      expect(() => insertMembership.run('organization-1', 'user-3', 'owner', now, now)).toThrow()
-      expect(() =>
-        insertMembership.run('organization-1', 'user-3', 'moderator', now, now),
-      ).toThrow()
+      insertMembership.run('org-1', 'user-1', 'owner', now, now)
+      insertMembership.run('org-1', 'user-2', 'admin', now, now)
+      expect(() => insertMembership.run('org-1', 'user-2', 'admin', now, now)).toThrow()
+      expect(() => insertMembership.run('org-1', 'user-3', 'owner', now, now)).toThrow()
+      expect(() => insertMembership.run('org-1', 'user-3', 'moderator', now, now)).toThrow()
       expect(() =>
         insertMembership.run('missing-organization', 'user-3', 'member', now, now),
       ).toThrow()
-      expect(() =>
-        insertMembership.run('organization-1', 'missing-user', 'member', now, now),
-      ).toThrow()
+      expect(() => insertMembership.run('org-1', 'missing-user', 'member', now, now)).toThrow()
       expect(() => db.$client.prepare('DELETE FROM user WHERE id = ?').run('user-2')).toThrow()
 
       const insertGovernanceOperation = db.$client.prepare(
@@ -425,7 +405,7 @@ describe('createDb + migrateControlDb', () => {
       )
       insertGovernanceOperation.run(
         'governance-1',
-        'organization-1',
+        'org-1',
         'transfer-ownership',
         'user-1',
         'user-2',
@@ -443,7 +423,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertGovernanceOperation.run(
           'governance-2',
-          'organization-1',
+          'org-1',
           'remove-member',
           'user-1',
           'user-2',
@@ -461,7 +441,7 @@ describe('createDb + migrateControlDb', () => {
       ).toThrow()
       insertGovernanceOperation.run(
         'governance-3',
-        'organization-1',
+        'org-1',
         'remove-member',
         'user-1',
         'user-2',
@@ -478,7 +458,7 @@ describe('createDb + migrateControlDb', () => {
       )
       insertGovernanceOperation.run(
         'governance-4',
-        'organization-2',
+        'org-2',
         'change-member-role',
         'user-2',
         'user-3',
@@ -495,7 +475,7 @@ describe('createDb + migrateControlDb', () => {
       )
       insertGovernanceOperation.run(
         'governance-4-member',
-        'organization-2',
+        'org-2',
         'change-member-role',
         'user-2',
         'user-3',
@@ -513,7 +493,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertGovernanceOperation.run(
           'governance-5',
-          'organization-2',
+          'org-2',
           'change-member-role',
           'user-2',
           'user-3',
@@ -532,7 +512,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertGovernanceOperation.run(
           'governance-6',
-          'organization-2',
+          'org-2',
           'change-member-role',
           'user-2',
           'user-3',
@@ -551,7 +531,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertGovernanceOperation.run(
           'governance-7',
-          'organization-2',
+          'org-2',
           'transfer-ownership',
           'user-2',
           'user-3',
@@ -570,7 +550,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertGovernanceOperation.run(
           'governance-8',
-          'organization-2',
+          'org-2',
           'leave-organization',
           'user-2',
           'user-2',
@@ -608,7 +588,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertGovernanceOperation.run(
           'governance-10',
-          'organization-2',
+          'org-2',
           'transfer-ownership',
           'missing-user',
           'user-2',
@@ -627,7 +607,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertGovernanceOperation.run(
           'governance-11',
-          'organization-2',
+          'org-2',
           'transfer-ownership',
           'user-2',
           'missing-user',
@@ -765,7 +745,7 @@ describe('createDb + migrateControlDb', () => {
       ).toThrow()
       insertRepairOperation.run(
         'repair-6',
-        'organization-2',
+        'org-2',
         'local-update-1',
         'update-organization',
         'user-2',
@@ -787,7 +767,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertRepairOperation.run(
           'repair-7',
-          'organization-2',
+          'org-2',
           'local-update-2',
           'update-organization',
           'user-2',
@@ -810,7 +790,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertRepairOperation.run(
           'repair-8',
-          'organization-2',
+          'org-2',
           'local-update-3',
           'update-organization',
           'user-2',
@@ -833,7 +813,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertRepairOperation.run(
           'repair-9',
-          'organization-2',
+          'org-2',
           'local-update-4',
           'update-organization',
           'user-2',
@@ -879,7 +859,7 @@ describe('createDb + migrateControlDb', () => {
       expect(() =>
         insertRepairOperation.run(
           'repair-11',
-          'organization-2',
+          'org-2',
           'local-update-6',
           'update-organization',
           'missing-user',
@@ -900,18 +880,18 @@ describe('createDb + migrateControlDb', () => {
         ),
       ).toThrow()
 
-      db.$client.prepare('DELETE FROM organization WHERE id = ?').run('organization-1')
+      db.$client.prepare('DELETE FROM organization WHERE id = ?').run('org-1')
       expect(
         db.$client
           .prepare('SELECT COUNT(*) AS count FROM membership WHERE organization_id = ?')
-          .get('organization-1'),
+          .get('org-1'),
       ).toEqual({ count: 0 })
       expect(
         db.$client
           .prepare(
             'SELECT COUNT(*) AS count FROM organization_governance_operation WHERE organization_id = ?',
           )
-          .get('organization-1'),
+          .get('org-1'),
       ).toEqual({ count: 0 })
     } finally {
       closeDb(db)

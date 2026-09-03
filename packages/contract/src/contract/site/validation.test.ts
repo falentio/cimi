@@ -17,14 +17,14 @@ describe('site hostname contract', () => {
 
   it('canonicalizes update input and Site output', () => {
     const update = v.parse(SSiteUpdateV2Input, {
-      siteId: 'site-1',
+      siteId: 'ste-1',
       name: 'Example',
       hostname: 'API.Example.test.',
       reportingTimezone: 'UTC',
       weekStartsOn: 'monday',
     })
     const site = v.parse(SSite, {
-      id: 'site-1',
+      id: 'ste-1',
       organizationId: 'org-1',
       name: 'Example',
       hostname: 'API.Example.test.',

@@ -8,7 +8,7 @@ describe.concurrent('HelloRepositoryDrizzle.findOwnerId', () => {
     const repo = new HelloRepositoryDrizzle({ db: fixture.db })
     await repo.insert(createHelloRow())
 
-    await expect(repo.findOwnerId('hello_1')).resolves.toBe('user_1')
+    await expect(repo.findOwnerId('hel_1')).resolves.toBe('user_1')
     await expect(repo.findOwnerId('missing')).resolves.toBeUndefined()
   })
 })

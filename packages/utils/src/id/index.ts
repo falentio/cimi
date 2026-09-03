@@ -50,8 +50,8 @@ export function generateId<const Prefix extends string>(prefix: Prefix): EntityI
 }
 
 function validatePrefix(prefix: string): void {
-  if (!/^[a-z][a-z0-9-]*$/.test(prefix)) {
-    throw new TypeError('ID prefix must match [a-z][a-z0-9-]*')
+  if (!/^[a-z]{3}$/.test(prefix)) {
+    throw new TypeError('ID prefix must be a 3-letter abbreviation [a-z]{3}')
   }
 }
 

@@ -20,7 +20,7 @@ export function createOrganizationRecord(
   overrides: Partial<OrganizationRecord> = {},
 ): OrganizationRecord {
   return {
-    id: 'organization_1',
+    id: 'org_1',
     name: 'Analytics',
     authorityOrganizationId: 'authority_1',
     ownerUserId: 'user_1',
@@ -58,9 +58,9 @@ export function createRepairOperation(
   overrides: Partial<OrganizationRepository.RepairOperation> = {},
 ): OrganizationRepository.RepairOperation {
   return {
-    id: 'repair_1',
-    organizationId: 'organization_1',
-    localOrganizationId: 'organization_1',
+    id: 'orp_1',
+    organizationId: 'org_1',
+    localOrganizationId: 'org_1',
     operationType: 'update-organization',
     ownerUserId: 'user_1',
     authorityOrganizationId: 'authority_1',
@@ -77,8 +77,8 @@ export function createDeleteOperation(
   overrides: Partial<OrganizationRepository.DeleteOperation> = {},
 ): OrganizationRepository.DeleteOperation {
   return {
-    id: 'operation_1',
-    organizationId: 'organization_1',
+    id: 'gop_1',
+    organizationId: 'org_1',
     previousOwnerUserId: 'user_1',
     targetUserId: 'user_1',
     attemptCount: 0,

@@ -119,7 +119,7 @@ export class MembershipService {
         }
       }
       const operation = await this.createMembershipOperation({
-        id: generateId('governance-operation'),
+        id: generateId('gop'),
         organizationId: input.organizationId,
         operationType: 'change-member-role',
         targetUserId: input.userId,
@@ -161,7 +161,7 @@ export class MembershipService {
     if (target.role === 'owner') throw new ORPCError('OWNER_PROTECTED', { status: 409 })
 
     const operation = await this.createMembershipOperation({
-      id: generateId('governance-operation'),
+      id: generateId('gop'),
       organizationId: input.organizationId,
       operationType: 'remove-member',
       targetUserId: input.userId,
@@ -192,7 +192,7 @@ export class MembershipService {
     if (membership.role === 'owner') throw new ORPCError('OWNER_PROTECTED', { status: 409 })
 
     const operation = await this.createMembershipOperation({
-      id: generateId('governance-operation'),
+      id: generateId('gop'),
       organizationId: input.organizationId,
       operationType: 'leave-organization',
       targetUserId: user.id,
@@ -236,7 +236,7 @@ export class MembershipService {
     if (target.role === 'owner') throw new ORPCError('CONFLICT', { status: 409 })
 
     const admission = await this.repository.createTransfer({
-      id: generateId('governance-operation'),
+      id: generateId('gop'),
       organizationId: input.organizationId,
       previousOwnerUserId: user.id,
       targetUserId: input.userId,

@@ -36,7 +36,7 @@ describe('MembershipRepositoryDrizzle.replaceMembers', () => {
     const repository = new MembershipRepositoryDrizzle({ db })
 
     await expect(
-      repository.replaceMembers('organization_1', [
+      repository.replaceMembers('org_1', [
         createMembershipRow({
           userId: 'user_2',
           role: 'owner',
@@ -50,7 +50,7 @@ describe('MembershipRepositoryDrizzle.replaceMembers', () => {
       ]),
     ).resolves.toBeUndefined()
 
-    await expect(repository.findAll('organization_1')).resolves.toEqual([
+    await expect(repository.findAll('org_1')).resolves.toEqual([
       createMembershipRow({
         userId: 'user_1',
         role: 'admin',
@@ -88,7 +88,7 @@ describe('MembershipRepositoryDrizzle.replaceMembers', () => {
     const replacementTimestamp = new Date('2026-08-31T00:00:01.000Z')
 
     await expect(
-      repository.replaceMembers('organization_1', [
+      repository.replaceMembers('org_1', [
         createMembershipRow({ userId: 'user_1', role: 'owner', updatedAt: replacementTimestamp }),
         createMembershipRow({ userId: 'user_2', role: 'member', updatedAt: replacementTimestamp }),
         createMembershipRow({ userId: 'user_4', role: 'member', updatedAt: replacementTimestamp }),
@@ -103,22 +103,22 @@ describe('MembershipRepositoryDrizzle.replaceMembers', () => {
     const rows = await db
       .select()
       .from(schema.TMembership)
-      .where(eq(schema.TMembership.organizationId, 'organization_1'))
+      .where(eq(schema.TMembership.organizationId, 'org_1'))
     expect(rows).toEqual([
       expect.objectContaining({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         userId: 'user_1',
         role: 'owner',
         updatedAt: createdAt,
       }),
       expect.objectContaining({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         userId: 'user_2',
         role: 'admin',
         updatedAt: createdAt,
       }),
       expect.objectContaining({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         userId: 'user_3',
         role: 'member',
         updatedAt: createdAt,

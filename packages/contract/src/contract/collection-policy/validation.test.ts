@@ -43,10 +43,10 @@ describe('collection policy schemas', () => {
     }).toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
     expect({
       scope: 'site',
-      policy: { ...values, siteId: 'site-1' },
+      policy: { ...values, siteId: 'ste-1' },
     }).toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
     expect({
-      policy: { ...values, siteId: 'site-1' },
+      policy: { ...values, siteId: 'ste-1' },
     }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
     expect({
       scope: 'site',
@@ -56,14 +56,14 @@ describe('collection policy schemas', () => {
 
   it('does not accept a scope-less policy', () => {
     expect(values).not.toEqual(expect.schemaMatching(SPolicy))
-    expect({ scope: 'site', siteId: 'site-1', ...values }).toEqual(expect.schemaMatching(SPolicy))
+    expect({ scope: 'site', siteId: 'ste-1', ...values }).toEqual(expect.schemaMatching(SPolicy))
   })
 
   it('requires complete installation-or-Site provenance', () => {
     const output = {
       installationDefault: { scope: 'installation', ...values },
-      siteOverride: { scope: 'site', siteId: 'site-1', ...values },
-      effective: { scope: 'site', siteId: 'site-1', ...values },
+      siteOverride: { scope: 'site', siteId: 'ste-1', ...values },
+      effective: { scope: 'site', siteId: 'ste-1', ...values },
       source,
     }
 

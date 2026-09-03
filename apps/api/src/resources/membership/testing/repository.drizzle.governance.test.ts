@@ -22,9 +22,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.replaceMembers('organization_1', [
-        createMembershipRow({ userId: 'user_1', role: 'owner' }),
-      ]),
+      repo.replaceMembers('org_1', [createMembershipRow({ userId: 'user_1', role: 'owner' })]),
     ).rejects.toThrow(/fenced/)
   })
 
@@ -39,13 +37,13 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.replaceMembers('organization_1', [
+      repo.replaceMembers('org_1', [
         createMembershipRow({ userId: 'user_1', role: 'owner' }),
         createMembershipRow({ userId: 'user_3', role: 'owner' }),
       ]),
     ).rejects.toThrow(/invalid/)
     await expect(
-      repo.replaceMembers('organization_1', [
+      repo.replaceMembers('org_1', [
         createMembershipRow({ userId: 'user_1', role: 'owner' }),
         createMembershipRow({ userId: 'user_1', role: 'member' }),
       ]),
@@ -59,7 +57,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
 
     await expect(
       repo.updateRole({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         userId: 'user_2',
         role: 'admin',
         updatedAt: now,
@@ -67,7 +65,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     ).resolves.toMatchObject({ userId: 'user_2', role: 'admin' })
     await expect(
       repo.updateRole({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         userId: 'user_1',
         role: 'admin',
         updatedAt: now,
@@ -75,7 +73,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     ).resolves.toBeUndefined()
     await expect(
       repo.updateRole({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         userId: 'user_missing',
         role: 'admin',
         updatedAt: now,
@@ -88,15 +86,11 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.delete({ organizationId: 'organization_1', userId: 'user_2' })).resolves.toBe(
-      true,
-    )
-    await expect(repo.delete({ organizationId: 'organization_1', userId: 'user_1' })).resolves.toBe(
+    await expect(repo.delete({ organizationId: 'org_1', userId: 'user_2' })).resolves.toBe(true)
+    await expect(repo.delete({ organizationId: 'org_1', userId: 'user_1' })).resolves.toBe(false)
+    await expect(repo.delete({ organizationId: 'org_1', userId: 'user_missing' })).resolves.toBe(
       false,
     )
-    await expect(
-      repo.delete({ organizationId: 'organization_1', userId: 'user_missing' }),
-    ).resolves.toBe(false)
   })
 
   it('admits a transfer and reports an already-pending one', async () => {
@@ -105,8 +99,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
     const admitted = await repo.createTransfer({
-      id: 'operation_1',
-      organizationId: 'organization_1',
+      id: 'gop_1',
+      organizationId: 'org_1',
       previousOwnerUserId: 'user_1',
       targetUserId: 'user_2',
       now,
@@ -115,8 +109,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
 
     await expect(
       repo.createTransfer({
-        id: 'operation_2',
-        organizationId: 'organization_1',
+        id: 'gop_2',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_1',
         targetUserId: 'user_2',
         now,
@@ -131,8 +125,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
 
     await expect(
       repo.createTransfer({
-        id: 'operation_1',
-        organizationId: 'organization_1',
+        id: 'gop_1',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_other',
         targetUserId: 'user_2',
         now,
@@ -140,8 +134,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     ).resolves.toEqual({ kind: 'invalid' })
     await expect(
       repo.createTransfer({
-        id: 'operation_1',
-        organizationId: 'organization_1',
+        id: 'gop_1',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_1',
         targetUserId: 'user_1',
         now,
@@ -154,8 +148,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
     const admitted = await repo.createTransfer({
-      id: 'operation_1',
-      organizationId: 'organization_1',
+      id: 'gop_1',
+      organizationId: 'org_1',
       previousOwnerUserId: 'user_1',
       targetUserId: 'user_2',
       now,
@@ -164,17 +158,17 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
 
     await expect(
       repo.completeTransfer({
-        id: 'operation_1',
-        organizationId: 'organization_1',
+        id: 'gop_1',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_1',
         targetUserId: 'user_2',
         now,
       }),
     ).resolves.toMatchObject({ userId: 'user_2', role: 'owner' })
     await expect(
-      repo.findById({ organizationId: 'organization_1', userId: 'user_1' }),
+      repo.findById({ organizationId: 'org_1', userId: 'user_1' }),
     ).resolves.toMatchObject({ role: 'admin' })
-    await expect(repo.isOwnerInvariantValid('organization_1')).resolves.toBe(true)
+    await expect(repo.isOwnerInvariantValid('org_1')).resolves.toBe(true)
   })
 
   it('rejects a transfer completion with mismatched parties', async () => {
@@ -182,8 +176,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
     await repo.createTransfer({
-      id: 'operation_1',
-      organizationId: 'organization_1',
+      id: 'gop_1',
+      organizationId: 'org_1',
       previousOwnerUserId: 'user_1',
       targetUserId: 'user_2',
       now,
@@ -191,8 +185,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
 
     await expect(
       repo.completeTransfer({
-        id: 'operation_1',
-        organizationId: 'organization_1',
+        id: 'gop_1',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_1',
         targetUserId: 'user_other',
         now,
@@ -207,18 +201,18 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
 
     await expect(
       repo.createMembershipOperation({
-        id: 'operation_1',
-        organizationId: 'organization_1',
+        id: 'gop_1',
+        organizationId: 'org_1',
         operationType: 'change-member-role',
         targetUserId: 'user_2',
         targetRole: 'admin',
         now,
       }),
-    ).resolves.toMatchObject({ id: 'operation_1', operationType: 'change-member-role' })
+    ).resolves.toMatchObject({ id: 'gop_1', operationType: 'change-member-role' })
     await expect(
       repo.createMembershipOperation({
-        id: 'operation_2',
-        organizationId: 'organization_1',
+        id: 'gop_2',
+        organizationId: 'org_1',
         operationType: 'change-member-role',
         targetUserId: 'user_1',
         targetRole: 'admin',
@@ -227,8 +221,8 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     ).rejects.toThrow(/invalid/)
     await expect(
       repo.createMembershipOperation({
-        id: 'operation_3',
-        organizationId: 'organization_1',
+        id: 'gop_3',
+        organizationId: 'org_1',
         operationType: 'change-member-role',
         targetUserId: 'user_2',
         targetRole: null,
@@ -242,17 +236,17 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
     await repo.createMembershipOperation({
-      id: 'operation_1',
-      organizationId: 'organization_1',
+      id: 'gop_1',
+      organizationId: 'org_1',
       operationType: 'remove-member',
       targetUserId: 'user_2',
       targetRole: null,
       now,
     })
 
-    await expect(repo.completeMembershipOperation('operation_1')).resolves.toBeUndefined()
-    await expect(repo.findPendingMembershipOperation('organization_1')).resolves.toBeUndefined()
-    await expect(repo.completeMembershipOperation('operation_missing')).rejects.toThrow(/not found/)
+    await expect(repo.completeMembershipOperation('gop_1')).resolves.toBeUndefined()
+    await expect(repo.findPendingMembershipOperation('org_1')).resolves.toBeUndefined()
+    await expect(repo.completeMembershipOperation('gop_missing')).rejects.toThrow(/not found/)
   })
 
   it('records operation attempts and failures on the persisted rows', async () => {
@@ -260,21 +254,21 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
     await repo.createMembershipOperation({
-      id: 'operation_1',
-      organizationId: 'organization_1',
+      id: 'gop_1',
+      organizationId: 'org_1',
       operationType: 'remove-member',
       targetUserId: 'user_2',
       targetRole: null,
       now,
     })
 
-    await repo.incrementMembershipAttempt('operation_1')
+    await repo.incrementMembershipAttempt('gop_1')
     await repo.failMembershipOperation({
-      id: 'operation_1',
+      id: 'gop_1',
       failureCode: 'CONFLICT',
       failureMessage: 'authority unavailable',
     })
-    await repo.markTransferAttempt({ id: 'operation_1', now })
+    await repo.markTransferAttempt({ id: 'gop_1', now })
 
     await expect(
       fixture.db
@@ -284,7 +278,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
           failureMessage: schema.TOrganizationGovernanceOperation.failureMessage,
         })
         .from(schema.TOrganizationGovernanceOperation)
-        .where(eq(schema.TOrganizationGovernanceOperation.id, 'operation_1')),
+        .where(eq(schema.TOrganizationGovernanceOperation.id, 'gop_1')),
     ).resolves.toEqual([
       { attemptCount: 2, failureCode: 'CONFLICT', failureMessage: 'authority unavailable' },
     ])
@@ -295,15 +289,15 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
     await repo.createTransfer({
-      id: 'operation_1',
-      organizationId: 'organization_1',
+      id: 'gop_1',
+      organizationId: 'org_1',
       previousOwnerUserId: 'user_1',
       targetUserId: 'user_2',
       now,
     })
 
     await repo.failTransfer({
-      id: 'operation_1',
+      id: 'gop_1',
       now,
       failureCode: 'CONFLICT',
       failureMessage: 'authority diverged',
@@ -316,7 +310,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
           failureMessage: schema.TOrganizationGovernanceOperation.failureMessage,
         })
         .from(schema.TOrganizationGovernanceOperation)
-        .where(eq(schema.TOrganizationGovernanceOperation.id, 'operation_1')),
+        .where(eq(schema.TOrganizationGovernanceOperation.id, 'gop_1')),
     ).resolves.toEqual([{ failureCode: 'CONFLICT', failureMessage: 'authority diverged' }])
   })
 })

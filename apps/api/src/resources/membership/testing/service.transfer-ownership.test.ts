@@ -6,7 +6,7 @@ import {
   createTransfer,
 } from '../fixture.ts'
 
-const organizationId = 'organization_1'
+const organizationId = 'org_1'
 const ownerUserId = 'user_1'
 const adminUserId = 'user_admin'
 const targetUserId = 'user_2'
@@ -127,7 +127,7 @@ describe('MembershipService.transferOwnership', () => {
 
     expect(repository.failTransfer).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'operation_1',
+        id: 'gop_1',
         failureCode: 'CONFLICT',
         failureMessage: 'Cimi transaction unavailable',
       }),

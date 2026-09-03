@@ -78,11 +78,11 @@ export class SiteService {
     await this.assertOrganizationRole(input.organizationId, user.id, 'admin', 'NOT_FOUND')
     try {
       return await this.repository.insert({
-        id: generateId('site'),
+        id: generateId('ste'),
         organizationId: input.organizationId,
         name: input.name,
         hostname: canonicalizeHostname(input.hostname),
-        ingestionIdentifier: generateId('ingestion'),
+        ingestionIdentifier: generateId('ing'),
         reportingTimezone: 'UTC',
         weekStartsOn: 'monday',
         createdAt: new Date(),
@@ -134,7 +134,7 @@ export class SiteService {
     await assertSiteManagementScope(user, input.siteId, this.scope, { requiredRole: 'owner' })
     const result = await this.repository.beginDelete({
       siteId: input.siteId,
-      operationId: generateId('site-operation'),
+      operationId: generateId('sop'),
       requestedAt: new Date(),
     })
     if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
@@ -151,7 +151,7 @@ export class SiteService {
     await assertSiteManagementScope(user, input.siteId, this.scope)
     const result = await this.repository.beginRecover({
       siteId: input.siteId,
-      operationId: generateId('site-operation'),
+      operationId: generateId('sop'),
       requestedAt: new Date(),
     })
     if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
@@ -167,10 +167,7 @@ export class SiteService {
     await this.reconcileSiteOrganization(input.siteId, user, headers)
     await this.assertNoPendingGovernanceOperation(input.siteId)
     await assertSiteManagementScope(user, input.siteId, this.scope, { requiredRole: 'admin' })
-    const site = await this.repository.rotateIngestionIdentifier(
-      input.siteId,
-      generateId('ingestion'),
-    )
+    const site = await this.repository.rotateIngestionIdentifier(input.siteId, generateId('ing'))
     if (site !== undefined) return site
     const current = await this.repository.findById(input.siteId)
     if (current === undefined) {

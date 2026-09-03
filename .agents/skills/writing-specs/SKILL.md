@@ -69,16 +69,16 @@ updated: { YYYY-MM-DD }
 
 ### Field Reference
 
-| Field | Schema   | Constraints           | Description       |
-| ----- | -------- | --------------------- | ----------------- |
-| `id`  | `SId` | 1-128 character opaque identifier | Unique identifier |
+| Field | Schema | Constraints                       | Description       |
+| ----- | ------ | --------------------------------- | ----------------- |
+| `id`  | `SId`  | 1-128 character opaque identifier | Unique identifier |
 
-{Use the exported shared schema name (e.g. `SId`, `SName`, `SDate`, `SDateTime`) — not the valibot pipeline. Cimi-generated IDs use the in-house generator; its prefix and encoding are not API invariants.}
+{Use the exported shared schema name (e.g. `SId`, `SName`, `SDate`, `SDateTime`) — not the valibot pipeline. Cimi-generated IDs use the in-house generator; its prefix and encoding are not API invariants. Field specs stay SId 1-128 opaque and never assert a prefix; see docs/specs/README.md for the generation registry.}
 
 ### Shared Primitives Used
 
-| Primitive     | Input                                       | Output |
-| ------------- | ------------------------------------------- | ------ |
+| Primitive   | Input                                          | Output |
+| ----------- | ---------------------------------------------- | ------ |
 | `SDateTime` | ISO 8601 string with `Z` or an explicit offset | string |
 
 {List only the shared primitives this resource actually uses.}

@@ -4,15 +4,15 @@ import { createSiteFixture } from '../fixture.ts'
 describe('SiteService.recover', () => {
   it('accepts a recover for an admin', async () => {
     const { repository, service } = createSiteFixture({
-      memberships: [{ organizationId: 'organization_1', userId: 'user_1', role: 'admin' }],
+      memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'admin' }],
     })
-    repository.beginRecover.mockResolvedValue({ status: 'accepted', operationId: 'operation_1' })
+    repository.beginRecover.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
 
     await expect(
-      service.recover({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
-    ).resolves.toEqual({ accepted: true, status: 'recovering', operationId: 'operation_1' })
+      service.recover({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
+    ).resolves.toEqual({ accepted: true, status: 'recovering', operationId: 'sop_1' })
     expect(repository.beginRecover).toHaveBeenCalledWith(
-      expect.objectContaining({ siteId: 'site_1' }),
+      expect.objectContaining({ siteId: 'ste_1' }),
     )
   })
 
@@ -21,7 +21,7 @@ describe('SiteService.recover', () => {
     repository.beginRecover.mockResolvedValue({ status: 'not-found' })
 
     await expect(
-      service.recover({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.recover({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
@@ -30,7 +30,7 @@ describe('SiteService.recover', () => {
     repository.beginRecover.mockResolvedValue({ status: 'conflict', currentStatus: 'active' })
 
     await expect(
-      service.recover({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.recover({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'CONFLICT' })
   })
 })

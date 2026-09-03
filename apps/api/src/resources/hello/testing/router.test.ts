@@ -140,7 +140,7 @@ test('hello commands require authentication and removal is owner-scoped', async 
     new Request('http://localhost/api/hello/remove', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: 'hello_1' }),
+      body: JSON.stringify({ id: 'hel_1' }),
     }),
   )
   expect(unauthenticatedRemove.status).toBe(401)

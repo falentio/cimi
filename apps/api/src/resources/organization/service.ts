@@ -132,7 +132,7 @@ export class OrganizationService {
     try {
       const organization = await this.repository.insertWithOwner(
         {
-          id: generateId('organization'),
+          id: generateId('org'),
           name: authorityOrganization.name,
           authorityOrganizationId: authorityOrganization.id,
           ownerUserId: user.id,
@@ -173,9 +173,9 @@ export class OrganizationService {
         if (repair.desiredName !== input.name) throw new ORPCError('CONFLICT')
       } else {
         const now = new Date()
-        const localOrganizationId = generateId('organization')
+        const localOrganizationId = generateId('org')
         repair = await this.repository.createRepairOperation({
-          id: generateId('organization-repair'),
+          id: generateId('orp'),
           organizationId: null,
           localOrganizationId,
           operationType: 'create-organization',
@@ -414,7 +414,7 @@ export class OrganizationService {
       let repair: OrganizationRepository.RepairOperation
       try {
         repair = await this.repository.createRepairOperation({
-          id: generateId('organization-repair'),
+          id: generateId('orp'),
           organizationId: organization.id,
           localOrganizationId: organization.id,
           operationType: 'update-organization',
@@ -488,7 +488,7 @@ export class OrganizationService {
     try {
       const now = new Date()
       return await this.repository.createDeleteOperation({
-        id: generateId('governance-operation'),
+        id: generateId('gop'),
         organizationId: organization.id,
         previousOwnerUserId: userId,
         targetUserId: userId,

@@ -12,7 +12,7 @@ describe('HelloService.list', () => {
     })
 
     await expect(service.list({ name: 'ad' })).resolves.toMatchObject({
-      items: [{ id: 'hello_1' }],
+      items: [{ id: 'hel_1' }],
       totalCount: 1,
     })
     expect(repo.findMany).toHaveBeenCalledWith({ offset: 0, limit: 20, nameFilter: 'ad' })

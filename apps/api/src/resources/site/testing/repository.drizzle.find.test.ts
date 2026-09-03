@@ -8,9 +8,9 @@ describe.concurrent('SiteRepositoryDrizzle.find', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findById('site_1')).resolves.toMatchObject({
-      id: 'site_1',
-      organizationId: 'organization_1',
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({
+      id: 'ste_1',
+      organizationId: 'org_1',
       status: 'active',
     })
   })
@@ -19,7 +19,7 @@ describe.concurrent('SiteRepositoryDrizzle.find', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findById('site_missing')).resolves.toBeUndefined()
+    await expect(repo.findById('ste_missing')).resolves.toBeUndefined()
   })
 
   it('lists active sites with pagination metadata', async () => {
@@ -29,21 +29,21 @@ describe.concurrent('SiteRepositoryDrizzle.find', () => {
       .insert(schema.TSite)
       .values(
         createSiteRow({
-          id: 'site_2',
+          id: 'ste_2',
           hostname: 'second.example.com',
-          ingestionIdentifier: 'ingest_2',
+          ingestionIdentifier: 'ing_2',
         }),
       )
       .run()
 
-    await expect(repo.findMany('organization_1', { offset: 0, limit: 1 })).resolves.toMatchObject({
-      items: [{ id: 'site_1' }],
+    await expect(repo.findMany('org_1', { offset: 0, limit: 1 })).resolves.toMatchObject({
+      items: [{ id: 'ste_1' }],
       nextOffset: 1,
       hasMore: true,
       totalCount: 2,
     })
-    await expect(repo.findMany('organization_1', { offset: 1, limit: 1 })).resolves.toMatchObject({
-      items: [{ id: 'site_2' }],
+    await expect(repo.findMany('org_1', { offset: 1, limit: 1 })).resolves.toMatchObject({
+      items: [{ id: 'ste_2' }],
       nextOffset: null,
       hasMore: false,
       totalCount: 2,
@@ -57,16 +57,16 @@ describe.concurrent('SiteRepositoryDrizzle.find', () => {
       .insert(schema.TSite)
       .values(
         createSiteRow({
-          id: 'site_2',
+          id: 'ste_2',
           hostname: 'second.example.com',
-          ingestionIdentifier: 'ingest_2',
+          ingestionIdentifier: 'ing_2',
           status: 'deleted',
         }),
       )
       .run()
 
-    await expect(repo.findMany('organization_1', { offset: 0, limit: 20 })).resolves.toMatchObject({
-      items: [{ id: 'site_1' }],
+    await expect(repo.findMany('org_1', { offset: 0, limit: 20 })).resolves.toMatchObject({
+      items: [{ id: 'ste_1' }],
       totalCount: 1,
       hasMore: false,
       nextOffset: null,
@@ -77,7 +77,7 @@ describe.concurrent('SiteRepositoryDrizzle.find', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findMany('organization_missing', { offset: 0, limit: 20 })).resolves.toEqual({
+    await expect(repo.findMany('org_missing', { offset: 0, limit: 20 })).resolves.toEqual({
       items: [],
       nextOffset: null,
       hasMore: false,

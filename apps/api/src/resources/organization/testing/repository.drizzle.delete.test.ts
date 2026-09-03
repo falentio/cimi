@@ -12,11 +12,11 @@ import {
 function createSiteRow(organizationId: string) {
   const now = new Date('2026-08-31T00:00:00.000Z')
   return {
-    id: `site_${organizationId}`,
+    id: `ste_${organizationId}`,
     organizationId,
     name: 'Production',
     hostname: `${organizationId}.example.com`,
-    ingestionIdentifier: `ingest_${organizationId}`,
+    ingestionIdentifier: `ing_${organizationId}`,
     createdAt: now,
     updatedAt: now,
   }
@@ -28,21 +28,21 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await seedOrganizationDrizzle(fixture.db)
     await seedOrganizationDrizzle(fixture.db, {
       organization: {
-        id: 'organization_2',
+        id: 'org_2',
         name: 'Second',
         ownerUserId: 'user_1',
         authorityOrganizationId: null,
       },
     })
-    await fixture.db.insert(schema.TSite).values(createSiteRow('organization_2'))
+    await fixture.db.insert(schema.TSite).values(createSiteRow('org_2'))
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.checkDelete('organization_1')).resolves.toEqual({
+    await expect(repo.checkDelete('org_1')).resolves.toEqual({
       kind: 'deletable',
       isPersonal: false,
     })
-    await expect(repo.checkDelete('organization_missing')).resolves.toEqual({ kind: 'missing' })
-    await expect(repo.checkDelete('organization_2')).resolves.toEqual({
+    await expect(repo.checkDelete('org_missing')).resolves.toEqual({ kind: 'missing' })
+    await expect(repo.checkDelete('org_2')).resolves.toEqual({
       kind: 'not-empty',
       isPersonal: false,
     })
@@ -53,8 +53,8 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await seedOrganizationDrizzle(fixture.db)
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.delete('organization_1')).resolves.toBe(true)
-    await expect(repo.delete('organization_1')).resolves.toBe(false)
+    await expect(repo.delete('org_1')).resolves.toBe(true)
+    await expect(repo.delete('org_1')).resolves.toBe(false)
   })
 
   it('deletes an empty organization atomically and keeps the rest', async () => {
@@ -62,19 +62,19 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await seedOrganizationDrizzle(fixture.db)
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.deleteIfEmpty('organization_1')).resolves.toEqual({ kind: 'deleted' })
-    await expect(repo.deleteIfEmpty('organization_missing')).resolves.toEqual({ kind: 'missing' })
+    await expect(repo.deleteIfEmpty('org_1')).resolves.toEqual({ kind: 'deleted' })
+    await expect(repo.deleteIfEmpty('org_missing')).resolves.toEqual({ kind: 'missing' })
 
     await seedOrganizationDrizzle(fixture.db, {
       organization: {
-        id: 'organization_2',
+        id: 'org_2',
         name: 'Second',
         ownerUserId: 'user_1',
         authorityOrganizationId: null,
       },
     })
-    await fixture.db.insert(schema.TSite).values(createSiteRow('organization_2'))
-    await expect(repo.deleteIfEmpty('organization_2')).resolves.toEqual({
+    await fixture.db.insert(schema.TSite).values(createSiteRow('org_2'))
+    await expect(repo.deleteIfEmpty('org_2')).resolves.toEqual({
       kind: 'not-empty',
       isPersonal: false,
     })
@@ -82,7 +82,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
       fixture.db
         .select({ id: schema.TOrganization.id })
         .from(schema.TOrganization)
-        .where(eq(schema.TOrganization.id, 'organization_2')),
+        .where(eq(schema.TOrganization.id, 'org_2')),
     ).resolves.toHaveLength(1)
   })
 
@@ -91,7 +91,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await seedOrganizationDrizzle(fixture.db)
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findPendingDeleteOperation('organization_1')).resolves.toBeUndefined()
+    await expect(repo.findPendingDeleteOperation('org_1')).resolves.toBeUndefined()
     const operation = await repo.createDeleteOperation(
       createOrganizationGovernanceOperationRow({
         requestedAt: new Date('2026-09-01T00:00:00.000Z'),
@@ -99,8 +99,8 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
         updatedAt: new Date('2026-09-01T00:00:00.000Z'),
       }),
     )
-    expect(operation).toMatchObject({ organizationId: 'organization_1' })
-    await expect(repo.findPendingDeleteOperation('organization_1')).resolves.toMatchObject({
+    expect(operation).toMatchObject({ organizationId: 'org_1' })
+    await expect(repo.findPendingDeleteOperation('org_1')).resolves.toMatchObject({
       id: operation.id,
     })
   })
@@ -112,7 +112,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await expect(
       repo.createDeleteOperation(
         createOrganizationGovernanceOperationRow({
-          organizationId: 'organization_missing',
+          organizationId: 'org_missing',
           requestedAt: new Date('2026-09-01T00:00:00.000Z'),
           createdAt: new Date('2026-09-01T00:00:00.000Z'),
           updatedAt: new Date('2026-09-01T00:00:00.000Z'),
@@ -124,7 +124,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
   it('rejects a delete operation for an occupied organization', async () => {
     using fixture = await createOrganizationDrizzleFixture()
     await seedOrganizationDrizzle(fixture.db)
-    await fixture.db.insert(schema.TSite).values(createSiteRow('organization_1'))
+    await fixture.db.insert(schema.TSite).values(createSiteRow('org_1'))
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
 
     await expect(repo.createDeleteOperation(createOrganizationRowDeleteInput())).rejects.toThrow(
@@ -135,7 +135,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
   it('rejects a delete operation for a personal organization', async () => {
     using fixture = await createOrganizationDrizzleFixture()
     await seedOrganizationDrizzle(fixture.db, { organization: { isPersonal: true } })
-    await fixture.db.insert(schema.TSite).values(createSiteRow('organization_1'))
+    await fixture.db.insert(schema.TSite).values(createSiteRow('org_1'))
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
 
     await expect(repo.createDeleteOperation(createOrganizationRowDeleteInput())).rejects.toThrow(
@@ -152,7 +152,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await expect(
       repo.createDeleteOperation(
         createOrganizationGovernanceOperationRow({
-          id: 'operation_2',
+          id: 'gop_2',
           requestedAt: new Date('2026-09-01T00:00:00.000Z'),
           createdAt: new Date('2026-09-01T00:00:00.000Z'),
           updatedAt: new Date('2026-09-01T00:00:00.000Z'),
@@ -187,7 +187,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await fixture.db
       .update(schema.TOrganization)
       .set({ ownerUserId: 'user_3' })
-      .where(eq(schema.TOrganization.id, 'organization_1'))
+      .where(eq(schema.TOrganization.id, 'org_1'))
     const now = new Date('2026-09-01T00:00:00.000Z')
     await expect(
       repo.createDeleteOperation(
@@ -215,11 +215,9 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
       fixture.db
         .select({ id: schema.TOrganization.id })
         .from(schema.TOrganization)
-        .where(eq(schema.TOrganization.id, 'organization_1')),
+        .where(eq(schema.TOrganization.id, 'org_1')),
     ).resolves.toHaveLength(0)
-    await expect(repo.finalizeDeleteOperation('operation_missing')).rejects.toThrow(
-      'PENDING_NOT_FOUND',
-    )
+    await expect(repo.finalizeDeleteOperation('gop_missing')).rejects.toThrow('PENDING_NOT_FOUND')
   })
 
   it('refuses to finalize a delete for an occupied organization', async () => {
@@ -227,7 +225,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     await seedOrganizationDrizzle(fixture.db)
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
     const operation = await repo.createDeleteOperation(createOrganizationRowDeleteInput())
-    await fixture.db.insert(schema.TSite).values(createSiteRow('organization_1'))
+    await fixture.db.insert(schema.TSite).values(createSiteRow('org_1'))
 
     await expect(repo.finalizeDeleteOperation(operation.id)).rejects.toThrow(
       'ORGANIZATION_NOT_EMPTY',

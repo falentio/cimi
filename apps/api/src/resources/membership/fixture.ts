@@ -4,7 +4,7 @@ import type { OrganizationRole } from '../organization/repository.ts'
 import type { MembershipRecord, MembershipRepository } from './repository.ts'
 import { MembershipService } from './service.ts'
 
-const organizationId = 'organization_1'
+const organizationId = 'org_1'
 const authorityOrganizationId = 'authority_1'
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
 
@@ -106,7 +106,7 @@ export function createMembershipOperation(
   overrides: Partial<MembershipRepository.MembershipOperation> = {},
 ): MembershipRepository.MembershipOperation {
   return {
-    id: 'operation_1',
+    id: 'gop_1',
     organizationId,
     operationType: 'change-member-role',
     targetUserId: 'user_2',
@@ -120,7 +120,7 @@ export function createTransfer(
   overrides: Partial<MembershipRepository.Transfer> = {},
 ): MembershipRepository.Transfer {
   return {
-    id: 'operation_1',
+    id: 'gop_1',
     organizationId,
     previousOwnerUserId: 'user_1',
     targetUserId: 'user_2',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createSite, createSiteFixture } from '../fixture.ts'
 
-const input = { organizationId: 'organization_1', name: 'Production', hostname: 'Example.COM.' }
+const input = { organizationId: 'org_1', name: 'Production', hostname: 'Example.COM.' }
 
 describe('SiteService.create', () => {
   it('inserts a site with a canonicalized hostname and service defaults', async () => {
@@ -12,7 +12,7 @@ describe('SiteService.create', () => {
     await expect(service.create(input, { id: 'user_1' }, new Headers())).resolves.toEqual(site)
     expect(repository.insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         name: 'Production',
         hostname: 'example.com',
         reportingTimezone: 'UTC',
@@ -23,7 +23,7 @@ describe('SiteService.create', () => {
 
   it('rejects a member without the admin role', async () => {
     const { repository, service } = createSiteFixture({
-      memberships: [{ organizationId: 'organization_1', userId: 'user_1', role: 'member' }],
+      memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'member' }],
     })
 
     await expect(service.create(input, { id: 'user_1' }, new Headers())).rejects.toMatchObject({
@@ -43,7 +43,7 @@ describe('SiteService.create', () => {
 
   it('rejects creation while a governance operation is pending', async () => {
     const { repository, scope, service } = createSiteFixture()
-    scope.setPendingGovernanceOperation('organization_1')
+    scope.setPendingGovernanceOperation('org_1')
 
     await expect(service.create(input, { id: 'user_1' }, new Headers())).rejects.toMatchObject({
       code: 'CONFLICT',

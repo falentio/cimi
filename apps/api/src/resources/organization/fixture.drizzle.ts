@@ -33,7 +33,7 @@ export function createOrganizationUserRow(overrides: Partial<UserRow> = {}): Use
 
 export function createOrganizationRow(overrides: Partial<OrganizationRow> = {}): OrganizationRow {
   return {
-    id: 'organization_1',
+    id: 'org_1',
     name: 'Analytics',
     authorityOrganizationId: 'authority_1',
     ownerUserId: 'user_1',
@@ -48,9 +48,9 @@ export function createOrganizationRepairOperationRow(
   overrides: Partial<OrganizationRepairOperationRow> = {},
 ): OrganizationRepairOperationRow {
   return {
-    id: 'repair_1',
-    organizationId: 'organization_1',
-    localOrganizationId: 'organization_1',
+    id: 'orp_1',
+    organizationId: 'org_1',
+    localOrganizationId: 'org_1',
     operationType: 'update-organization',
     ownerUserId: 'user_1',
     authorityOrganizationId: 'authority_1',
@@ -75,8 +75,8 @@ export function createOrganizationGovernanceOperationRow(
   overrides: Partial<OrganizationGovernanceOperationRow> = {},
 ): OrganizationGovernanceOperationRow {
   return {
-    id: 'operation_1',
-    organizationId: 'organization_1',
+    id: 'gop_1',
+    organizationId: 'org_1',
     operationType: 'delete-organization',
     previousOwnerUserId: 'user_1',
     targetUserId: 'user_1',

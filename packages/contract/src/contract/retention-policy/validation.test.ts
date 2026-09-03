@@ -23,8 +23,8 @@ describe('retention policy contract', () => {
 
   it('allows null only when clearing a Site override', () => {
     expect(
-      v.parse(SRetentionPolicyUpdateInput, { scope: 'site', siteId: 'site-1', policy: null }),
-    ).toEqual({ scope: 'site', siteId: 'site-1', policy: null })
+      v.parse(SRetentionPolicyUpdateInput, { scope: 'site', siteId: 'ste-1', policy: null }),
+    ).toEqual({ scope: 'site', siteId: 'ste-1', policy: null })
     expect(() => v.parse(SRetentionPolicyUpdateInput, { scope: 'site', policy: null })).toThrow(
       v.ValiError,
     )
@@ -38,7 +38,7 @@ describe('retention policy contract', () => {
     expect(
       v.parse(SRetentionPolicyResult, {
         scope: 'site',
-        siteId: 'site-1',
+        siteId: 'ste-1',
         installationDefault: policy,
         siteOverride: null,
         effectivePolicy: policy,

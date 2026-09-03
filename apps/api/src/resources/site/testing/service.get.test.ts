@@ -8,7 +8,7 @@ describe('SiteService.get', () => {
     repository.findById.mockResolvedValue(record)
 
     await expect(
-      service.get({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.get({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).resolves.toEqual({
       id: record.id,
       organizationId: record.organizationId,
@@ -20,7 +20,7 @@ describe('SiteService.get', () => {
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     })
-    expect(repository.findById).toHaveBeenCalledWith('site_1')
+    expect(repository.findById).toHaveBeenCalledWith('ste_1')
   })
 
   it('rejects a site the user cannot access', async () => {
@@ -28,29 +28,29 @@ describe('SiteService.get', () => {
     repository.findById.mockResolvedValue(createSiteRecord())
 
     await expect(
-      service.get({ siteId: 'site_1' }, { id: 'user_missing' }, new Headers()),
+      service.get({ siteId: 'ste_1' }, { id: 'user_missing' }, new Headers()),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(repository.findById).not.toHaveBeenCalled()
   })
 
   it('rejects an inactive site as not found', async () => {
     const { repository, service } = createSiteFixture({
-      sites: [{ siteId: 'site_1', organizationId: 'organization_1', status: 'deleted' }],
+      sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
 
     await expect(
-      service.get({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.get({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('fails closed while a governance operation is pending', async () => {
     const { repository, scope, service } = createSiteFixture()
-    scope.setPendingGovernanceOperation('organization_1')
+    scope.setPendingGovernanceOperation('org_1')
     repository.findById.mockResolvedValue(createSiteRecord())
 
     await expect(
-      service.get({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.get({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(repository.findById).not.toHaveBeenCalled()
   })

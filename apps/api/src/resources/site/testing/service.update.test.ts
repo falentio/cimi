@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createSite, createSiteFixture, createSiteRecord } from '../fixture.ts'
 
 const input = {
-  siteId: 'site_1',
+  siteId: 'ste_1',
   name: 'Renamed',
   hostname: 'Renamed.COM.',
   reportingTimezone: 'UTC',
@@ -11,9 +11,9 @@ const input = {
 
 function createDeletionStatus() {
   return {
-    siteId: 'site_1',
+    siteId: 'ste_1',
     status: 'deleting' as const,
-    operationId: 'operation_1',
+    operationId: 'sop_1',
     requestedAt: '2026-08-31T00:00:00.000Z',
     deletedAt: null,
     recoveryDeadline: null,
@@ -30,13 +30,13 @@ describe('SiteService.update', () => {
 
     await expect(service.update(input, { id: 'user_1' }, new Headers())).resolves.toEqual(site)
     expect(repository.updateActive).toHaveBeenCalledWith(
-      expect.objectContaining({ siteId: 'site_1', name: 'Renamed', hostname: 'renamed.com' }),
+      expect.objectContaining({ siteId: 'ste_1', name: 'Renamed', hostname: 'renamed.com' }),
     )
   })
 
   it('rejects an update while a governance operation is pending', async () => {
     const { repository, scope, service } = createSiteFixture()
-    scope.setPendingGovernanceOperation('organization_1')
+    scope.setPendingGovernanceOperation('org_1')
 
     await expect(service.update(input, { id: 'user_1' }, new Headers())).rejects.toMatchObject({
       code: 'CONFLICT',
@@ -46,7 +46,7 @@ describe('SiteService.update', () => {
 
   it('rejects a member without the admin role', async () => {
     const { repository, service } = createSiteFixture({
-      memberships: [{ organizationId: 'organization_1', userId: 'user_1', role: 'member' }],
+      memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'member' }],
     })
 
     await expect(service.update(input, { id: 'user_1' }, new Headers())).rejects.toMatchObject({
@@ -77,7 +77,7 @@ describe('SiteService.update', () => {
 
   it('rejects an update for an inactive site as a conflict', async () => {
     const { repository, service } = createSiteFixture({
-      sites: [{ siteId: 'site_1', organizationId: 'organization_1', status: 'deleted' }],
+      sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
     repository.updateActive.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))

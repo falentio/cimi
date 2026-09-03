@@ -8,8 +8,8 @@ describe.concurrent('HelloRepositoryDrizzle.get', () => {
     const repo = new HelloRepositoryDrizzle({ db: fixture.db })
     await repo.insert(createHelloRow())
 
-    await expect(repo.findById('hello_1')).resolves.toMatchObject({
-      id: 'hello_1',
+    await expect(repo.findById('hel_1')).resolves.toMatchObject({
+      id: 'hel_1',
       ownerId: 'user_1',
       createdAt: '2026-08-25T00:00:00.000Z',
     })

@@ -21,10 +21,10 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.findMany({ organizationId: 'organization_1', offset: 0, limit: 1 }),
+      repo.findMany({ organizationId: 'org_1', offset: 0, limit: 1 }),
     ).resolves.toMatchObject({ totalCount: 3, hasMore: true, nextOffset: 1 })
     await expect(
-      repo.findMany({ organizationId: 'organization_1', offset: 3, limit: 1 }),
+      repo.findMany({ organizationId: 'org_1', offset: 3, limit: 1 }),
     ).resolves.toMatchObject({ items: [], totalCount: 3, hasMore: false, nextOffset: null })
   })
 
@@ -33,8 +33,8 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findAll('organization_1')).resolves.toHaveLength(2)
-    await expect(repo.findAll('organization_missing')).resolves.toEqual([])
+    await expect(repo.findAll('org_1')).resolves.toHaveLength(2)
+    await expect(repo.findAll('org_missing')).resolves.toEqual([])
   })
 
   it('finds a membership by id and omits missing records', async () => {
@@ -43,13 +43,13 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.findById({ organizationId: 'organization_1', userId: 'user_2' }),
+      repo.findById({ organizationId: 'org_1', userId: 'user_2' }),
     ).resolves.toMatchObject({ userId: 'user_2', role: 'member' })
     await expect(
-      repo.findByUser({ organizationId: 'organization_1', userId: 'user_2' }),
+      repo.findByUser({ organizationId: 'org_1', userId: 'user_2' }),
     ).resolves.toMatchObject({ userId: 'user_2', role: 'member' })
     await expect(
-      repo.findById({ organizationId: 'organization_1', userId: 'user_missing' }),
+      repo.findById({ organizationId: 'org_1', userId: 'user_missing' }),
     ).resolves.toBeUndefined()
   })
 
@@ -58,8 +58,8 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findOwner('organization_1')).resolves.toMatchObject({ userId: 'user_1' })
-    await expect(repo.findOwner('organization_missing')).resolves.toBeUndefined()
+    await expect(repo.findOwner('org_1')).resolves.toMatchObject({ userId: 'user_1' })
+    await expect(repo.findOwner('org_missing')).resolves.toBeUndefined()
   })
 
   it('resolves the authority organization and omits missing records', async () => {
@@ -67,8 +67,8 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findAuthorityOrganizationId('organization_1')).resolves.toBe('authority_1')
-    await expect(repo.findAuthorityOrganizationId('organization_missing')).resolves.toBeUndefined()
+    await expect(repo.findAuthorityOrganizationId('org_1')).resolves.toBe('authority_1')
+    await expect(repo.findAuthorityOrganizationId('org_missing')).resolves.toBeUndefined()
   })
 
   it('validates the owner invariant against the persisted rows', async () => {
@@ -76,15 +76,15 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.isOwnerInvariantValid('organization_1')).resolves.toBe(true)
-    await expect(repo.isOwnerInvariantValid('organization_missing')).resolves.toBe(false)
+    await expect(repo.isOwnerInvariantValid('org_1')).resolves.toBe(true)
+    await expect(repo.isOwnerInvariantValid('org_missing')).resolves.toBe(false)
 
     fixture.db
       .update(schema.TOrganization)
       .set({ ownerUserId: 'user_2' })
-      .where(eq(schema.TOrganization.id, 'organization_1'))
+      .where(eq(schema.TOrganization.id, 'org_1'))
       .run()
-    await expect(repo.isOwnerInvariantValid('organization_1')).resolves.toBe(false)
+    await expect(repo.isOwnerInvariantValid('org_1')).resolves.toBe(false)
   })
 
   it('detects pending governance and repair operations', async () => {
@@ -92,13 +92,13 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.hasPendingGovernanceOperation('organization_1')).resolves.toBe(false)
+    await expect(repo.hasPendingGovernanceOperation('org_1')).resolves.toBe(false)
 
     fixture.db
       .insert(schema.TOrganizationGovernanceOperation)
       .values(createMembershipGovernanceOperationRow())
       .run()
-    await expect(repo.hasPendingGovernanceOperation('organization_1')).resolves.toBe(true)
+    await expect(repo.hasPendingGovernanceOperation('org_1')).resolves.toBe(true)
   })
 
   it('detects a pending repair operation without a governance row', async () => {
@@ -110,7 +110,7 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
       .insert(schema.TOrganizationRepairOperation)
       .values(createMembershipRepairOperationRow())
       .run()
-    await expect(repo.hasPendingGovernanceOperation('organization_1')).resolves.toBe(true)
+    await expect(repo.hasPendingGovernanceOperation('org_1')).resolves.toBe(true)
   })
 
   it('finds a pending membership operation and omits a quiet organization', async () => {
@@ -118,7 +118,7 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findPendingMembershipOperation('organization_1')).resolves.toBeUndefined()
+    await expect(repo.findPendingMembershipOperation('org_1')).resolves.toBeUndefined()
 
     fixture.db
       .insert(schema.TOrganizationGovernanceOperation)
@@ -129,8 +129,8 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
         }),
       )
       .run()
-    await expect(repo.findPendingMembershipOperation('organization_1')).resolves.toMatchObject({
-      id: 'operation_1',
+    await expect(repo.findPendingMembershipOperation('org_1')).resolves.toMatchObject({
+      id: 'gop_1',
       operationType: 'change-member-role',
     })
   })
@@ -140,7 +140,7 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.findPendingTransfer('organization_1')).resolves.toBeUndefined()
+    await expect(repo.findPendingTransfer('org_1')).resolves.toBeUndefined()
 
     fixture.db
       .insert(schema.TOrganizationGovernanceOperation)
@@ -151,8 +151,8 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
         }),
       )
       .run()
-    await expect(repo.findPendingTransfer('organization_1')).resolves.toMatchObject({
-      id: 'operation_1',
+    await expect(repo.findPendingTransfer('org_1')).resolves.toMatchObject({
+      id: 'gop_1',
       previousOwnerUserId: 'user_1',
       targetUserId: 'user_2',
     })
@@ -178,14 +178,14 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
 
     await expect(
       repo.findCompletedTransfer({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_1',
         targetUserId: 'user_2',
       }),
     ).resolves.toMatchObject({ userId: 'user_2', role: 'owner' })
     await expect(
       repo.findCompletedTransfer({
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         previousOwnerUserId: 'user_1',
         targetUserId: 'user_missing',
       }),

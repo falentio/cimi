@@ -31,7 +31,7 @@ const exactLimitTraits = () => {
 describe('identity profile schemas', () => {
   it('represents active Profile Epoch history', () => {
     expect({
-      siteId: 'site-1',
+      siteId: 'ste-1',
       identifiedUserId: 'user-1',
       traits: null,
       aliases: [],
@@ -66,7 +66,7 @@ describe('identity profile schemas', () => {
     const traits = exactLimitTraits()
     expect(serializedBytes(traits)).toBe(PROFILE_TRAITS_MAX_SERIALIZED_BYTES)
     expect({
-      ingestionIdentifier: 'site-ingestion-1',
+      ingestionIdentifier: 'ing-1',
       identifiedUserId: 'user-1',
       traits,
       collectionContext: { consent: 'granted', gpc: false, dnt: false },
@@ -75,7 +75,7 @@ describe('identity profile schemas', () => {
     const oversizedTraits = { ...traits, 'trait-63': `${traits['trait-63']}x` }
     expect(serializedBytes(oversizedTraits)).toBe(PROFILE_TRAITS_MAX_SERIALIZED_BYTES + 1)
     expect({
-      ingestionIdentifier: 'site-ingestion-1',
+      ingestionIdentifier: 'ing-1',
       identifiedUserId: 'user-1',
       traits: oversizedTraits,
     }).not.toEqual(expect.schemaMatching(SIdentifyFields))

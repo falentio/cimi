@@ -44,12 +44,9 @@ describe('OrganizationService.delete', () => {
 
     expect(repository.createDeleteOperation).toHaveBeenCalledTimes(1)
     expect(repository.incrementDeleteAttempt).toHaveBeenCalledTimes(2)
-    expect(repository.recordDeleteFailure).toHaveBeenCalledWith(
-      'operation_1',
-      'authority unavailable',
-    )
+    expect(repository.recordDeleteFailure).toHaveBeenCalledWith('gop_1', 'authority unavailable')
     expect(authority.deleteOrganization).toHaveBeenCalledTimes(2)
-    expect(repository.finalizeDeleteOperation).toHaveBeenCalledWith('operation_1')
+    expect(repository.finalizeDeleteOperation).toHaveBeenCalledWith('gop_1')
   })
 
   it('deletes a local-only organization without touching the authority', async () => {
@@ -76,7 +73,7 @@ describe('OrganizationService.delete', () => {
     repository.findByIdForUser.mockResolvedValue(undefined)
 
     await expect(
-      service.delete({ organizationId: 'organization_missing' }, { id: 'user_1' }, new Headers()),
+      service.delete({ organizationId: 'org_missing' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 })
     expect(repository.createDeleteOperation).not.toHaveBeenCalled()
     expect(authority.deleteOrganization).not.toHaveBeenCalled()

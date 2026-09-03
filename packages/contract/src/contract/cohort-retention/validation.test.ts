@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { SCohortCreateInput } from './command/create.ts'
 
 const baseInput = {
-  siteId: 'site-1',
+  siteId: 'ste-1',
   name: 'Activation',
   entryAction: { kind: 'page_view' },
   retentionAction: { kind: 'custom_event', name: 'activated' },

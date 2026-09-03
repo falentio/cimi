@@ -20,8 +20,8 @@ export interface SiteFixtureOptions {
 export function createSiteFixture({ membership, sites, memberships }: SiteFixtureOptions = {}) {
   const repository = mock<SiteRepository>()
   const scope = new InMemorySiteScopePort(
-    sites ?? [{ siteId: 'site_1', organizationId: 'organization_1' }],
-    memberships ?? [{ organizationId: 'organization_1', userId: 'user_1', role: 'owner' }],
+    sites ?? [{ siteId: 'ste_1', organizationId: 'org_1' }],
+    memberships ?? [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
   )
   const reconciler = membership ?? createReconcilerMock()
   const service = new SiteService({
@@ -40,11 +40,11 @@ function createReconcilerMock(): OrganizationMembershipReconciler {
 
 export function createSite(overrides: Partial<SiteRepository.Site> = {}): SiteRepository.Site {
   return {
-    id: 'site_1',
-    organizationId: 'organization_1',
+    id: 'ste_1',
+    organizationId: 'org_1',
     name: 'Production',
     hostname: 'example.com',
-    ingestionIdentifier: 'ingest_1',
+    ingestionIdentifier: 'ing_1',
     reportingTimezone: 'UTC',
     weekStartsOn: 'monday',
     createdAt,

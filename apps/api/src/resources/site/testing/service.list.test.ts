@@ -5,7 +5,7 @@ import type { SiteRepository } from '../repository.ts'
 import { SiteService } from '../service.ts'
 import { createSite, createSiteFixture } from '../fixture.ts'
 
-const organizationId = 'organization_1'
+const organizationId = 'org_1'
 
 describe('SiteService.list', () => {
   it('returns an empty page when the user has no role', async () => {
@@ -56,7 +56,7 @@ describe('SiteService.list', () => {
   it('lists without a membership reconciler', async () => {
     const repository = mock<SiteRepository>()
     const scope = new InMemorySiteScopePort(
-      [{ siteId: 'site_1', organizationId }],
+      [{ siteId: 'ste_1', organizationId }],
       [{ organizationId, userId: 'user_1', role: 'owner' }],
     )
     const service = new SiteService({

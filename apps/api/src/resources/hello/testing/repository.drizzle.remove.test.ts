@@ -8,9 +8,9 @@ describe.concurrent('HelloRepositoryDrizzle.remove', () => {
     const repo = new HelloRepositoryDrizzle({ db: fixture.db })
     await repo.insert(createHelloRow())
 
-    await expect(repo.deleteById('hello_1', 'user_2')).resolves.toBe(false)
-    await expect(repo.deleteById('hello_1', 'user_1')).resolves.toBe(true)
-    await expect(repo.findById('hello_1')).resolves.toBeUndefined()
-    await expect(repo.deleteById('hello_1', 'user_1')).resolves.toBe(false)
+    await expect(repo.deleteById('hel_1', 'user_2')).resolves.toBe(false)
+    await expect(repo.deleteById('hel_1', 'user_1')).resolves.toBe(true)
+    await expect(repo.findById('hel_1')).resolves.toBeUndefined()
+    await expect(repo.deleteById('hel_1', 'user_1')).resolves.toBe(false)
   })
 })

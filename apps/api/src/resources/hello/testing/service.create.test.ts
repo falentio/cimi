@@ -18,7 +18,7 @@ describe('HelloService.create', () => {
       }),
     )
     const record = repo.insert.mock.calls[0]?.[0] as HelloRepository.HelloRecord | undefined
-    expect(record?.id).toMatch(/^hello_[a-z2-7]+$/)
+    expect(record?.id).toMatch(/^hel_[a-z2-7]+$/)
     expect(record?.createdAt).toBeInstanceOf(Date)
   })
 })

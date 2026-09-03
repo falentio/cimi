@@ -7,7 +7,7 @@ import {
   createMembershipRecord,
 } from '../fixture.ts'
 
-const organizationId = 'organization_1'
+const organizationId = 'org_1'
 const ownerUserId = 'user_owner'
 const adminUserId = 'user_admin'
 const memberUserId = 'user_member'
@@ -20,7 +20,7 @@ const targetAdmin = createMembershipRecord({ userId: targetUserId, role: 'admin'
 const targetMember = createMembershipRecord({ userId: targetUserId, role: 'member' })
 
 const pendingRoleChange = createMembershipOperation({
-  id: 'operation_role_change',
+  id: 'gop_role_change',
   organizationId,
   operationType: 'change-member-role',
   targetUserId,
@@ -39,7 +39,7 @@ describe('MembershipService.changeRole', () => {
       ],
     )
     const operation = createMembershipOperation({
-      id: 'operation_role_change',
+      id: 'gop_role_change',
       organizationId,
       targetUserId,
       targetRole: 'member',
@@ -135,7 +135,7 @@ describe('MembershipService.changeRole', () => {
       ],
     )
     const operation = createMembershipOperation({
-      id: 'operation_promotion',
+      id: 'gop_promotion',
       organizationId,
       operationType: 'change-member-role',
       targetUserId: memberUserId,

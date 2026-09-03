@@ -79,7 +79,7 @@ export class SiteLifecycleWorker {
       try {
         await this.repository.purge({
           siteId,
-          operationId: generateId('site-operation'),
+          operationId: generateId('sop'),
           requestedAt: now,
         })
       } catch (error) {

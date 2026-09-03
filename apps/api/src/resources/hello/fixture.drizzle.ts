@@ -25,7 +25,7 @@ export function createHelloUserRow(overrides: Partial<UserRow> = {}): UserRow {
 
 export function createHelloRow(overrides: Partial<HelloRow> = {}): HelloRow {
   return {
-    id: 'hello_1',
+    id: 'hel_1',
     name: 'Ada',
     message: 'Hello, Ada!',
     ownerId: 'user_1',

@@ -12,19 +12,19 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt }),
-    ).resolves.toEqual({ status: 'accepted', operationId: 'operation_1' })
-    await expect(repo.findById('site_1')).resolves.toMatchObject({ status: 'deleting' })
+      repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt }),
+    ).resolves.toEqual({ status: 'accepted', operationId: 'sop_1' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({ status: 'deleting' })
   })
 
   it('returns the in-flight operation when a delete is repeated', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
 
     await expect(
-      repo.beginDelete({ siteId: 'site_1', operationId: 'operation_2', requestedAt }),
-    ).resolves.toEqual({ status: 'accepted', operationId: 'operation_1' })
+      repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_2', requestedAt }),
+    ).resolves.toEqual({ status: 'accepted', operationId: 'sop_1' })
   })
 
   it('reports not found when beginning a delete for a missing site', async () => {
@@ -32,7 +32,7 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.beginDelete({ siteId: 'site_missing', operationId: 'operation_1', requestedAt }),
+      repo.beginDelete({ siteId: 'ste_missing', operationId: 'sop_1', requestedAt }),
     ).resolves.toEqual({ status: 'not-found' })
   })
 
@@ -43,32 +43,32 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     fixture.db.insert(schema.TSiteTombstone).values(createSiteTombstoneRow()).run()
 
     await expect(
-      repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt }),
+      repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'purged' })
   })
 
   it('reports a conflict when beginning a delete for a deleted site', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
-    await repo.completeDelete({ siteId: 'site_1', operationId: 'operation_1', completedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
 
     await expect(
-      repo.beginDelete({ siteId: 'site_1', operationId: 'operation_2', requestedAt }),
+      repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_2', requestedAt }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'deleted' })
   })
 
   it('begins a recover for a deleting site and cancels the prior operation', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
 
     await expect(
-      repo.beginRecover({ siteId: 'site_1', operationId: 'operation_2', requestedAt }),
-    ).resolves.toEqual({ status: 'accepted', operationId: 'operation_2' })
-    await expect(repo.findById('site_1')).resolves.toMatchObject({ status: 'recovering' })
+      repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_2', requestedAt }),
+    ).resolves.toEqual({ status: 'accepted', operationId: 'sop_2' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({ status: 'recovering' })
     await expect(repo.findPendingLifecycleOperations()).resolves.toEqual([
-      expect.objectContaining({ operationId: 'operation_2', operationType: 'recover' }),
+      expect.objectContaining({ operationId: 'sop_2', operationType: 'recover' }),
     ])
   })
 
@@ -77,22 +77,22 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.beginRecover({ siteId: 'site_1', operationId: 'operation_1', requestedAt }),
+      repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_1', requestedAt }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'active' })
   })
 
   it('reports a conflict when the recovery deadline has passed', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
-    await repo.completeDelete({ siteId: 'site_1', operationId: 'operation_1', completedAt })
-    const deleted = await repo.findById('site_1')
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+    const deleted = await repo.findById('ste_1')
     expect(deleted?.recoveryDeadline).not.toBeNull()
 
     await expect(
       repo.beginRecover({
-        siteId: 'site_1',
-        operationId: 'operation_2',
+        siteId: 'ste_1',
+        operationId: 'sop_2',
         requestedAt: new Date(deleted?.recoveryDeadline as string),
       }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'deleted' })
@@ -101,24 +101,24 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
   it('completes a delete and replays idempotently', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
 
     await expect(
-      repo.completeDelete({ siteId: 'site_1', operationId: 'operation_1', completedAt }),
+      repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt }),
     ).resolves.toEqual({ status: 'completed' })
-    await expect(repo.findById('site_1')).resolves.toMatchObject({ status: 'deleted' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({ status: 'deleted' })
     await expect(
-      repo.completeDelete({ siteId: 'site_1', operationId: 'operation_1', completedAt }),
+      repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt }),
     ).resolves.toEqual({ status: 'completed' })
   })
 
   it('reports a conflict when completing a delete with a mismatched operation', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
 
     await expect(
-      repo.completeDelete({ siteId: 'site_1', operationId: 'operation_other', completedAt }),
+      repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_other', completedAt }),
     ).resolves.toMatchObject({ status: 'conflict' })
   })
 
@@ -127,33 +127,33 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.completeDelete({ siteId: 'site_missing', operationId: 'operation_1', completedAt }),
+      repo.completeDelete({ siteId: 'ste_missing', operationId: 'sop_1', completedAt }),
     ).resolves.toEqual({ status: 'not-found' })
   })
 
   it('completes a recover and replays idempotently', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
-    await repo.beginRecover({ siteId: 'site_1', operationId: 'operation_2', requestedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_2', requestedAt })
 
     await expect(
-      repo.completeRecover({ siteId: 'site_1', operationId: 'operation_2', completedAt }),
+      repo.completeRecover({ siteId: 'ste_1', operationId: 'sop_2', completedAt }),
     ).resolves.toEqual({ status: 'completed' })
-    await expect(repo.findById('site_1')).resolves.toMatchObject({ status: 'active' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({ status: 'active' })
     await expect(
-      repo.completeRecover({ siteId: 'site_1', operationId: 'operation_2', completedAt }),
+      repo.completeRecover({ siteId: 'ste_1', operationId: 'sop_2', completedAt }),
     ).resolves.toEqual({ status: 'completed' })
   })
 
   it('reports a conflict when completing a recover with a mismatched operation', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
-    await repo.beginRecover({ siteId: 'site_1', operationId: 'operation_2', requestedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_2', requestedAt })
 
     await expect(
-      repo.completeRecover({ siteId: 'site_1', operationId: 'operation_other', completedAt }),
+      repo.completeRecover({ siteId: 'ste_1', operationId: 'sop_other', completedAt }),
     ).resolves.toMatchObject({ status: 'conflict' })
   })
 })

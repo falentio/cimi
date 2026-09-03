@@ -5,7 +5,7 @@ import {
   createMembershipRecord,
 } from '../fixture.ts'
 
-const organizationId = 'organization_1'
+const organizationId = 'org_1'
 const ownerUserId = 'user_owner'
 const memberUserId = 'user_member'
 const currentMember = createMembershipRecord({ userId: memberUserId, role: 'member' })

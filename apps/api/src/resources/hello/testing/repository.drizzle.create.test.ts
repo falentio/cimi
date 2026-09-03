@@ -8,7 +8,7 @@ describe.concurrent('HelloRepositoryDrizzle.create', () => {
     const repo = new HelloRepositoryDrizzle({ db: fixture.db })
 
     await expect(repo.insert(createHelloRow())).resolves.toMatchObject({
-      id: 'hello_1',
+      id: 'hel_1',
       ownerId: 'user_1',
       name: 'Ada',
       message: 'Hello, Ada!',

@@ -14,7 +14,7 @@ export function createHelloFixture() {
 
 export function createHello(overrides: Partial<HelloRepository.Hello> = {}): HelloRepository.Hello {
   return {
-    id: 'hello_1',
+    id: 'hel_1',
     ownerId: 'user_1',
     name: 'Ada',
     message: 'Hello, Ada!',

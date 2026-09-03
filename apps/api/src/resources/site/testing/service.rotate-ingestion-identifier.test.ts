@@ -4,24 +4,24 @@ import { createSite, createSiteFixture, createSiteRecord } from '../fixture.ts'
 describe('SiteService.rotateIngestionIdentifier', () => {
   it('rotates the ingestion identifier for an admin', async () => {
     const { repository, service } = createSiteFixture()
-    const site = createSite({ ingestionIdentifier: 'ingest_2' })
+    const site = createSite({ ingestionIdentifier: 'ing_2' })
     repository.rotateIngestionIdentifier.mockResolvedValue(site)
 
     await expect(
-      service.rotateIngestionIdentifier({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.rotateIngestionIdentifier({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).resolves.toEqual(site)
     expect(repository.rotateIngestionIdentifier).toHaveBeenCalledWith(
-      'site_1',
-      expect.stringMatching(/^ingest/),
+      'ste_1',
+      expect.stringMatching(/^ing_/),
     )
   })
 
   it('rejects a rotation while a governance operation is pending', async () => {
     const { repository, scope, service } = createSiteFixture()
-    scope.setPendingGovernanceOperation('organization_1')
+    scope.setPendingGovernanceOperation('org_1')
 
     await expect(
-      service.rotateIngestionIdentifier({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.rotateIngestionIdentifier({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'CONFLICT' })
     expect(repository.rotateIngestionIdentifier).not.toHaveBeenCalled()
   })
@@ -33,20 +33,20 @@ describe('SiteService.rotateIngestionIdentifier', () => {
     repository.getDeletionStatus.mockResolvedValue(undefined)
 
     await expect(
-      service.rotateIngestionIdentifier({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.rotateIngestionIdentifier({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('rejects a rotation for an inactive site as a conflict', async () => {
     const { repository, service } = createSiteFixture({
-      sites: [{ siteId: 'site_1', organizationId: 'organization_1', status: 'deleted' }],
+      sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
     repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
     repository.getDeletionStatus.mockResolvedValue({
-      siteId: 'site_1',
+      siteId: 'ste_1',
       status: 'deleted',
-      operationId: 'operation_1',
+      operationId: 'sop_1',
       requestedAt: '2026-08-31T00:00:00.000Z',
       deletedAt: '2026-08-31T00:00:00.000Z',
       recoveryDeadline: null,
@@ -55,7 +55,7 @@ describe('SiteService.rotateIngestionIdentifier', () => {
     })
 
     await expect(
-      service.rotateIngestionIdentifier({ siteId: 'site_1' }, { id: 'user_1' }, new Headers()),
+      service.rotateIngestionIdentifier({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'CONFLICT' })
   })
 })

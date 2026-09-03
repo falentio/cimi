@@ -6,9 +6,9 @@ const requestedAt = new Date('2026-09-01T00:00:00.000Z')
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
 
 async function createDeletedSite(repo: SiteRepositoryDrizzle) {
-  await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
-  await repo.completeDelete({ siteId: 'site_1', operationId: 'operation_1', completedAt })
-  const deleted = await repo.findById('site_1')
+  await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+  await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+  const deleted = await repo.findById('ste_1')
   if (deleted?.purgeAt === null || deleted?.purgeAt === undefined) {
     throw new Error('expected a purge deadline')
   }
@@ -22,16 +22,16 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     const purgeAt = await createDeletedSite(repo)
 
     await expect(
-      repo.purge({ siteId: 'site_1', operationId: 'operation_purge_1', requestedAt: purgeAt }),
+      repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt }),
     ).resolves.toEqual({ status: 'completed' })
-    await expect(repo.findById('site_1')).resolves.toBeUndefined()
+    await expect(repo.findById('ste_1')).resolves.toBeUndefined()
     await expect(
       repo.insert({
-        id: 'site_2',
-        organizationId: 'organization_1',
+        id: 'ste_2',
+        organizationId: 'org_1',
         name: 'Production',
         hostname: 'example.com',
-        ingestionIdentifier: 'ingest_2',
+        ingestionIdentifier: 'ing_2',
         reportingTimezone: 'UTC',
         weekStartsOn: 'monday',
         createdAt: purgeAt,
@@ -44,12 +44,12 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
     const purgeAt = await createDeletedSite(repo)
-    await repo.purge({ siteId: 'site_1', operationId: 'operation_purge_1', requestedAt: purgeAt })
+    await repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt })
 
-    await expect(repo.getDeletionStatus('site_1')).resolves.toMatchObject({
-      siteId: 'site_1',
+    await expect(repo.getDeletionStatus('ste_1')).resolves.toMatchObject({
+      siteId: 'ste_1',
       status: 'purged',
-      operationId: 'operation_purge_1',
+      operationId: 'sop_purge_1',
     })
   })
 
@@ -57,13 +57,13 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
     const purgeAt = await createDeletedSite(repo)
-    await repo.purge({ siteId: 'site_1', operationId: 'operation_purge_1', requestedAt: purgeAt })
+    await repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt })
 
     await expect(
-      repo.purge({ siteId: 'site_1', operationId: 'operation_purge_1', requestedAt: purgeAt }),
+      repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt }),
     ).resolves.toEqual({ status: 'completed' })
     await expect(
-      repo.purge({ siteId: 'site_1', operationId: 'operation_other', requestedAt: purgeAt }),
+      repo.purge({ siteId: 'ste_1', operationId: 'sop_other', requestedAt: purgeAt }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'purged' })
   })
 
@@ -73,7 +73,7 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     await createDeletedSite(repo)
 
     await expect(
-      repo.purge({ siteId: 'site_1', operationId: 'operation_purge_1', requestedAt }),
+      repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt }),
     ).resolves.toMatchObject({ status: 'conflict' })
   })
 
@@ -82,7 +82,7 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.purge({ siteId: 'site_1', operationId: 'operation_purge_1', requestedAt }),
+      repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'active' })
   })
 
@@ -91,7 +91,7 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
     await expect(
-      repo.purge({ siteId: 'site_missing', operationId: 'operation_purge_1', requestedAt }),
+      repo.purge({ siteId: 'ste_missing', operationId: 'sop_purge_1', requestedAt }),
     ).resolves.toEqual({ status: 'not-found' })
   })
 
@@ -101,18 +101,18 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     const purgeAt = await createDeletedSite(repo)
 
     await expect(repo.findDuePurges(requestedAt)).resolves.toEqual([])
-    await expect(repo.findDuePurges(purgeAt)).resolves.toEqual([{ siteId: 'site_1' }])
+    await expect(repo.findDuePurges(purgeAt)).resolves.toEqual([{ siteId: 'ste_1' }])
   })
 
   it('finds pending lifecycle operations in creation order', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
 
     await expect(repo.findPendingLifecycleOperations()).resolves.toEqual([
-      { siteId: 'site_1', operationId: 'operation_1', operationType: 'delete', status: 'pending' },
+      { siteId: 'ste_1', operationId: 'sop_1', operationType: 'delete', status: 'pending' },
     ])
-    await repo.completeDelete({ siteId: 'site_1', operationId: 'operation_1', completedAt })
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
     await expect(repo.findPendingLifecycleOperations()).resolves.toEqual([])
   })
 
@@ -120,18 +120,18 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.getDeletionStatus('site_missing')).resolves.toBeUndefined()
-    await expect(repo.getDeletionStatus('site_1')).resolves.toMatchObject({
-      siteId: 'site_1',
+    await expect(repo.getDeletionStatus('ste_missing')).resolves.toBeUndefined()
+    await expect(repo.getDeletionStatus('ste_1')).resolves.toMatchObject({
+      siteId: 'ste_1',
       status: 'active',
       operationId: null,
       requestedAt: null,
     })
-    await repo.beginDelete({ siteId: 'site_1', operationId: 'operation_1', requestedAt })
-    await expect(repo.getDeletionStatus('site_1')).resolves.toMatchObject({
-      siteId: 'site_1',
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await expect(repo.getDeletionStatus('ste_1')).resolves.toMatchObject({
+      siteId: 'ste_1',
       status: 'deleting',
-      operationId: 'operation_1',
+      operationId: 'sop_1',
     })
   })
 })

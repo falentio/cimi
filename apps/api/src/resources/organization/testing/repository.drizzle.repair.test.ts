@@ -19,7 +19,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
         organizationId: null,
         localOrganizationId: organization.id,
         operationType: 'create-organization',
-        authoritySlug: 'organization_1-user_1',
+        authoritySlug: 'org_1-user_1',
         previousName: null,
         desiredName: organization.name,
         requestedAt: organization.createdAt,
@@ -34,7 +34,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
         { userId: organization.ownerUserId, now: organization.createdAt },
         repair.id,
       ),
-    ).resolves.toMatchObject({ id: 'organization_1', name: 'Analytics' })
+    ).resolves.toMatchObject({ id: 'org_1', name: 'Analytics' })
 
     await expect(
       db
@@ -44,7 +44,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
     ).resolves.toMatchObject([
       expect.objectContaining({
         status: 'completed',
-        organizationId: 'organization_1',
+        organizationId: 'org_1',
         failureCode: null,
         failureMessage: null,
       }),
@@ -61,7 +61,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
         organizationId: null,
         localOrganizationId: organization.id,
         operationType: 'create-organization',
-        authoritySlug: 'organization_1-user_1',
+        authoritySlug: 'org_1-user_1',
         previousName: null,
         desiredName: organization.name,
         requestedAt: organization.createdAt,
@@ -121,7 +121,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
 
     await expect(
       repository.updateNameAndCompleteRepair(organization.id, updatedName, repair.id),
-    ).resolves.toMatchObject({ id: 'organization_1', name: 'Renamed Analytics' })
+    ).resolves.toMatchObject({ id: 'org_1', name: 'Renamed Analytics' })
     await expect(
       db
         .select({ name: schema.TOrganization.name })

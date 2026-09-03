@@ -17,7 +17,7 @@ describe('authorization guards', () => {
 
   it('requires an active Site and persisted membership role', async () => {
     const scope = new InMemorySiteScopePort(
-      [{ siteId: 'site-1', organizationId: 'org-1' }],
+      [{ siteId: 'ste-1', organizationId: 'org-1' }],
       [
         { organizationId: 'org-1', userId: 'user-1', role: 'member' },
         { organizationId: 'org-1', userId: 'admin-1', role: 'member' },
@@ -25,18 +25,18 @@ describe('authorization guards', () => {
     )
 
     await expect(
-      assertSiteScope(user, 'site-1', { siteScope: scope, membership: scope }),
+      assertSiteScope(user, 'ste-1', { siteScope: scope, membership: scope }),
     ).resolves.toBeUndefined()
     await expect(
       assertSiteScope(
         organizationAdmin,
-        'site-1',
+        'ste-1',
         { siteScope: scope, membership: scope },
         { requiredRole: 'owner' },
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
     await expect(
-      assertSiteScope(nonMember, 'site-1', {
+      assertSiteScope(nonMember, 'ste-1', {
         siteScope: scope,
         membership: scope,
       }),
@@ -48,41 +48,41 @@ describe('authorization guards', () => {
 
   it('revokes Site access when Organization membership is removed', async () => {
     const scope = new InMemorySiteScopePort(
-      [{ siteId: 'site-1', organizationId: 'org-1' }],
+      [{ siteId: 'ste-1', organizationId: 'org-1' }],
       [{ organizationId: 'org-1', userId: 'user-1', role: 'member' }],
     )
 
     scope.revokeMembership('org-1', 'user-1')
 
     await expect(
-      assertSiteScope(user, 'site-1', { siteScope: scope, membership: scope }),
+      assertSiteScope(user, 'ste-1', { siteScope: scope, membership: scope }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('does not reuse membership from another Organization', async () => {
     const scope = new InMemorySiteScopePort(
       [
-        { siteId: 'site-1', organizationId: 'org-1' },
-        { siteId: 'site-2', organizationId: 'org-2' },
+        { siteId: 'ste-1', organizationId: 'org-1' },
+        { siteId: 'ste-2', organizationId: 'org-2' },
       ],
       [{ organizationId: 'org-1', userId: 'user-1', role: 'member' }],
     )
 
     await expect(
-      assertSiteScope(user, 'site-1', { siteScope: scope, membership: scope }),
+      assertSiteScope(user, 'ste-1', { siteScope: scope, membership: scope }),
     ).resolves.toBeUndefined()
     await expect(
-      assertSiteScope(user, 'site-2', { siteScope: scope, membership: scope }),
+      assertSiteScope(user, 'ste-2', { siteScope: scope, membership: scope }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('fails closed for a non-active Site', async () => {
     const scope = new InMemorySiteScopePort([
-      { siteId: 'site-1', organizationId: 'org-1', status: 'deleted' },
+      { siteId: 'ste-1', organizationId: 'org-1', status: 'deleted' },
     ])
 
     await expect(
-      assertSiteScope(user, 'site-1', { siteScope: scope, membership: scope }),
+      assertSiteScope(user, 'ste-1', { siteScope: scope, membership: scope }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
@@ -97,7 +97,7 @@ describe('authorization guards', () => {
       hasPendingGovernanceOperation: () => false,
     }
 
-    await expect(assertSiteScope(user, 'site-1', { siteScope, membership })).rejects.toMatchObject({
+    await expect(assertSiteScope(user, 'ste-1', { siteScope, membership })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     })
   })

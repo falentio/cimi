@@ -6,7 +6,7 @@ import {
   createMembershipRecord,
 } from '../fixture.ts'
 
-const organizationId = 'organization_1'
+const organizationId = 'org_1'
 const ownerUserId = 'user_owner'
 const memberUserId = 'user_member'
 
@@ -18,7 +18,7 @@ const targetAuthorityMember = createAuthorityMember({
   role: 'member',
 })
 const pendingLeave = createMembershipOperation({
-  id: 'operation_leave',
+  id: 'gop_leave',
   organizationId,
   operationType: 'leave-organization',
   targetUserId: memberUserId,
@@ -36,7 +36,7 @@ describe('MembershipService.leave', () => {
       ],
     )
     const operation = createMembershipOperation({
-      id: 'operation_leave',
+      id: 'gop_leave',
       organizationId,
       operationType: 'leave-organization',
       targetUserId: memberUserId,

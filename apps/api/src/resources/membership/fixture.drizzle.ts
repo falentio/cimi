@@ -34,7 +34,7 @@ export function createMembershipOrganizationRow(
   overrides: Partial<OrganizationRow> = {},
 ): OrganizationRow {
   return {
-    id: 'organization_1',
+    id: 'org_1',
     name: 'Analytics',
     authorityOrganizationId: 'authority_1',
     ownerUserId: 'user_1',
@@ -47,7 +47,7 @@ export function createMembershipOrganizationRow(
 
 export function createMembershipRow(overrides: Partial<MembershipRow> = {}): MembershipRow {
   return {
-    organizationId: 'organization_1',
+    organizationId: 'org_1',
     userId: 'user_1',
     role: 'owner',
     createdAt,
@@ -60,8 +60,8 @@ export function createMembershipGovernanceOperationRow(
   overrides: Partial<MembershipGovernanceOperationRow> = {},
 ): MembershipGovernanceOperationRow {
   return {
-    id: 'operation_1',
-    organizationId: 'organization_1',
+    id: 'gop_1',
+    organizationId: 'org_1',
     operationType: 'remove-member',
     previousOwnerUserId: 'user_1',
     targetUserId: 'user_2',
@@ -83,9 +83,9 @@ export function createMembershipRepairOperationRow(
   overrides: Partial<MembershipRepairOperationRow> = {},
 ): MembershipRepairOperationRow {
   return {
-    id: 'repair_1',
-    organizationId: 'organization_1',
-    localOrganizationId: 'organization_1',
+    id: 'orp_1',
+    organizationId: 'org_1',
+    localOrganizationId: 'org_1',
     operationType: 'update-organization',
     ownerUserId: 'user_1',
     authorityOrganizationId: 'authority_1',
@@ -114,7 +114,7 @@ export function seedMembershipOrganization(
     members?: ReadonlyArray<{ userId: string; role: MembershipRow['role'] }>
   } = {},
 ): void {
-  const organizationId = options.organizationId ?? 'organization_1'
+  const organizationId = options.organizationId ?? 'org_1'
   const ownerId = options.ownerId ?? 'user_1'
   const members = options.members ?? [{ userId: 'user_2', role: 'member' as const }]
   const userIds = [...new Set([ownerId, ...members.map((member) => member.userId)])]

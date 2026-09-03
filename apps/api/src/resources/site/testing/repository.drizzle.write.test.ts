@@ -16,18 +16,18 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
 
     await expect(
       repo.insert({
-        id: 'site_2',
-        organizationId: 'organization_1',
+        id: 'ste_2',
+        organizationId: 'org_1',
         name: 'Staging',
         hostname: 'staging.example.com',
-        ingestionIdentifier: 'ingest_2',
+        ingestionIdentifier: 'ing_2',
         reportingTimezone: 'UTC',
         weekStartsOn: 'monday',
         createdAt,
         updatedAt: createdAt,
       }),
-    ).resolves.toMatchObject({ id: 'site_2', hostname: 'staging.example.com' })
-    await expect(repo.findById('site_2')).resolves.toMatchObject({ status: 'active' })
+    ).resolves.toMatchObject({ id: 'ste_2', hostname: 'staging.example.com' })
+    await expect(repo.findById('ste_2')).resolves.toMatchObject({ status: 'active' })
   })
 
   it('rejects an insert reserved by a tombstone', async () => {
@@ -40,11 +40,11 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
 
     await expect(
       repo.insert({
-        id: 'site_2',
-        organizationId: 'organization_1',
+        id: 'ste_2',
+        organizationId: 'org_1',
         name: 'Staging',
         hostname: 'staging.example.com',
-        ingestionIdentifier: 'ingest_2',
+        ingestionIdentifier: 'ing_2',
         reportingTimezone: 'UTC',
         weekStartsOn: 'monday',
         createdAt,
@@ -67,17 +67,17 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
 
     await expect(
       repo.insert({
-        id: 'site_2',
-        organizationId: 'organization_2',
+        id: 'ste_2',
+        organizationId: 'org_2',
         name: 'Staging',
         hostname: 'staging.example.com',
-        ingestionIdentifier: 'ingest_2',
+        ingestionIdentifier: 'ing_2',
         reportingTimezone: 'UTC',
         weekStartsOn: 'monday',
         createdAt,
         updatedAt: createdAt,
       }),
-    ).resolves.toMatchObject({ id: 'site_2' })
+    ).resolves.toMatchObject({ id: 'ste_2' })
   })
 
   it('updates an active site', async () => {
@@ -86,13 +86,13 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
 
     await expect(
       repo.updateActive({
-        siteId: 'site_1',
+        siteId: 'ste_1',
         name: 'Renamed',
         hostname: 'renamed.example.com',
         reportingTimezone: 'UTC',
         weekStartsOn: 'tuesday',
       }),
-    ).resolves.toMatchObject({ id: 'site_1', name: 'Renamed', hostname: 'renamed.example.com' })
+    ).resolves.toMatchObject({ id: 'ste_1', name: 'Renamed', hostname: 'renamed.example.com' })
   })
 
   it('returns undefined when updating a missing site', async () => {
@@ -101,7 +101,7 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
 
     await expect(
       repo.updateActive({
-        siteId: 'site_missing',
+        siteId: 'ste_missing',
         name: 'Renamed',
         hostname: 'renamed.example.com',
         reportingTimezone: 'UTC',
@@ -120,7 +120,7 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
 
     await expect(
       repo.updateActive({
-        siteId: 'site_1',
+        siteId: 'ste_1',
         name: 'Renamed',
         hostname: 'renamed.example.com',
         reportingTimezone: 'UTC',
@@ -136,9 +136,9 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
       .insert(schema.TSite)
       .values(
         createSiteRow({
-          id: 'site_2',
+          id: 'ste_2',
           hostname: 'second.example.com',
-          ingestionIdentifier: 'ingest_2',
+          ingestionIdentifier: 'ing_2',
           status: 'deleted',
         }),
       )
@@ -146,7 +146,7 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
 
     await expect(
       repo.updateActive({
-        siteId: 'site_2',
+        siteId: 'ste_2',
         name: 'Renamed',
         hostname: 'renamed.example.com',
         reportingTimezone: 'UTC',
@@ -159,9 +159,9 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
-    await expect(repo.rotateIngestionIdentifier('site_1', 'ingest_2')).resolves.toMatchObject({
-      id: 'site_1',
-      ingestionIdentifier: 'ingest_2',
+    await expect(repo.rotateIngestionIdentifier('ste_1', 'ing_2')).resolves.toMatchObject({
+      id: 'ste_1',
+      ingestionIdentifier: 'ing_2',
     })
   })
 
@@ -169,15 +169,13 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
 
-    await expect(
-      repo.rotateIngestionIdentifier('site_missing', 'ingest_2'),
-    ).resolves.toBeUndefined()
+    await expect(repo.rotateIngestionIdentifier('ste_missing', 'ing_2')).resolves.toBeUndefined()
   })
 })
 
 function createOrgRow() {
   return {
-    id: 'organization_2',
+    id: 'org_2',
     name: 'Second',
     authorityOrganizationId: 'authority_2',
     ownerUserId: 'user_1',

@@ -19,7 +19,7 @@ import {
 import { SMembershipListInput, SMembershipListOutput } from './query/list.ts'
 
 const owner = {
-  organizationId: 'organization-1',
+  organizationId: 'org-1',
   userId: 'user-1',
   role: 'owner',
   createdAt: '2026-08-23T00:00:00Z',
@@ -27,7 +27,7 @@ const owner = {
 }
 
 const member = {
-  organizationId: 'organization-1',
+  organizationId: 'org-1',
   userId: 'user-2',
   role: 'member',
   createdAt: '2026-08-23T00:00:01Z',
@@ -45,33 +45,33 @@ describe('membership contract', () => {
   it('accepts valid member inputs and the supported non-owner roles', () => {
     expect(
       v.parse(SMembershipTransferOwnershipInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         userId: 'user-2',
       }),
-    ).toEqual({ organizationId: 'organization-1', userId: 'user-2' })
+    ).toEqual({ organizationId: 'org-1', userId: 'user-2' })
     expect(
       v.parse(SMembershipListInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         offset: '2',
         limit: '10',
       }),
-    ).toEqual({ organizationId: 'organization-1', offset: 2, limit: 10 })
+    ).toEqual({ organizationId: 'org-1', offset: 2, limit: 10 })
     expect(
       v.parse(SMembershipChangeRoleInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         userId: 'user-2',
         role: 'admin',
       }),
-    ).toEqual({ organizationId: 'organization-1', userId: 'user-2', role: 'admin' })
-    expect(v.parse(SMembershipLeaveInput, { organizationId: 'organization-1' })).toEqual({
-      organizationId: 'organization-1',
+    ).toEqual({ organizationId: 'org-1', userId: 'user-2', role: 'admin' })
+    expect(v.parse(SMembershipLeaveInput, { organizationId: 'org-1' })).toEqual({
+      organizationId: 'org-1',
     })
     expect(
       v.parse(SMembershipRemoveInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         userId: 'user-2',
       }),
-    ).toEqual({ organizationId: 'organization-1', userId: 'user-2' })
+    ).toEqual({ organizationId: 'org-1', userId: 'user-2' })
     expect(v.parse(SMembershipMemberRole, 'member')).toBe('member')
     expect(v.parse(SMembershipMemberRole, 'admin')).toBe('admin')
   })
@@ -85,33 +85,33 @@ describe('membership contract', () => {
     ).toThrow(v.ValiError)
     expect(() =>
       v.parse(SMembershipListInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         limit: 101,
       }),
     ).toThrow(v.ValiError)
     expect(() =>
       v.parse(SMembershipListInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         unexpected: true,
       }),
     ).toThrow(v.ValiError)
     expect(() =>
       v.parse(SMembershipChangeRoleInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         userId: 'user-2',
         role: 'owner',
       }),
     ).toThrow(v.ValiError)
     expect(() =>
       v.parse(SMembershipChangeRoleInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         userId: 'user-2',
         role: 'moderator',
       }),
     ).toThrow(v.ValiError)
     expect(() =>
       v.parse(SMembershipChangeRoleInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         userId: 'user-2',
         role: 'member',
         extra: true,
@@ -119,7 +119,7 @@ describe('membership contract', () => {
     ).toThrow(v.ValiError)
     expect(() =>
       v.parse(SMembershipLeaveInput, {
-        organizationId: 'organization-1',
+        organizationId: 'org-1',
         userId: 'user-2',
       }),
     ).toThrow(v.ValiError)

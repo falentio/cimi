@@ -5,44 +5,50 @@ import type { EntityId } from '../index.ts'
 
 describe('generateId', () => {
   it('returns a typed, fixed-width entity id', () => {
-    const siteId = generateId('site')
-    const typedSiteId: EntityId<'site'> = siteId
+    const siteId = generateId('ste')
+    const typedSiteId: EntityId<'ste'> = siteId
 
-    expect(typedSiteId).toMatch(/^site_[a-z2-7]{26}$/)
-    expect(typedSiteId.slice('site_'.length)).toHaveLength(26)
-    expect(typedSiteId.slice('site_'.length)).toMatch(/^[a-z2-7]+$/)
+    expect(typedSiteId).toMatch(/^ste_[a-z2-7]{26}$/)
+    expect(typedSiteId.slice('ste_'.length)).toHaveLength(26)
+    expect(typedSiteId.slice('ste_'.length)).toMatch(/^[a-z2-7]+$/)
   })
 
   it('generates distinct ids across repeated calls', () => {
-    const first = generateId('site')
-    const second = generateId('site')
+    const first = generateId('ste')
+    const second = generateId('ste')
 
     expect(first).not.toBe(second)
   })
 
   it('generates distinct ids across an entropy pool refill', () => {
-    const ids = Array.from({ length: 5_000 }, () => generateId('site'))
+    const ids = Array.from({ length: 5_000 }, () => generateId('ste'))
 
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids[0]).toMatch(/^site_[a-z2-7]{26}$/)
-    expect(ids.at(-1)).toMatch(/^site_[a-z2-7]{26}$/)
+    expect(ids[0]).toMatch(/^ste_[a-z2-7]{26}$/)
+    expect(ids.at(-1)).toMatch(/^ste_[a-z2-7]{26}$/)
   })
 
   it('rejects prefixes that cannot safely identify an entity', () => {
     expect(() => generateId('')).toThrowError(TypeError)
     expect(() => generateId('site_id')).toThrowError(TypeError)
     expect(() => generateId('site id')).toThrowError(TypeError)
+    expect(() => generateId('site')).toThrowError(TypeError)
+    expect(() => generateId('organization')).toThrowError(TypeError)
+    expect(() => generateId('site-operation')).toThrowError(TypeError)
+    expect(() => generateId('ste-opn')).toThrowError(TypeError)
+    expect(() => generateId('st')).toThrowError(TypeError)
+    expect(() => generateId('stee')).toThrowError(TypeError)
   })
 
   it('keeps different entity id prefixes incompatible', () => {
-    const siteId = generateId('site')
-    const userId: EntityId<'user'> = generateId('user')
+    const steId = generateId('ste')
+    const userId: EntityId<'usr'> = generateId('usr')
 
-    expect(siteId).toMatch(/^site_/)
-    expect(userId).toMatch(/^user_/)
+    expect(steId).toMatch(/^ste_/)
+    expect(userId).toMatch(/^usr_/)
 
     // @ts-expect-error Site ids must not be assignable to user ids.
-    const invalidUserId: EntityId<'user'> = siteId
+    const invalidUserId: EntityId<'usr'> = steId
     void invalidUserId
   })
 })
@@ -61,7 +67,7 @@ describe('createIdGenerator', () => {
       },
     })
 
-    expect(generate('site')).toBe('site_kdiqaaicamcakbqhbaequcymbu')
+    expect(generate('ste')).toBe('ste_kdiqaaicamcakbqhbaequcymbu')
     expect(randomCalls).toBe(1)
   })
 
@@ -75,11 +81,11 @@ describe('createIdGenerator', () => {
     })
 
     for (let index = 0; index < 4_681; index += 1) {
-      generate('site')
+      generate('ste')
     }
     expect(randomCalls).toBe(1)
 
-    generate('site')
+    generate('ste')
     expect(randomCalls).toBe(2)
   })
 })
