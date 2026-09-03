@@ -125,6 +125,34 @@ test('installation initializes convergently, upgrades, and polls the operation',
   await expect(secondUpgrade.json()).resolves.toMatchObject({ code: 'CONFLICT', status: 409 })
 })
 
+test('second upgrade while an upgrade is active conflicts', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app } = fixture
+  const owner = await signUpTestUser(app, 'second-upgrade@example.com', 'Second Upgrade')
+
+  const created = await apiTestRequest(
+    app,
+    '/installation/initializeInstallation',
+    owner.cookie,
+    {},
+  )
+  expect(created.status).toBe(201)
+
+  const upgrade = await apiTestRequest(app, '/installation/upgradeInstallation', owner.cookie, {
+    confirmation: 'UPGRADE',
+  })
+  expect(upgrade.status, await upgrade.clone().text()).toBe(202)
+
+  const secondUpgrade = await apiTestRequest(
+    app,
+    '/installation/upgradeInstallation',
+    owner.cookie,
+    { confirmation: 'UPGRADE' },
+  )
+  expect(secondUpgrade.status).toBe(409)
+  await expect(secondUpgrade.json()).resolves.toMatchObject({ code: 'CONFLICT', status: 409 })
+})
+
 test('upgrade without initialization conflicts', async () => {
   await using fixture = await createApiTestFixture()
   const { app } = fixture

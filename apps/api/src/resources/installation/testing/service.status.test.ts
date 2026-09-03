@@ -59,6 +59,40 @@ describe('InstallationService.getStatus', () => {
     })
   })
 
+  it('hides internal fields while exposing the upgrade operation', async () => {
+    const { service, repository } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'maintenance',
+        activeOperation: {
+          operationId: 'bop_1',
+          kind: 'upgrade',
+          phase: 'pre_upgrade_safety',
+          progress: 0,
+          lastSafeSequence: 42,
+          errorCode: null,
+        },
+      }),
+    )
+
+    const result = await service.getStatus(admin)
+
+    const serialized = JSON.stringify(result)
+    expect(result).not.toHaveProperty('id')
+    expect(serialized).not.toContain('"id"')
+    expect(serialized).not.toContain('ins_1')
+    expect(serialized).not.toContain('storageKey')
+    expect(serialized).not.toContain('checksumValue')
+    expect(serialized).not.toContain('checksumAlgorithm')
+    expect(serialized).not.toContain('safety/')
+    expect(result.activeOperation).toMatchObject({
+      operationId: 'bop_1',
+      kind: 'upgrade',
+      phase: 'pre_upgrade_safety',
+      lastSafeSequence: 42,
+    })
+  })
+
   it('reports maintenance state instead of conflicting', async () => {
     const { service, repository } = createInstallationFixture()
     repository.find.mockResolvedValue(

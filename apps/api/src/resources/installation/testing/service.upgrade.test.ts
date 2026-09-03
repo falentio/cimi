@@ -191,13 +191,18 @@ describe('InstallationService.upgrade', () => {
   })
 
   it('maps a raced beginUpgrade constraint to conflict', async () => {
-    const { repository, service } = createInstallationFixture({ ids })
+    const { repository, journal, service } = createInstallationFixture({ ids })
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockRejectedValue(
       new Error('UNIQUE constraint failed: backup_operation.id'),
     )
 
     await expect(service.upgrade(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(journal.drainCalls).toBe(1)
+    await expect(service.getStatus(admin)).resolves.toMatchObject({
+      status: 'ready',
+      activeOperation: null,
+    })
   })
 
   it('rethrows a non-constraint beginUpgrade error', async () => {
