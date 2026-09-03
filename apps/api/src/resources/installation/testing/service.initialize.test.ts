@@ -79,6 +79,26 @@ describe('InstallationService.initialize', () => {
     expect(result.status).toBe(200)
   })
 
+  it('returns conflict when a lifecycle operation is active', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'maintenance',
+        activeOperation: {
+          operationId: 'bop_1',
+          kind: 'upgrade',
+          phase: 'pre_upgrade_safety',
+          progress: 0,
+          lastSafeSequence: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(repository.insert).not.toHaveBeenCalled()
+  })
+
   it('returns conflict when the data directory is missing', async () => {
     const { repository, service } = createInstallationFixture()
     repository.find.mockResolvedValue(createInstallationRecord({ dataDirectoryReady: false }))

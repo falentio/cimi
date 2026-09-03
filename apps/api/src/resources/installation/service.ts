@@ -72,6 +72,11 @@ function assertInstallationCoherent(record: InstallationRepository.Record): void
 
 const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
 
+export interface InstallationHealthSnapshot {
+  installationStatus: InstallationRepository.Status
+  cleanupPending: boolean
+}
+
 export class InstallationService {
   private readonly repository: InstallationRepository
   private readonly lock: LifecycleLock
@@ -200,11 +205,18 @@ export class InstallationService {
     return toPublicInstallation(updated ?? existing)
   }
 
+  async snapshotForHealth(): Promise<InstallationHealthSnapshot | undefined> {
+    const existing = await this.repository.find()
+    if (existing === undefined) return undefined
+    return { installationStatus: existing.status, cleanupPending: existing.cleanupPending }
+  }
+
   private async reuseExisting(
     record: InstallationRepository.Record,
     retention: InstallationRepository.Retention,
   ): Promise<InstallationInitializeOutput> {
     assertInstallationCoherent(record)
+    if (record.activeOperation !== null) throw new ORPCError('CONFLICT', { status: 409 })
     if (!record.dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
     if (record.status !== 'uninitialized' && isSameRetention(record.defaultRetention, retention)) {
       return { status: 200, body: toPublicInstallation(record) }

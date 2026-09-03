@@ -54,10 +54,14 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     ...(deps.journal === undefined ? {} : { journal: deps.journal }),
     ...(deps.upgradeArtifact === undefined ? {} : { upgradeArtifact: deps.upgradeArtifact }),
   })
+  void installation.service.resumeOnStartup().catch(() => undefined)
+  const lifecycle = deps.lifecycle ?? {
+    getSnapshot: () => installation.service.snapshotForHealth().then((snapshot) => snapshot ?? {}),
+  }
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
   const router = api.router({
     health: {
-      health: api.health.health.handler(async () => systemHealthHandler(deps)),
+      health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
     },
     hello: hello.router,
     installation: installation.router,

@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { createApiApp } from '../index.ts'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.ts'
 
 test('installation routes reject unauthenticated callers', async () => {
@@ -119,4 +120,42 @@ test('upgrade without initialization conflicts', async () => {
   })
   expect(upgrade.status).toBe(409)
   await expect(upgrade.json()).resolves.toMatchObject({ code: 'CONFLICT', status: 409 })
+})
+
+test('startup resumes an interrupted upgrade as recovering', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app, auth, db, analytics } = fixture
+  const owner = await signUpTestUser(app, 'resume-owner@example.com', 'Resume Owner')
+
+  const created = await apiTestRequest(
+    app,
+    '/installation/initializeInstallation',
+    owner.cookie,
+    {},
+  )
+  expect(created.status, await created.clone().text()).toBe(201)
+
+  const upgrade = await apiTestRequest(app, '/installation/upgradeInstallation', owner.cookie, {
+    confirmation: 'UPGRADE',
+  })
+  expect(upgrade.status, await upgrade.clone().text()).toBe(202)
+
+  const restarted = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+  let status = ''
+  for (let attempt = 0; attempt < 50 && status !== 'recovering'; attempt += 1) {
+    const poll = await restarted.fetch(
+      new Request('http://localhost/api/installation/getInstallationStatus', {
+        method: 'GET',
+        headers: { cookie: owner.cookie },
+      }),
+    )
+    expect(poll.status).toBe(200)
+    status = ((await poll.json()) as { status: string }).status
+    if (status !== 'recovering') await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  expect(status).toBe('recovering')
+
+  const health = await restarted.fetch(new Request('http://localhost/api/system/health'))
+  expect(health.status).toBe(200)
+  await expect(health.json()).resolves.toMatchObject({ status: 'recovering' })
 })
