@@ -72,7 +72,7 @@ describe('InstallationService.upgrade', () => {
   })
 
   it('rejects an incompatible manifest without persisting', async () => {
-    const { repository, journal, service } = createInstallationFixture({
+    const { repository, journal, lock, service } = createInstallationFixture({
       ids,
       upgradeArtifact: { isCompatible: () => false },
     })
@@ -84,6 +84,29 @@ describe('InstallationService.upgrade', () => {
     })
     expect(repository.beginUpgrade).not.toHaveBeenCalled()
     expect(journal.drainCalls).toBe(1)
+    expect(lock.acquire('upgrade')).toBe(true)
+    lock.release()
+  })
+
+  it.each([
+    { status: 'ready', ok: true },
+    { status: 'degraded', ok: true },
+    { status: 'uninitialized', ok: false },
+    { status: 'maintenance', ok: false },
+    { status: 'recovering', ok: true },
+  ] as const)('allows upgrade from $status: $ok', async ({ status, ok }) => {
+    const { repository, service } = createInstallationFixture({ ids })
+    repository.find.mockResolvedValue(createInstallationRecord({ status }))
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+
+    if (ok) {
+      await expect(service.upgrade(input, admin)).resolves.toMatchObject({
+        status: 'maintenance',
+      })
+    } else {
+      await expect(service.upgrade(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+      expect(repository.beginUpgrade).not.toHaveBeenCalled()
+    }
   })
 
   it('returns conflict when the lifecycle lock is held', async () => {

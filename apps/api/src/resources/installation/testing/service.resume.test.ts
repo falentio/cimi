@@ -59,4 +59,26 @@ describe('InstallationService.resumeOnStartup', () => {
     await expect(service.resumeOnStartup()).resolves.toBeUndefined()
     expect(repository.update).not.toHaveBeenCalled()
   })
+
+  it('leaves an uninitialized operation alone', async () => {
+    const { repository, service } = createInstallationFixture()
+    const stored = createInstallationRecord({ status: 'uninitialized', activeOperation })
+    repository.find.mockResolvedValue(stored)
+
+    const result = await service.resumeOnStartup()
+
+    expect(result).toMatchObject({ status: 'uninitialized' })
+    expect(repository.update).not.toHaveBeenCalled()
+  })
+
+  it('returns the existing record when the recovery update races away', async () => {
+    const { repository, service } = createInstallationFixture()
+    const stored = createInstallationRecord({ status: 'maintenance', activeOperation })
+    repository.find.mockResolvedValue(stored)
+    repository.update.mockResolvedValue(undefined)
+
+    const result = await service.resumeOnStartup()
+
+    expect(result).toMatchObject({ status: 'maintenance' })
+  })
 })

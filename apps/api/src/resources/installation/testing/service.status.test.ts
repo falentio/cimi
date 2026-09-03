@@ -26,6 +26,9 @@ describe('InstallationService.getStatus', () => {
     )
     expect(result).not.toHaveProperty('id')
     expect(JSON.stringify(result)).not.toContain('ins_1')
+    expect(JSON.stringify(result)).not.toContain('storageKey')
+    expect(JSON.stringify(result)).not.toContain('checksumValue')
+    expect(JSON.stringify(result)).not.toContain('safety/')
   })
 
   it('exposes the active operation kind, phase, progress, and sequence', async () => {
@@ -80,6 +83,23 @@ describe('InstallationService.getStatus', () => {
     repository.find.mockResolvedValue(undefined)
 
     await expect(service.getStatus(admin)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('rejects an incoherent cleanup flag', async () => {
+    const { service, repository } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        cleanupPending: false,
+        derivedCleanup: {
+          status: 'pending',
+          startedAt: null,
+          completedAt: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.getStatus(admin)).rejects.toThrow('Installation cleanup flags disagree')
   })
 
   it('rejects a non-admin', async () => {
