@@ -53,14 +53,16 @@ export function createMembershipRow(overrides: Partial<MembershipRow> = {}): Mem
   }
 }
 
-export interface MembershipDrizzleFixture {
+export interface MembershipDrizzleFixture extends Disposable {
   readonly db: Db
 }
 
 export function createMembershipDrizzleFixture(): MembershipDrizzleFixture {
-  return { db: createMigratedTestDb() }
-}
-
-export function destroyMembershipDrizzleFixture({ db }: MembershipDrizzleFixture): void {
-  closeDb(db)
+  const db = createMigratedTestDb()
+  return {
+    db,
+    [Symbol.dispose]() {
+      closeDb(db)
+    },
+  }
 }

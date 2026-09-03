@@ -34,7 +34,7 @@ export function createHelloRow(overrides: Partial<HelloRow> = {}): HelloRow {
   }
 }
 
-export interface HelloDrizzleFixture {
+export interface HelloDrizzleFixture extends Disposable {
   readonly db: Db
 }
 
@@ -47,13 +47,14 @@ export async function createHelloDrizzleFixture(): Promise<HelloDrizzleFixture> 
         createHelloUserRow(),
         createHelloUserRow({ id: 'user_2', name: 'Grace', email: 'grace@example.com' }),
       ])
-    return { db }
+    return {
+      db,
+      [Symbol.dispose]() {
+        closeDb(db)
+      },
+    }
   } catch (error) {
     closeDb(db)
     throw error
   }
-}
-
-export function destroyHelloDrizzleFixture({ db }: HelloDrizzleFixture): void {
-  closeDb(db)
 }

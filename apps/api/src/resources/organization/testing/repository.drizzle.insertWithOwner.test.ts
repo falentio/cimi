@@ -1,24 +1,16 @@
 import { eq } from 'drizzle-orm'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { schema } from '@cimi/db'
 import { OrganizationRepositoryDrizzle } from '../repository.drizzle.ts'
 import {
   createOrganizationDrizzleFixture,
   createOrganizationGovernanceOperationRow,
   createOrganizationRow,
-  destroyOrganizationDrizzleFixture,
 } from '../fixture.drizzle.ts'
 
-describe('OrganizationRepositoryDrizzle.insertWithOwner', () => {
-  let fixture: Awaited<ReturnType<typeof createOrganizationDrizzleFixture>>
-
-  beforeEach(async () => {
-    fixture = await createOrganizationDrizzleFixture()
-  })
-
-  afterEach(() => destroyOrganizationDrizzleFixture(fixture))
-
+describe.concurrent('OrganizationRepositoryDrizzle.insertWithOwner', () => {
   it('rolls back the Organization when the Owner membership cannot be inserted', async () => {
+    using fixture = await createOrganizationDrizzleFixture()
     const { db } = fixture
     const organization = createOrganizationRow()
     const repository = new OrganizationRepositoryDrizzle({ db })
@@ -42,6 +34,7 @@ describe('OrganizationRepositoryDrizzle.insertWithOwner', () => {
   })
 
   it('deletes the Organization and its terminal governance operation atomically', async () => {
+    using fixture = await createOrganizationDrizzleFixture()
     const { db } = fixture
     const organization = createOrganizationRow({ authorityOrganizationId: null })
     const repository = new OrganizationRepositoryDrizzle({ db })

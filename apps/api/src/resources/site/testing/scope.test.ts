@@ -1,23 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { schema } from '@cimi/db'
 import { assertSiteManagementScope, assertSiteScope } from '@cimi/guard'
-import {
-  createSiteDrizzleFixture,
-  createSiteGovernanceOperationRow,
-  destroySiteDrizzleFixture,
-} from '../fixture.drizzle.ts'
+import { createSiteDrizzleFixture, createSiteGovernanceOperationRow } from '../fixture.drizzle.ts'
 import { createSiteScopeDependencies } from '../scope.ts'
 
-describe('createSiteScopeDependencies', () => {
-  let fixture: ReturnType<typeof createSiteDrizzleFixture>
-
-  beforeEach(() => {
-    fixture = createSiteDrizzleFixture()
-  })
-
-  afterEach(() => destroySiteDrizzleFixture(fixture))
-
+describe.concurrent('createSiteScopeDependencies', () => {
   it('reads active Site scope from the control database', async () => {
+    using fixture = createSiteDrizzleFixture()
     const dependencies = createSiteScopeDependencies({ db: fixture.db })
 
     await expect(dependencies.siteScope.exists('site_1')).resolves.toBe(true)
@@ -27,6 +16,7 @@ describe('createSiteScopeDependencies', () => {
   })
 
   it('revokes Site access after the persisted membership is removed', async () => {
+    using fixture = createSiteDrizzleFixture()
     const dependencies = createSiteScopeDependencies({ db: fixture.db })
 
     await expect(assertSiteScope({ id: 'user_1' }, 'site_1', dependencies)).resolves.toBeUndefined()
@@ -39,6 +29,7 @@ describe('createSiteScopeDependencies', () => {
   })
 
   it('fails closed while an Organization governance operation is pending', async () => {
+    using fixture = createSiteDrizzleFixture()
     fixture.db
       .insert(schema.TOrganizationGovernanceOperation)
       .values(createSiteGovernanceOperationRow())

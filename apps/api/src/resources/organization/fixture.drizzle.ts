@@ -94,7 +94,7 @@ export function createOrganizationGovernanceOperationRow(
   }
 }
 
-export interface OrganizationDrizzleFixture {
+export interface OrganizationDrizzleFixture extends Disposable {
   readonly db: Db
 }
 
@@ -102,13 +102,14 @@ export async function createOrganizationDrizzleFixture(): Promise<OrganizationDr
   const db = createMigratedTestDb()
   try {
     await db.insert(schema.TUser).values(createOrganizationUserRow())
-    return { db }
+    return {
+      db,
+      [Symbol.dispose]() {
+        closeDb(db)
+      },
+    }
   } catch (error) {
     closeDb(db)
     throw error
   }
-}
-
-export function destroyOrganizationDrizzleFixture({ db }: OrganizationDrizzleFixture): void {
-  closeDb(db)
 }

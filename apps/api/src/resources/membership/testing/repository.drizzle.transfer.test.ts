@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { schema } from '@cimi/db'
 import { MembershipRepositoryDrizzle } from '../repository.drizzle.ts'
 import {
@@ -7,21 +7,13 @@ import {
   createMembershipOrganizationRow,
   createMembershipRow,
   createMembershipUserRow,
-  destroyMembershipDrizzleFixture,
 } from '../fixture.drizzle.ts'
 
 const now = new Date('2026-09-01T00:00:00.000Z')
 
 describe('MembershipRepositoryDrizzle.completeTransfer', () => {
-  let fixture: ReturnType<typeof createMembershipDrizzleFixture>
-
-  beforeEach(() => {
-    fixture = createMembershipDrizzleFixture()
-  })
-
-  afterEach(() => destroyMembershipDrizzleFixture(fixture))
-
   it('rolls back membership and operation changes when the Organization update fails', async () => {
+    using fixture = createMembershipDrizzleFixture()
     const { db } = fixture
     await db
       .insert(schema.TUser)

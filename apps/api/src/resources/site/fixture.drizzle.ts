@@ -101,7 +101,7 @@ export function createSiteGovernanceOperationRow(
   }
 }
 
-export interface SiteDrizzleFixture {
+export interface SiteDrizzleFixture extends Disposable {
   readonly db: Db
 }
 
@@ -112,13 +112,14 @@ export function createSiteDrizzleFixture(): SiteDrizzleFixture {
     db.insert(schema.TOrganization).values(createSiteOrganizationRow()).run()
     db.insert(schema.TMembership).values(createSiteMembershipRow()).run()
     db.insert(schema.TSite).values(createSiteRow()).run()
-    return { db }
+    return {
+      db,
+      [Symbol.dispose]() {
+        closeDb(db)
+      },
+    }
   } catch (error) {
     closeDb(db)
     throw error
   }
-}
-
-export function destroySiteDrizzleFixture({ db }: SiteDrizzleFixture): void {
-  closeDb(db)
 }
