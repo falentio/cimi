@@ -29,4 +29,42 @@ describe.concurrent('HelloRepositoryDrizzle.list', () => {
       nextOffset: null,
     })
   })
+
+  it('returns an empty page for an empty table', async () => {
+    using fixture = await createHelloDrizzleFixture()
+    const repo = new HelloRepositoryDrizzle({ db: fixture.db })
+
+    await expect(repo.findMany({ offset: 0, limit: 20 })).resolves.toEqual({
+      items: [],
+      nextOffset: null,
+      hasMore: false,
+      totalCount: 0,
+    })
+  })
+
+  it('reports no further pages at the exact limit boundary', async () => {
+    using fixture = await createHelloDrizzleFixture()
+    const repo = new HelloRepositoryDrizzle({ db: fixture.db })
+    await repo.insert(createHelloRow({ id: 'hello_1', name: 'Ada' }))
+    await repo.insert(
+      createHelloRow({
+        id: 'hello_2',
+        ownerId: 'user_2',
+        name: 'Grace',
+        message: 'Hello, Grace!',
+      }),
+    )
+
+    await expect(repo.findMany({ offset: 0, limit: 2 })).resolves.toMatchObject({
+      totalCount: 2,
+      hasMore: false,
+      nextOffset: null,
+    })
+    await expect(repo.findMany({ offset: 5, limit: 2 })).resolves.toMatchObject({
+      items: [],
+      totalCount: 2,
+      hasMore: false,
+      nextOffset: null,
+    })
+  })
 })

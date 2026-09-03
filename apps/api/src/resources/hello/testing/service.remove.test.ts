@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHelloFixture } from '../fixture.ts'
+import { HelloService } from '../service.ts'
 
 describe('HelloService.remove', () => {
   it('removes an owned greeting and hides missing or inaccessible records', async () => {
@@ -28,5 +29,17 @@ describe('HelloService.remove', () => {
     await expect(service.remove({ id: 'hello_1' }, { id: 'user_1' })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     })
+  })
+
+  it('wires a default guard when none is injected', async () => {
+    const { repo } = createHelloFixture()
+    const service = new HelloService({ repository: repo })
+    repo.findOwnerId.mockResolvedValue('user_1')
+    repo.deleteById.mockResolvedValue(true)
+
+    await expect(service.remove({ id: 'hello_1' }, { id: 'user_1' })).resolves.toEqual({
+      id: 'hello_1',
+    })
+    expect(repo.deleteById).toHaveBeenCalledWith('hello_1', 'user_1')
   })
 })
