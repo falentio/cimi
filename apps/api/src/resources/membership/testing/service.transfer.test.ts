@@ -1,57 +1,44 @@
 import { describe, expect, it } from 'vitest'
-import { mock } from 'vitest-mock-extended'
-import type { AuthorityMember, OrganizationAuthority } from '@cimi/auth'
-import type { MembershipRepository, MembershipRecord } from '../repository.ts'
-import { MembershipService } from '../service.ts'
+import {
+  createAuthorityMember,
+  createMembershipFixture,
+  createMembershipRecord,
+  createTransfer,
+} from '../fixture.ts'
 
-const pendingTransfer: MembershipRepository.Transfer = {
-  id: 'operation_1',
-  organizationId: 'organization_1',
-  previousOwnerUserId: 'user_1',
-  targetUserId: 'user_2',
-  attemptCount: 0,
-}
-
-const previousOwner: AuthorityMember = {
+const pendingTransfer = createTransfer()
+const previousOwner = createAuthorityMember({
   id: 'member_1',
-  organizationId: 'authority_1',
   userId: 'user_1',
   role: 'admin',
   createdAt: new Date('2026-08-31T00:00:00.000Z'),
-}
-
-const target: MembershipRecord = {
-  organizationId: 'organization_1',
+})
+const target = createMembershipRecord({
   userId: 'user_2',
   role: 'owner',
   createdAt: new Date('2026-08-31T00:00:01.000Z'),
   updatedAt: new Date('2026-08-31T00:00:02.000Z'),
-}
-
-const targetAuthorityMember: AuthorityMember = {
+})
+const targetAuthorityMember = createAuthorityMember({
   id: 'member_2',
-  organizationId: 'authority_1',
   userId: 'user_2',
   role: 'owner',
   createdAt: target.createdAt,
-}
+})
+
+const previousOwnerMembership = createMembershipRecord({
+  userId: pendingTransfer.previousOwnerUserId,
+  role: 'owner',
+  createdAt: previousOwner.createdAt,
+  updatedAt: previousOwner.createdAt,
+})
 
 describe('MembershipService.transferOwnership', () => {
   it('retries after Cimi completion fails following authority convergence', async () => {
-    const repository = mock<MembershipRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new MembershipService({ repository, authority })
+    const { repository, authority, service } = createMembershipFixture([previousOwnerMembership])
     repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
     repository.isOwnerInvariantValid.mockResolvedValue(true)
-    repository.findById.mockResolvedValue({
-      organizationId: pendingTransfer.organizationId,
-      userId: pendingTransfer.previousOwnerUserId,
-      role: 'owner',
-      createdAt: previousOwner.createdAt,
-      updatedAt: previousOwner.createdAt,
-    })
     repository.markTransferAttempt.mockResolvedValue()
-    repository.findAuthorityOrganizationId.mockResolvedValue('authority_1')
     repository.completeTransfer
       .mockRejectedValueOnce(new Error('Cimi transaction unavailable'))
       .mockResolvedValueOnce(target)
@@ -77,7 +64,6 @@ describe('MembershipService.transferOwnership', () => {
       ),
     ).resolves.toMatchObject({ organizationId: 'organization_1', userId: 'user_2' })
 
-    // Vitest consumes the mock method reference as a matcher target.
     // oxlint-disable-next-line typescript/unbound-method
     expect(repository.failTransfer).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -98,9 +84,7 @@ describe('MembershipService.transferOwnership', () => {
   })
 
   it('rejects a pending transfer for a caller who is no longer the persisted Owner', async () => {
-    const repository = mock<MembershipRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new MembershipService({ repository, authority })
+    const { repository, authority, service } = createMembershipFixture()
     repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
     repository.findById.mockResolvedValue(undefined)
     repository.findOwner.mockResolvedValue(undefined)
@@ -123,9 +107,7 @@ describe('MembershipService.transferOwnership', () => {
   })
 
   it('returns the completed transfer to overlapping callers', async () => {
-    const repository = mock<MembershipRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new MembershipService({ repository, authority })
+    const { repository, authority, service } = createMembershipFixture([previousOwnerMembership])
     let pendingReads = 0
     let resolvePendingReads: (() => void) | undefined
     const bothPendingReads = new Promise<void>((resolve) => {
@@ -140,15 +122,7 @@ describe('MembershipService.transferOwnership', () => {
       return pendingTransfer
     })
     repository.isOwnerInvariantValid.mockResolvedValue(true)
-    repository.findById.mockResolvedValue({
-      organizationId: pendingTransfer.organizationId,
-      userId: pendingTransfer.previousOwnerUserId,
-      role: 'owner',
-      createdAt: previousOwner.createdAt,
-      updatedAt: previousOwner.createdAt,
-    })
     repository.markTransferAttempt.mockResolvedValue()
-    repository.findAuthorityOrganizationId.mockResolvedValue('authority_1')
     repository.completeTransfer.mockImplementation(async () => {
       completionCalls += 1
       if (completionCalls === 1) return target
@@ -176,8 +150,10 @@ describe('MembershipService.transferOwnership', () => {
     expect(results).toHaveLength(2)
     expect(results[0]).toMatchObject({ organizationId: 'organization_1', userId: 'user_2' })
     expect(results[1]).toEqual(results[0])
+    // Vitest consumes the mock method reference as a matcher target.
     // oxlint-disable-next-line typescript/unbound-method
     expect(repository.findCompletedTransfer).toHaveBeenCalledTimes(1)
+    // Vitest consumes the mock method reference as a matcher target.
     // oxlint-disable-next-line typescript/unbound-method
     expect(repository.failTransfer).not.toHaveBeenCalled()
   })

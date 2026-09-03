@@ -1,128 +1,41 @@
 import { describe, expect, it } from 'vitest'
-import { mock } from 'vitest-mock-extended'
-import type { AuthorityMember, OrganizationAuthority } from '@cimi/auth'
-import type { MembershipRepository, MembershipRecord } from '../repository.ts'
-import { MembershipService } from '../service.ts'
+import type { AuthorityMember } from '@cimi/auth'
+import {
+  createAuthorityMember,
+  createMembershipFixture,
+  createMembershipOperation,
+  createMembershipRecord,
+} from '../fixture.ts'
 
 const organizationId = 'organization_1'
-const authorityOrganizationId = 'authority_1'
 const ownerUserId = 'user_owner'
 const adminUserId = 'user_admin'
 const memberUserId = 'user_member'
 const targetUserId = 'user_target'
-const createdAt = new Date('2026-09-01T00:00:00.000Z')
 
-type RepositoryMock = ReturnType<typeof mock<MembershipRepository>>
-type AuthorityMock = ReturnType<typeof mock<OrganizationAuthority>>
+const owner = createMembershipRecord({ userId: ownerUserId, role: 'owner' })
+const admin = createMembershipRecord({ userId: adminUserId, role: 'admin' })
+const currentMember = createMembershipRecord({ userId: memberUserId, role: 'member' })
+const targetAdmin = createMembershipRecord({ userId: targetUserId, role: 'admin' })
+const targetMember = createMembershipRecord({ userId: targetUserId, role: 'member' })
 
-function membership(userId: string, role: MembershipRecord['role']): MembershipRecord {
-  return {
-    organizationId,
-    userId,
-    role,
-    createdAt,
-    updatedAt: createdAt,
-  }
-}
-
-function authorityMember(
-  userId: string,
-  role: AuthorityMember['role'],
-  memberOrganizationId = authorityOrganizationId,
-): AuthorityMember {
-  return {
-    id: `authority-member-${userId}`,
-    organizationId: memberOrganizationId,
-    userId,
-    role,
-    createdAt,
-  }
-}
-
-function configureProjection(
-  repository: RepositoryMock,
-  authority: AuthorityMock,
-  localMembers: MembershipRecord[],
-  authorityMembers: AuthorityMember[],
-): void {
-  let projectedMembers = localMembers
-  repository.findPendingMembershipOperation.mockResolvedValue(undefined)
-  repository.findAuthorityOrganizationId.mockResolvedValue(authorityOrganizationId)
-  repository.findById.mockImplementation(
-    async ({ organizationId: requestedOrganizationId, userId }) =>
-      projectedMembers.find(
-        (member) => member.organizationId === requestedOrganizationId && member.userId === userId,
-      ),
-  )
-  repository.findOwner.mockImplementation(async (requestedOrganizationId) =>
-    projectedMembers.find(
-      (member) => member.organizationId === requestedOrganizationId && member.role === 'owner',
-    ),
-  )
-  repository.hasPendingGovernanceOperation.mockResolvedValue(false)
-  repository.isOwnerInvariantValid.mockImplementation(async (requestedOrganizationId) => {
-    const members = projectedMembers.filter(
-      (member) => member.organizationId === requestedOrganizationId,
-    )
-    return members.filter((member) => member.role === 'owner').length === 1
-  })
-  repository.replaceMembers.mockImplementation(async (_requestedOrganizationId, members) => {
-    projectedMembers = members
-  })
-  repository.findMany.mockImplementation(
-    async ({ organizationId: requestedOrganizationId, offset, limit }) => {
-      const members = projectedMembers.filter(
-        (member) => member.organizationId === requestedOrganizationId,
-      )
-      const items = members.slice(offset, offset + limit)
-      const hasMore = offset + items.length < members.length
-      return {
-        items,
-        nextOffset: hasMore ? offset + items.length : null,
-        hasMore,
-        totalCount: members.length,
-      }
-    },
-  )
-  authority.getMember.mockImplementation(async ({ userId }) =>
-    authorityMembers.find((member) => member.userId === userId),
-  )
-  authority.listAllMembers.mockResolvedValue(authorityMembers)
-}
-
-function createFixture(
-  localMembers: MembershipRecord[],
-  authorityMembers = localMembers.map((member) => authorityMember(member.userId, member.role)),
-): { repository: RepositoryMock; authority: AuthorityMock; service: MembershipService } {
-  const repository = mock<MembershipRepository>()
-  const authority = mock<OrganizationAuthority>()
-  configureProjection(repository, authority, localMembers, authorityMembers)
-  return { repository, authority, service: new MembershipService({ repository, authority }) }
-}
-
-const owner = membership(ownerUserId, 'owner')
-const admin = membership(adminUserId, 'admin')
-const currentMember = membership(memberUserId, 'member')
-const targetAdmin = membership(targetUserId, 'admin')
-const targetMember = membership(targetUserId, 'member')
-
-const pendingRoleChange: MembershipRepository.MembershipOperation = {
+const pendingRoleChange = createMembershipOperation({
   id: 'operation_role_change',
   organizationId,
   operationType: 'change-member-role',
   targetUserId,
   targetRole: 'member',
   attemptCount: 1,
-}
+})
 
 describe('MembershipService authorization', () => {
   it('allows a member to list members but not change a role', async () => {
-    const { repository, authority, service } = createFixture(
+    const { repository, authority, service } = createMembershipFixture(
       [owner, currentMember, targetMember],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(memberUserId, 'member'),
-        authorityMember(targetUserId, 'member'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: memberUserId, role: 'member' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
 
@@ -146,27 +59,28 @@ describe('MembershipService authorization', () => {
   })
 
   it('allows an Administrator to change a non-owner role', async () => {
-    const { repository, authority, service } = createFixture(
+    const { repository, authority, service } = createMembershipFixture(
       [owner, admin, targetAdmin],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(adminUserId, 'admin'),
-        authorityMember(targetUserId, 'admin'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: targetUserId, role: 'admin' }),
       ],
     )
-    const operation: MembershipRepository.MembershipOperation = {
+    const operation = createMembershipOperation({
       id: 'operation_role_change',
       organizationId,
-      operationType: 'change-member-role',
       targetUserId,
       targetRole: 'member',
       attemptCount: 0,
-    }
+    })
     repository.createMembershipOperation.mockResolvedValue(operation)
     repository.incrementMembershipAttempt.mockResolvedValue()
     repository.updateRole.mockResolvedValue(targetMember)
     repository.completeMembershipOperation.mockResolvedValue()
-    authority.changeMemberRole.mockResolvedValue(authorityMember(targetUserId, 'member'))
+    authority.changeMemberRole.mockResolvedValue(
+      createAuthorityMember({ userId: targetUserId, role: 'member' }),
+    )
 
     await expect(
       service.changeRole(
@@ -183,21 +97,16 @@ describe('MembershipService authorization', () => {
   })
 
   it('fails closed for a member while a role operation is pending', async () => {
-    const repository = mock<MembershipRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new MembershipService({ repository, authority })
+    const { repository, authority, service } = createMembershipFixture([
+      owner,
+      currentMember,
+      targetAdmin,
+    ])
 
     repository.findPendingMembershipOperation.mockResolvedValue(pendingRoleChange)
-    repository.findAuthorityOrganizationId.mockResolvedValue(authorityOrganizationId)
-    repository.findById.mockImplementation(async ({ userId }) => {
-      if (userId === memberUserId) return currentMember
-      if (userId === targetUserId) return targetAdmin
-      return undefined
-    })
-    repository.findOwner.mockResolvedValue(owner)
-    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
-    repository.isOwnerInvariantValid.mockResolvedValue(true)
-    authority.getMember.mockResolvedValue(authorityMember(memberUserId, 'member'))
+    authority.getMember.mockResolvedValue(
+      createAuthorityMember({ userId: memberUserId, role: 'member' }),
+    )
 
     await expect(
       service.changeRole(
@@ -222,12 +131,12 @@ describe('MembershipService authorization', () => {
   })
 
   it('rejects a member from removing another member', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, currentMember, targetMember],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(memberUserId, 'member'),
-        authorityMember(targetUserId, 'member'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: memberUserId, role: 'member' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
 
@@ -244,12 +153,12 @@ describe('MembershipService authorization', () => {
   })
 
   it('rejects an Administrator from transferring ownership', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, admin, targetMember],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(adminUserId, 'admin'),
-        authorityMember(targetUserId, 'member'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
 
@@ -266,22 +175,22 @@ describe('MembershipService authorization', () => {
   })
 
   it('revokes local access before removing a member from the authority', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, admin, targetMember],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(adminUserId, 'admin'),
-        authorityMember(targetUserId, 'member'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
-    const operation: MembershipRepository.MembershipOperation = {
+    const operation = createMembershipOperation({
       id: 'operation_remove',
       organizationId,
       operationType: 'remove-member',
       targetUserId,
       targetRole: null,
       attemptCount: 0,
-    }
+    })
     const events: string[] = []
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
     fixture.repository.incrementMembershipAttempt.mockResolvedValue()
@@ -292,7 +201,7 @@ describe('MembershipService authorization', () => {
     fixture.repository.completeMembershipOperation.mockResolvedValue()
     fixture.authority.removeMember.mockImplementation(async () => {
       events.push('remove-member')
-      return authorityMember(targetUserId, 'member')
+      return createAuthorityMember({ userId: targetUserId, role: 'member' })
     })
 
     await expect(
@@ -306,18 +215,21 @@ describe('MembershipService authorization', () => {
   })
 
   it('revokes local access before a member leaves the authority', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, currentMember],
-      [authorityMember(ownerUserId, 'owner'), authorityMember(memberUserId, 'member')],
+      [
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: memberUserId, role: 'member' }),
+      ],
     )
-    const operation: MembershipRepository.MembershipOperation = {
+    const operation = createMembershipOperation({
       id: 'operation_leave',
       organizationId,
       operationType: 'leave-organization',
       targetUserId: memberUserId,
       targetRole: null,
       attemptCount: 0,
-    }
+    })
     const events: string[] = []
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
     fixture.repository.incrementMembershipAttempt.mockResolvedValue()
@@ -337,22 +249,22 @@ describe('MembershipService authorization', () => {
   })
 
   it('keeps a removal operation pending when the authority removal fails', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, admin, targetMember],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(adminUserId, 'admin'),
-        authorityMember(targetUserId, 'member'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
-    const operation: MembershipRepository.MembershipOperation = {
+    const operation = createMembershipOperation({
       id: 'operation_remove_failure',
       organizationId,
       operationType: 'remove-member',
       targetUserId,
       targetRole: null,
       attemptCount: 0,
-    }
+    })
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
     fixture.repository.incrementMembershipAttempt.mockResolvedValue()
     fixture.repository.delete.mockResolvedValue(true)
@@ -377,7 +289,7 @@ describe('MembershipService authorization', () => {
   })
 
   it('protects the Owner from role changes, removal, and leaving', async () => {
-    const roleChange = createFixture([owner, admin])
+    const roleChange = createMembershipFixture([owner, admin])
     await expect(
       roleChange.service.changeRole(
         { organizationId, userId: ownerUserId, role: 'member' },
@@ -386,7 +298,7 @@ describe('MembershipService authorization', () => {
       ),
     ).rejects.toMatchObject({ code: 'OWNER_PROTECTED', status: 409 })
 
-    const removal = createFixture([owner, admin])
+    const removal = createMembershipFixture([owner, admin])
     await expect(
       removal.service.remove(
         { organizationId, userId: ownerUserId },
@@ -395,7 +307,7 @@ describe('MembershipService authorization', () => {
       ),
     ).rejects.toMatchObject({ code: 'OWNER_PROTECTED', status: 409 })
 
-    const leave = createFixture([owner, admin])
+    const leave = createMembershipFixture([owner, admin])
     await expect(
       leave.service.leave({ organizationId }, { id: ownerUserId }, new Headers()),
     ).rejects.toMatchObject({ code: 'OWNER_PROTECTED', status: 409 })
@@ -418,7 +330,7 @@ describe('MembershipService authorization', () => {
   })
 
   it('rejects absent and already-owner transfer targets without creating an operation', async () => {
-    const absent = createFixture([owner, targetMember])
+    const absent = createMembershipFixture([owner, targetMember])
     await expect(
       absent.service.transferOwnership(
         { organizationId, userId: 'missing-user' },
@@ -427,7 +339,7 @@ describe('MembershipService authorization', () => {
       ),
     ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 
-    const alreadyOwner = createFixture([owner, targetMember])
+    const alreadyOwner = createMembershipFixture([owner, targetMember])
     await expect(
       alreadyOwner.service.transferOwnership(
         { organizationId, userId: ownerUserId },
@@ -448,9 +360,12 @@ describe('MembershipService authorization', () => {
   })
 
   it('imports authority members and removes stale local members during listing', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, targetMember],
-      [authorityMember(ownerUserId, 'owner'), authorityMember('user_new', 'member')],
+      [
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: 'user_new', role: 'member' }),
+      ],
     )
 
     await expect(
@@ -473,7 +388,7 @@ describe('MembershipService authorization', () => {
   })
 
   it('fails closed when authority listing fails before replacing local members', async () => {
-    const fixture = createFixture([owner, currentMember])
+    const fixture = createMembershipFixture([owner, currentMember])
     fixture.authority.listAllMembers.mockRejectedValue(new Error('authority unavailable'))
 
     await expect(
@@ -485,32 +400,33 @@ describe('MembershipService authorization', () => {
   })
 
   it('restores a member role in the authority when local promotion fails', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, admin, currentMember],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(adminUserId, 'admin'),
-        authorityMember(memberUserId, 'member'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: memberUserId, role: 'member' }),
       ],
     )
-    const operation: MembershipRepository.MembershipOperation = {
+    const operation = createMembershipOperation({
       id: 'operation_promotion',
       organizationId,
       operationType: 'change-member-role',
       targetUserId: memberUserId,
       targetRole: 'admin',
       attemptCount: 0,
-    }
+    })
     let authorityTargetRole: AuthorityMember['role'] = 'member'
     fixture.authority.getMember.mockImplementation(async ({ userId }) => {
-      if (userId === memberUserId) return authorityMember(memberUserId, authorityTargetRole)
+      if (userId === memberUserId)
+        return createAuthorityMember({ userId: memberUserId, role: authorityTargetRole })
       return userId === adminUserId
-        ? authorityMember(adminUserId, 'admin')
-        : authorityMember(ownerUserId, 'owner')
+        ? createAuthorityMember({ userId: adminUserId, role: 'admin' })
+        : createAuthorityMember({ userId: ownerUserId, role: 'owner' })
     })
     fixture.authority.changeMemberRole.mockImplementation(async ({ memberId, role }) => {
       if (memberId === `authority-member-${memberUserId}`) authorityTargetRole = role
-      return authorityMember(memberUserId, role)
+      return createAuthorityMember({ userId: memberUserId, role })
     })
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
     fixture.repository.incrementMembershipAttempt.mockResolvedValue()
@@ -539,38 +455,35 @@ describe('MembershipService authorization', () => {
   })
 
   it('removes a stale local membership when authority access is gone', async () => {
-    const repository = mock<MembershipRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new MembershipService({ repository, authority })
-    repository.findPendingMembershipOperation.mockResolvedValue(undefined)
-    repository.findById.mockResolvedValueOnce(currentMember).mockResolvedValueOnce(undefined)
-    repository.findAuthorityOrganizationId.mockResolvedValue(authorityOrganizationId)
-    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
-    repository.delete.mockResolvedValue(true)
-    authority.getMember.mockResolvedValue(undefined)
+    const fixture = createMembershipFixture([currentMember])
+    fixture.repository.findById
+      .mockResolvedValueOnce(currentMember)
+      .mockResolvedValueOnce(undefined)
+    fixture.repository.delete.mockResolvedValue(true)
+    fixture.authority.getMember.mockResolvedValue(undefined)
 
     await expect(
-      service.list({ organizationId }, { id: memberUserId }, new Headers()),
+      fixture.service.list({ organizationId }, { id: memberUserId }, new Headers()),
     ).rejects.toMatchObject({
       code: 'NOT_FOUND',
       status: 404,
     })
     // Vitest consumes the mock method reference as a matcher target.
     // oxlint-disable-next-line typescript/unbound-method
-    expect(repository.delete).toHaveBeenCalledWith({ organizationId, userId: memberUserId })
+    expect(fixture.repository.delete).toHaveBeenCalledWith({ organizationId, userId: memberUserId })
     // Vitest consumes the mock method reference as a matcher target.
     // oxlint-disable-next-line typescript/unbound-method
-    expect(authority.listAllMembers).not.toHaveBeenCalled()
+    expect(fixture.authority.listAllMembers).not.toHaveBeenCalled()
   })
 
   it('does not authorize against a stronger local role after authority reconciliation', async () => {
-    const localActor = membership(adminUserId, 'admin')
-    const fixture = createFixture(
+    const localActor = createMembershipRecord({ userId: adminUserId, role: 'admin' })
+    const fixture = createMembershipFixture(
       [owner, localActor, targetMember],
       [
-        authorityMember(ownerUserId, 'owner'),
-        authorityMember(adminUserId, 'member'),
-        authorityMember(targetUserId, 'member'),
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'member' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
     fixture.repository.updateRole.mockResolvedValue(targetAdmin)
@@ -588,11 +501,15 @@ describe('MembershipService authorization', () => {
   })
 
   it('fails closed on invalid authority membership organization IDs', async () => {
-    const fixture = createFixture(
+    const fixture = createMembershipFixture(
       [owner, currentMember],
       [
-        authorityMember(ownerUserId, 'owner', 'unexpected-authority'),
-        authorityMember(memberUserId, 'member'),
+        createAuthorityMember({
+          userId: ownerUserId,
+          role: 'owner',
+          organizationId: 'unexpected-authority',
+        }),
+        createAuthorityMember({ userId: memberUserId, role: 'member' }),
       ],
     )
 
@@ -605,18 +522,14 @@ describe('MembershipService authorization', () => {
   })
 
   it('fails closed when the authority Organization ID is missing', async () => {
-    const repository = mock<MembershipRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new MembershipService({ repository, authority })
-    repository.findPendingMembershipOperation.mockResolvedValue(undefined)
-    repository.findById.mockResolvedValue(currentMember)
-    repository.findAuthorityOrganizationId.mockResolvedValue(undefined)
+    const fixture = createMembershipFixture([currentMember])
+    fixture.repository.findAuthorityOrganizationId.mockResolvedValue(undefined)
 
     await expect(
-      service.list({ organizationId }, { id: memberUserId }, new Headers()),
+      fixture.service.list({ organizationId }, { id: memberUserId }, new Headers()),
     ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR', status: 500 })
     // Vitest consumes the mock method reference as a matcher target.
     // oxlint-disable-next-line typescript/unbound-method
-    expect(authority.listAllMembers).not.toHaveBeenCalled()
+    expect(fixture.authority.listAllMembers).not.toHaveBeenCalled()
   })
 })

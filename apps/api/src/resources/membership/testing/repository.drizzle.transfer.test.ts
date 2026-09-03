@@ -1,60 +1,43 @@
 import { eq } from 'drizzle-orm'
-import { afterEach, describe, expect, it } from 'vitest'
-import { closeDb, schema, type Db } from '@cimi/db'
-import { createMigratedTestDb } from '@cimi/db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { schema } from '@cimi/db'
 import { MembershipRepositoryDrizzle } from '../repository.drizzle.ts'
+import {
+  createMembershipDrizzleFixture,
+  createMembershipOrganizationRow,
+  createMembershipRow,
+  createMembershipUserRow,
+  destroyMembershipDrizzleFixture,
+} from '../fixture.drizzle.ts'
 
 const now = new Date('2026-09-01T00:00:00.000Z')
 
-function user(id: string) {
-  return {
-    id,
-    name: id,
-    email: `${id}@example.com`,
-    emailVerified: true,
-    image: null,
-    role: null,
-    banned: null,
-    banReason: null,
-    banExpires: null,
-    createdAt: now,
-    updatedAt: now,
-  }
-}
-
 describe('MembershipRepositoryDrizzle.completeTransfer', () => {
-  let db: Db
+  let fixture: ReturnType<typeof createMembershipDrizzleFixture>
 
-  afterEach(() => closeDb(db))
+  beforeEach(() => {
+    fixture = createMembershipDrizzleFixture()
+  })
+
+  afterEach(() => destroyMembershipDrizzleFixture(fixture))
 
   it('rolls back membership and operation changes when the Organization update fails', async () => {
-    db = createMigratedTestDb()
-    await db.insert(schema.TUser).values([user('user_1'), user('user_2')])
-    await db.insert(schema.TOrganization).values({
-      id: 'organization_1',
-      name: 'Analytics',
-      authorityOrganizationId: 'authority_1',
-      ownerUserId: 'user_1',
-      isPersonal: false,
-      createdAt: now,
-      updatedAt: now,
-    })
-    await db.insert(schema.TMembership).values([
-      {
-        organizationId: 'organization_1',
-        userId: 'user_1',
-        role: 'owner',
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        organizationId: 'organization_1',
-        userId: 'user_2',
-        role: 'member',
-        createdAt: now,
-        updatedAt: now,
-      },
-    ])
+    const { db } = fixture
+    await db
+      .insert(schema.TUser)
+      .values([
+        createMembershipUserRow('user_1', { createdAt: now, updatedAt: now }),
+        createMembershipUserRow('user_2', { createdAt: now, updatedAt: now }),
+      ])
+    await db
+      .insert(schema.TOrganization)
+      .values(createMembershipOrganizationRow({ createdAt: now, updatedAt: now }))
+    await db
+      .insert(schema.TMembership)
+      .values([
+        createMembershipRow({ createdAt: now, updatedAt: now }),
+        createMembershipRow({ userId: 'user_2', role: 'member', createdAt: now, updatedAt: now }),
+      ])
 
     const repository = new MembershipRepositoryDrizzle({ db })
     const transfer = await repository.createTransfer({

@@ -1,102 +1,68 @@
 import { eq } from 'drizzle-orm'
-import { afterEach, describe, expect, it } from 'vitest'
-import { closeDb, schema, type Db } from '@cimi/db'
-import { createMigratedTestDb } from '@cimi/db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { schema } from '@cimi/db'
 import { OrganizationRepositoryDrizzle } from '../repository.drizzle.ts'
+import {
+  createOrganizationDrizzleFixture,
+  createOrganizationGovernanceOperationRow,
+  createOrganizationRow,
+  destroyOrganizationDrizzleFixture,
+} from '../fixture.drizzle.ts'
 
 describe('OrganizationRepositoryDrizzle.insertWithOwner', () => {
-  let db: Db
+  let fixture: Awaited<ReturnType<typeof createOrganizationDrizzleFixture>>
 
-  afterEach(() => closeDb(db))
+  beforeEach(async () => {
+    fixture = await createOrganizationDrizzleFixture()
+  })
+
+  afterEach(() => destroyOrganizationDrizzleFixture(fixture))
 
   it('rolls back the Organization when the Owner membership cannot be inserted', async () => {
-    db = createMigratedTestDb()
-    const now = new Date('2026-08-31T00:00:00.000Z')
-    await db.insert(schema.TUser).values({
-      id: 'user_1',
-      name: 'Ada',
-      email: 'ada@example.com',
-      emailVerified: true,
-      image: null,
-      role: null,
-      banned: null,
-      banReason: null,
-      banExpires: null,
-      createdAt: now,
-      updatedAt: now,
-    })
-
+    const { db } = fixture
+    const organization = createOrganizationRow()
     const repository = new OrganizationRepositoryDrizzle({ db })
 
     await expect(
-      repository.insertWithOwner(
-        {
-          id: 'organization_1',
-          name: 'Analytics',
-          authorityOrganizationId: 'authority_1',
-          ownerUserId: 'user_1',
-          isPersonal: false,
-          createdAt: now,
-          updatedAt: now,
-        },
-        { userId: 'missing_user', now },
-      ),
+      repository.insertWithOwner(organization, {
+        userId: 'missing_user',
+        now: organization.createdAt,
+      }),
     ).rejects.toThrow()
 
     await expect(
-      db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, 'organization_1')),
+      db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
     ).resolves.toHaveLength(0)
     await expect(
       db
         .select()
         .from(schema.TMembership)
-        .where(eq(schema.TMembership.organizationId, 'organization_1')),
+        .where(eq(schema.TMembership.organizationId, organization.id)),
     ).resolves.toHaveLength(0)
   })
 
   it('deletes the Organization and its terminal governance operation atomically', async () => {
-    db = createMigratedTestDb()
-    const now = new Date('2026-08-31T00:00:00.000Z')
-    await db.insert(schema.TUser).values({
-      id: 'user_1',
-      name: 'Ada',
-      email: 'ada@example.com',
-      emailVerified: true,
-      image: null,
-      role: null,
-      banned: null,
-      banReason: null,
-      banExpires: null,
-      createdAt: now,
-      updatedAt: now,
-    })
-
+    const { db } = fixture
+    const organization = createOrganizationRow({ authorityOrganizationId: null })
     const repository = new OrganizationRepositoryDrizzle({ db })
-    await repository.insertWithOwner(
-      {
-        id: 'organization_1',
-        name: 'Analytics',
-        authorityOrganizationId: null,
-        ownerUserId: 'user_1',
-        isPersonal: false,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { userId: 'user_1', now },
-    )
-    const operation = await repository.createDeleteOperation({
-      id: 'operation_1',
-      organizationId: 'organization_1',
-      previousOwnerUserId: 'user_1',
-      targetUserId: 'user_1',
-      requestedAt: now,
-      createdAt: now,
-      updatedAt: now,
+    await repository.insertWithOwner(organization, {
+      userId: organization.ownerUserId,
+      now: organization.createdAt,
     })
+    const operation = await repository.createDeleteOperation(
+      createOrganizationGovernanceOperationRow({
+        organizationId: organization.id,
+        previousOwnerUserId: organization.ownerUserId,
+        targetUserId: organization.ownerUserId,
+        requestedAt: organization.createdAt,
+        createdAt: organization.createdAt,
+        updatedAt: organization.updatedAt,
+      }),
+    )
 
     await expect(repository.finalizeDeleteOperation(operation.id)).resolves.toBe(true)
     await expect(
-      db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, 'organization_1')),
+      db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
     ).resolves.toHaveLength(0)
     await expect(
       db

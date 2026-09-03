@@ -1,32 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { mock } from 'vitest-mock-extended'
-import type { OrganizationAuthority } from '@cimi/auth'
-import type { OrganizationRepository, OrganizationRecord } from '../repository.ts'
-import { OrganizationService } from '../service.ts'
+import {
+  createDeleteOperation,
+  createOrganizationFixture,
+  createOrganizationRecord,
+} from '../fixture.ts'
 
-const organization: OrganizationRecord = {
-  id: 'organization_1',
-  name: 'Analytics',
-  authorityOrganizationId: 'authority_1',
-  ownerUserId: 'user_1',
-  isPersonal: false,
-  createdAt: new Date('2026-08-31T00:00:00.000Z'),
-  updatedAt: new Date('2026-08-31T00:00:00.000Z'),
-}
-
-const operation: OrganizationRepository.DeleteOperation = {
-  id: 'operation_1',
+const organization = createOrganizationRecord()
+const operation = createDeleteOperation({
   organizationId: organization.id,
   previousOwnerUserId: organization.ownerUserId,
   targetUserId: organization.ownerUserId,
-  attemptCount: 0,
-}
+})
 
 describe('OrganizationService.delete', () => {
   it('keeps a failed authority deletion pending and retries it', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
+    const { repository, authority, service } = createOrganizationFixture()
 
     repository.findById.mockResolvedValue(organization)
     repository.findByIdForUser.mockResolvedValue(organization)

@@ -1,54 +1,38 @@
 import { describe, expect, it } from 'vitest'
-import { mock } from 'vitest-mock-extended'
-import type { OrganizationAuthority } from '@cimi/auth'
-import type { OrganizationRecord, OrganizationRepository } from '../repository.ts'
-import { OrganizationService } from '../service.ts'
+import {
+  createAuthorityMember,
+  createAuthorityOrganization,
+  createOrganizationFixture,
+  createOrganizationRecord,
+  createRepairOperation,
+} from '../fixture.ts'
 
-const organization: OrganizationRecord = {
-  id: 'organization_1',
-  name: 'Analytics',
-  authorityOrganizationId: 'authority_1',
-  ownerUserId: 'user_1',
-  isPersonal: false,
-  createdAt: new Date('2026-08-31T00:00:00.000Z'),
-  updatedAt: new Date('2026-08-31T00:00:00.000Z'),
-}
-
-const updatedOrganization: OrganizationRecord = {
-  ...organization,
-  name: 'Renamed Analytics',
-}
-
-const repair: OrganizationRepository.RepairOperation = {
-  id: 'repair_1',
+const organization = createOrganizationRecord()
+const updatedOrganization = createOrganizationRecord({ name: 'Renamed Analytics' })
+const repair = createRepairOperation({
   organizationId: organization.id,
   localOrganizationId: organization.id,
-  operationType: 'update-organization',
   ownerUserId: organization.ownerUserId,
   authorityOrganizationId: organization.authorityOrganizationId,
-  authorityCleanupRequired: false,
-  authoritySlug: null,
   previousName: organization.name,
   desiredName: updatedOrganization.name,
-  attemptCount: 0,
-}
+})
+const newAuthoritySlug = 'organization_new-user_1'
 
 describe('OrganizationService.create compensation', () => {
   it('deletes an authority Organization after local persistence fails', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
-    const createRepair: OrganizationRepository.RepairOperation = {
+    const { repository, authority, service } = createOrganizationFixture()
+    const createRepair = createRepairOperation({
       ...repair,
       id: 'repair_create_1',
       organizationId: null,
       localOrganizationId: 'organization_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
-      authoritySlug: 'organization_new-user_1',
+      authoritySlug: newAuthoritySlug,
       previousName: null,
       desiredName: 'New Organization',
-    }
+    })
 
     repository.findPendingCreateRepair.mockResolvedValue(undefined)
     repository.createRepairOperation.mockResolvedValue(createRepair)
@@ -59,19 +43,15 @@ describe('OrganizationService.create compensation', () => {
     )
     repository.completeRepairOperation.mockResolvedValue(true)
     authority.createOrganization.mockResolvedValue({
-      organization: {
+      organization: createAuthorityOrganization({
         id: 'authority_new',
         name: 'New Organization',
-        slug: createRepair.authoritySlug!,
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
-      member: {
+        slug: newAuthoritySlug,
+      }),
+      member: createAuthorityMember({
         id: 'member_new',
         organizationId: 'authority_new',
-        userId: 'user_1',
-        role: 'owner',
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
+      }),
     })
     authority.deleteOrganization.mockResolvedValue()
 
@@ -87,20 +67,18 @@ describe('OrganizationService.create compensation', () => {
   })
 
   it('compensates when Better Auth returns an invalid owner response', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
-    const createRepair: OrganizationRepository.RepairOperation = {
+    const { repository, authority, service } = createOrganizationFixture()
+    const createRepair = createRepairOperation({
       ...repair,
       id: 'repair_create_invalid_owner',
       organizationId: null,
       localOrganizationId: 'organization_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
-      authoritySlug: 'organization_new-user_1',
+      authoritySlug: newAuthoritySlug,
       previousName: null,
       desiredName: 'New Organization',
-    }
+    })
 
     repository.findPendingCreateRepair.mockResolvedValue(undefined)
     repository.createRepairOperation.mockResolvedValue(createRepair)
@@ -109,19 +87,16 @@ describe('OrganizationService.create compensation', () => {
     repository.setRepairAuthorityOrganization.mockResolvedValue()
     repository.completeRepairOperation.mockResolvedValue(true)
     authority.createOrganization.mockResolvedValue({
-      organization: {
+      organization: createAuthorityOrganization({
         id: 'authority_new',
         name: 'New Organization',
-        slug: createRepair.authoritySlug!,
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
-      member: {
+        slug: newAuthoritySlug,
+      }),
+      member: createAuthorityMember({
         id: 'member_new',
         organizationId: 'authority_new',
-        userId: 'user_1',
         role: 'member',
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
+      }),
     })
     authority.deleteOrganization.mockResolvedValue()
 
@@ -137,10 +112,8 @@ describe('OrganizationService.create compensation', () => {
   })
 
   it('does not delete a pre-existing authority Organization discovered during retry', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
-    const createRepair: OrganizationRepository.RepairOperation = {
+    const { repository, authority, service } = createOrganizationFixture()
+    const createRepair = createRepairOperation({
       ...repair,
       id: 'repair_create_existing_authority',
       organizationId: null,
@@ -148,10 +121,10 @@ describe('OrganizationService.create compensation', () => {
       operationType: 'create-organization',
       authorityOrganizationId: null,
       authorityCleanupRequired: false,
-      authoritySlug: 'organization_new-user_1',
+      authoritySlug: newAuthoritySlug,
       previousName: null,
       desiredName: 'New Organization',
-    }
+    })
 
     repository.findPendingCreateRepair.mockResolvedValue(createRepair)
     repository.incrementRepairAttempt.mockResolvedValue()
@@ -161,20 +134,18 @@ describe('OrganizationService.create compensation', () => {
       new Error('UNIQUE constraint failed'),
     )
     repository.recordRepairFailure.mockResolvedValue()
-    authority.getOrganizationBySlug.mockResolvedValue({
-      id: 'authority_existing',
-      name: 'New Organization',
-      slug: createRepair.authoritySlug!,
-      createdAt: new Date('2026-08-31T00:00:00.000Z'),
-    })
+    authority.getOrganizationBySlug.mockResolvedValue(
+      createAuthorityOrganization({
+        id: 'authority_existing',
+        name: 'New Organization',
+        slug: newAuthoritySlug,
+      }),
+    )
     authority.listAllMembers.mockResolvedValue([
-      {
+      createAuthorityMember({
         id: 'member_existing',
         organizationId: 'authority_existing',
-        userId: 'user_1',
-        role: 'owner',
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
+      }),
     ])
 
     await expect(
@@ -188,10 +159,8 @@ describe('OrganizationService.create compensation', () => {
   })
 
   it('retries cleanup for an operation-owned authority Organization', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
-    const createRepair: OrganizationRepository.RepairOperation = {
+    const { repository, authority, service } = createOrganizationFixture()
+    const createRepair = createRepairOperation({
       ...repair,
       id: 'repair_create_retry_cleanup',
       organizationId: null,
@@ -199,10 +168,10 @@ describe('OrganizationService.create compensation', () => {
       operationType: 'create-organization',
       authorityOrganizationId: 'authority_new',
       authorityCleanupRequired: true,
-      authoritySlug: 'organization_new-user_1',
+      authoritySlug: newAuthoritySlug,
       previousName: null,
       desiredName: 'New Organization',
-    }
+    })
 
     repository.findPendingCreateRepair.mockResolvedValue(createRepair)
     repository.incrementRepairAttempt.mockResolvedValue()
@@ -212,13 +181,10 @@ describe('OrganizationService.create compensation', () => {
     )
     repository.completeRepairOperation.mockResolvedValue(true)
     authority.listAllMembers.mockResolvedValue([
-      {
+      createAuthorityMember({
         id: 'member_new',
         organizationId: 'authority_new',
-        userId: 'user_1',
-        role: 'owner',
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
+      }),
     ])
     authority.deleteOrganization.mockResolvedValue()
 
@@ -235,20 +201,18 @@ describe('OrganizationService.create compensation', () => {
   })
 
   it('keeps the repair pending when authority compensation fails', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
-    const createRepair: OrganizationRepository.RepairOperation = {
+    const { repository, authority, service } = createOrganizationFixture()
+    const createRepair = createRepairOperation({
       ...repair,
       id: 'repair_create_2',
       organizationId: null,
       localOrganizationId: 'organization_new',
       operationType: 'create-organization',
       authorityOrganizationId: null,
-      authoritySlug: 'organization_new-user_1',
+      authoritySlug: newAuthoritySlug,
       previousName: null,
       desiredName: 'New Organization',
-    }
+    })
 
     repository.findPendingCreateRepair.mockResolvedValue(undefined)
     repository.createRepairOperation.mockResolvedValue(createRepair)
@@ -257,19 +221,15 @@ describe('OrganizationService.create compensation', () => {
     repository.insertWithOwnerAndCompleteRepair.mockRejectedValue(new Error('database unavailable'))
     repository.recordRepairFailure.mockResolvedValue()
     authority.createOrganization.mockResolvedValue({
-      organization: {
+      organization: createAuthorityOrganization({
         id: 'authority_new',
         name: 'New Organization',
-        slug: createRepair.authoritySlug!,
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
-      member: {
+        slug: newAuthoritySlug,
+      }),
+      member: createAuthorityMember({
         id: 'member_new',
         organizationId: 'authority_new',
-        userId: 'user_1',
-        role: 'owner',
-        createdAt: new Date('2026-08-31T00:00:00.000Z'),
-      },
+      }),
     })
     authority.deleteOrganization.mockRejectedValue(new Error('authority unavailable'))
 
@@ -286,9 +246,7 @@ describe('OrganizationService.create compensation', () => {
 
 describe('OrganizationService.update compensation', () => {
   it('keeps the repair pending when rollback returns an invalid response', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
+    const { repository, authority, service } = createOrganizationFixture()
 
     repository.findByIdForUser.mockResolvedValue(organization)
     repository.findPendingUpdateRepair.mockResolvedValue(undefined)
@@ -299,19 +257,9 @@ describe('OrganizationService.update compensation', () => {
     repository.incrementRepairAttempt.mockResolvedValue()
     repository.updateNameAndCompleteRepair.mockRejectedValue(new Error('database unavailable'))
     repository.recordRepairFailure.mockResolvedValue()
-    authority.getOrganization.mockResolvedValue({
-      id: 'authority_1',
-      name: organization.name,
-      slug: 'analytics',
-      createdAt: organization.createdAt,
-    })
+    authority.getOrganization.mockResolvedValue(createAuthorityOrganization())
     authority.updateOrganization
-      .mockResolvedValueOnce({
-        id: 'authority_1',
-        name: 'Renamed Analytics',
-        slug: 'analytics',
-        createdAt: organization.createdAt,
-      })
+      .mockResolvedValueOnce(createAuthorityOrganization({ name: 'Renamed Analytics' }))
       .mockResolvedValueOnce(undefined)
 
     await expect(
@@ -328,9 +276,7 @@ describe('OrganizationService.update compensation', () => {
   })
 
   it('completes a pending update after authority already reached the desired name', async () => {
-    const repository = mock<OrganizationRepository>()
-    const authority = mock<OrganizationAuthority>()
-    const service = new OrganizationService({ repository, authority })
+    const { repository, authority, service } = createOrganizationFixture()
 
     repository.findByIdForUser.mockResolvedValue(organization)
     repository.findPendingUpdateRepair.mockResolvedValue(repair)
@@ -339,19 +285,10 @@ describe('OrganizationService.update compensation', () => {
     repository.findById.mockResolvedValue(organization)
     repository.incrementRepairAttempt.mockResolvedValue()
     repository.updateNameAndCompleteRepair.mockResolvedValue(updatedOrganization)
-    authority.getMember.mockResolvedValue({
-      id: 'member_1',
-      organizationId: 'authority_1',
-      userId: 'user_1',
-      role: 'owner',
-      createdAt: organization.createdAt,
-    })
-    authority.getOrganization.mockResolvedValue({
-      id: 'authority_1',
-      name: 'Renamed Analytics',
-      slug: 'analytics',
-      createdAt: organization.createdAt,
-    })
+    authority.getMember.mockResolvedValue(createAuthorityMember())
+    authority.getOrganization.mockResolvedValue(
+      createAuthorityOrganization({ name: updatedOrganization.name }),
+    )
 
     await expect(
       service.update(

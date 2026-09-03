@@ -1,64 +1,45 @@
 import { eq } from 'drizzle-orm'
-import { afterEach, describe, expect, it } from 'vitest'
-import { closeDb, schema, type Db } from '@cimi/db'
-import { createMigratedTestDb } from '@cimi/db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { schema } from '@cimi/db'
 import { OrganizationRepositoryDrizzle } from '../repository.drizzle.ts'
-
-const now = new Date('2026-08-31T00:00:00.000Z')
-
-function user(id: string) {
-  return {
-    id,
-    name: id,
-    email: `${id}@example.com`,
-    emailVerified: true,
-    image: null,
-    role: null,
-    banned: null,
-    banReason: null,
-    banExpires: null,
-    createdAt: now,
-    updatedAt: now,
-  }
-}
+import {
+  createOrganizationDrizzleFixture,
+  createOrganizationRepairOperationRow,
+  createOrganizationRow,
+  destroyOrganizationDrizzleFixture,
+} from '../fixture.drizzle.ts'
 
 describe('OrganizationRepositoryDrizzle repair operations', () => {
-  let db: Db
+  let fixture: Awaited<ReturnType<typeof createOrganizationDrizzleFixture>>
 
-  afterEach(() => closeDb(db))
+  beforeEach(async () => {
+    fixture = await createOrganizationDrizzleFixture()
+  })
+
+  afterEach(() => destroyOrganizationDrizzleFixture(fixture))
 
   it('commits a local Organization and its completed create repair atomically', async () => {
-    db = createMigratedTestDb()
-    await db.insert(schema.TUser).values(user('user_1'))
+    const { db } = fixture
+    const organization = createOrganizationRow()
     const repository = new OrganizationRepositoryDrizzle({ db })
-    const repair = await repository.createRepairOperation({
-      id: 'repair_1',
-      organizationId: null,
-      localOrganizationId: 'organization_1',
-      operationType: 'create-organization',
-      ownerUserId: 'user_1',
-      authorityOrganizationId: 'authority_1',
-      authorityCleanupRequired: false,
-      authoritySlug: 'organization_1-user_1',
-      previousName: null,
-      desiredName: 'Analytics',
-      requestedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    })
+    const repair = await repository.createRepairOperation(
+      createOrganizationRepairOperationRow({
+        organizationId: null,
+        localOrganizationId: organization.id,
+        operationType: 'create-organization',
+        authoritySlug: 'organization_1-user_1',
+        previousName: null,
+        desiredName: organization.name,
+        requestedAt: organization.createdAt,
+        createdAt: organization.createdAt,
+        updatedAt: organization.updatedAt,
+      }),
+    )
 
     await expect(
       repository.insertWithOwnerAndCompleteRepair(
-        {
-          id: 'organization_1',
-          name: 'Analytics',
-          authorityOrganizationId: 'authority_1',
-          ownerUserId: 'user_1',
-          isPersonal: false,
-          createdAt: now,
-          updatedAt: now,
-        },
-        { userId: 'user_1', now },
+        organization,
+        { userId: organization.ownerUserId, now: organization.createdAt },
         repair.id,
       ),
     ).resolves.toMatchObject({ id: 'organization_1', name: 'Analytics' })
@@ -79,43 +60,33 @@ describe('OrganizationRepositoryDrizzle repair operations', () => {
   })
 
   it('keeps the repair pending when local Owner persistence rolls back', async () => {
-    db = createMigratedTestDb()
-    await db.insert(schema.TUser).values(user('user_1'))
+    const { db } = fixture
+    const organization = createOrganizationRow()
     const repository = new OrganizationRepositoryDrizzle({ db })
-    const repair = await repository.createRepairOperation({
-      id: 'repair_1',
-      organizationId: null,
-      localOrganizationId: 'organization_1',
-      operationType: 'create-organization',
-      ownerUserId: 'user_1',
-      authorityOrganizationId: 'authority_1',
-      authorityCleanupRequired: false,
-      authoritySlug: 'organization_1-user_1',
-      previousName: null,
-      desiredName: 'Analytics',
-      requestedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    })
+    const repair = await repository.createRepairOperation(
+      createOrganizationRepairOperationRow({
+        organizationId: null,
+        localOrganizationId: organization.id,
+        operationType: 'create-organization',
+        authoritySlug: 'organization_1-user_1',
+        previousName: null,
+        desiredName: organization.name,
+        requestedAt: organization.createdAt,
+        createdAt: organization.createdAt,
+        updatedAt: organization.updatedAt,
+      }),
+    )
 
     await expect(
       repository.insertWithOwnerAndCompleteRepair(
-        {
-          id: 'organization_1',
-          name: 'Analytics',
-          authorityOrganizationId: 'authority_1',
-          ownerUserId: 'user_1',
-          isPersonal: false,
-          createdAt: now,
-          updatedAt: now,
-        },
-        { userId: 'missing_user', now },
+        organization,
+        { userId: 'missing_user', now: organization.createdAt },
         repair.id,
       ),
     ).rejects.toThrow()
 
     await expect(
-      db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, 'organization_1')),
+      db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
     ).resolves.toHaveLength(0)
     await expect(
       db
@@ -132,45 +103,36 @@ describe('OrganizationRepositoryDrizzle repair operations', () => {
   })
 
   it('commits an Organization name and its completed update repair atomically', async () => {
-    db = createMigratedTestDb()
-    await db.insert(schema.TUser).values(user('user_1'))
+    const { db } = fixture
+    const organization = createOrganizationRow()
+    const updatedName = 'Renamed Analytics'
     const repository = new OrganizationRepositoryDrizzle({ db })
-    await repository.insertWithOwner(
-      {
-        id: 'organization_1',
-        name: 'Analytics',
-        authorityOrganizationId: 'authority_1',
-        ownerUserId: 'user_1',
-        isPersonal: false,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { userId: 'user_1', now },
-    )
-    const repair = await repository.createRepairOperation({
-      id: 'repair_1',
-      organizationId: 'organization_1',
-      localOrganizationId: 'organization_1',
-      operationType: 'update-organization',
-      ownerUserId: 'user_1',
-      authorityOrganizationId: 'authority_1',
-      authorityCleanupRequired: false,
-      authoritySlug: null,
-      previousName: 'Analytics',
-      desiredName: 'Renamed Analytics',
-      requestedAt: now,
-      createdAt: now,
-      updatedAt: now,
+    await repository.insertWithOwner(organization, {
+      userId: organization.ownerUserId,
+      now: organization.createdAt,
     })
+    const repair = await repository.createRepairOperation(
+      createOrganizationRepairOperationRow({
+        organizationId: organization.id,
+        localOrganizationId: organization.id,
+        ownerUserId: organization.ownerUserId,
+        authorityOrganizationId: organization.authorityOrganizationId,
+        previousName: organization.name,
+        desiredName: updatedName,
+        requestedAt: organization.createdAt,
+        createdAt: organization.createdAt,
+        updatedAt: organization.updatedAt,
+      }),
+    )
 
     await expect(
-      repository.updateNameAndCompleteRepair('organization_1', 'Renamed Analytics', repair.id),
+      repository.updateNameAndCompleteRepair(organization.id, updatedName, repair.id),
     ).resolves.toMatchObject({ id: 'organization_1', name: 'Renamed Analytics' })
     await expect(
       db
         .select({ name: schema.TOrganization.name })
         .from(schema.TOrganization)
-        .where(eq(schema.TOrganization.id, 'organization_1')),
+        .where(eq(schema.TOrganization.id, organization.id)),
     ).resolves.toEqual([{ name: 'Renamed Analytics' }])
     await expect(
       db
