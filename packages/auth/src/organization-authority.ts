@@ -50,6 +50,12 @@ export interface OrganizationAuthority {
     userId: string
     headers: Headers
   }): Promise<AuthorityMember | undefined>
+  admitMember(input: {
+    organizationId: string
+    userId: string
+    role: 'admin' | 'member'
+    headers: Headers
+  }): Promise<AuthorityMember>
   changeMemberRole(input: {
     organizationId: string
     memberId: string
@@ -194,6 +200,37 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
         return undefined
       }
       offset += result.members.length
+    }
+  }
+
+  async admitMember(input: {
+    organizationId: string
+    userId: string
+    role: 'admin' | 'member'
+    headers: Headers
+  }): Promise<AuthorityMember> {
+    try {
+      const added = await this.auth.api.addMember({
+        headers: input.headers,
+        body: {
+          organizationId: input.organizationId,
+          userId: input.userId,
+          role: input.role,
+        },
+      })
+      return toMember(added)
+    } catch (error) {
+      if (!isAlreadyMember(error)) throw error
+      const existing = await this.getMember(input)
+      if (existing === undefined) throw error
+      if (existing.role === input.role) return existing
+      if (existing.role === 'owner') throw error
+      return this.changeMemberRole({
+        organizationId: input.organizationId,
+        memberId: existing.id,
+        role: input.role,
+        headers: input.headers,
+      })
     }
   }
 
@@ -418,4 +455,11 @@ function isRequesterNotOrganizationMember(error: unknown): boolean {
   const body = error.body
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
   return body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
+}
+
+function isAlreadyMember(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('body' in error)) return false
+  const body = error.body
+  if (typeof body !== 'object' || body === null || !('code' in body)) return false
+  return body.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION'
 }
