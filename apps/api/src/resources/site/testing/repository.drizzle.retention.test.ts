@@ -58,6 +58,54 @@ describe.concurrent('SiteRepositoryDrizzle.retention', () => {
     ).resolves.toMatchObject({ ...identity, status: 'active' })
   })
 
+  it('preserves reportingTimezone and weekStartsOn across delete and recover', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    fixture.db
+      .update(schema.TSite)
+      .set({ reportingTimezone: 'America/New_York', weekStartsOn: 'sunday' })
+      .where(eq(schema.TSite.id, 'ste_1'))
+      .run()
+    const config = { reportingTimezone: 'America/New_York', weekStartsOn: 'sunday' }
+
+    await expect(
+      repo.findById('ste_1'),
+      'seeded site carries expected config',
+    ).resolves.toMatchObject(config)
+
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await expect(
+      repo.findById('ste_1'),
+      'config unchanged after beginDelete',
+    ).resolves.toMatchObject({ ...config, status: 'deleting' })
+
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+    await expect(
+      repo.findById('ste_1'),
+      'config unchanged after completeDelete',
+    ).resolves.toMatchObject({ ...config, status: 'deleted' })
+
+    await repo.beginRecover({
+      siteId: 'ste_1',
+      operationId: 'sop_2',
+      requestedAt: recoverRequestedAt,
+    })
+    await expect(
+      repo.findById('ste_1'),
+      'config unchanged after beginRecover',
+    ).resolves.toMatchObject({ ...config, status: 'recovering' })
+
+    await repo.completeRecover({
+      siteId: 'ste_1',
+      operationId: 'sop_2',
+      completedAt: recoverCompletedAt,
+    })
+    await expect(
+      repo.findById('ste_1'),
+      'config unchanged after completeRecover',
+    ).resolves.toMatchObject({ ...config, status: 'active' })
+  })
+
   it('removes the live row on purge and reserves the hostname via tombstone', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })
