@@ -77,16 +77,16 @@ apps/frontend/
 
 ## Packages
 
-| Package             | npm name         | Purpose                                       | Key exports                                                                                                                 |
-| ------------------- | ---------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Package             | npm name         | Purpose                                                        | Key exports                                                                                                                                                            |
+| ------------------- | ---------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/contract` | `@cimi/contract` | oRPC contract declaration layer — single source for API shapes | `packages/contract/src/contract.ts:19-37` → all 17 resource groups; `packages/contract/src/contract/{resource}`; `src/orpc/meta.ts`; shared schemas from `@cimi/utils` |
-| `packages/db`       | `@cimi/db`       | control (sqlite/drizzle) + analytics (duckdb) | `packages/db/src/index.ts:1` → `createDb`, `schema`, `migrateControlDb`, `createAnalyticsDb`                                |
-| `packages/auth`     | `@cimi/auth`     | better-auth wrapper                           | `packages/auth/src/server.ts`, `src/client.ts`, `src/first-user-admin.ts`                                                   |
-| `packages/guard`    | `@cimi/guard`    | authz guards                                  | `packages/guard/src/guard.ts`, `src/index.ts`, `src/testing/index.ts`                                                       |
-| `packages/kernel`   | `@cimi/kernel`   | cross-domain lifecycle and readiness ports    | `packages/kernel/src/ports.ts`, `src/index.ts`                                                                              |
-| `packages/client`   | `@cimi/client`   | typed oRPC client for frontend                | `packages/client/src/index.ts` (wraps `@orpc/client` + `@orpc/openapi-client`)                                              |
-| `packages/utils`    | `@cimi/utils`    | cross-cutting only                            | `packages/utils/src/index.ts:1-25` → `createSingleton`, `loadConfig`, `generateId`, `EntityId`, IP, user-agent, registrable-domain, and bot utilities |
-| `packages/testing`  | `@cimi/testing`  | shared test helpers                           | `packages/testing/src/index.ts` → `temp-dir`, `orpc-error` helpers                                                          |
+| `packages/db`       | `@cimi/db`       | control (sqlite/drizzle) + analytics (duckdb)                  | `packages/db/src/index.ts:1` → `createDb`, `schema`, `migrateControlDb`, `createAnalyticsDb`                                                                           |
+| `packages/auth`     | `@cimi/auth`     | better-auth wrapper                                            | `packages/auth/src/server.ts`, `src/client.ts`, `src/first-user-admin.ts`                                                                                              |
+| `packages/guard`    | `@cimi/guard`    | authz guards                                                   | `packages/guard/src/guard.ts`, `src/index.ts`, `src/testing/index.ts`                                                                                                  |
+| `packages/kernel`   | `@cimi/kernel`   | cross-domain lifecycle and readiness ports                     | `packages/kernel/src/ports.ts`, `src/index.ts`                                                                                                                         |
+| `packages/client`   | `@cimi/client`   | typed oRPC client for frontend                                 | `packages/client/src/index.ts` (wraps `@orpc/client` + `@orpc/openapi-client`)                                                                                         |
+| `packages/utils`    | `@cimi/utils`    | cross-cutting only                                             | `packages/utils/src/index.ts:1-25` → `createSingleton`, `loadConfig`, `generateId`, `EntityId`, IP, user-agent, registrable-domain, and bot utilities                  |
+| `packages/testing`  | `@cimi/testing`  | shared test helpers                                            | `packages/testing/src/index.ts` → `temp-dir`, `orpc-error` helpers                                                                                                     |
 
 ### packages/utils — Allowed vs. forbidden
 

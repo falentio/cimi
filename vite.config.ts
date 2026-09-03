@@ -12,11 +12,13 @@ export default defineConfig({
   fmt: {
     ignorePatterns: [
       'rybbit/**',
+      'docs/vendor/**',
       'node_modules/**',
       'dist/**',
       '.astro/**',
       '.cimi/**',
       'packages/db/src/schema/auth.generated.ts',
+      'packages/db/src/migrations/meta/**',
     ],
     singleQuote: true,
     semi: false,
@@ -24,11 +26,13 @@ export default defineConfig({
   lint: {
     ignorePatterns: [
       'rybbit/**',
+      'docs/vendor/**',
       'node_modules/**',
       'dist/**',
       '.astro/**',
       '.cimi/**',
       'packages/db/src/schema/auth.generated.ts',
+      'packages/db/src/migrations/meta/**',
     ],
     overrides: [
       {

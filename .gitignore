@@ -18,6 +18,7 @@ coverage/
 
 # herdr skill: vendored libghostty-vt (regeneratable via herdr/scripts/vendor_libghostty_vt.py)
 .agents/skills/skills/herdr/vendor/libghostty-vt/
+.agents/skills/skills/herdr/website/
 
 # linked worktrees
 .worktrees/

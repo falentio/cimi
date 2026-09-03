@@ -31,16 +31,16 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 **Audience:** Both
 
-| Field | Schema | Description |
-| --- | --- | --- |
-| `status` | `installationStatus` | `uninitialized`, `ready`, `degraded`, `maintenance`, or `recovering`. |
-| `defaultRetention` | `retentionPolicy` | Installation default. |
-| `dataDirectoryReady` | `boolean` | Configured mounted data directory readiness. |
-| `activeOperation` | `lifecycleOperationStatus` | Safe phase, operation ID, and status for one global `backup`, `restore`, `upgrade`, `retention`, `cleanup`, `site_deletion`, `site_recovery`, or `site_purge` operation. Site operation IDs correlate with the privileged Site deletion-status surface without exposing paths or payloads. |
-| `cleanupPending` | `boolean` | Historical retention/deletion work remains after structural readiness. |
-| `derivedCleanup` | `cleanupStage` | Active-derived/live cleanup status, timestamp, and safe error. |
-| `backupCleanup` | `cleanupStage` | Historical-backup cleanup status, timestamp, and safe error; it starts only after derived cleanup completes. |
-| `updatedAt` | `SDateTime` | Status timestamp. |
+| Field                | Schema                     | Description                                                                                                                                                                                                                                                                                |
+| -------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `status`             | `installationStatus`       | `uninitialized`, `ready`, `degraded`, `maintenance`, or `recovering`.                                                                                                                                                                                                                      |
+| `defaultRetention`   | `retentionPolicy`          | Installation default.                                                                                                                                                                                                                                                                      |
+| `dataDirectoryReady` | `boolean`                  | Configured mounted data directory readiness.                                                                                                                                                                                                                                               |
+| `activeOperation`    | `lifecycleOperationStatus` | Safe phase, operation ID, and status for one global `backup`, `restore`, `upgrade`, `retention`, `cleanup`, `site_deletion`, `site_recovery`, or `site_purge` operation. Site operation IDs correlate with the privileged Site deletion-status surface without exposing paths or payloads. |
+| `cleanupPending`     | `boolean`                  | Historical retention/deletion work remains after structural readiness.                                                                                                                                                                                                                     |
+| `derivedCleanup`     | `cleanupStage`             | Active-derived/live cleanup status, timestamp, and safe error.                                                                                                                                                                                                                             |
+| `backupCleanup`      | `cleanupStage`             | Historical-backup cleanup status, timestamp, and safe error; it starts only after derived cleanup completes.                                                                                                                                                                               |
+| `updatedAt`          | `SDateTime`                | Status timestamp.                                                                                                                                                                                                                                                                          |
 
 `cleanupStage.status` is `not_applicable`, `not_started`, `pending`, `running`, `completed`, or `failed`. A stage exposes `startedAt`, `completedAt`, and a safe `errorCode` consistent with that status. `cleanupPending` is true while either applicable stage is not complete.
 
@@ -48,11 +48,11 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 **Audience:** FE
 
-| # | Procedure | Method | Path | Auth | CQRS |
-| --- | --- | --- | --- | --- | --- |
-| Q1 | `getInstallationStatus` | GET | `/installation/getInstallationStatus` | admin | query |
-| C1 | `initializeInstallation` | POST | `/installation/initializeInstallation` | admin | command |
-| C2 | `upgradeInstallation` | POST | `/installation/upgradeInstallation` | admin | command |
+| #   | Procedure                | Method | Path                                   | Auth  | CQRS    |
+| --- | ------------------------ | ------ | -------------------------------------- | ----- | ------- |
+| Q1  | `getInstallationStatus`  | GET    | `/installation/getInstallationStatus`  | admin | query   |
+| C1  | `initializeInstallation` | POST   | `/installation/initializeInstallation` | admin | command |
+| C2  | `upgradeInstallation`    | POST   | `/installation/upgradeInstallation`    | admin | command |
 
 ## 4. Queries
 
@@ -94,20 +94,20 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 ## 6. Business Rules
 
-| Rule | Enforcement Point | Affected Procedures |
-| --- | --- | --- |
-| No required hosted service or sidecar. | Installation validation. | Q1, C1 |
-| Initialization cannot delete or rewrite product data. | Transactional command guard. | C1 |
-| Default policy is available before Site overrides. | Initialization transaction. | C1 |
-| A ready installation always has a ready mounted data directory. | Contract validation. | Q1, C1, C2 |
-| Site lifecycle lock holders are named in `activeOperation` and expose only safe progress identifiers. | Lifecycle coordinator. | Q1, C2 |
-| Upgrade quiescence stops new Event admission and drains the active/pending acceptance queues before the safety artifact is created. | Lifecycle coordinator and acceptance coordinator. | C2 |
+| Rule                                                                                                                                | Enforcement Point                                 | Affected Procedures |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------- |
+| No required hosted service or sidecar.                                                                                              | Installation validation.                          | Q1, C1              |
+| Initialization cannot delete or rewrite product data.                                                                               | Transactional command guard.                      | C1                  |
+| Default policy is available before Site overrides.                                                                                  | Initialization transaction.                       | C1                  |
+| A ready installation always has a ready mounted data directory.                                                                     | Contract validation.                              | Q1, C1, C2          |
+| Site lifecycle lock holders are named in `activeOperation` and expose only safe progress identifiers.                               | Lifecycle coordinator.                            | Q1, C2              |
+| Upgrade quiescence stops new Event admission and drains the active/pending acceptance queues before the safety artifact is created. | Lifecycle coordinator and acceptance coordinator. | C2                  |
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning | Procedures |
-| --- | --- | --- |
-| `admin` | Installation administrator. | Q1, C1 |
+| Auth Level | Meaning                     | Procedures |
+| ---------- | --------------------------- | ---------- |
+| `admin`    | Installation administrator. | Q1, C1     |
 
 ## 8. Event Catalog
 
@@ -127,31 +127,31 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code | HTTP | Trigger |
-| --- | ---: | --- |
-| `UNAUTHORIZED` | 401 | No authenticated admin. |
-| `FORBIDDEN` | 403 | Caller is not installation admin. |
-| `BAD_REQUEST` | 400 | Bootstrap input invalid. |
-| `CONFLICT` | 409 | Installation lifecycle cannot accept initialization. |
-| `INCOMPATIBLE_BACKUP` | 422 | An upgrade manifest is newer or incompatible. |
-| `INSUFFICIENT_STORAGE` | 507 | The SQLite safety artifact or migration cannot be stored safely. |
-| `NOT_FOUND` | 404 | Required installation resource is unavailable. |
-| `INTERNAL_SERVER_ERROR` | 500 | Initialization or status cannot be completed safely. |
+| Code                    | HTTP | Trigger                                                          |
+| ----------------------- | ---: | ---------------------------------------------------------------- |
+| `UNAUTHORIZED`          |  401 | No authenticated admin.                                          |
+| `FORBIDDEN`             |  403 | Caller is not installation admin.                                |
+| `BAD_REQUEST`           |  400 | Bootstrap input invalid.                                         |
+| `CONFLICT`              |  409 | Installation lifecycle cannot accept initialization.             |
+| `INCOMPATIBLE_BACKUP`   |  422 | An upgrade manifest is newer or incompatible.                    |
+| `INSUFFICIENT_STORAGE`  |  507 | The SQLite safety artifact or migration cannot be stored safely. |
+| `NOT_FOUND`             |  404 | Required installation resource is unavailable.                   |
+| `INTERNAL_SERVER_ERROR` |  500 | Initialization or status cannot be completed safely.             |
 
 ## 11. Related Resources & Dependencies
 
 ### Depends On
 
-| Resource | Integration Point |
-| --- | --- |
-| Better Auth | Admin principal. |
+| Resource           | Integration Point     |
+| ------------------ | --------------------- |
+| Better Auth        | Admin principal.      |
 | `retention-policy` | Installation default. |
-| `backup-restore` | Maintenance state. |
+| `backup-restore`   | Maintenance state.    |
 
 ### Used By
 
-| Resource | Integration Point |
-| --- | --- |
+| Resource | Integration Point  |
+| -------- | ------------------ |
 | `health` | Readiness summary. |
 
 ## 12. Out of Scope

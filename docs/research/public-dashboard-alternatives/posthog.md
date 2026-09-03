@@ -43,23 +43,23 @@ treated as substitutes for Cimi's own disclosure policy.
 
 ## Capability Matrix
 
-| Question | PostHog behavior | Evidence and confidence |
-| --- | --- | --- |
-| Organization membership required? | No for a public dashboard, insight, or embed link. | Confirmed by official sharing docs and the public view's auth classes. |
-| Main identifier | A path access token in `/shared_dashboard/<token>`, `/shared/<token>`, or `/embedded/<token>`. | Confirmed in `posthog/urls.py`. |
-| Credential type | Bearer URL; possession is sufficient unless password protection is enabled. | Confirmed by docs and `SharingViewerPageViewSet`. |
-| Data scope | The shared resource and the results rendered from its configured tiles. Not an unrestricted Organization session. | Confirmed for resource routing; the disclosure consequence is a Cimi security inference. |
-| Viewer-specific RBAC | No normal member/RBAC identity for the public page. | Confirmed by `SharedLinkUser` and shared-query code. |
-| Viewer filters | Public dashboard filter controls are disabled; shared API filter and variable overrides are ignored. | Confirmed in frontend logic, OpenAPI semantics, and security tests. |
-| Date range changes | External viewers cannot change an insight's date range; public dashboard controls are disabled. | Confirmed by docs and frontend logic. |
-| Disable/revoke | Disable the share, rotate the token, or disable an individual password. | Confirmed by sharing API and model behavior. |
-| Token rotation | New token is issued; old active configurations expire after five minutes. | Confirmed in `rotate_access_token()` and settings. |
-| Password session | Password success creates an HTTP-only cookie/JWT valid for 24 hours. | Confirmed in `posthog/api/sharing.py` and `sharing_configuration.py`. |
-| Indexing | Self-hosted robots blocks everything; Cloud robots blocks `/shared/` and `/shared_dashboard/`. | Confirmed in `posthog/views.py`; robots is advisory, not access control. |
-| Image export | Shared resources have a `.png` response path; PostHog also has a purpose-scoped exporter route. | Confirmed in `posthog/api/sharing.py` and sharing docs. |
-| CSV/JSON export from a normal public link | Not established by the sources inspected. | Unknown; do not assume it is unavailable without an integration test. |
-| Request throttling | Shared view has burst, sustained, and shared-password-volume throttles. Wrong-password submissions have an additional ten-per-minute per-link throttle. | Confirmed in source and the official PostHog rate-limit change. |
-| Query refresh | Shared and embedded dashboards auto-refresh every 30 minutes while visible; shared execution uses cache/staleness rules. | Confirmed by docs and query-runner source. |
+| Question                                  | PostHog behavior                                                                                                                                        | Evidence and confidence                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Organization membership required?         | No for a public dashboard, insight, or embed link.                                                                                                      | Confirmed by official sharing docs and the public view's auth classes.                   |
+| Main identifier                           | A path access token in `/shared_dashboard/<token>`, `/shared/<token>`, or `/embedded/<token>`.                                                          | Confirmed in `posthog/urls.py`.                                                          |
+| Credential type                           | Bearer URL; possession is sufficient unless password protection is enabled.                                                                             | Confirmed by docs and `SharingViewerPageViewSet`.                                        |
+| Data scope                                | The shared resource and the results rendered from its configured tiles. Not an unrestricted Organization session.                                       | Confirmed for resource routing; the disclosure consequence is a Cimi security inference. |
+| Viewer-specific RBAC                      | No normal member/RBAC identity for the public page.                                                                                                     | Confirmed by `SharedLinkUser` and shared-query code.                                     |
+| Viewer filters                            | Public dashboard filter controls are disabled; shared API filter and variable overrides are ignored.                                                    | Confirmed in frontend logic, OpenAPI semantics, and security tests.                      |
+| Date range changes                        | External viewers cannot change an insight's date range; public dashboard controls are disabled.                                                         | Confirmed by docs and frontend logic.                                                    |
+| Disable/revoke                            | Disable the share, rotate the token, or disable an individual password.                                                                                 | Confirmed by sharing API and model behavior.                                             |
+| Token rotation                            | New token is issued; old active configurations expire after five minutes.                                                                               | Confirmed in `rotate_access_token()` and settings.                                       |
+| Password session                          | Password success creates an HTTP-only cookie/JWT valid for 24 hours.                                                                                    | Confirmed in `posthog/api/sharing.py` and `sharing_configuration.py`.                    |
+| Indexing                                  | Self-hosted robots blocks everything; Cloud robots blocks `/shared/` and `/shared_dashboard/`.                                                          | Confirmed in `posthog/views.py`; robots is advisory, not access control.                 |
+| Image export                              | Shared resources have a `.png` response path; PostHog also has a purpose-scoped exporter route.                                                         | Confirmed in `posthog/api/sharing.py` and sharing docs.                                  |
+| CSV/JSON export from a normal public link | Not established by the sources inspected.                                                                                                               | Unknown; do not assume it is unavailable without an integration test.                    |
+| Request throttling                        | Shared view has burst, sustained, and shared-password-volume throttles. Wrong-password submissions have an additional ten-per-minute per-link throttle. | Confirmed in source and the official PostHog rate-limit change.                          |
+| Query refresh                             | Shared and embedded dashboards auto-refresh every 30 minutes while visible; shared execution uses cache/staleness rules.                                | Confirmed by docs and query-runner source.                                               |
 
 ## Access Model
 

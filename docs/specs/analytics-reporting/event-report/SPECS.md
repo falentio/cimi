@@ -19,21 +19,21 @@ This resource is stateless and read-only.
 
 **Audience:** Both
 
-| Field                       | Schema                                          | Description                                                               |
-| --------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `siteId`                    | `SId`                                           | Site scope.                                                               |
-| `fromDate` / `toDate`       | `SDate`                                         | Inclusive Site-local calendar range resolved through `reportingTimezone`. |
-| `eventKind`                 | `eventKind`                                     | One of the standard kinds.                                                |
-| `granularity`               | `granularity`                                   | Required for Q2 timeseries and bounded by the requested range.            |
+| Field                       | Schema                                          | Description                                                                              |
+| --------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `siteId`                    | `SId`                                           | Site scope.                                                                              |
+| `fromDate` / `toDate`       | `SDate`                                         | Inclusive Site-local calendar range resolved through `reportingTimezone`.                |
+| `eventKind`                 | `eventKind`                                     | One of the standard kinds.                                                               |
+| `granularity`               | `granularity`                                   | Required for Q2 timeseries and bounded by the requested range.                           |
 | `filters`                   | `eventFilterAllowlist`                          | Typed event/name/property filters plus authenticated same-range action-presence filters. |
-| `sort` / `offset` / `limit` | `querySort` / `nonNegativeInteger` / `pageSize` | Stable live event-list pages.                                             |
+| `sort` / `offset` / `limit` | `querySort` / `nonNegativeInteger` / `pageSize` | Stable live event-list pages.                                                            |
 
 ## 3. Endpoint Quick Index
 
 **Audience:** FE
 
-| #   | Procedure            | Method | Path                  | Auth          | CQRS  |
-| --- | -------------------- | ------ | --------------------- | ------------- | ----- |
+| #   | Procedure            | Method | Path                               | Auth          | CQRS  |
+| --- | -------------------- | ------ | ---------------------------------- | ------------- | ----- |
 | Q1  | `getEventOverview`   | GET    | `/event-report/getEventOverview`   | authenticated | query |
 | Q2  | `getEventTimeseries` | GET    | `/event-report/getEventTimeseries` | authenticated | query |
 | Q3  | `listEvents`         | GET    | `/event-report/listEvents`         | authenticated | query |
@@ -117,12 +117,12 @@ No events are emitted by read-only reports.
 
 ## 10. Error Code Catalog
 
-| Code                   | HTTP | Trigger                                                    |
-| ---------------------- | ---: | ---------------------------------------------------------- |
-| `NOT_FOUND`            |  404 | Site is missing or inaccessible; the two cases are indistinguishable. |
-| `BAD_REQUEST`          |  400 | Invalid Event Kind, range, filter, sort, offset, or limit. |
+| Code                   | HTTP | Trigger                                                                                                                                                                |
+| ---------------------- | ---: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOT_FOUND`            |  404 | Site is missing or inaccessible; the two cases are indistinguishable.                                                                                                  |
+| `BAD_REQUEST`          |  400 | Invalid Event Kind, range, filter, sort, offset, or limit.                                                                                                             |
 | `QUERY_LIMIT_EXCEEDED` |  422 | Effective Retention is incomplete, preflight statistics are stale or uncertain, a relevant/unbounded Projection Gap exists, or bounded query budget would be exceeded. |
-| `SERVICE_UNAVAILABLE`  |  503 | Analytics store is not ready to serve the query.           |
+| `SERVICE_UNAVAILABLE`  |  503 | Analytics store is not ready to serve the query.                                                                                                                       |
 
 ## 11. Related Resources & Dependencies
 

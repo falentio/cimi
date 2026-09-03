@@ -106,9 +106,9 @@ while DuckDB can be copied for faster restore but must remain rebuildable.
   no self-hosting or current capacity envelope.
 
 Cimi's one-container SQLite plus DuckDB topology is intentionally smaller. Its
-  single-writer boundary, local disk growth, temporary spill, queue backlog,
-  rebuild duration, backup generation, and minimum host envelope must be
-  documented as Cimi-owned guarantees rather than inferred from competitors.
+single-writer boundary, local disk growth, temporary spill, queue backlog,
+rebuild duration, backup generation, and minimum host envelope must be
+documented as Cimi-owned guarantees rather than inferred from competitors.
 
 ## Boundary To Grill
 

@@ -172,13 +172,13 @@ documentation warns that event deduplication is not guaranteed.
 **Inference:** PostHog's canonical ownership is multi-store and operationally
 distributed. Cimi should instead give each concern one clear owner:
 
-| Concern | Cimi owner | Contract |
-| --- | --- | --- |
-| Accepted normalized event | SQLite journal | Durable before acknowledgment |
-| Event ID, fingerprint, policy version, replay state | SQLite journal | Unique ID plus collision detection |
-| Analytical rows and report indexes | DuckDB | Rebuildable derived projection |
-| Projection progress | SQLite journal or projection metadata | Explicit cursor, retry state, and lag |
-| Query visibility | DuckDB | Separate from collection acknowledgment |
+| Concern                                             | Cimi owner                            | Contract                                |
+| --------------------------------------------------- | ------------------------------------- | --------------------------------------- |
+| Accepted normalized event                           | SQLite journal                        | Durable before acknowledgment           |
+| Event ID, fingerprint, policy version, replay state | SQLite journal                        | Unique ID plus collision detection      |
+| Analytical rows and report indexes                  | DuckDB                                | Rebuildable derived projection          |
+| Projection progress                                 | SQLite journal or projection metadata | Explicit cursor, retry state, and lag   |
+| Query visibility                                    | DuckDB                                | Separate from collection acknowledgment |
 
 ## Deduplication and retries
 

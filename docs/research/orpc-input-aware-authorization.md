@@ -23,15 +23,15 @@ the same list at `packages/contract/src/schema/shared-contract.test.ts:55-64`.
 The important distinction is that these values do not all describe properties of
 the authenticated actor:
 
-| Metadata value | Decision needed | Typical input/resource key |
-| --- | --- | --- |
-| `public` | No authenticated actor; validate the public capability or identifier and its resource binding. | `publicDashboardIdentifier` or another bearer key |
-| `authenticated` | A user exists; many procedures also require persisted membership in the organization or site named by the request. | `organizationId`, `siteId`, or invitation token |
-| `admin` | Existing coarse label, but overloaded between organization/site management and installation administration. | `organizationId`, `siteId`, or installation scope |
-| `owner` | The current user is the persisted owner of the requested organization. | `organizationId`, or a `siteId` that must first resolve to its organization |
-| `site-admin` | The current user has site-management authority for the requested site or its organization. | `siteId`, or `organizationId` for site creation |
-| `organization-admin` | The current user is an owner/administrator of the requested organization. | `organizationId` |
-| `installation-admin` | The configured installation-admin flow authorizes an installation-wide operation. | Usually no resource identifier; sometimes an installation-scoped input |
+| Metadata value       | Decision needed                                                                                                    | Typical input/resource key                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `public`             | No authenticated actor; validate the public capability or identifier and its resource binding.                     | `publicDashboardIdentifier` or another bearer key                           |
+| `authenticated`      | A user exists; many procedures also require persisted membership in the organization or site named by the request. | `organizationId`, `siteId`, or invitation token                             |
+| `admin`              | Existing coarse label, but overloaded between organization/site management and installation administration.        | `organizationId`, `siteId`, or installation scope                           |
+| `owner`              | The current user is the persisted owner of the requested organization.                                             | `organizationId`, or a `siteId` that must first resolve to its organization |
+| `site-admin`         | The current user has site-management authority for the requested site or its organization.                         | `siteId`, or `organizationId` for site creation                             |
+| `organization-admin` | The current user is an owner/administrator of the requested organization.                                          | `organizationId`                                                            |
+| `installation-admin` | The configured installation-admin flow authorizes an installation-wide operation.                                  | Usually no resource identifier; sometimes an installation-scoped input      |
 
 The three scope-specific names are vocabulary only at present: current
 procedures still use the overloaded `admin` metadata value for those behaviors.
@@ -151,7 +151,7 @@ const canUpdate = os.middleware(async ({ context, next }, siteId: string) => {
 
 const update = os
   .input(SUpdateInput)
-  .use(canUpdate, input => input.siteId)
+  .use(canUpdate, (input) => input.siteId)
   .handler(/* ... */)
 ```
 
@@ -277,12 +277,12 @@ requested resource's ownership or membership.
 
 ### Alternatives and trade-offs
 
-| Approach | Benefits | Risks / limits |
-| --- | --- | --- |
-| Static metadata plus input-aware middleware | Keeps the contract vocabulary discoverable while putting resource checks at a typed, validated seam; reusable guards can map only their key. | Requires deliberate middleware placement and a policy dispatcher that does not pretend every value is actor-only. |
-| Rich metadata containing a resource kind/key selector | A generic dispatcher can choose `organizationId`, `siteId`, or installation policy from contract metadata. | Adds string/configuration coupling and central branching; unusual procedures still need explicit guards. Metadata selects a check but cannot replace the persisted lookup. |
-| Handler-level authorization helpers | Makes each domain rule explicit and is straightforward for complex transactions and error semantics. | Repetition and inconsistent enforcement become likely; authorization is easier to forget when adding a procedure. |
-| Request/interceptor-level body inspection | Useful for transport authentication, logging, or adapter-wide concerns. | It sees the raw transport request, duplicates decoding/validation, and is the wrong layer for resource authorization. Procedure middleware already receives decoded input. |
+| Approach                                              | Benefits                                                                                                                                     | Risks / limits                                                                                                                                                             |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Static metadata plus input-aware middleware           | Keeps the contract vocabulary discoverable while putting resource checks at a typed, validated seam; reusable guards can map only their key. | Requires deliberate middleware placement and a policy dispatcher that does not pretend every value is actor-only.                                                          |
+| Rich metadata containing a resource kind/key selector | A generic dispatcher can choose `organizationId`, `siteId`, or installation policy from contract metadata.                                   | Adds string/configuration coupling and central branching; unusual procedures still need explicit guards. Metadata selects a check but cannot replace the persisted lookup. |
+| Handler-level authorization helpers                   | Makes each domain rule explicit and is straightforward for complex transactions and error semantics.                                         | Repetition and inconsistent enforcement become likely; authorization is easier to forget when adding a procedure.                                                          |
+| Request/interceptor-level body inspection             | Useful for transport authentication, logging, or adapter-wide concerns.                                                                      | It sees the raw transport request, duplicates decoding/validation, and is the wrong layer for resource authorization. Procedure middleware already receives decoded input. |
 
 The recommended direction is the first approach, with the second used only for
 stable, repeated policy shapes. Keep domain-specific invariants in handlers or

@@ -54,18 +54,18 @@ This report does not modify Rybbit or Cimi product code.
 
 ## Boundary matrix
 
-| Concern                         | Rybbit evidence                                                                            | Cimi interpretation                                                   |
-| ------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Ingestion acknowledgment        | HTTP 200 follows in-memory queue admission for ordinary events                             | Acknowledge only after SQLite journal commit                          |
-| Accepted event authority        | No separate raw-event acceptance journal found; ClickHouse insert is later                 | SQLite owns the accepted normalized envelope                          |
-| Site/configuration state        | PostgreSQL `sites` and related tables; one-minute process-local cache                      | SQLite owns Site, policy, identity configuration, and lifecycle state |
-| Identified profiles and aliases | PostgreSQL `user_profiles` and `user_aliases`                                              | SQLite owns identity/profile links and deletion state                 |
-| Active session state            | Redis key with sliding 30-minute TTL; old PostgreSQL table is deprecated                   | Keep session derivation/checkpoints recoverable from SQLite events    |
-| Raw analytics events            | ClickHouse `events` `MergeTree` rows                                                       | DuckDB stores a projection of accepted SQLite events                  |
-| Session replay                  | ClickHouse event/metadata tables, with Cloud R2 payload batches                            | Model replay as a separate data class and lifecycle                   |
-| Report serving                  | Raw ClickHouse queries plus optional materialized views                                    | DuckDB reports and projections are derived and versioned              |
-| Projection progress             | No general event projector cursor or replay ledger found                                   | SQLite owns projector cursor, retry state, and lag                    |
-| Retention                       | Main events table has no TTL in the inspected DDL; replay and bot tables do                | Apply one explicit Cimi policy across journal and projection          |
+| Concern                         | Rybbit evidence                                                                            | Cimi interpretation                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Ingestion acknowledgment        | HTTP 200 follows in-memory queue admission for ordinary events                             | Acknowledge only after SQLite journal commit                              |
+| Accepted event authority        | No separate raw-event acceptance journal found; ClickHouse insert is later                 | SQLite owns the accepted normalized envelope                              |
+| Site/configuration state        | PostgreSQL `sites` and related tables; one-minute process-local cache                      | SQLite owns Site, policy, identity configuration, and lifecycle state     |
+| Identified profiles and aliases | PostgreSQL `user_profiles` and `user_aliases`                                              | SQLite owns identity/profile links and deletion state                     |
+| Active session state            | Redis key with sliding 30-minute TTL; old PostgreSQL table is deprecated                   | Keep session derivation/checkpoints recoverable from SQLite events        |
+| Raw analytics events            | ClickHouse `events` `MergeTree` rows                                                       | DuckDB stores a projection of accepted SQLite events                      |
+| Session replay                  | ClickHouse event/metadata tables, with Cloud R2 payload batches                            | Model replay as a separate data class and lifecycle                       |
+| Report serving                  | Raw ClickHouse queries plus optional materialized views                                    | DuckDB reports and projections are derived and versioned                  |
+| Projection progress             | No general event projector cursor or replay ledger found                                   | SQLite owns projector cursor, retry state, and lag                        |
+| Retention                       | Main events table has no TTL in the inspected DDL; replay and bot tables do                | Apply one explicit Cimi policy across journal and projection              |
 | Backup/recovery                 | Separate PostgreSQL and ClickHouse backup procedures; no atomic cross-store snapshot shown | Back up SQLite authority; optionally copy DuckDB as a rebuild accelerator |
 
 ## Ingestion acknowledgment and durability

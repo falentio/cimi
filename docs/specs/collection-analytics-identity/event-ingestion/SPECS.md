@@ -51,8 +51,8 @@ The shared Event envelope is a strict discriminated union defined by the Event, 
 
 **Audience:** FE
 
-| #   | Procedure       | Method | Path             | Auth   | CQRS    |
-| --- | --------------- | ------ | ---------------- | ------ | ------- |
+| #   | Procedure       | Method | Path                             | Auth   | CQRS    |
+| --- | --------------- | ------ | -------------------------------- | ------ | ------- |
 | C1  | `collectEvent`  | POST   | `/event-ingestion/collectEvent`  | public | command |
 | C2  | `collectEvents` | POST   | `/event-ingestion/collectEvents` | public | command |
 
@@ -88,30 +88,30 @@ Pageviews emit once for initial document load and once per actual SPA route tran
 
 ## 6. Business Rules
 
-| Rule                                                                                                                        | Enforcement Point                           | Affected Procedures |
-| --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------- |
-| Event IDs are stable and deduplicated, including while candidates are in flight.                                             | Ingestion boundary and deduplication store. | C1, C2              |
-| Event IDs remain unique for full raw-event retention; changed payloads conflict.                                            | Ingestion boundary and deduplication store. | C1, C2              |
-| Unknown fields, nested custom properties, arrays, reserved names, and oversize parsed values fail.                         | Strict contract validation.                 | C1, C2              |
-| Raw request-byte limits are checked before JSON parsing; parsed schemas do not measure re-serialized values.                 | Transport adapter.                          | C1, C2              |
-| Exclusions precede identity and Session assignment.                                                                         | Ordered pipeline.                           | C1                  |
-| Server owns Session boundaries.                                                                                             | Session resolver.                           | C1                  |
-| Accepted-for-processing requires durable journal acceptance but is not analytics-store commit.                              | Acceptance journal and recovery pipeline.   | C1, C2              |
-| New candidates use a global FIFO coalescer with a fixed 1,000 ms window, a 500-candidate flush limit, and 1,500 pending unique-candidate capacity. | Acceptance coordinator. | C1, C2 |
-| Each internal flush is one sequential all-or-none SQLite transaction; queue admission never produces a successful response. | Acceptance coordinator and SQLite journal. | C1, C2 |
-| A request response waits for all of its new candidates to commit; a failed or ambiguous commit is retried by Event ID.      | Request waiter and deduplication store.    | C1, C2              |
-| Occurrence Time is bounded; Receipt Time is captured at candidate admission and is always retained.                         | Timestamp validator and acceptance coordinator. | C1, C2          |
-| Occurrence Time governs analytical retention; Receipt Time governs acceptance-journal, deduplication, and replay retention. | Retention resolver. | C1, C2 |
-| Session-entry attribution uses first-touch values, normalizes same-Site referrals away, and remains stable for the Session. | Attribution resolver. | C1, C2 |
-| Source IP is transient protection input and is never persisted. | Ingestion guard and journal boundary. | C1, C2 |
-| Rate protection uses Site and transient source-IP buckets; numeric thresholds are installation settings, not API quotas.    | Ingestion guard.                            | C1, C2              |
-| Identity deletion applies a durable redaction overlay without rewriting accepted Event sequence history.                    | Identity lifecycle and replay.              | C1, C2              |
-| Only active Sites may admit new candidates; candidates admitted before deletion are grandfathered through the flush.        | Shared lifecycle boundary.                  | C1, C2              |
-| Public batch processing is non-atomic after boundary validation, while each internal flush is atomic.                       | Per-item pipeline and acceptance coordinator. | C2                |
-| Batch policy refusals disclose only a generic policy result and are not journaled.                                          | Collection-policy boundary.                 | C2                  |
-| Batch item errors use a bounded code set and do not expose unvalidated IDs.                                                 | Item-result schema.                         | C2                  |
-| Queue saturation, flush failure, quiesce failure, and commit ambiguity return top-level `SERVICE_UNAVAILABLE` with no success body. | Acceptance coordinator. | C1, C2 |
-| Acceptance observability records queue depth, active/pending batch size, queue wait, commit latency, WAL growth, saturation, failures, and response latency. | Ingestion diagnostics. | C1, C2 |
+| Rule                                                                                                                                                         | Enforcement Point                               | Affected Procedures |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- | ------------------- |
+| Event IDs are stable and deduplicated, including while candidates are in flight.                                                                             | Ingestion boundary and deduplication store.     | C1, C2              |
+| Event IDs remain unique for full raw-event retention; changed payloads conflict.                                                                             | Ingestion boundary and deduplication store.     | C1, C2              |
+| Unknown fields, nested custom properties, arrays, reserved names, and oversize parsed values fail.                                                           | Strict contract validation.                     | C1, C2              |
+| Raw request-byte limits are checked before JSON parsing; parsed schemas do not measure re-serialized values.                                                 | Transport adapter.                              | C1, C2              |
+| Exclusions precede identity and Session assignment.                                                                                                          | Ordered pipeline.                               | C1                  |
+| Server owns Session boundaries.                                                                                                                              | Session resolver.                               | C1                  |
+| Accepted-for-processing requires durable journal acceptance but is not analytics-store commit.                                                               | Acceptance journal and recovery pipeline.       | C1, C2              |
+| New candidates use a global FIFO coalescer with a fixed 1,000 ms window, a 500-candidate flush limit, and 1,500 pending unique-candidate capacity.           | Acceptance coordinator.                         | C1, C2              |
+| Each internal flush is one sequential all-or-none SQLite transaction; queue admission never produces a successful response.                                  | Acceptance coordinator and SQLite journal.      | C1, C2              |
+| A request response waits for all of its new candidates to commit; a failed or ambiguous commit is retried by Event ID.                                       | Request waiter and deduplication store.         | C1, C2              |
+| Occurrence Time is bounded; Receipt Time is captured at candidate admission and is always retained.                                                          | Timestamp validator and acceptance coordinator. | C1, C2              |
+| Occurrence Time governs analytical retention; Receipt Time governs acceptance-journal, deduplication, and replay retention.                                  | Retention resolver.                             | C1, C2              |
+| Session-entry attribution uses first-touch values, normalizes same-Site referrals away, and remains stable for the Session.                                  | Attribution resolver.                           | C1, C2              |
+| Source IP is transient protection input and is never persisted.                                                                                              | Ingestion guard and journal boundary.           | C1, C2              |
+| Rate protection uses Site and transient source-IP buckets; numeric thresholds are installation settings, not API quotas.                                     | Ingestion guard.                                | C1, C2              |
+| Identity deletion applies a durable redaction overlay without rewriting accepted Event sequence history.                                                     | Identity lifecycle and replay.                  | C1, C2              |
+| Only active Sites may admit new candidates; candidates admitted before deletion are grandfathered through the flush.                                         | Shared lifecycle boundary.                      | C1, C2              |
+| Public batch processing is non-atomic after boundary validation, while each internal flush is atomic.                                                        | Per-item pipeline and acceptance coordinator.   | C2                  |
+| Batch policy refusals disclose only a generic policy result and are not journaled.                                                                           | Collection-policy boundary.                     | C2                  |
+| Batch item errors use a bounded code set and do not expose unvalidated IDs.                                                                                  | Item-result schema.                             | C2                  |
+| Queue saturation, flush failure, quiesce failure, and commit ambiguity return top-level `SERVICE_UNAVAILABLE` with no success body.                          | Acceptance coordinator.                         | C1, C2              |
+| Acceptance observability records queue depth, active/pending batch size, queue wait, commit latency, WAL growth, saturation, failures, and response latency. | Ingestion diagnostics.                          | C1, C2              |
 
 ## 7. Authorization Matrix
 
@@ -153,15 +153,15 @@ No domain event is emitted in MVP. The acceptance journal append and projector h
 
 ## 10. Error Code Catalog
 
-| Code                  | HTTP | Trigger                                                        |
-| --------------------- | ---: | -------------------------------------------------------------- |
-| `BAD_REQUEST`         |  400 | Envelope, Event Kind, timestamp, or property validation fails. |
-| `FORBIDDEN`           |  403 | A valid Event is refused by the effective collection policy.   |
-| `NOT_FOUND`           |  404 | Ingestion Identifier is invalid/revoked or the Site is deleting, deleted, recovering, or purged. |
-| `CONFLICT`            |  409 | An existing Event ID is reused with a changed payload.         |
+| Code                  | HTTP | Trigger                                                                                                               |
+| --------------------- | ---: | --------------------------------------------------------------------------------------------------------------------- |
+| `BAD_REQUEST`         |  400 | Envelope, Event Kind, timestamp, or property validation fails.                                                        |
+| `FORBIDDEN`           |  403 | A valid Event is refused by the effective collection policy.                                                          |
+| `NOT_FOUND`           |  404 | Ingestion Identifier is invalid/revoked or the Site is deleting, deleted, recovering, or purged.                      |
+| `CONFLICT`            |  409 | An existing Event ID is reused with a changed payload.                                                                |
 | `PAYLOAD_TOO_LARGE`   |  413 | The raw request body exceeds 64 KiB for C1 or 256 KiB for C2, or a bounded parsed envelope/property size is exceeded. |
-| `TOO_MANY_REQUESTS`   |  429 | Ingestion rate limit is exceeded.                              |
-| `SERVICE_UNAVAILABLE` |  503 | The local durable acceptance boundary is unavailable.          |
+| `TOO_MANY_REQUESTS`   |  429 | Ingestion rate limit is exceeded.                                                                                     |
+| `SERVICE_UNAVAILABLE` |  503 | The local durable acceptance boundary is unavailable.                                                                 |
 
 `collectEvents` uses `rejected` only for policy refusal and `itemError` only for bounded item failures. A policy refusal is never encoded as an item `FORBIDDEN` error, and item errors never expose provider or policy details.
 

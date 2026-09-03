@@ -111,12 +111,12 @@ This recommendation follows both the benchmark and the accepted durability bound
 
 The final production-parity results are means across three repetitions on one-vCPU containers. Query values are the mean of each run's timeseries p95.
 
-| Candidate | 1 GiB acceptance rows/s | 2 GiB acceptance rows/s | 1 GiB timeseries p95 | 2 GiB timeseries p95 |
-| --- | ---: | ---: | ---: | ---: |
-| SQLite direct | 117,591 | 135,985 | 1.51 ms | 1.81 ms |
-| DuckDB direct | 186,777 | 221,802 | 2.65 ms | 7.20 ms |
-| SQLite outbox plus DuckDB | 112,492 | 108,444 | 3.14 ms | 7.73 ms |
-| SQLite synchronous dual write | 72,803 | 87,394 | 4.23 ms | 7.41 ms |
+| Candidate                     | 1 GiB acceptance rows/s | 2 GiB acceptance rows/s | 1 GiB timeseries p95 | 2 GiB timeseries p95 |
+| ----------------------------- | ----------------------: | ----------------------: | -------------------: | -------------------: |
+| SQLite direct                 |                 117,591 |                 135,985 |              1.51 ms |              1.81 ms |
+| DuckDB direct                 |                 186,777 |                 221,802 |              2.65 ms |              7.20 ms |
+| SQLite outbox plus DuckDB     |                 112,492 |                 108,444 |              3.14 ms |              7.73 ms |
+| SQLite synchronous dual write |                  72,803 |                  87,394 |              4.23 ms |              7.41 ms |
 
 - All four candidates completed 12 runs in both 1 GiB and 2 GiB containers with zero mixed-load errors, valid backup row counts, and 21,000 rows after drain.
 - Direct DuckDB has the highest measured acceptance throughput, but it does not provide the selected durable acceptance boundary by itself.

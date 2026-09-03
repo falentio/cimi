@@ -387,20 +387,20 @@ whether every custom data payload is scrubbed for application-specific PII.
 
 ## What this checkout does not answer
 
-| Question needed for a complete ingestion comparison | Local conclusion |
-| --- | --- |
-| Request envelope and event fields | **Available.** PHP parameter definitions and browser request construction are present. |
-| Event storage model | **Available.** Event dimensions map to `log_action` IDs and `log_link_visit_action` columns. |
-| Page URL/title limits | **Available.** `page_maximum_length` defaults to 1024. |
-| Distinct event-label maximum | **Partially available.** `log_action.name` is 4096 characters, but no separate event-label limit is shown. |
-| Canonical timestamp | **Available.** Actions and visits use `Request::getCurrentTimestamp()`, including validated custom time. |
-| Clock-skew policy | **Partially available.** Future/old custom timestamps are rejected or authenticated; browser clock accuracy is not solved. |
-| Retries and offline capture | **Partially available.** An IndexedDB worker exists, but it is bounded and lacks visible backoff/idempotency. |
-| Deduplication | **Not shown.** Normal action writes are plain inserts with generated IDs and no event idempotency key. |
-| Session timeout | **Available.** Default visit/session boundary is 1800 seconds, with site/configuration overrides. |
-| Cross-device identity | **Configuration-dependent.** `uid`/`cid` and server matching exist; no universal policy is shown. |
-| Bot and privacy filtering | **Available in source.** Multiple server exclusion paths and privacy processors exist. |
-| Deployment retention and PII policy | **Unavailable.** Configuration and operator choices are not fixed by the checkout. |
+| Question needed for a complete ingestion comparison | Local conclusion                                                                                                           |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Request envelope and event fields                   | **Available.** PHP parameter definitions and browser request construction are present.                                     |
+| Event storage model                                 | **Available.** Event dimensions map to `log_action` IDs and `log_link_visit_action` columns.                               |
+| Page URL/title limits                               | **Available.** `page_maximum_length` defaults to 1024.                                                                     |
+| Distinct event-label maximum                        | **Partially available.** `log_action.name` is 4096 characters, but no separate event-label limit is shown.                 |
+| Canonical timestamp                                 | **Available.** Actions and visits use `Request::getCurrentTimestamp()`, including validated custom time.                   |
+| Clock-skew policy                                   | **Partially available.** Future/old custom timestamps are rejected or authenticated; browser clock accuracy is not solved. |
+| Retries and offline capture                         | **Partially available.** An IndexedDB worker exists, but it is bounded and lacks visible backoff/idempotency.              |
+| Deduplication                                       | **Not shown.** Normal action writes are plain inserts with generated IDs and no event idempotency key.                     |
+| Session timeout                                     | **Available.** Default visit/session boundary is 1800 seconds, with site/configuration overrides.                          |
+| Cross-device identity                               | **Configuration-dependent.** `uid`/`cid` and server matching exist; no universal policy is shown.                          |
+| Bot and privacy filtering                           | **Available in source.** Multiple server exclusion paths and privacy processors exist.                                     |
+| Deployment retention and PII policy                 | **Unavailable.** Configuration and operator choices are not fixed by the checkout.                                         |
 
 ## Implication for Cimi issue #7
 

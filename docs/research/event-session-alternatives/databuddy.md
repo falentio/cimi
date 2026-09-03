@@ -52,16 +52,16 @@ The labels below distinguish:
 
 ### Ingestion paths
 
-| Path | Payload | Storage or effect |
-| --- | --- | --- |
-| `/` | `analyticsEventSchema` or `outgoingLinkSchema` with a `type` discriminator | Analytics events or outgoing links (`apps/basket/src/routes/basket.ts:401-478`) |
-| `/batch` | Array of analytics or outgoing-link events, maximum 100 | Valid items are delivered in grouped batches; individual schema failures are returned in `results` (`apps/basket/src/routes/basket.ts:479-689`) |
-| `/track` | One or up to 100 lean custom-event spans | `analytics.custom_events`; accepts website-ID or API-key authentication (`apps/basket/src/routes/track.ts:219-397`) |
-| `/events` | Up to 100 v2 custom-event spans | `analytics.custom_events`; requires an organization-backed website (`apps/basket/src/routes/basket.ts:326-400`; `packages/validation/src/schemas/custom-events.ts:36-59`) |
-| `/vitals` | Up to 20 individual vital metrics | `analytics.web_vitals_spans` (`packages/validation/src/schemas/web-vitals.ts:61-91`; `apps/basket/src/lib/event-service.ts:597-635`) |
-| `/errors` | Up to 50 error spans | `analytics.error_spans` (`packages/validation/src/schemas/errors.ts:75-121`; `apps/basket/src/lib/event-service.ts:542-595`) |
-| `/identify` | Profile ID, optional anonymous ID, scalar traits | PostgreSQL profiles, aliases, and trait history (`apps/basket/src/routes/identify.ts:126-200`; `packages/services/src/identity.ts:146-253`) |
-| `/px.jpg` | Query-string pixel variants | Pixel response after the same bot/schema processing; delivery is not directly acknowledged to the caller (`apps/basket/src/routes/basket.ts:151-231`) |
+| Path        | Payload                                                                    | Storage or effect                                                                                                                                                         |
+| ----------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`         | `analyticsEventSchema` or `outgoingLinkSchema` with a `type` discriminator | Analytics events or outgoing links (`apps/basket/src/routes/basket.ts:401-478`)                                                                                           |
+| `/batch`    | Array of analytics or outgoing-link events, maximum 100                    | Valid items are delivered in grouped batches; individual schema failures are returned in `results` (`apps/basket/src/routes/basket.ts:479-689`)                           |
+| `/track`    | One or up to 100 lean custom-event spans                                   | `analytics.custom_events`; accepts website-ID or API-key authentication (`apps/basket/src/routes/track.ts:219-397`)                                                       |
+| `/events`   | Up to 100 v2 custom-event spans                                            | `analytics.custom_events`; requires an organization-backed website (`apps/basket/src/routes/basket.ts:326-400`; `packages/validation/src/schemas/custom-events.ts:36-59`) |
+| `/vitals`   | Up to 20 individual vital metrics                                          | `analytics.web_vitals_spans` (`packages/validation/src/schemas/web-vitals.ts:61-91`; `apps/basket/src/lib/event-service.ts:597-635`)                                      |
+| `/errors`   | Up to 50 error spans                                                       | `analytics.error_spans` (`packages/validation/src/schemas/errors.ts:75-121`; `apps/basket/src/lib/event-service.ts:542-595`)                                              |
+| `/identify` | Profile ID, optional anonymous ID, scalar traits                           | PostgreSQL profiles, aliases, and trait history (`apps/basket/src/routes/identify.ts:126-200`; `packages/services/src/identity.ts:146-253`)                               |
+| `/px.jpg`   | Query-string pixel variants                                                | Pixel response after the same bot/schema processing; delivery is not directly acknowledged to the caller (`apps/basket/src/routes/basket.ts:151-231`)                     |
 
 The browser tracker sets the client ID in a request header and also sends it as
 the query parameter expected by each endpoint. Its default base URL is
@@ -157,20 +157,20 @@ table is a `ReplacingMergeTree` ordered by `(owner_id, delivery_key)`
 
 Shared limits include the following (`packages/validation/src/constants.ts:1-59`):
 
-| Limit | Value |
-| --- | ---: |
-| Minimum timestamp | `946684800000` (2000-01-01 UTC) |
-| Maximum future timestamp | 1 hour |
-| Event ID | 512 characters |
-| Standard event name | 128 characters |
-| Anonymous/session ID | 128 characters |
-| Path/string | 2,048 characters |
-| Payload | 1,000,000 bytes |
-| Batch | 100 items |
-| Property keys | 50 |
-| Property key length | 128 characters |
-| Serialized properties | 32,768 bytes |
-| Traits | 2,048 bytes |
+| Limit                    |                           Value |
+| ------------------------ | ------------------------------: |
+| Minimum timestamp        | `946684800000` (2000-01-01 UTC) |
+| Maximum future timestamp |                          1 hour |
+| Event ID                 |                  512 characters |
+| Standard event name      |                  128 characters |
+| Anonymous/session ID     |                  128 characters |
+| Path/string              |                2,048 characters |
+| Payload                  |                 1,000,000 bytes |
+| Batch                    |                       100 items |
+| Property keys            |                              50 |
+| Property key length      |                  128 characters |
+| Serialized properties    |                    32,768 bytes |
+| Traits                   |                     2,048 bytes |
 
 The standard analytics, errors, and v1 web-vitals schemas apply the shared
 minimum and future timestamp window. The `/track` custom route applies the same
