@@ -75,6 +75,27 @@ export async function assertSiteManagementScope(
   }
 }
 
+export interface OrganizationScopeGuardOptions {
+  readonly requiredRole?: Extract<SiteMembershipRole, 'admin' | 'owner'>
+  readonly missingCode?: 'NOT_FOUND' | 'FORBIDDEN'
+}
+
+export async function assertOrganizationRole(
+  user: Pick<AuthUser, 'id'>,
+  organizationId: string,
+  dependencies: Pick<SiteScopeGuardDependencies, 'membership'>,
+  options: OrganizationScopeGuardOptions = {},
+): Promise<void> {
+  if (await dependencies.membership.hasPendingGovernanceOperation(organizationId)) {
+    throw new ORPCError('CONFLICT', { status: 409 })
+  }
+  const role = await dependencies.membership.getRole(organizationId, user.id)
+  if (role === undefined) throw new ORPCError(options.missingCode ?? 'NOT_FOUND')
+  if (!hasRequiredRole(role, options.requiredRole ?? 'admin')) {
+    throw new ORPCError('FORBIDDEN')
+  }
+}
+
 export class InMemorySiteScopePort implements SiteScopePort, SiteMembershipPort {
   readonly #sites = new Map<string, { organizationId: string; active: boolean }>()
   readonly #memberships = new Map<string, SiteMembershipRole>()

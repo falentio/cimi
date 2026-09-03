@@ -1,6 +1,7 @@
 import type { AuthUser } from '@cimi/auth'
 import { schema } from '@cimi/contract'
 import {
+  assertOrganizationRole,
   assertSiteManagementScope,
   assertSiteScope,
   type SiteScopeGuardDependencies,
@@ -75,7 +76,10 @@ export class SiteService {
     headers?: Headers,
   ): Promise<InferOutput<typeof schema.SSiteCreateOutput>> {
     await this.reconcileOrganization(input.organizationId, user.id, headers)
-    await this.assertOrganizationRole(input.organizationId, user.id, 'admin', 'NOT_FOUND')
+    await assertOrganizationRole(user, input.organizationId, this.scope, {
+      requiredRole: 'admin',
+      missingCode: 'NOT_FOUND',
+    })
     try {
       return await this.repository.insert({
         id: generateId('ste'),
@@ -177,21 +181,6 @@ export class SiteService {
       throw new ORPCError('CONFLICT', { status: 409 })
     }
     throw new ORPCError('CONFLICT', { status: 409 })
-  }
-
-  private async assertOrganizationRole(
-    organizationId: string,
-    userId: string,
-    requiredRole: 'admin' | 'owner',
-    missingCode: 'NOT_FOUND' | 'FORBIDDEN',
-  ): Promise<void> {
-    if (await this.scope.membership.hasPendingGovernanceOperation(organizationId)) {
-      throw new ORPCError('CONFLICT', { status: 409 })
-    }
-    const role = await this.scope.membership.getRole(organizationId, userId)
-    if (role === undefined) throw new ORPCError(missingCode)
-    const rank = { member: 1, admin: 2, owner: 3 } as const
-    if (rank[role] < rank[requiredRole]) throw new ORPCError('FORBIDDEN')
   }
 
   private async assertNoPendingGovernanceOperation(siteId: string): Promise<void> {

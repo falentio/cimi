@@ -2,7 +2,7 @@ import type { AuthUser } from '@cimi/auth'
 import { ORPCError } from '@orpc/server'
 import { describe, expect, it } from 'vitest'
 import { assertAuthorization } from '../../guard.ts'
-import { assertSiteScope, InMemorySiteScopePort } from '../../site.ts'
+import { assertOrganizationRole, assertSiteScope, InMemorySiteScopePort } from '../../site.ts'
 
 const user = { id: 'user-1', role: 'user' } as unknown as AuthUser
 const organizationAdmin = { id: 'admin-1', role: 'user' } as unknown as AuthUser
@@ -100,5 +100,43 @@ describe('authorization guards', () => {
     await expect(assertSiteScope(user, 'ste-1', { siteScope, membership })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     })
+  })
+
+  it('enforces organization role with pending, missing, and rank checks', async () => {
+    const admin = new InMemorySiteScopePort(
+      [],
+      [{ organizationId: 'org-1', userId: 'admin-1', role: 'admin' }],
+    )
+    const member = new InMemorySiteScopePort(
+      [],
+      [{ organizationId: 'org-1', userId: 'user-1', role: 'member' }],
+    )
+    const empty = new InMemorySiteScopePort()
+    const pending = new InMemorySiteScopePort(
+      [],
+      [{ organizationId: 'org-1', userId: 'admin-1', role: 'admin' }],
+    )
+    pending.setPendingGovernanceOperation('org-1')
+
+    await expect(
+      assertOrganizationRole(organizationAdmin, 'org-1', { membership: pending }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    await expect(
+      assertOrganizationRole(nonMember, 'org-1', { membership: empty }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(
+      assertOrganizationRole(
+        nonMember,
+        'org-1',
+        { membership: empty },
+        { missingCode: 'FORBIDDEN' },
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      assertOrganizationRole(user, 'org-1', { membership: member }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      assertOrganizationRole(organizationAdmin, 'org-1', { membership: admin }),
+    ).resolves.toBeUndefined()
   })
 })

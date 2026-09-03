@@ -1,6 +1,6 @@
 import type { AuthUser, OrganizationAuthority } from '@cimi/auth'
 import { schema } from '@cimi/contract'
-import type { SiteScopeGuardDependencies } from '@cimi/guard'
+import { assertOrganizationRole, type SiteScopeGuardDependencies } from '@cimi/guard'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -36,7 +36,10 @@ export class InvitationService {
     headers?: Headers,
   ): Promise<InferOutput<typeof schema.SInvitationListOutput>> {
     await this.reconcileOrganization(input.organizationId, user.id, headers)
-    await this.assertOrganizationRole(input.organizationId, user.id, 'admin', 'NOT_FOUND')
+    await assertOrganizationRole(user, input.organizationId, this.scope, {
+      requiredRole: 'admin',
+      missingCode: 'NOT_FOUND',
+    })
     return this.repository.findMany(input.organizationId, {
       offset: input.offset ?? 0,
       limit: input.limit ?? 20,
@@ -49,7 +52,10 @@ export class InvitationService {
     headers?: Headers,
   ): Promise<InferOutput<typeof schema.SInvitationCreateOutput>> {
     await this.reconcileOrganization(input.organizationId, user.id, headers)
-    await this.assertOrganizationRole(input.organizationId, user.id, 'admin', 'NOT_FOUND')
+    await assertOrganizationRole(user, input.organizationId, this.scope, {
+      requiredRole: 'admin',
+      missingCode: 'NOT_FOUND',
+    })
     const now = new Date()
     const { token, tokenHash } = mintInvitationToken()
     try {
@@ -77,7 +83,10 @@ export class InvitationService {
     const existing = await this.repository.findById(input.invitationId)
     if (existing === undefined) throw new ORPCError('NOT_FOUND')
     await this.reconcileOrganization(existing.organizationId, user.id, headers)
-    await this.assertOrganizationRole(existing.organizationId, user.id, 'admin', 'NOT_FOUND')
+    await assertOrganizationRole(user, existing.organizationId, this.scope, {
+      requiredRole: 'admin',
+      missingCode: 'NOT_FOUND',
+    })
     const result = await this.repository.revoke({
       invitationId: input.invitationId,
       now: new Date(),
@@ -176,21 +185,6 @@ export class InvitationService {
     } catch {
       // Best-effort compensation must not mask the original acceptance outcome.
     }
-  }
-
-  private async assertOrganizationRole(
-    organizationId: string,
-    userId: string,
-    requiredRole: 'admin' | 'owner',
-    missingCode: 'NOT_FOUND' | 'FORBIDDEN',
-  ): Promise<void> {
-    if (await this.scope.membership.hasPendingGovernanceOperation(organizationId)) {
-      throw new ORPCError('CONFLICT', { status: 409 })
-    }
-    const role = await this.scope.membership.getRole(organizationId, userId)
-    if (role === undefined) throw new ORPCError(missingCode)
-    const rank = { member: 1, admin: 2, owner: 3 } as const
-    if (rank[role] < rank[requiredRole]) throw new ORPCError('FORBIDDEN')
   }
 
   private async reconcileOrganization(
