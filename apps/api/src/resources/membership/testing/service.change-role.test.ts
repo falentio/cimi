@@ -195,4 +195,82 @@ describe('MembershipService.changeRole', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
     expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
   })
+
+  it('rejects a role change for a missing target', async () => {
+    const fixture = createMembershipFixture([owner, admin])
+
+    await expect(
+      fixture.service.changeRole(
+        { organizationId, userId: 'user_missing', role: 'member' },
+        { id: adminUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+    expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
+  })
+
+  it('returns the target unchanged when the role already matches', async () => {
+    const fixture = createMembershipFixture([owner, admin, targetMember])
+
+    await expect(
+      fixture.service.changeRole(
+        { organizationId, userId: targetUserId, role: 'member' },
+        { id: adminUserId },
+        new Headers(),
+      ),
+    ).resolves.toMatchObject({ userId: targetUserId, role: 'member' })
+    expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
+    expect(fixture.authority.changeMemberRole).not.toHaveBeenCalled()
+  })
+
+  it('rejects a promotion when the authority member is absent', async () => {
+    const fixture = createMembershipFixture(
+      [owner, admin, targetMember],
+      [
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
+      ],
+    )
+    fixture.authority.getMember.mockImplementation(async ({ userId }) =>
+      userId === targetUserId
+        ? undefined
+        : createAuthorityMember({ userId, role: userId === adminUserId ? 'admin' : 'owner' }),
+    )
+
+    await expect(
+      fixture.service.changeRole(
+        { organizationId, userId: targetUserId, role: 'admin' },
+        { id: adminUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
+  })
+
+  it('protects an authority owner from a local promotion', async () => {
+    const fixture = createMembershipFixture(
+      [owner, admin, targetMember],
+      [
+        createAuthorityMember({ userId: ownerUserId, role: 'owner' }),
+        createAuthorityMember({ userId: adminUserId, role: 'admin' }),
+        createAuthorityMember({ userId: targetUserId, role: 'member' }),
+      ],
+    )
+    fixture.authority.getMember.mockImplementation(async ({ userId }) =>
+      createAuthorityMember({
+        userId,
+        role: userId === targetUserId ? 'owner' : userId === adminUserId ? 'admin' : 'owner',
+      }),
+    )
+
+    await expect(
+      fixture.service.changeRole(
+        { organizationId, userId: targetUserId, role: 'admin' },
+        { id: adminUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'OWNER_PROTECTED', status: 409 })
+    expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
+  })
 })

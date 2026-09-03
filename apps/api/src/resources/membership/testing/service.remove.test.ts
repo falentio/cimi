@@ -182,4 +182,18 @@ describe('MembershipService.remove', () => {
     expect(fixture.repository.delete).not.toHaveBeenCalled()
     expect(fixture.authority.removeMember).not.toHaveBeenCalled()
   })
+
+  it('rejects a removal for a missing target', async () => {
+    const fixture = createMembershipFixture([owner, admin])
+
+    await expect(
+      fixture.service.remove(
+        { organizationId, userId: 'user_missing' },
+        { id: adminUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+    expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
+    expect(fixture.authority.removeMember).not.toHaveBeenCalled()
+  })
 })

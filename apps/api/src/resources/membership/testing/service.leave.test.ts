@@ -95,4 +95,14 @@ describe('MembershipService.leave', () => {
     expect(fixture.repository.delete).not.toHaveBeenCalled()
     expect(fixture.authority.leaveOrganization).not.toHaveBeenCalled()
   })
+
+  it('rejects a leave for a non-member', async () => {
+    const fixture = createMembershipFixture([owner])
+
+    await expect(
+      fixture.service.leave({ organizationId }, { id: 'user_missing' }, new Headers()),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+    expect(fixture.repository.createMembershipOperation).not.toHaveBeenCalled()
+    expect(fixture.authority.leaveOrganization).not.toHaveBeenCalled()
+  })
 })

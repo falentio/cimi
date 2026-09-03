@@ -203,4 +203,84 @@ describe('MembershipService.transferOwnership', () => {
     expect(repository.findCompletedTransfer).toHaveBeenCalledTimes(1)
     expect(repository.failTransfer).not.toHaveBeenCalled()
   })
+
+  it('rejects a pending transfer addressed to another target', async () => {
+    const { repository, authority, service } = createMembershipFixture([
+      createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
+    ])
+    repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
+
+    await expect(
+      service.transferOwnership(
+        { organizationId, userId: 'user_other' },
+        { id: pendingTransfer.previousOwnerUserId },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(repository.markTransferAttempt).not.toHaveBeenCalled()
+    expect(authority.reconcileOwnership).not.toHaveBeenCalled()
+  })
+
+  it('returns a completed transfer without creating an operation', async () => {
+    const { repository, authority, service } = createMembershipFixture([
+      createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
+      createMembershipRecord({ userId: targetUserId, role: 'member' }),
+    ])
+    repository.findPendingTransfer.mockResolvedValue(undefined)
+    repository.findCompletedTransfer.mockResolvedValue(target)
+
+    await expect(
+      service.transferOwnership(
+        { organizationId, userId: targetUserId },
+        { id: 'user_owner' },
+        new Headers(),
+      ),
+    ).resolves.toMatchObject({ organizationId, userId: targetUserId, role: 'owner' })
+    expect(repository.createTransfer).not.toHaveBeenCalled()
+    expect(authority.reconcileOwnership).not.toHaveBeenCalled()
+  })
+
+  it('rejects a transfer the repository rules invalid', async () => {
+    const { repository, authority, service } = createMembershipFixture([
+      createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
+      createMembershipRecord({ userId: targetUserId, role: 'member' }),
+    ])
+    repository.findPendingTransfer.mockResolvedValue(undefined)
+    repository.findCompletedTransfer.mockResolvedValue(undefined)
+    repository.createTransfer.mockResolvedValue({ kind: 'invalid' })
+
+    await expect(
+      service.transferOwnership(
+        { organizationId, userId: targetUserId },
+        { id: 'user_owner' },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(authority.reconcileOwnership).not.toHaveBeenCalled()
+  })
+
+  it('rejects an already-pending transfer owned by another caller', async () => {
+    const { repository, authority, service } = createMembershipFixture([
+      createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
+      createMembershipRecord({ userId: targetUserId, role: 'member' }),
+    ])
+    repository.findPendingTransfer.mockResolvedValue(undefined)
+    repository.findCompletedTransfer.mockResolvedValue(undefined)
+    repository.createTransfer.mockResolvedValue({
+      kind: 'already-pending',
+      transfer: createTransfer({
+        previousOwnerUserId: 'user_other',
+        targetUserId: 'user_someone',
+      }),
+    })
+
+    await expect(
+      service.transferOwnership(
+        { organizationId, userId: targetUserId },
+        { id: 'user_owner' },
+        new Headers(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(authority.reconcileOwnership).not.toHaveBeenCalled()
+  })
 })
