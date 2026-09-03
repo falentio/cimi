@@ -15,7 +15,7 @@ import { SDate, SDateTime } from '../../schema/index.ts'
 
 const common = {
   eventId: 'event-1',
-  ingestionIdentifier: 'site-ingestion-1',
+  ingestionIdentifier: 'ing-1',
 }
 
 describe('event ingestion schemas', () => {
@@ -35,7 +35,7 @@ describe('event ingestion schemas', () => {
 
   it('accepts a bounded non-atomic batch shape', () => {
     expect({
-      ingestionIdentifier: 'site-ingestion-1',
+      ingestionIdentifier: 'ing-1',
       events: [{ ...common, kind: 'page_view', pagePath: '/' }],
     }).toEqual(expect.schemaMatching(SCollectEventsInput))
   })
@@ -69,21 +69,19 @@ describe('event ingestion schemas', () => {
 
   it('keeps malformed items eligible for per-item errors', () => {
     expect({
-      ingestionIdentifier: 'site-ingestion-1',
+      ingestionIdentifier: 'ing-1',
       events: [{ eventId: 'event-1', kind: 'unknown' }],
     }).toEqual(expect.schemaMatching(SCollectEventsInput))
     expect({
-      ingestionIdentifier: 'site-ingestion-1',
+      ingestionIdentifier: 'ing-1',
       events: [null],
     }).toEqual(expect.schemaMatching(SCollectEventsInput))
   })
 
   it('rejects a batch whose items use another Ingestion Identifier', () => {
     expect({
-      ingestionIdentifier: 'site-ingestion-1',
-      events: [
-        { ...common, ingestionIdentifier: 'site-ingestion-2', kind: 'page_view', pagePath: '/' },
-      ],
+      ingestionIdentifier: 'ing-1',
+      events: [{ ...common, ingestionIdentifier: 'ing-2', kind: 'page_view', pagePath: '/' }],
     }).not.toEqual(expect.schemaMatching(SCollectEventsInput))
   })
 

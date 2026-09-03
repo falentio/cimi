@@ -25,6 +25,8 @@ export {
   TInvitation,
   TMembership,
   TOrganization,
+  TOrganizationGovernanceOperation,
+  TOrganizationRepairOperation,
   TSite,
   TSiteLifecycleOperation,
   TSiteTombstone,

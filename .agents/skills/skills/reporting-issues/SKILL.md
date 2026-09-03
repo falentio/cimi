@@ -22,15 +22,18 @@ A well-structured issue report is the difference between "can't reproduce" and a
 
 ```markdown
 ## Summary
+
 One-line description of the bug.
 
 ## Environment
+
 - **OS:** [e.g., macOS 14.5, Ubuntu 22.04, Windows 11]
 - **Browser:** [e.g., Chrome 125, Firefox 128, Safari 18]
 - **App version:** [e.g., v2.3.1, commit abc123, or "main @ 2026-05-01"]
 - **Deployment:** [e.g., local dev, staging, production]
 
 ## Steps to Reproduce
+
 1. Exact steps, from a clean state:
    - Include specific inputs (file names, URLs, button labels, form values)
    - Include file sizes and types if relevant
@@ -38,29 +41,36 @@ One-line description of the bug.
 3. ...
 
 ## Expected Behavior
+
 What should happen.
 
 ## Actual Behavior
+
 What actually happens. Include exact error messages, stack traces, or console output.
 
 ## Evidence
+
 - Screenshots, screen recordings, or HAR files
 - Logs or error output (formatted as code blocks)
 - Network request/response payloads if relevant
 
 ## Regression
+
 - Did this ever work? If so, what changed?
 - Last known working version
 
 ## Severity
+
 - **Impact:** [critical / high / medium / low]
 - **Frequency:** [always / intermittent / rare]
 - **Affected users:** [all / specific roles / edge case]
 
 ## Workarounds
+
 Any temporary fix, even if partial.
 
 ## Related
+
 Links to related issues, PRs, or discussions.
 ```
 
@@ -68,31 +78,38 @@ Links to related issues, PRs, or discussions.
 
 ```markdown
 ## Summary
+
 One-line description of the requested feature.
 
 ## Motivation
+
 - Problem this solves
 - User demand (links to discussions, feedback, analytics)
 - Current workarounds users rely on
 
 ## Proposed Behavior
+
 - How the feature should work end-to-end
 - User-facing changes (UI, API, config)
 - System behavior (performance, error handling, edge cases)
 
 ## Acceptance Criteria
+
 - [ ] Bullet list of concrete, testable outcomes
 - [ ] Each criterion is measurable, not vague
 
 ## Technical Notes
+
 - Affected components, modules, or services
 - Suggested implementation approach (optional)
 - Dependencies or prerequisites
 
 ## Alternatives Considered
+
 Other approaches evaluated and why they were not chosen.
 
 ## Related
+
 Links to related issues, PRs, discussions, or RFCs.
 ```
 
@@ -114,16 +131,16 @@ When the user hasn't provided details for a section:
 
 ## Common Mistakes
 
-| Baseline Failure | Fix |
-|---|---|
-| "Attempt to upload a file" — no file details | Specify filename, size, type, and upload method |
-| Missing OS, browser, or app version | Always include all three with exact versions |
-| No error messages or logs | Paste exact output in code blocks |
-| "Possible memory issue" (guessing root cause) | Report symptoms, not diagnoses |
-| No regression info | Check when it last worked and what changed |
-| No screenshots | A screenshot saves 3 rounds of questions |
-| Feature request missing acceptance criteria | Define testable outcomes upfront |
-| "Users want it" with no evidence | Link to discussions, polls, or analytics |
+| Baseline Failure                              | Fix                                             |
+| --------------------------------------------- | ----------------------------------------------- |
+| "Attempt to upload a file" — no file details  | Specify filename, size, type, and upload method |
+| Missing OS, browser, or app version           | Always include all three with exact versions    |
+| No error messages or logs                     | Paste exact output in code blocks               |
+| "Possible memory issue" (guessing root cause) | Report symptoms, not diagnoses                  |
+| No regression info                            | Check when it last worked and what changed      |
+| No screenshots                                | A screenshot saves 3 rounds of questions        |
+| Feature request missing acceptance criteria   | Define testable outcomes upfront                |
+| "Users want it" with no evidence              | Link to discussions, polls, or analytics        |
 
 ## Red Flags — STOP and Fill the Gap
 

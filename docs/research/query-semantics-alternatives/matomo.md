@@ -32,15 +32,15 @@ Research for Cimi's canonical query semantics comparison. Researched 2026-08-23.
 
 ## Metrics and Unique Counts
 
-| Metric | Matomo definition or implementation |
-| --- | --- |
-| `nb_visits` | Number of visits; the API defines 30 minutes of inactivity as a new visit. |
-| `nb_uniq_visitors` | Unique visitors. Matomo's metadata says each visitor is counted once even when visiting multiple times a day. Core visit aggregation uses `count(distinct log_visit.idvisitor)`. |
-| `nb_users` | Unique active users with a known User ID; the API says it is zero when User ID is not used. Core aggregation uses `count(distinct log_visit.user_id)`. |
-| `nb_actions` | Page views, internal site searches, outlinks, and downloads; core visit aggregation sums `visit_total_actions`, while action reports count action rows. |
-| `sum_visit_length` | Total visit time in seconds. |
-| `bounce_count` | Visits with only one action. |
-| `nb_visits_converted` | Visits with at least one goal conversion. |
+| Metric                | Matomo definition or implementation                                                                                                                                              |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nb_visits`           | Number of visits; the API defines 30 minutes of inactivity as a new visit.                                                                                                       |
+| `nb_uniq_visitors`    | Unique visitors. Matomo's metadata says each visitor is counted once even when visiting multiple times a day. Core visit aggregation uses `count(distinct log_visit.idvisitor)`. |
+| `nb_users`            | Unique active users with a known User ID; the API says it is zero when User ID is not used. Core aggregation uses `count(distinct log_visit.user_id)`.                           |
+| `nb_actions`          | Page views, internal site searches, outlinks, and downloads; core visit aggregation sums `visit_total_actions`, while action reports count action rows.                          |
+| `sum_visit_length`    | Total visit time in seconds.                                                                                                                                                     |
+| `bounce_count`        | Visits with only one action.                                                                                                                                                     |
+| `nb_visits_converted` | Visits with at least one goal conversion.                                                                                                                                        |
 
 Sources: [Reporting API metric definitions](https://developer.matomo.org/guides/reporting-api) [Archive data guide](https://developer.matomo.org/guides/archive-data) [LogAggregator visit metrics](https://github.com/matomo-org/matomo/blob/6.x-dev/core/DataAccess/LogAggregator.php#L470-L511) [LogAggregator action metrics](https://github.com/matomo-org/matomo/blob/6.x-dev/core/DataAccess/LogAggregator.php#L1079-L1090)
 

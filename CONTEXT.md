@@ -125,7 +125,7 @@ An immutable, Site-scoped telemetry record carried by one shared strict typed en
 _Avoid_: raw hit, arbitrary payload
 
 **Cimi Identifier**:
-A Cimi-generated opaque identifier produced by the in-house prefixed generator exposed by `@cimi/utils`. Contract boundaries validate identifiers as `SId` values from one through 128 characters; the generator's prefix and encoding are implementation details, not API grammar.
+A Cimi-generated opaque identifier produced by the in-house prefixed generator exposed by `@cimi/utils`. Contract boundaries validate identifiers as `SId` values from one through 128 characters; the generator's prefix and encoding are implementation details, not API grammar. Generation rule (observability only): <3-letter>_<payload> using ste, org, hel, ing, sop, orp, gop; clients must not parse or validate the prefix.
 _Avoid_: provider-generated ID, unbounded identifier
 
 **Event ID**:

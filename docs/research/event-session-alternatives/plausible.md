@@ -62,14 +62,14 @@ used.
 **Fact:** The TypeScript contract documents these client payload fields:
 
 | Field | Meaning in the local tracker contract |
-| --- | --- |
-| `n` | Event name |
-| `u` | Event URL |
-| `d` | Configured site domain |
-| `r` | Referrer, nullable |
-| `p` | String custom properties |
-| `$` | Revenue amount and currency |
-| `i` | Interactive flag |
+| ----- | ------------------------------------- |
+| `n`   | Event name                            |
+| `u`   | Event URL                             |
+| `d`   | Configured site domain                |
+| `r`   | Referrer, nullable                    |
+| `p`   | String custom properties              |
+| `$`   | Revenue amount and currency           |
+| `i`   | Interactive flag                      |
 
 The type also permits additional fields through `Record<string, unknown>`, but
 the normal tracker does not define a client timestamp, client user ID, session
@@ -197,11 +197,11 @@ pageviews. Sources:
 ### Engagement events
 
 **Fact:** The tracker generates `engagement` events when leaving or hiding a
-  page, or during SPA page transitions. It sends scroll depth as `sd` and
-  engaged milliseconds as `e`, and preserves the current pageview's URL and
-  properties. Sources:
-  `docs/research/vendor/plausible/tracker/src/engagement.js:23-86`,
-  `docs/research/vendor/plausible/tracker/test/engagement.spec.js:13-84`.
+page, or during SPA page transitions. It sends scroll depth as `sd` and
+engaged milliseconds as `e`, and preserves the current pageview's URL and
+properties. Sources:
+`docs/research/vendor/plausible/tracker/src/engagement.js:23-86`,
+`docs/research/vendor/plausible/tracker/test/engagement.spec.js:13-84`.
 
 **Fact:** The server accepts an engagement event only when at least one of
 `sd` or `e` parses as valid. Invalid/missing values use sentinel defaults
@@ -219,17 +219,17 @@ the cache entry.
 
 ## Validation and Limits
 
-| Input | Local behavior | Evidence |
-| --- | --- | --- |
-| Body | If the body is not already parsed, read at most the assigned `read_body_limit` or `1,000,000` bytes, then JSON-decode it. | `lib/plausible/ingestion/request.ex:180-195`; `test/plausible/ingestion/request_test.exs:539-562` |
-| URL | Required, at most 2,000 bytes, parsed as a URI, and `data:` is rejected. | `lib/plausible/ingestion/request.ex:265-275`; `test/plausible/ingestion/request_test.exs:414-436` |
-| Referrer | Binary referrers are truncated to 2,000 bytes rather than rejected for length. | `lib/plausible/ingestion/request.ex:208-217`; `test/plausible/ingestion/request_test.exs:474-485` |
-| Event name | Required, string or integer-castable, maximum 120 characters. | `lib/plausible/ingestion/request.ex:1-16,108-115`; `test/plausible/ingestion/request_test.exs:438-472` |
-| Properties per request | Filtered properties are truncated to 30 entries. | `lib/plausible/ingestion/request.ex:288-301`; `test/plausible/ingestion/request_test.exs:517-531` |
-| Property key/value | Keys are limited to 300 bytes and values to 2,000 bytes. Exceeding either limit invalidates the request. | `lib/plausible/ingestion/request.ex:324-343`; `test/plausible/ingestion/request_test.exs:487-515` |
-| Property values | Nested maps/lists, blank keys/values, and nil-like values are discarded; scalar values are stringified. | `lib/plausible/ingestion/request.ex:288-321`; `test/plausible_web/controllers/api/external_controller_test.exs:631-768` |
-| Scroll depth | Integer strings are accepted; negative/invalid values become `255`; values above 100 become `100`. | `lib/plausible/ingestion/request.ex:439-448`; `test/plausible/ingestion/request_test.exs:684-702` |
-| Engagement time | Non-negative integer values below the 30-day compatibility ceiling are accepted; invalid or too-large values become `0`. | `lib/plausible/ingestion/request.ex:33-40,450-461`; `test/plausible/ingestion/request_test.exs:704-718` |
+| Input                  | Local behavior                                                                                                            | Evidence                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Body                   | If the body is not already parsed, read at most the assigned `read_body_limit` or `1,000,000` bytes, then JSON-decode it. | `lib/plausible/ingestion/request.ex:180-195`; `test/plausible/ingestion/request_test.exs:539-562`                       |
+| URL                    | Required, at most 2,000 bytes, parsed as a URI, and `data:` is rejected.                                                  | `lib/plausible/ingestion/request.ex:265-275`; `test/plausible/ingestion/request_test.exs:414-436`                       |
+| Referrer               | Binary referrers are truncated to 2,000 bytes rather than rejected for length.                                            | `lib/plausible/ingestion/request.ex:208-217`; `test/plausible/ingestion/request_test.exs:474-485`                       |
+| Event name             | Required, string or integer-castable, maximum 120 characters.                                                             | `lib/plausible/ingestion/request.ex:1-16,108-115`; `test/plausible/ingestion/request_test.exs:438-472`                  |
+| Properties per request | Filtered properties are truncated to 30 entries.                                                                          | `lib/plausible/ingestion/request.ex:288-301`; `test/plausible/ingestion/request_test.exs:517-531`                       |
+| Property key/value     | Keys are limited to 300 bytes and values to 2,000 bytes. Exceeding either limit invalidates the request.                  | `lib/plausible/ingestion/request.ex:324-343`; `test/plausible/ingestion/request_test.exs:487-515`                       |
+| Property values        | Nested maps/lists, blank keys/values, and nil-like values are discarded; scalar values are stringified.                   | `lib/plausible/ingestion/request.ex:288-321`; `test/plausible_web/controllers/api/external_controller_test.exs:631-768` |
+| Scroll depth           | Integer strings are accepted; negative/invalid values become `255`; values above 100 become `100`.                        | `lib/plausible/ingestion/request.ex:439-448`; `test/plausible/ingestion/request_test.exs:684-702`                       |
+| Engagement time        | Non-negative integer values below the 30-day compatibility ceiling are accepted; invalid or too-large values become `0`.  | `lib/plausible/ingestion/request.ex:33-40,450-461`; `test/plausible/ingestion/request_test.exs:704-718`                 |
 
 **Fact:** There is no local ingestion validation that recognizes email,
 account ID, name, or other property content as PII. The property filter is
@@ -556,17 +556,17 @@ The following are not present in the inspected local event/tracker/session
 contract. “Not evidenced” is deliberately narrower than claiming that no
 unrelated Plausible dashboard feature exists elsewhere in the repository.
 
-| Capability | Local finding |
-| --- | --- |
-| Ordinary client event time | No request field or tracker option; only server time. Enterprise replay headers are a separate path. |
-| Event idempotency | No event ID, idempotency key, client sequence, or deduplication logic in the inspected ingestion and storage paths. |
-| Offline collection | No durable browser queue, service-worker queue, or automatic retry. |
-| First-class identified user | No `identify` operation, caller-supplied user ID, alias operation, or cross-device linkage field in the tracker envelope. |
-| Client session token | No browser session ID or cookie is sent; the server creates the random session ID after deriving identity. |
-| Session recovery from ClickHouse | Active lookup uses the in-memory cache; only the optional deployment-transfer mechanism copies cache state. |
-| Per-event privacy classification | No consent, purpose, retention, or PII classification field is part of the event envelope. |
-| Automatic PII scrubbing | Property filtering rejects shapes and sizes, not semantic identifiers; URL/property redaction is caller-controlled through `transformRequest`. |
-| Exactly-once `202` guarantee | `202` means accepted into the ingestion/buffer path, not demonstrated ClickHouse durability or deduplicated persistence. |
+| Capability                       | Local finding                                                                                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ordinary client event time       | No request field or tracker option; only server time. Enterprise replay headers are a separate path.                                           |
+| Event idempotency                | No event ID, idempotency key, client sequence, or deduplication logic in the inspected ingestion and storage paths.                            |
+| Offline collection               | No durable browser queue, service-worker queue, or automatic retry.                                                                            |
+| First-class identified user      | No `identify` operation, caller-supplied user ID, alias operation, or cross-device linkage field in the tracker envelope.                      |
+| Client session token             | No browser session ID or cookie is sent; the server creates the random session ID after deriving identity.                                     |
+| Session recovery from ClickHouse | Active lookup uses the in-memory cache; only the optional deployment-transfer mechanism copies cache state.                                    |
+| Per-event privacy classification | No consent, purpose, retention, or PII classification field is part of the event envelope.                                                     |
+| Automatic PII scrubbing          | Property filtering rejects shapes and sizes, not semantic identifiers; URL/property redaction is caller-controlled through `transformRequest`. |
+| Exactly-once `202` guarantee     | `202` means accepted into the ingestion/buffer path, not demonstrated ClickHouse durability or deduplicated persistence.                       |
 
 ## Cimi Design Pressure
 

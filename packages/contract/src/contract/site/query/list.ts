@@ -27,6 +27,7 @@ export const listSites = oc
   .errors({
     UNAUTHORIZED: {},
     BAD_REQUEST: {},
+    CONFLICT: {},
     INTERNAL_SERVER_ERROR: {},
   })
   .input(SSiteListInput)

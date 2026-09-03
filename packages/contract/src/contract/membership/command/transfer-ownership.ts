@@ -28,6 +28,7 @@ export const transferOrganizationOwnership = oc
     FORBIDDEN: {},
     NOT_FOUND: {},
     CONFLICT: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SMembershipTransferOwnershipInput)
   .output(SMembershipTransferOwnershipOutput)

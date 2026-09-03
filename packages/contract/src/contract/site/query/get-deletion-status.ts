@@ -57,6 +57,8 @@ export const getSiteDeletionStatus = oc
     FORBIDDEN: {},
     NOT_FOUND: {},
     BAD_REQUEST: {},
+    CONFLICT: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SSiteDeletionStatusInput)
   .output(SSiteDeletionStatusOutput)

@@ -7,7 +7,7 @@
 - TDD whenever possible
 - Sociable Unit testing rather than solitaire unit testing. so we only mock repository.
 - Always run test/lint/fmt as a narrow, not broad, so we save much compute.
-- need an source code access for 3rd party library? create git submodule, vendored at ./docs/research/vendor/
+- need an source code access for 3rd party library? plain `git clone` (never a submodule), vendored at `./docs/vendor/{gh,gl,bb,etc}/{orgname}/{reponame}/{ref}/`, gitignored (see `docs/vendor/README.md`).
 - Always parallel subagents whenver the tasks are READ only, sequence otherwise.
 - all pnpm/vp/npm scripts must be run-ed in sequence rather than parallel.
 - specs, and docs are token expensive, it drain out context window so fast, so use subagents for specs and docs reading that output the narrowed summary wit file references.

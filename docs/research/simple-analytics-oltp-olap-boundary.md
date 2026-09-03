@@ -41,23 +41,23 @@ projections, subject to Cimi's later issue #14 decision.
 
 All sources below are first-party Simple Analytics sources or repositories.
 
-| ID | Source | Evidence used |
-| --- | --- | --- |
-| S1 | [Server-side tracking](https://docs.simpleanalytics.com/events/server-side) | JSON ingestion endpoint, payloads, "within minutes" visibility statement |
-| S2 | [Proxy setup](https://docs.simpleanalytics.com/proxy) | `simple.gif` validation and documented HTTP 202 response |
-| S3 | [Official scripts source](https://github.com/simpleanalytics/scripts/blob/main/src/default.js) | Per-request image/beacon transport, generated IDs, in-memory queue, no client retry |
-| S4 | [Events documentation](https://docs.simpleanalytics.com/events) | Event normalization, 200-character limit, page-load grouping, callback behavior |
-| S5 | [Data collection](https://docs.simpleanalytics.com/data-collection) | Collected IDs, no visitor/browser/device ID, no cookies/storage/IP |
-| S6 | [Export API](https://docs.simpleanalytics.com/api/export-data-points) | Raw unsampled export, fields, metadata, direct database streaming, hourly constraints |
-| S7 | [Stats API](https://docs.simpleanalytics.com/api/stats) | Aggregate reporting contract, metrics, dimensions, filters, event totals |
-| S8 | [Official architecture post](https://github.com/simpleanalytics/blog/blob/master/_posts/2021-03-08-ready-for-the-future.md) | Historical PostgreSQL/cache-table design and Elasticsearch-based replacement |
-| S9 | [Official CloudQuery source repository](https://github.com/simpleanalytics/cq-source-simpleanalytics) | Export schema, incremental cursor, overlap, duplicate and identity caveats |
-| S10 | [CloudQuery pageview resolver](https://github.com/simpleanalytics/cq-source-simpleanalytics/blob/main/resources/services/page_views.go) | Pageview export fields, `Hostname` + `UUID` adapter key, 24-hour overlap |
-| S11 | [CloudQuery event resolver](https://github.com/simpleanalytics/cq-source-simpleanalytics/blob/main/resources/services/events.go) | Event export fields, no guaranteed event key, synthetic downstream ID, overlap |
-| S12 | [Data security and ownership](https://docs.simpleanalytics.com/data-security-and-ownership) | Hosting, encryption, retention, backup and deletion timing |
-| S13 | [Account deletion](https://docs.simpleanalytics.com/delete-account) | Team/site deletion, logs/backups retained 90 days, domain hash retention |
-| S14 | [Simple Analytics APIs](https://docs.simpleanalytics.com/api) | Stats, raw export, and Admin API separation |
-| S15 | [Official scripts README](https://github.com/simpleanalytics/scripts) | Public-source scope and script deployment targets |
+| ID  | Source                                                                                                                                  | Evidence used                                                                         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| S1  | [Server-side tracking](https://docs.simpleanalytics.com/events/server-side)                                                             | JSON ingestion endpoint, payloads, "within minutes" visibility statement              |
+| S2  | [Proxy setup](https://docs.simpleanalytics.com/proxy)                                                                                   | `simple.gif` validation and documented HTTP 202 response                              |
+| S3  | [Official scripts source](https://github.com/simpleanalytics/scripts/blob/main/src/default.js)                                          | Per-request image/beacon transport, generated IDs, in-memory queue, no client retry   |
+| S4  | [Events documentation](https://docs.simpleanalytics.com/events)                                                                         | Event normalization, 200-character limit, page-load grouping, callback behavior       |
+| S5  | [Data collection](https://docs.simpleanalytics.com/data-collection)                                                                     | Collected IDs, no visitor/browser/device ID, no cookies/storage/IP                    |
+| S6  | [Export API](https://docs.simpleanalytics.com/api/export-data-points)                                                                   | Raw unsampled export, fields, metadata, direct database streaming, hourly constraints |
+| S7  | [Stats API](https://docs.simpleanalytics.com/api/stats)                                                                                 | Aggregate reporting contract, metrics, dimensions, filters, event totals              |
+| S8  | [Official architecture post](https://github.com/simpleanalytics/blog/blob/master/_posts/2021-03-08-ready-for-the-future.md)             | Historical PostgreSQL/cache-table design and Elasticsearch-based replacement          |
+| S9  | [Official CloudQuery source repository](https://github.com/simpleanalytics/cq-source-simpleanalytics)                                   | Export schema, incremental cursor, overlap, duplicate and identity caveats            |
+| S10 | [CloudQuery pageview resolver](https://github.com/simpleanalytics/cq-source-simpleanalytics/blob/main/resources/services/page_views.go) | Pageview export fields, `Hostname` + `UUID` adapter key, 24-hour overlap              |
+| S11 | [CloudQuery event resolver](https://github.com/simpleanalytics/cq-source-simpleanalytics/blob/main/resources/services/events.go)        | Event export fields, no guaranteed event key, synthetic downstream ID, overlap        |
+| S12 | [Data security and ownership](https://docs.simpleanalytics.com/data-security-and-ownership)                                             | Hosting, encryption, retention, backup and deletion timing                            |
+| S13 | [Account deletion](https://docs.simpleanalytics.com/delete-account)                                                                     | Team/site deletion, logs/backups retained 90 days, domain hash retention              |
+| S14 | [Simple Analytics APIs](https://docs.simpleanalytics.com/api)                                                                           | Stats, raw export, and Admin API separation                                           |
+| S15 | [Official scripts README](https://github.com/simpleanalytics/scripts)                                                                   | Public-source scope and script deployment targets                                     |
 
 The vendored source snapshot in this repository is the official scripts
 repository at commit `c14b694` (2026-08-17):
@@ -404,19 +404,19 @@ derived from the public script repository.
 
 ## Consolidated Boundary Matrix
 
-| Concern | Simple Analytics evidence | Confidence | Cimi boundary implication |
-| --- | --- | --- | --- |
-| Ingest acknowledgment | Pixel path documents HTTP 202; server-side docs only give eventual dashboard visibility | Partial | Ack only after SQLite acceptance transaction; do not equate 202 with report freshness |
-| Durable canonical event | Raw unsampled export exists; backend commit semantics undisclosed | Partial | Keep an acceptance journal and immutable raw payload/receipt before projection |
-| Control state | Admin API owns users, websites, and settings | Logical fact | SQLite owns sites, configuration, roles, policy, cursors, and lifecycle state |
-| Raw facts | Pageviews/events are exportable with typed fields and metadata | Strong logical fact | DuckDB may hold analytical raw facts, but retain source and receipt identity |
-| Visitor identity | No person/browser/device ID; page-load ID only | Strong | Do not introduce a visitor table unless Cimi explicitly chooses different semantics |
-| Deduplication | UUID not always unique; event key not guaranteed; downstream adapter overlaps and dedups | Strong caution | Explicit idempotency/dedup policy and receipt hash; avoid UUID-only uniqueness |
-| Reports | Stats API aggregates dashboard metrics; exact materialization unknown | Strong logical fact | Reports are projections/read models; track freshness and rebuild them |
-| Replay | Export date windows and adapter overlap support consumer replay; vendor replay queue unknown | Partial | Use replay windows, persisted cursors, and idempotent projection writes |
-| Retention/deletion | Active-account/plan retention, immediate active deletion, 90-day permanent/backup wording | Partial | Coordinate deletion across SQLite, DuckDB, and backup policy |
-| Recovery | Regular encrypted backups claimed; restore/RPO/RTO undisclosed | Partial | Define and test Cimi backup/recovery guarantees explicitly |
-| Deployment | Hosted EU service; historical Elastic evidence | Partial and dated | Treat DuckDB resource limits and SQLite concurrency as Cimi-owned decisions |
+| Concern                 | Simple Analytics evidence                                                                    | Confidence          | Cimi boundary implication                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| Ingest acknowledgment   | Pixel path documents HTTP 202; server-side docs only give eventual dashboard visibility      | Partial             | Ack only after SQLite acceptance transaction; do not equate 202 with report freshness |
+| Durable canonical event | Raw unsampled export exists; backend commit semantics undisclosed                            | Partial             | Keep an acceptance journal and immutable raw payload/receipt before projection        |
+| Control state           | Admin API owns users, websites, and settings                                                 | Logical fact        | SQLite owns sites, configuration, roles, policy, cursors, and lifecycle state         |
+| Raw facts               | Pageviews/events are exportable with typed fields and metadata                               | Strong logical fact | DuckDB may hold analytical raw facts, but retain source and receipt identity          |
+| Visitor identity        | No person/browser/device ID; page-load ID only                                               | Strong              | Do not introduce a visitor table unless Cimi explicitly chooses different semantics   |
+| Deduplication           | UUID not always unique; event key not guaranteed; downstream adapter overlaps and dedups     | Strong caution      | Explicit idempotency/dedup policy and receipt hash; avoid UUID-only uniqueness        |
+| Reports                 | Stats API aggregates dashboard metrics; exact materialization unknown                        | Strong logical fact | Reports are projections/read models; track freshness and rebuild them                 |
+| Replay                  | Export date windows and adapter overlap support consumer replay; vendor replay queue unknown | Partial             | Use replay windows, persisted cursors, and idempotent projection writes               |
+| Retention/deletion      | Active-account/plan retention, immediate active deletion, 90-day permanent/backup wording    | Partial             | Coordinate deletion across SQLite, DuckDB, and backup policy                          |
+| Recovery                | Regular encrypted backups claimed; restore/RPO/RTO undisclosed                               | Partial             | Define and test Cimi backup/recovery guarantees explicitly                            |
+| Deployment              | Hosted EU service; historical Elastic evidence                                               | Partial and dated   | Treat DuckDB resource limits and SQLite concurrency as Cimi-owned decisions           |
 
 ## Explicit Unknowns To Carry Forward
 

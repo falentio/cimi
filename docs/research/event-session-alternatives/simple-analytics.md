@@ -63,12 +63,12 @@ filtered out (`src/default.js:312-345`).
 
 **Fact:** The locally visible `type` values are:
 
-| Type | Meaning and evidence |
-| --- | --- |
-| `pageview` | Pageview envelope emitted by `sendPageView` (`src/default.js:735-756`). |
-| `event` | Custom event envelope emitted by `sendEvent` (`src/default.js:1002-1027`). |
-| `append` | Time-on-page/scroll append associated with `original_id` (`src/default.js:605-634`). |
-| `error` | Optional client-script error report containing error text and path (`src/default.js:358-390`). |
+| Type       | Meaning and evidence                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| `pageview` | Pageview envelope emitted by `sendPageView` (`src/default.js:735-756`).                        |
+| `event`    | Custom event envelope emitted by `sendEvent` (`src/default.js:1002-1027`).                     |
+| `append`   | Time-on-page/scroll append associated with `original_id` (`src/default.js:605-634`).           |
+| `error`    | Optional client-script error report containing error text and path (`src/default.js:358-390`). |
 
 **Fact:** Image requests are GET requests to `/simple.gif`; all defined fields
 are URL-encoded and a `time=Date.now()` query parameter is appended
@@ -344,17 +344,17 @@ are not represented in the vendored repository.
 
 ## What this checkout does not answer
 
-| Question needed for a complete ingestion comparison | Local conclusion |
-| --- | --- |
-| Server request schema and validation | **Unavailable.** Only client emission and test assertions are present. |
-| Maximum event/metadata/request size | **Unavailable.** No local limit is declared. |
-| Server timestamp and clock skew | **Unavailable.** The client emits a browser `time` query value for image requests, but server handling is absent. |
-| Retries, replay, and idempotency | **Unavailable.** Client retries are absent; server behavior is absent. |
-| Deduplication | **Unavailable.** Client only suppresses same-script duplicate paths and duplicate script initialization. |
-| Session expiry and stitching | **Unavailable.** The client generates a per-invocation UUID; no server session algorithm is included. |
-| Durable offline ingestion | **Unsupported by visible client code.** No persistent queue or reconnect path is present. |
-| Authenticated/user identity | **Unavailable/unsupported by visible client API.** No dedicated identity API or field is present. |
-| Server bot and privacy filtering | **Unavailable.** Client flags bots and honors DNT, but the ingestion service is absent. |
+| Question needed for a complete ingestion comparison | Local conclusion                                                                                                  |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Server request schema and validation                | **Unavailable.** Only client emission and test assertions are present.                                            |
+| Maximum event/metadata/request size                 | **Unavailable.** No local limit is declared.                                                                      |
+| Server timestamp and clock skew                     | **Unavailable.** The client emits a browser `time` query value for image requests, but server handling is absent. |
+| Retries, replay, and idempotency                    | **Unavailable.** Client retries are absent; server behavior is absent.                                            |
+| Deduplication                                       | **Unavailable.** Client only suppresses same-script duplicate paths and duplicate script initialization.          |
+| Session expiry and stitching                        | **Unavailable.** The client generates a per-invocation UUID; no server session algorithm is included.             |
+| Durable offline ingestion                           | **Unsupported by visible client code.** No persistent queue or reconnect path is present.                         |
+| Authenticated/user identity                         | **Unavailable/unsupported by visible client API.** No dedicated identity API or field is present.                 |
+| Server bot and privacy filtering                    | **Unavailable.** Client flags bots and honors DNT, but the ingestion service is absent.                           |
 
 ## Implication for Cimi issue #7
 

@@ -36,15 +36,15 @@ The browser sends `x-umami-website-id`, `x-umami-hostname`, and, when available,
 
 The route schema recognizes these categories (`docs/research/vendor/umami/src/app/api/send/route.ts:32-60`):
 
-| Category | Fields and behavior |
-| --- | --- |
-| Source | Exactly one of `website`, `link`, or `pixel`. |
-| Page | `url`, `hostname`, `title`, `referrer`, `language`, `screen`, and `tag`. |
-| Event | Optional `name` and arbitrary object `data`. |
-| Client overrides | Optional `ip`, `userAgent`, `browser`, `os`, and `device`. |
-| Identity | Optional `id`, used as the Distinct ID. |
-| Time | Optional integer `timestamp`. |
-| Performance | Optional `lcp`, `inp`, `cls`, `fcp`, and `ttfb`. |
+| Category         | Fields and behavior                                                      |
+| ---------------- | ------------------------------------------------------------------------ |
+| Source           | Exactly one of `website`, `link`, or `pixel`.                            |
+| Page             | `url`, `hostname`, `title`, `referrer`, `language`, `screen`, and `tag`. |
+| Event            | Optional `name` and arbitrary object `data`.                             |
+| Client overrides | Optional `ip`, `userAgent`, `browser`, `os`, and `device`.               |
+| Identity         | Optional `id`, used as the Distinct ID.                                  |
+| Time             | Optional integer `timestamp`.                                            |
+| Performance      | Optional `lcp`, `inp`, `cls`, `fcp`, and `ttfb`.                         |
 
 The browser's public types expose the same page/event/identity concepts. `track()` supports a pageview, a name-only event, a named event with data, a fully supplied payload, or a callback that modifies the default payload; `identify()` accepts an ID and optional data (`docs/research/vendor/umami/src/tracker/index.ts:1-92,93-176`; `docs/research/vendor/umami/src/tracker/index.ts:431-459`).
 
@@ -81,14 +81,14 @@ The `data` field is `anyObjectParam`, which is only a string-keyed record of `an
 
 The browser type comments describe intended event-data rules: numbers with four-decimal precision, strings and arrays at 500 characters, and objects with at most 50 properties (`docs/research/vendor/umami/src/tracker/index.ts:67-79`). The tracker forwards event data directly; the inspected runtime code does not enforce those exact rules before sending (`docs/research/vendor/umami/src/tracker/index.ts:431-439`). The actual enforcement is primarily storage normalization:
 
-| Stored value | Limit in `FIELD_LENGTH` | Enforcement |
-| --- | ---: | --- |
-| URL, page title, referrer path/query/domain | 500 | Truncated before relational and ClickHouse writes. |
-| UTM and click IDs | 255 | Truncated before writes. |
-| Event name and tag | 50 | Truncated before writes. |
-| Distinct ID | 50 | Truncated in session, session-link, session-data, and ClickHouse event paths. |
-| Event-data key and scalar string value | 500 | Truncated by the flatten/store path. |
-| Currency | 10 | Truncated in revenue storage. |
+| Stored value                                | Limit in `FIELD_LENGTH` | Enforcement                                                                   |
+| ------------------------------------------- | ----------------------: | ----------------------------------------------------------------------------- |
+| URL, page title, referrer path/query/domain |                     500 | Truncated before relational and ClickHouse writes.                            |
+| UTM and click IDs                           |                     255 | Truncated before writes.                                                      |
+| Event name and tag                          |                      50 | Truncated before writes.                                                      |
+| Distinct ID                                 |                      50 | Truncated in session, session-link, session-data, and ClickHouse event paths. |
+| Event-data key and scalar string value      |                     500 | Truncated by the flatten/store path.                                          |
+| Currency                                    |                      10 | Truncated in revenue storage.                                                 |
 
 The constants define these limits (`docs/research/vendor/umami/src/lib/constants.ts:271-290`), and `saveEvent` applies them to page, attribution, event, session, and performance fields (`docs/research/vendor/umami/src/queries/sql/events/saveEvent.ts:108-140,217-260`).
 

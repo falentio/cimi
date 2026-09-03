@@ -53,11 +53,11 @@ projection checkpoint and rebuild contract that Matomo's archiver provides.
    process it later in batches.
 
 **Inference:** A successful HTTP response is not one universal "durably in the
-   final analytics tables" acknowledgment in Matomo. Its meaning depends on
-   whether QueuedTracking is active. Redis-backed queued acceptance also has a
-   documented crash-loss caveat. Cimi should keep its external acceptance
-   contract tied to a durable SQLite transaction rather than to an optional
-   transport buffer.
+final analytics tables" acknowledgment in Matomo. Its meaning depends on
+whether QueuedTracking is active. Redis-backed queued acceptance also has a
+documented crash-loss caveat. Cimi should keep its external acceptance
+contract tied to a durable SQLite transaction rather than to an optional
+transport buffer.
 
 ## Data and write paths
 
@@ -286,9 +286,9 @@ controls around that database.
    backups. Do not treat deletion of one layer as deletion of the whole
    analytics record.
 
- 5. **Define recovery scope.** DuckDB is rebuilt from SQLite. A derived DuckDB
-    copy may accelerate repair, but it is not required for backup correctness.
-    The operating envelope must include rebuild duration and query unavailability.
+5. **Define recovery scope.** DuckDB is rebuilt from SQLite. A derived DuckDB
+   copy may accelerate repair, but it is not required for backup correctness.
+   The operating envelope must include rebuild duration and query unavailability.
 
 6. **Do not inherit exactly-once assumptions.** Matomo's normal action writes
    lack a caller event ID, and QueuedTracking changes where a request is
@@ -297,15 +297,15 @@ controls around that database.
 
 ## Boundary matrix
 
-| Concern | Matomo location | Authority | Rebuild or repair path | Cimi implication |
-| --- | --- | --- | --- | --- |
-| Site/configuration state | MySQL/MariaDB tables and config files | Matomo database plus files | Restore database and files | Keep tenant/site state outside analytics projection |
-| Accepted tracking request | Raw `log_*` tables, or Redis/MySQL queue when QueuedTracking is enabled | Final authority is raw log data after queue processing | Replay queue or restore DB; exact queue recovery varies | SQLite journal must be the explicit durable authority |
-| Derived metrics/reports | `archive_numeric_*`, `archive_blob_*` | Archive rows while valid | Invalidate and re-archive from raw logs | DuckDB rows need a checkpoint and rebuild contract |
-| Freshness | Archive timestamps, done flags, invalidations, cron/browser settings | Operational archive state | Re-run archiver | Expose projection freshness and lag |
-| Raw retention | PrivacyManager log purger | Raw log policy | Not reversible after deletion without backup | Define journal deletion versus rebuild capability |
-| Report retention | PrivacyManager reports purger | Archive policy | Re-archive if raw data remains | Derived retention can be shorter than raw retention |
-| Backup | MySQL dump/replica plus config/plugins/files | Operator backup plan | Full restore and validation | Make SQLite authoritative; rebuild DuckDB and validate before readiness |
+| Concern                   | Matomo location                                                         | Authority                                              | Rebuild or repair path                                  | Cimi implication                                                        |
+| ------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Site/configuration state  | MySQL/MariaDB tables and config files                                   | Matomo database plus files                             | Restore database and files                              | Keep tenant/site state outside analytics projection                     |
+| Accepted tracking request | Raw `log_*` tables, or Redis/MySQL queue when QueuedTracking is enabled | Final authority is raw log data after queue processing | Replay queue or restore DB; exact queue recovery varies | SQLite journal must be the explicit durable authority                   |
+| Derived metrics/reports   | `archive_numeric_*`, `archive_blob_*`                                   | Archive rows while valid                               | Invalidate and re-archive from raw logs                 | DuckDB rows need a checkpoint and rebuild contract                      |
+| Freshness                 | Archive timestamps, done flags, invalidations, cron/browser settings    | Operational archive state                              | Re-run archiver                                         | Expose projection freshness and lag                                     |
+| Raw retention             | PrivacyManager log purger                                               | Raw log policy                                         | Not reversible after deletion without backup            | Define journal deletion versus rebuild capability                       |
+| Report retention          | PrivacyManager reports purger                                           | Archive policy                                         | Re-archive if raw data remains                          | Derived retention can be shorter than raw retention                     |
+| Backup                    | MySQL dump/replica plus config/plugins/files                            | Operator backup plan                                   | Full restore and validation                             | Make SQLite authoritative; rebuild DuckDB and validate before readiness |
 
 ## Unknowns and verification needs
 

@@ -21,19 +21,19 @@ Persistence keeps `scope` and `siteId` consistent: installation rows have no `si
 
 **Audience:** Both
 
-| Field | Schema | Description |
-| --- | --- | --- |
-| `scope` | `installation` or `site` | Discriminator for an installation default or Site override. |
-| `siteId` | `SId` | Required only for a Site-scoped policy. |
-| `anonymousCollection` | `collectionMode` | Default anonymous cookieless collection posture. |
-| `honorGpcDnt` | `boolean` | Whether GPC/DNT suppresses collection unless explicitly overridden by the Site. |
-| `consentMode` | `consentMode` | Whether consent is required for identity/Traits/replay or for all collection. |
-| `botPolicy` | `botPolicy` | Server-side bot handling. |
-| `captureQueryStrings` | `boolean` | Whether approved query metadata may be captured. |
-| `urlPolicy` | `urlPolicy` | Path, referrer, query, and sensitive-value rules. |
-| `propertyPolicy` | `propertyPolicy` | Scalar shape, reserved names, and size limits. |
-| `profileFilterKeys` | `boundedTraitKeyRegistry` | Explicit Site-approved Identified User trait keys usable by authenticated filters. |
-| `exclusions` | `collectionExclusions` | Site, path, IP-derived, country, and caller-independent exclusions. |
+| Field                 | Schema                    | Description                                                                        |
+| --------------------- | ------------------------- | ---------------------------------------------------------------------------------- |
+| `scope`               | `installation` or `site`  | Discriminator for an installation default or Site override.                        |
+| `siteId`              | `SId`                     | Required only for a Site-scoped policy.                                            |
+| `anonymousCollection` | `collectionMode`          | Default anonymous cookieless collection posture.                                   |
+| `honorGpcDnt`         | `boolean`                 | Whether GPC/DNT suppresses collection unless explicitly overridden by the Site.    |
+| `consentMode`         | `consentMode`             | Whether consent is required for identity/Traits/replay or for all collection.      |
+| `botPolicy`           | `botPolicy`               | Server-side bot handling.                                                          |
+| `captureQueryStrings` | `boolean`                 | Whether approved query metadata may be captured.                                   |
+| `urlPolicy`           | `urlPolicy`               | Path, referrer, query, and sensitive-value rules.                                  |
+| `propertyPolicy`      | `propertyPolicy`          | Scalar shape, reserved names, and size limits.                                     |
+| `profileFilterKeys`   | `boundedTraitKeyRegistry` | Explicit Site-approved Identified User trait keys usable by authenticated filters. |
+| `exclusions`          | `collectionExclusions`    | Site, path, IP-derived, country, and caller-independent exclusions.                |
 
 ### Collection context transport
 
@@ -47,10 +47,10 @@ When `honorGpcDnt` is true, either active signal suppresses collection before ac
 
 **Audience:** FE
 
-| # | Procedure | Method | Path | Auth | CQRS |
-| --- | --- | --- | --- | --- | --- |
-| Q1 | `getCollectionPolicy` | GET | `/collection-policy/getCollectionPolicy` | admin | query |
-| C1 | `updateCollectionPolicy` | POST | `/collection-policy/updateCollectionPolicy` | scope-dependent admin | command |
+| #   | Procedure                | Method | Path                                        | Auth                  | CQRS    |
+| --- | ------------------------ | ------ | ------------------------------------------- | --------------------- | ------- |
+| Q1  | `getCollectionPolicy`    | GET    | `/collection-policy/getCollectionPolicy`    | admin                 | query   |
+| C1  | `updateCollectionPolicy` | POST   | `/collection-policy/updateCollectionPolicy` | scope-dependent admin | command |
 
 ## 4. Queries
 
@@ -80,19 +80,19 @@ When `honorGpcDnt` is true, either active signal suppresses collection before ac
 
 ## 6. Business Rules
 
-| Rule | Enforcement Point | Affected Procedures |
-| --- | --- | --- |
-| Hard exclusions execute before identity and Session assignment. | Ingestion pipeline. | C1 and `event-ingestion`. |
-| Client skip flags cannot override a server exclusion. | Ingestion pipeline. | `event-ingestion`. |
-| Identity, Traits, and replay are opt-in capabilities; opt-out clears client identity/session state. | Policy evaluation. | `event-ingestion`, `identity-profile`. |
-| URL and property sanitization occurs before persistence. | Ingestion validation. | `event-ingestion`. |
+| Rule                                                                                                | Enforcement Point     | Affected Procedures                    |
+| --------------------------------------------------------------------------------------------------- | --------------------- | -------------------------------------- |
+| Hard exclusions execute before identity and Session assignment.                                     | Ingestion pipeline.   | C1 and `event-ingestion`.              |
+| Client skip flags cannot override a server exclusion.                                               | Ingestion pipeline.   | `event-ingestion`.                     |
+| Identity, Traits, and replay are opt-in capabilities; opt-out clears client identity/session state. | Policy evaluation.    | `event-ingestion`, `identity-profile`. |
+| URL and property sanitization occurs before persistence.                                            | Ingestion validation. | `event-ingestion`.                     |
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning | Procedures |
-| --- | --- | --- |
-| `installation-admin` | Installation administrator; may update only the installation-default branch. | C1 |
-| `admin` | Organization Owner or Administrator with Site-management scope; may update only the Site-override branch. | Q1, C1 |
+| Auth Level           | Meaning                                                                                                   | Procedures |
+| -------------------- | --------------------------------------------------------------------------------------------------------- | ---------- |
+| `installation-admin` | Installation administrator; may update only the installation-default branch.                              | C1         |
+| `admin`              | Organization Owner or Administrator with Site-management scope; may update only the Site-override branch. | Q1, C1     |
 
 ## 8. Event Catalog
 
@@ -111,29 +111,29 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code | HTTP | Trigger |
-| --- | ---: | --- |
-| `UNAUTHORIZED` | 401 | No authenticated User. |
-| `FORBIDDEN` | 403 | Caller lacks Site-management scope. |
-| `NOT_FOUND` | 404 | Site is inaccessible. |
-| `BAD_REQUEST` | 400 | Policy fields or combinations are invalid. |
-| `CONFLICT` | 409 | Policy mutation conflicts with the Site lifecycle or another committed policy change. |
+| Code           | HTTP | Trigger                                                                               |
+| -------------- | ---: | ------------------------------------------------------------------------------------- |
+| `UNAUTHORIZED` |  401 | No authenticated User.                                                                |
+| `FORBIDDEN`    |  403 | Caller lacks Site-management scope.                                                   |
+| `NOT_FOUND`    |  404 | Site is inaccessible.                                                                 |
+| `BAD_REQUEST`  |  400 | Policy fields or combinations are invalid.                                            |
+| `CONFLICT`     |  409 | Policy mutation conflicts with the Site lifecycle or another committed policy change. |
 
 ## 11. Related Resources & Dependencies
 
 ### Depends On
 
-| Resource | Integration Point |
-| --- | --- |
-| `site` | Site scope and owner. |
+| Resource           | Integration Point                          |
+| ------------------ | ------------------------------------------ |
+| `site`             | Site scope and owner.                      |
 | `retention-policy` | Effective retention and deletion behavior. |
 
 ### Used By
 
-| Resource | Integration Point |
-| --- | --- |
-| `event-ingestion` | Pre-storage exclusion and sanitization. |
-| `identity-profile` | Consent and identity policy. |
+| Resource           | Integration Point                       |
+| ------------------ | --------------------------------------- |
+| `event-ingestion`  | Pre-storage exclusion and sanitization. |
+| `identity-profile` | Consent and identity policy.            |
 
 ## 12. Out of Scope
 

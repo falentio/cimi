@@ -4,7 +4,7 @@ import { SHostname, SIanaTimezone, SId, SName, SWeekStart } from '../index.ts'
 
 describe('shared utility schemas', () => {
   it('validates opaque IDs and bounded names strictly', () => {
-    expect(v.parse(SId, 'site_custom-id')).toBe('site_custom-id')
+    expect(v.parse(SId, 'ste_custom-id')).toBe('ste_custom-id')
     expect(() => v.parse(SId, '')).toThrow(v.ValiError)
     expect(() => v.parse(SId, 'x'.repeat(129))).toThrow(v.ValiError)
     expect(v.parse(SName, 'Cimi')).toBe('Cimi')

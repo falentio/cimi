@@ -8,15 +8,8 @@
     "threads": 1,
     "memoryLimit": "512MB",
     "maxTempDirectorySize": "1GB",
-    "engines": [
-      "sqlite-direct",
-      "duckdb-direct",
-      "sqlite-outbox-duckdb",
-      "sqlite-sync-duckdb"
-    ],
-    "batchSizes": [
-      1000
-    ],
+    "engines": ["sqlite-direct", "duckdb-direct", "sqlite-outbox-duckdb", "sqlite-sync-duckdb"],
+    "batchSizes": [1000],
     "mixedRows": 1000,
     "mixedBatchSize": 1000,
     "readers": 2,
@@ -146,9 +139,7 @@
             "max": 0.3868229999999926,
             "mean": 0.12698720000000208
           },
-          "checksums": [
-            "967af307"
-          ]
+          "checksums": ["967af307"]
         },
         "projector": null,
         "errors": [],
@@ -288,9 +279,7 @@
             "max": 0.31879800000001524,
             "mean": 0.12916257499998948
           },
-          "checksums": [
-            "967af307"
-          ]
+          "checksums": ["967af307"]
         },
         "projector": null,
         "errors": [],
@@ -430,9 +419,7 @@
             "max": 0.3448190000000295,
             "mean": 0.12616984999999659
           },
-          "checksums": [
-            "967af307"
-          ]
+          "checksums": ["967af307"]
         },
         "projector": null,
         "errors": [],
@@ -572,10 +559,7 @@
             "max": 6.360527999999931,
             "mean": 1.7909460749999937
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": null,
         "errors": [],
@@ -714,10 +698,7 @@
             "max": 7.262149999999792,
             "mean": 1.8479771249999657
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": null,
         "errors": [],
@@ -856,10 +837,7 @@
             "max": 7.487545999999838,
             "mean": 1.8802135249999765
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": null,
         "errors": [],
@@ -1002,10 +980,7 @@
             "max": 9.279971999999816,
             "mean": 2.1810434499999927
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": {
           "rows": 1000
@@ -1160,10 +1135,7 @@
             "max": 13.34430199999997,
             "mean": 2.2036190000000375
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": {
           "rows": 1000
@@ -1318,10 +1290,7 @@
             "max": 9.245850999999675,
             "mean": 1.961393249999992
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": {
           "rows": 1000
@@ -1473,10 +1442,7 @@
             "max": 6.185970000000452,
             "mean": 1.8238887000000887
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": null,
         "errors": [],
@@ -1626,10 +1592,7 @@
             "max": 7.08758299999954,
             "mean": 1.8700376249999635
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": null,
         "errors": [],
@@ -1779,10 +1742,7 @@
             "max": 6.571912999999768,
             "mean": 1.8374051499999724
           },
-          "checksums": [
-            "c52de9c1",
-            "967af307"
-          ]
+          "checksums": ["c52de9c1", "967af307"]
         },
         "projector": null,
         "errors": [],

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture, createHello } from '../fixtures.ts'
+import { createHelloFixture, createHello } from '../fixture.ts'
 
 describe('HelloService.get', () => {
   it('returns a greeting by id and rejects missing records', async () => {
     const { service, repo } = createHelloFixture()
-    repo.findById.mockImplementation(async (id) => (id === 'hello_1' ? createHello() : undefined))
+    repo.findById.mockImplementation(async (id) => (id === 'hel_1' ? createHello() : undefined))
 
-    await expect(service.get({ id: 'hello_1' })).resolves.toEqual({
-      id: 'hello_1',
+    await expect(service.get({ id: 'hel_1' })).resolves.toEqual({
+      id: 'hel_1',
       ownerId: 'user_1',
       name: 'Ada',
       message: 'Hello, Ada!',

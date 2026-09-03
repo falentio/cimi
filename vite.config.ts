@@ -11,26 +11,34 @@ export default defineConfig({
   },
   fmt: {
     ignorePatterns: [
-      'lomba/**',
-      'rybbit/**',
+      'docs/vendor/**',
       'node_modules/**',
       'dist/**',
       '.astro/**',
       '.cimi/**',
       'packages/db/src/schema/auth.generated.ts',
+      'packages/db/src/migrations/meta/**',
     ],
     singleQuote: true,
     semi: false,
   },
   lint: {
     ignorePatterns: [
-      'lomba/**',
-      'rybbit/**',
+      'docs/vendor/**',
       'node_modules/**',
       'dist/**',
       '.astro/**',
       '.cimi/**',
       'packages/db/src/schema/auth.generated.ts',
+      'packages/db/src/migrations/meta/**',
+    ],
+    overrides: [
+      {
+        files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
+        rules: {
+          'typescript/unbound-method': 'off',
+        },
+      },
     ],
     options: {
       typeAware: true,

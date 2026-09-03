@@ -1,22 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { HelloRepositoryDrizzle } from '../repository.drizzle.ts'
-import { createHelloDbFixture, createHelloRecord, destroyHelloDbFixture } from '../fixtures.ts'
+import { createHelloDrizzleFixture, createHelloRow } from '../fixture.drizzle.ts'
 
-describe('HelloRepositoryDrizzle.get', () => {
-  let fixture: Awaited<ReturnType<typeof createHelloDbFixture>>
-
-  beforeEach(async () => {
-    fixture = await createHelloDbFixture()
-  })
-
-  afterEach(() => destroyHelloDbFixture(fixture))
-
+describe.concurrent('HelloRepositoryDrizzle.get', () => {
   it('returns an existing greeting and omits missing records', async () => {
+    using fixture = await createHelloDrizzleFixture()
     const repo = new HelloRepositoryDrizzle({ db: fixture.db })
-    await repo.insert(createHelloRecord())
+    await repo.insert(createHelloRow())
 
-    await expect(repo.findById('hello_1')).resolves.toMatchObject({
-      id: 'hello_1',
+    await expect(repo.findById('hel_1')).resolves.toMatchObject({
+      id: 'hel_1',
       ownerId: 'user_1',
       createdAt: '2026-08-25T00:00:00.000Z',
     })

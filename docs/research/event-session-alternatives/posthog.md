@@ -61,12 +61,12 @@ PostHog event sources.
 
 **Fact:** The legacy Rust request parser recognizes four shapes:
 
-| Shape | Local behavior |
-| --- | --- |
-| JSON array | Interpreted as a list of `RawEvent` values, documented as the `posthog-js` form. |
+| Shape             | Local behavior                                                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| JSON array        | Interpreted as a list of `RawEvent` values, documented as the `posthog-js` form.                                                   |
 | `/batch` envelope | Contains `token`, optional `historical_migration`, optional `sent_at`, and `batch`. `api_key` is accepted as an alias for `token`. |
-| Single event | A single `RawEvent`, wrapped into a one-element list. |
-| `/engage` update | Converted into a `$identify` event when received on an engage route. |
+| Single event      | A single `RawEvent`, wrapped into a one-element list.                                                                              |
+| `/engage` update  | Converted into a `$identify` event when received on an engage route.                                                               |
 
 (`rust/capture/src/v0_request.rs:17-37,70-115`.)
 
@@ -315,17 +315,17 @@ and retention guarantees for all event, person, session, and replay stores.
 
 ## What this checkout does not answer
 
-| Question needed for a complete event/session comparison | Local conclusion |
-| --- | --- |
-| Browser SDK event generation | **Unavailable.** `posthog-js` source is absent from the pinned checkout. |
-| Browser persistence and anonymous ID lifetime | **Unavailable.** The server receives IDs but does not show how the browser stores them. |
-| Durable offline queue and browser restart recovery | **Unavailable.** The client implementation is absent. |
-| General property-size and property-key limits | **Partially unavailable.** Specific validation exists, but no complete analytics-property contract was established. |
-| Cross-request event deduplication | **Partially unavailable.** Batch-local UUID validation and UUID-unique session aggregates are visible; a full event-stream deduplication guarantee is not. |
-| Session formation for ordinary browser events | **Partially unavailable.** Raw sessions group supplied valid session IDs; only cookieless stateful mode visibly forms sessions from inactivity. |
-| Universal 24-hour maximum session duration | **Unavailable from server source.** The visible cookieless stateful logic uses 30-minute inactivity and a 96-hour Redis TTL. |
-| Hosted retention and deletion semantics | **Unavailable.** The inspected source does not provide a complete policy contract across stores. |
-| Complete bot and consent behavior | **Unavailable.** Explicit filters and cookieless privacy processing exist, but no universal policy was established. |
+| Question needed for a complete event/session comparison | Local conclusion                                                                                                                                           |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser SDK event generation                            | **Unavailable.** `posthog-js` source is absent from the pinned checkout.                                                                                   |
+| Browser persistence and anonymous ID lifetime           | **Unavailable.** The server receives IDs but does not show how the browser stores them.                                                                    |
+| Durable offline queue and browser restart recovery      | **Unavailable.** The client implementation is absent.                                                                                                      |
+| General property-size and property-key limits           | **Partially unavailable.** Specific validation exists, but no complete analytics-property contract was established.                                        |
+| Cross-request event deduplication                       | **Partially unavailable.** Batch-local UUID validation and UUID-unique session aggregates are visible; a full event-stream deduplication guarantee is not. |
+| Session formation for ordinary browser events           | **Partially unavailable.** Raw sessions group supplied valid session IDs; only cookieless stateful mode visibly forms sessions from inactivity.            |
+| Universal 24-hour maximum session duration              | **Unavailable from server source.** The visible cookieless stateful logic uses 30-minute inactivity and a 96-hour Redis TTL.                               |
+| Hosted retention and deletion semantics                 | **Unavailable.** The inspected source does not provide a complete policy contract across stores.                                                           |
+| Complete bot and consent behavior                       | **Unavailable.** Explicit filters and cookieless privacy processing exist, but no universal policy was established.                                        |
 
 ## Implication for Cimi issue #7
 

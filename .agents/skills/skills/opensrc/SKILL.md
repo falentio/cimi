@@ -70,6 +70,7 @@ opensrc clean --repos            # all repos, keep packages
 ## When to Fetch Source
 
 Fetch source when you need to:
+
 - Understand internal behavior that types don't reveal
 - Debug unexpected library behavior
 - Learn patterns from well-known implementations

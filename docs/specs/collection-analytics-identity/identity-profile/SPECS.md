@@ -25,29 +25,29 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 **Audience:** Both
 
-| Field | Schema | Description |
-| --- | --- | --- |
-| `siteId` | `SId` | Site scope. |
-| `identifiedUserId` | `opaqueUserId` | Application-supplied stable opaque identifier. |
-| `traits` | `scalarTraitMap` | Bounded string, number, boolean, or null values. The compact JSON serialization is at most 16 KiB of UTF-8 bytes. |
-| `aliases` | `aliasList` | Site-scoped Anonymous Identity links. |
-| `status` | `profileDeletionStatus` | Active or deletion lifecycle state. |
-| `profileEpoch` | positive integer (active only) | Current Profile Epoch number; a later re-identification after redaction uses a higher number. |
-| `identityHistory` | bounded `profileEpoch` list (active only) | At most 32 typed epochs. Active epochs have `endedAt: null`; redacted epochs have an end timestamp. |
-| `firstSeenAt` / `lastSeenAt` | `SDateTime` | Derived activity timestamps. |
-| `createdAt` / `updatedAt` | `SDateTime` | Profile lifecycle timestamps. |
+| Field                        | Schema                                    | Description                                                                                                       |
+| ---------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `siteId`                     | `SId`                                     | Site scope.                                                                                                       |
+| `identifiedUserId`           | `opaqueUserId`                            | Application-supplied stable opaque identifier.                                                                    |
+| `traits`                     | `scalarTraitMap`                          | Bounded string, number, boolean, or null values. The compact JSON serialization is at most 16 KiB of UTF-8 bytes. |
+| `aliases`                    | `aliasList`                               | Site-scoped Anonymous Identity links.                                                                             |
+| `status`                     | `profileDeletionStatus`                   | Active or deletion lifecycle state.                                                                               |
+| `profileEpoch`               | positive integer (active only)            | Current Profile Epoch number; a later re-identification after redaction uses a higher number.                     |
+| `identityHistory`            | bounded `profileEpoch` list (active only) | At most 32 typed epochs. Active epochs have `endedAt: null`; redacted epochs have an end timestamp.               |
+| `firstSeenAt` / `lastSeenAt` | `SDateTime`                               | Derived activity timestamps.                                                                                      |
+| `createdAt` / `updatedAt`    | `SDateTime`                               | Profile lifecycle timestamps.                                                                                     |
 
 ## 3. Endpoint Quick Index
 
 **Audience:** FE
 
-| # | Procedure | Method | Path | Auth | CQRS |
-| --- | --- | --- | --- | --- | --- |
-| Q1 | `listProfiles` | GET | `/identity-profile/listProfiles` | authenticated | query |
-| Q2 | `getProfile` | GET | `/identity-profile/getProfile` | authenticated | query |
-| Q3 | `getDeletionStatus` | GET | `/identity-profile/getDeletionStatus` | authenticated | query |
-| C1 | `identify` | POST | `/identity-profile/identify` | public | command |
-| C2 | `requestProfileDeletion` | POST | `/identity-profile/requestProfileDeletion` | admin | command |
+| #   | Procedure                | Method | Path                                       | Auth          | CQRS    |
+| --- | ------------------------ | ------ | ------------------------------------------ | ------------- | ------- |
+| Q1  | `listProfiles`           | GET    | `/identity-profile/listProfiles`           | authenticated | query   |
+| Q2  | `getProfile`             | GET    | `/identity-profile/getProfile`             | authenticated | query   |
+| Q3  | `getDeletionStatus`      | GET    | `/identity-profile/getDeletionStatus`      | authenticated | query   |
+| C1  | `identify`               | POST   | `/identity-profile/identify`               | public        | command |
+| C2  | `requestProfileDeletion` | POST   | `/identity-profile/requestProfileDeletion` | admin         | command |
 
 ## 4. Queries
 
@@ -109,21 +109,21 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 ## 6. Business Rules
 
-| Rule | Enforcement Point | Affected Procedures |
-| --- | --- | --- |
-| Identified IDs are explicit opaque Site-scoped values. | Contract and ingestion policy. | C1, Q1-Q2 |
-| Traits are bounded scalar values only, have a bounded serialized size, and never contain secrets, credentials, payment data, or prohibited sensitive categories. | Strict schema and policy. | C1 |
-| Current Session from its beginning plus future Events are linked; unrelated history is not merged, and one Anonymous Identity has at most one current Identified User link. | Identity/session transaction. | C1 |
-| `profileMonths` expiry and explicit deletion both redact profile-dependent meaning while retained non-personal Events may remain anonymous. | Retention and identity lifecycle. | C1-C2, Q1-Q3 |
-| Deletion is asynchronous, reserves the ID through cleanup, and is derived-result aware. | Deletion worker/status contract. | C2-Q3 |
+| Rule                                                                                                                                                                        | Enforcement Point                 | Affected Procedures |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------------- |
+| Identified IDs are explicit opaque Site-scoped values.                                                                                                                      | Contract and ingestion policy.    | C1, Q1-Q2           |
+| Traits are bounded scalar values only, have a bounded serialized size, and never contain secrets, credentials, payment data, or prohibited sensitive categories.            | Strict schema and policy.         | C1                  |
+| Current Session from its beginning plus future Events are linked; unrelated history is not merged, and one Anonymous Identity has at most one current Identified User link. | Identity/session transaction.     | C1                  |
+| `profileMonths` expiry and explicit deletion both redact profile-dependent meaning while retained non-personal Events may remain anonymous.                                 | Retention and identity lifecycle. | C1-C2, Q1-Q3        |
+| Deletion is asynchronous, reserves the ID through cleanup, and is derived-result aware.                                                                                     | Deletion worker/status contract.  | C2-Q3               |
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning | Procedures |
-| --- | --- | --- |
-| `public` | Valid Site Ingestion Identifier plus the ingestion guard; no dashboard reads. | C1 |
-| `authenticated` | Current member with Site read scope. | Q1-Q3 |
-| `admin` | Organization Owner or Administrator with Site deletion authority. | C2 |
+| Auth Level      | Meaning                                                                       | Procedures |
+| --------------- | ----------------------------------------------------------------------------- | ---------- |
+| `public`        | Valid Site Ingestion Identifier plus the ingestion guard; no dashboard reads. | C1         |
+| `authenticated` | Current member with Site read scope.                                          | Q1-Q3      |
+| `admin`         | Organization Owner or Administrator with Site deletion authority.             | C2         |
 
 ## 8. Event Catalog
 
@@ -143,31 +143,31 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code | HTTP | Trigger |
-| --- | ---: | --- |
-| `BAD_REQUEST` | 400 | Identity or Trait shape is invalid. |
-| `FORBIDDEN` | 403 | Caller lacks Site profile-management scope. |
-| `NOT_FOUND` | 404 | Site or profile is inaccessible. |
-| `CONFLICT` | 409 | Profile status is `deletion-requested`, `deleting`, or `deleted`, or the requested identity ID remains reserved for cleanup. |
-| `PAYLOAD_TOO_LARGE` | 413 | Compact JSON UTF-8 Trait serialization exceeds 16 KiB. |
-| `TOO_MANY_REQUESTS` | 429 | Identity mutation protection is exceeded. |
+| Code                | HTTP | Trigger                                                                                                                      |
+| ------------------- | ---: | ---------------------------------------------------------------------------------------------------------------------------- |
+| `BAD_REQUEST`       |  400 | Identity or Trait shape is invalid.                                                                                          |
+| `FORBIDDEN`         |  403 | Caller lacks Site profile-management scope.                                                                                  |
+| `NOT_FOUND`         |  404 | Site or profile is inaccessible.                                                                                             |
+| `CONFLICT`          |  409 | Profile status is `deletion-requested`, `deleting`, or `deleted`, or the requested identity ID remains reserved for cleanup. |
+| `PAYLOAD_TOO_LARGE` |  413 | Compact JSON UTF-8 Trait serialization exceeds 16 KiB.                                                                       |
+| `TOO_MANY_REQUESTS` |  429 | Identity mutation protection is exceeded.                                                                                    |
 
 ## 11. Related Resources & Dependencies
 
 ### Depends On
 
-| Resource | Integration Point |
-| --- | --- |
-| `site` | Site scope and Ingestion Identifier. |
-| `collection-policy` | Consent, opt-in, and property limits. |
-| `event-ingestion` | Shared identity validation and Event context. |
-| `retention-policy` | Profile and derived-result lifecycle. |
+| Resource            | Integration Point                             |
+| ------------------- | --------------------------------------------- |
+| `site`              | Site scope and Ingestion Identifier.          |
+| `collection-policy` | Consent, opt-in, and property limits.         |
+| `event-ingestion`   | Shared identity validation and Event context. |
+| `retention-policy`  | Profile and derived-result lifecycle.         |
 
 ### Used By
 
-| Resource | Integration Point |
-| --- | --- |
-| `traffic-report`, `event-report` | Profile filtering and attribution. |
+| Resource                             | Integration Point                               |
+| ------------------------------------ | ----------------------------------------------- |
+| `traffic-report`, `event-report`     | Profile filtering and attribution.              |
 | `goal`, `funnel`, `cohort-retention` | Identified behavior and deletion-aware results. |
 
 ## 12. Out of Scope

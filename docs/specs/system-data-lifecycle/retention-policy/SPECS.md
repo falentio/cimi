@@ -21,12 +21,12 @@ The versioned `retention_policy` rows are the canonical policy history. Installa
 
 **Audience:** Both
 
-| Field                 | Schema                    | Description                             |
-| --------------------- | ------------------------- | --------------------------------------- |
-| `installationDefault` | `retentionPolicy`         | Instance fallback; each month is an integer from 1 through 120. |
-| `siteOverride`        | `retentionPolicy` or `null` | Optional Site-specific values.          |
-| `effectivePolicy`     | `retentionPolicy`         | Computed policy used by lifecycle jobs. |
-| `updatedAt`           | `SDateTime`               | Policy timestamp.                       |
+| Field                 | Schema                      | Description                                                     |
+| --------------------- | --------------------------- | --------------------------------------------------------------- |
+| `installationDefault` | `retentionPolicy`           | Instance fallback; each month is an integer from 1 through 120. |
+| `siteOverride`        | `retentionPolicy` or `null` | Optional Site-specific values.                                  |
+| `effectivePolicy`     | `retentionPolicy`           | Computed policy used by lifecycle jobs.                         |
+| `updatedAt`           | `SDateTime`                 | Policy timestamp.                                               |
 
 Update and read inputs are discriminated by `scope`: `installation` carries a non-null `policy` and cannot be cleared; `site` carries a required `siteId` and accepts a nullable `policy`, where `null` clears the override and inherits the installation default. Results carry the same scope discriminator; Site results include `siteId`.
 
@@ -34,8 +34,8 @@ Update and read inputs are discriminated by `scope`: `installation` carries a no
 
 **Audience:** FE
 
-| #   | Procedure               | Method | Path                     | Auth  | CQRS    |
-| --- | ----------------------- | ------ | ------------------------ | ----- | ------- |
+| #   | Procedure               | Method | Path                                      | Auth                  | CQRS    |
+| --- | ----------------------- | ------ | ----------------------------------------- | --------------------- | ------- |
 | Q1  | `getRetentionPolicy`    | GET    | `/retention-policy/getRetentionPolicy`    | scope-dependent admin | query   |
 | C1  | `updateRetentionPolicy` | POST   | `/retention-policy/updateRetentionPolicy` | scope-dependent admin | command |
 
@@ -67,27 +67,27 @@ Update and read inputs are discriminated by `scope`: `installation` carries a no
 
 ## 6. Business Rules
 
-| Rule                                                                                                                            | Enforcement Point               | Affected Procedures                        |
-| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------ |
-| Effective Site policy is override or installation default.                                                                      | Policy resolver.                | Q1, C1                                     |
-| Default retention is 12 months for Event and profile data, with no replay retention unless configured.                          | Installation policy.            | Q1, C1                                     |
-| `eventMonths` covers Events, Sessions, Visitors, Goals, Funnels, and Cohorts.                                                   | Retention resolver.             | C1                                         |
-| `profileMonths` covers profiles, Aliases, Traits, identity projections, Identified User metrics, and profile-dependent filters. | Retention resolver.             | C1                                         |
-| `profileMonths` is no greater than `eventMonths`; configured `replayMonths` is shorter than both.                               | Contract validation.            | C1                                         |
-| Retention never silently deletes outside the effective policy.                                                                  | Deletion job and audit state.   | C1                                         |
-| Retention cutoffs resolve at the Site-local start of day and current/comparison windows are checked independently.              | Policy resolver and query admission. | C1, all analytics resources |
-| Occurrence Time governs analytical retention; Receipt Time governs acceptance-journal, deduplication, and replay retention.     | Retention and ingestion policy. | All analytics resources, `event-ingestion` |
-| Profile expiry redacts identity linkage while retaining non-personal Event meaning.                                             | Identity redaction overlay.     | All analytics resources                    |
-| Profile-dependent reports reject unavailable profile history; ordinary aggregate reports continue under Event retention.        | Query admission.                | All analytics resources                    |
-| A report older than any required dependency is rejected in full rather than clamped or partially returned.                      | Query admission.                | All analytics resources                    |
-| Relevant or unbounded Projection Gaps reject affected current/comparison reports before cache or execution; only no-gap lag may be `stale`. | Query admission. | All analytics resources |
-| One global lifecycle lock serializes backup, restore, upgrade, retention, Site deletion/recovery/purge, and destructive cleanup. | Lifecycle coordinator. | All lifecycle resources |
-| Active-derived cleanup completes before historical-backup cleanup; both statuses remain visible.                                | Lifecycle coordinator. | C1, installation, backup-restore |
+| Rule                                                                                                                                        | Enforcement Point                    | Affected Procedures                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------ |
+| Effective Site policy is override or installation default.                                                                                  | Policy resolver.                     | Q1, C1                                     |
+| Default retention is 12 months for Event and profile data, with no replay retention unless configured.                                      | Installation policy.                 | Q1, C1                                     |
+| `eventMonths` covers Events, Sessions, Visitors, Goals, Funnels, and Cohorts.                                                               | Retention resolver.                  | C1                                         |
+| `profileMonths` covers profiles, Aliases, Traits, identity projections, Identified User metrics, and profile-dependent filters.             | Retention resolver.                  | C1                                         |
+| `profileMonths` is no greater than `eventMonths`; configured `replayMonths` is shorter than both.                                           | Contract validation.                 | C1                                         |
+| Retention never silently deletes outside the effective policy.                                                                              | Deletion job and audit state.        | C1                                         |
+| Retention cutoffs resolve at the Site-local start of day and current/comparison windows are checked independently.                          | Policy resolver and query admission. | C1, all analytics resources                |
+| Occurrence Time governs analytical retention; Receipt Time governs acceptance-journal, deduplication, and replay retention.                 | Retention and ingestion policy.      | All analytics resources, `event-ingestion` |
+| Profile expiry redacts identity linkage while retaining non-personal Event meaning.                                                         | Identity redaction overlay.          | All analytics resources                    |
+| Profile-dependent reports reject unavailable profile history; ordinary aggregate reports continue under Event retention.                    | Query admission.                     | All analytics resources                    |
+| A report older than any required dependency is rejected in full rather than clamped or partially returned.                                  | Query admission.                     | All analytics resources                    |
+| Relevant or unbounded Projection Gaps reject affected current/comparison reports before cache or execution; only no-gap lag may be `stale`. | Query admission.                     | All analytics resources                    |
+| One global lifecycle lock serializes backup, restore, upgrade, retention, Site deletion/recovery/purge, and destructive cleanup.            | Lifecycle coordinator.               | All lifecycle resources                    |
+| Active-derived cleanup completes before historical-backup cleanup; both statuses remain visible.                                            | Lifecycle coordinator.               | C1, installation, backup-restore           |
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning                                                     | Procedures |
-| ---------- | ----------------------------------------------------------- | ---------- |
+| Auth Level              | Meaning                                                                              | Procedures |
+| ----------------------- | ------------------------------------------------------------------------------------ | ---------- |
 | `scope-dependent admin` | Installation admin for `installation` scope; Site-management admin for `site` scope. | Q1, C1     |
 
 ## 8. Event Catalog
@@ -113,15 +113,15 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code           | HTTP | Trigger                                        |
-| -------------- | ---: | ---------------------------------------------- |
-| `UNAUTHORIZED` |  401 | No authenticated admin.                        |
-| `FORBIDDEN`    |  403 | Caller lacks installation/Site policy scope.   |
-| `NOT_FOUND`    |  404 | Site is inaccessible.                          |
-| `BAD_REQUEST`  |  400 | Retention value violates policy bounds.        |
-| `CONFLICT`     |  409 | Lifecycle state cannot accept policy mutation. |
-| `QUERY_LIMIT_EXCEEDED` | 422 | Requested analytics history is unavailable for a required dependency or blocked by a relevant/unbounded Projection Gap. |
-| `INTERNAL_SERVER_ERROR` | 500 | Policy or cleanup status cannot be produced safely. |
+| Code                    | HTTP | Trigger                                                                                                                 |
+| ----------------------- | ---: | ----------------------------------------------------------------------------------------------------------------------- |
+| `UNAUTHORIZED`          |  401 | No authenticated admin.                                                                                                 |
+| `FORBIDDEN`             |  403 | Caller lacks installation/Site policy scope.                                                                            |
+| `NOT_FOUND`             |  404 | Site is inaccessible.                                                                                                   |
+| `BAD_REQUEST`           |  400 | Retention value violates policy bounds.                                                                                 |
+| `CONFLICT`              |  409 | Lifecycle state cannot accept policy mutation.                                                                          |
+| `QUERY_LIMIT_EXCEEDED`  |  422 | Requested analytics history is unavailable for a required dependency or blocked by a relevant/unbounded Projection Gap. |
+| `INTERNAL_SERVER_ERROR` |  500 | Policy or cleanup status cannot be produced safely.                                                                     |
 
 ## 11. Related Resources & Dependencies
 

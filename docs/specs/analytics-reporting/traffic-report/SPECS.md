@@ -32,8 +32,8 @@ This resource is stateless. It never mutates Events, identity, or Session bounda
 
 **Audience:** FE
 
-| #   | Procedure              | Method | Path                    | Auth          | CQRS  |
-| --- | ---------------------- | ------ | ----------------------- | ------------- | ----- |
+| #   | Procedure              | Method | Path                                   | Auth          | CQRS  |
+| --- | ---------------------- | ------ | -------------------------------------- | ------------- | ----- |
 | Q1  | `getTrafficOverview`   | GET    | `/traffic-report/getTrafficOverview`   | authenticated | query |
 | Q2  | `getTrafficBreakdowns` | GET    | `/traffic-report/getTrafficBreakdowns` | authenticated | query |
 
@@ -94,12 +94,12 @@ No events are emitted by read-only reports.
 
 ## 10. Error Code Catalog
 
-| Code                   | HTTP | Trigger                                                    |
-| ---------------------- | ---: | ---------------------------------------------------------- |
-| `NOT_FOUND`            |  404 | Site is missing or inaccessible; the two cases are indistinguishable. |
-| `BAD_REQUEST`          |  400 | Invalid date, granularity, filter, sort, offset, or limit. |
+| Code                   | HTTP | Trigger                                                                                                                                                                    |
+| ---------------------- | ---: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOT_FOUND`            |  404 | Site is missing or inaccessible; the two cases are indistinguishable.                                                                                                      |
+| `BAD_REQUEST`          |  400 | Invalid date, granularity, filter, sort, offset, or limit.                                                                                                                 |
 | `QUERY_LIMIT_EXCEEDED` |  422 | Effective Retention is incomplete, preflight statistics are stale or uncertain, a relevant/unbounded Projection Gap exists, or bounded execution budget would be exceeded. |
-| `SERVICE_UNAVAILABLE`  |  503 | Analytics store is not ready to serve the report.          |
+| `SERVICE_UNAVAILABLE`  |  503 | Analytics store is not ready to serve the report.                                                                                                                          |
 
 ## 11. Related Resources & Dependencies
 

@@ -14,6 +14,7 @@ Server connections per user/database pair. **Default: 20**
 **Example:** 45 with 2 users and 3 databases = 270 backend connections
 
 **Recommended values:**
+
 - 1 or few database/user pairs OLTP: `25-50`
 - High # of database/user pairs active simultaneously: `10-25`
 
@@ -42,4 +43,3 @@ Multiple users/databases: `default_pool_size = 25, max_user_connections = 150, p
 ```sql
 SELECT datname, usename, COUNT(*) FROM pg_stat_activity WHERE backend_type = 'client backend' GROUP BY datname, usename;
 ```
-

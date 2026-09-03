@@ -19,27 +19,27 @@ The canonical procedure is `health`; its explicit OpenAPI route is `GET /system/
 
 **Audience:** Both
 
-| Field            | Schema         | Description                                                               |
-| ---------------- | -------------- | ------------------------------------------------------------------------- |
-| `status`         | `healthStatus` | `healthy`, `degraded`, `recovering`, `maintenance`, or `unavailable`.      |
-| `controlStore`   | `storeHealth`  | `ready`, `degraded`, `rebuilding`, or `unavailable` SQLite/control state.  |
-| `analyticsStore` | `storeHealth`  | `ready`, `degraded`, `rebuilding`, or `unavailable` DuckDB state.           |
-| `cleanupPending` | `boolean`      | Historical retention/deletion cleanup remains after structural readiness. |
-| `version`        | bounded string (1-256 chars) | Application version.                                           |
-| `checkedAt`      | `SDateTime`    | Server check time.                                                        |
+| Field            | Schema                       | Description                                                               |
+| ---------------- | ---------------------------- | ------------------------------------------------------------------------- |
+| `status`         | `healthStatus`               | `healthy`, `degraded`, `recovering`, `maintenance`, or `unavailable`.     |
+| `controlStore`   | `storeHealth`                | `ready`, `degraded`, `rebuilding`, or `unavailable` SQLite/control state. |
+| `analyticsStore` | `storeHealth`                | `ready`, `degraded`, `rebuilding`, or `unavailable` DuckDB state.         |
+| `cleanupPending` | `boolean`                    | Historical retention/deletion cleanup remains after structural readiness. |
+| `version`        | bounded string (1-256 chars) | Application version.                                                      |
+| `checkedAt`      | `SDateTime`                  | Server check time.                                                        |
 
 ### Health state matrix
 
 The contract accepts only these combinations:
 
-| `status` | `controlStore` | `analyticsStore` | `cleanupPending` | Meaning |
-| --- | --- | --- | --- | --- |
-| `healthy` | `ready` | `ready` | `false` | Both stores are ready and no lifecycle cleanup is outstanding. |
-| `degraded` | `ready` | `degraded`, `rebuilding`, or `unavailable` | any | Durable collection is available in accept-only mode. |
-| `degraded` | `ready` | `ready` | `true` | Structural readiness is complete but cleanup remains. |
-| `recovering` | `ready` | any store state | any | Restore or recovery checks have not completed. |
-| `maintenance` | `ready` | any store state | any | Writes are intentionally quiesced for maintenance. |
-| `unavailable` | `degraded` or `unavailable` | any store state | any | The control store cannot provide durable acceptance. |
+| `status`      | `controlStore`              | `analyticsStore`                           | `cleanupPending` | Meaning                                                        |
+| ------------- | --------------------------- | ------------------------------------------ | ---------------- | -------------------------------------------------------------- |
+| `healthy`     | `ready`                     | `ready`                                    | `false`          | Both stores are ready and no lifecycle cleanup is outstanding. |
+| `degraded`    | `ready`                     | `degraded`, `rebuilding`, or `unavailable` | any              | Durable collection is available in accept-only mode.           |
+| `degraded`    | `ready`                     | `ready`                                    | `true`           | Structural readiness is complete but cleanup remains.          |
+| `recovering`  | `ready`                     | any store state                            | any              | Restore or recovery checks have not completed.                 |
+| `maintenance` | `ready`                     | any store state                            | any              | Writes are intentionally quiesced for maintenance.             |
+| `unavailable` | `degraded` or `unavailable` | any store state                            | any              | The control store cannot provide durable acceptance.           |
 
 ## 3. Endpoint Quick Index
 
@@ -67,11 +67,11 @@ This resource has no commands.
 
 ## 6. Business Rules
 
-| Rule                                                        | Enforcement Point | Affected Procedures |
-| ----------------------------------------------------------- | ----------------- | ------------------- |
-| Health never exposes credentials or physical storage paths. | Output mapper.    | Q1                  |
-| Readiness covers both control and analytics stores.         | Health handler.   | Q1                  |
-| Only the documented health/store matrix is valid.           | Contract validation. | Q1               |
+| Rule                                                        | Enforcement Point    | Affected Procedures |
+| ----------------------------------------------------------- | -------------------- | ------------------- |
+| Health never exposes credentials or physical storage paths. | Output mapper.       | Q1                  |
+| Readiness covers both control and analytics stores.         | Health handler.      | Q1                  |
+| Only the documented health/store matrix is valid.           | Contract validation. | Q1                  |
 
 ## 7. Authorization Matrix
 

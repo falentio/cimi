@@ -116,12 +116,12 @@ provide an undocumented feature.
 The current source's `PUBLIC_QUERY_TYPES` registry is the effective public data
 allowlist for `/v1/query?website_id=...`:
 
-| Public family | Query types exposed by the current source |
-| --- | --- |
-| Overview | `summary_metrics`, `today_metrics`, `active_stats`, `events_by_date`, `top_pages`, `entry_pages`, `exit_pages`, `page_time_analysis`, traffic/UTM queries, device/browser/OS queries, outbound-link queries, and `country`, `region`, `city` |
-| Custom events | `custom_events`, `custom_event_properties`, `custom_events_by_path`, trend/summary/discovery queries, and property classification, cardinality, top-value, distribution, and recent queries |
-| Errors | `recent_errors`, `error_types`, `error_trends`, `errors_by_page`, `error_frequency`, `error_summary`, `error_chart_data`, and `errors_by_type` |
-| Web vitals | `vitals_overview`, `vitals_time_series`, `vitals_by_page`, and country/region/city/browser breakdowns |
+| Public family | Query types exposed by the current source                                                                                                                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview      | `summary_metrics`, `today_metrics`, `active_stats`, `events_by_date`, `top_pages`, `entry_pages`, `exit_pages`, `page_time_analysis`, traffic/UTM queries, device/browser/OS queries, outbound-link queries, and `country`, `region`, `city` |
+| Custom events | `custom_events`, `custom_event_properties`, `custom_events_by_path`, trend/summary/discovery queries, and property classification, cardinality, top-value, distribution, and recent queries                                                  |
+| Errors        | `recent_errors`, `error_types`, `error_trends`, `errors_by_page`, `error_frequency`, `error_summary`, `error_chart_data`, and `errors_by_type`                                                                                               |
+| Web vitals    | `vitals_overview`, `vitals_time_series`, `vitals_by_page`, and country/region/city/browser breakdowns                                                                                                                                        |
 
 The allowlist and the `canReadQueryTypesPublicly` all-of check are in the
 official source ([public query registry](https://github.com/databuddy-analytics/Databuddy/blob/d15fcb5dac3605746dd08a35aac3de5f3ab4c2f3/packages/ai/src/query/builders/index.ts#L39-L145)).
@@ -285,18 +285,18 @@ official source ([public query registry](https://github.com/databuddy-analytics/
 
 ## Cimi Issue #8 Assessment
 
-| Requirement | Databuddy result in reviewed sources |
-| --- | --- |
-| Public/shared link | Yes: website-level `/public/{websiteId}` link when `isPublic` is enabled. |
-| Token model | No separate share token found; the stable website/client ID is in the URL. |
-| Open vs authenticated | Documented as anyone-with-link; source allows anonymous read-only access for public websites. Live test site returned 401, so production state is not uniformly verified. |
-| Data scope | Overview UI only, but the current anonymous API allowlist also includes custom events/properties, errors, web vitals, and city/region queries. Revenue is explicitly private. |
-| Filters and time ranges | Viewer-controlled date ranges, presets, granularity, pagination, and permitted filters through the normal query API. |
-| Exports | Authenticated export procedure only; no public CSV/share export found. Public JSON query responses can be transformed by a caller. |
-| Indexing | Repository robots config allows `/public/` and public route has no explicit noindex; live robots endpoint redirected to login during the check. |
-| Revocation and rotation | Toggle `isPublic` off; cache invalidation follows. No share-token rotation, expiry, password, or recipient ACL found. |
+| Requirement             | Databuddy result in reviewed sources                                                                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public/shared link      | Yes: website-level `/public/{websiteId}` link when `isPublic` is enabled.                                                                                                          |
+| Token model             | No separate share token found; the stable website/client ID is in the URL.                                                                                                         |
+| Open vs authenticated   | Documented as anyone-with-link; source allows anonymous read-only access for public websites. Live test site returned 401, so production state is not uniformly verified.          |
+| Data scope              | Overview UI only, but the current anonymous API allowlist also includes custom events/properties, errors, web vitals, and city/region queries. Revenue is explicitly private.      |
+| Filters and time ranges | Viewer-controlled date ranges, presets, granularity, pagination, and permitted filters through the normal query API.                                                               |
+| Exports                 | Authenticated export procedure only; no public CSV/share export found. Public JSON query responses can be transformed by a caller.                                                 |
+| Indexing                | Repository robots config allows `/public/` and public route has no explicit noindex; live robots endpoint redirected to login during the check.                                    |
+| Revocation and rotation | Toggle `isPublic` off; cache invalidation follows. No share-token rotation, expiry, password, or recipient ACL found.                                                              |
 | Rate limits and caching | Anonymous query limit is 60/minute per endpoint; backend ClickHouse query cache is enabled for most builders; website metadata has a 600-second cache with stale-while-revalidate. |
-| Privacy controls | Read-only and website-level on/off are present. Share-specific masking, suppression, audience, and per-family controls are unavailable in reviewed sources. |
+| Privacy controls        | Read-only and website-level on/off are present. Share-specific masking, suppression, audience, and per-family controls are unavailable in reviewed sources.                        |
 
 For Cimi, Databuddy is a fit only if issue #8 accepts an open, bearer-like
 website link and broad live query access behind a coarse website-level switch.

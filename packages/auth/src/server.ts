@@ -24,7 +24,6 @@ export function createAuth(deps: CreateAuthDependencies) {
       admin(),
       organization({
         allowUserToCreateOrganization: false,
-        disableOrganizationDeletion: true,
         schema: {
           organization: { modelName: 'authOrganization' },
           member: { modelName: 'authMember' },

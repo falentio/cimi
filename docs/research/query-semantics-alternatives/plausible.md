@@ -65,17 +65,17 @@ building, and `Plausible.Stats.query/2` ([v2 controller](https://github.com/plau
 
 The v2 documentation lists these range forms:
 
-| Input | Documented meaning |
-| --- | --- |
-| `"day"` | Current day |
-| `"24h"` | Last 24 hours relative to now |
-| `"7d"`, `"28d"`, `"30d"`, `"91d"` | Last N days relative to today |
-| `"month"` | Since the start of the current month |
-| `"6mo"`, `"12mo"` | Last N months relative to the start of this month |
-| `"year"` | Since the start of the current year |
-| `"all"` | Since stats collection began |
-| `["YYYY-MM-DD", "YYYY-MM-DD"]` | Custom ISO 8601 date range |
-| `["...+02:00", "...+02:00"]` | Custom ISO 8601 date-time range; the docs also show a five-minute pair for real-time querying |
+| Input                             | Documented meaning                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `"day"`                           | Current day                                                                                   |
+| `"24h"`                           | Last 24 hours relative to now                                                                 |
+| `"7d"`, `"28d"`, `"30d"`, `"91d"` | Last N days relative to today                                                                 |
+| `"month"`                         | Since the start of the current month                                                          |
+| `"6mo"`, `"12mo"`                 | Last N months relative to the start of this month                                             |
+| `"year"`                          | Since the start of the current year                                                           |
+| `"all"`                           | Since stats collection began                                                                  |
+| `["YYYY-MM-DD", "YYYY-MM-DD"]`    | Custom ISO 8601 date range                                                                    |
+| `["...+02:00", "...+02:00"]`      | Custom ISO 8601 date-time range; the docs also show a five-minute pair for real-time querying |
 
 Source details add important boundary behavior:
 
@@ -104,13 +104,13 @@ Source details add important boundary behavior:
 
 The v2 time dimensions are:
 
-| Dimension | Meaning |
-| --- | --- |
-| `time` | Automatic bucket selected from the range |
-| `time:hour` | Hour bucket |
-| `time:day` | Calendar date |
-| `time:week` | Start of week |
-| `time:month` | Start of month |
+| Dimension    | Meaning                                  |
+| ------------ | ---------------------------------------- |
+| `time`       | Automatic bucket selected from the range |
+| `time:hour`  | Hour bucket                              |
+| `time:day`   | Calendar date                            |
+| `time:week`  | Start of week                            |
+| `time:month` | Start of month                           |
 
 The pinned source parser also accepts `time:minute`. The source rejects a
 minute-dimension query when the range exceeds 30 hours, with the error
@@ -139,17 +139,17 @@ this "smear" behavior and expands active sessions across minute/hour slots
 
 ## Metric Definitions and Unique Counts
 
-| Metric | Plausible definition |
-| --- | --- |
-| `visitors` | Number of unique visitors |
-| `visits` | Number of visits/sessions; a session ends after 30 minutes without action |
-| `pageviews` | Number of pageview events |
-| `events` | Pageviews plus custom events; when filtered by a goal, this is total conversions |
-| `views_per_visit` | Pageviews divided by visits |
-| `bounce_rate` | Percentage of visits that did not meaningfully engage; by default, one page only and no custom event |
-| `visit_duration` | Average session duration; zero-second bounces remain in the denominator |
-| `conversion_rate` | Unique conversions divided by unique visitors, subject to filters |
-| `unique conversions` / `total conversions` | One conversion per visitor/goal versus every repeated conversion |
+| Metric                                     | Plausible definition                                                                                 |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `visitors`                                 | Number of unique visitors                                                                            |
+| `visits`                                   | Number of visits/sessions; a session ends after 30 minutes without action                            |
+| `pageviews`                                | Number of pageview events                                                                            |
+| `events`                                   | Pageviews plus custom events; when filtered by a goal, this is total conversions                     |
+| `views_per_visit`                          | Pageviews divided by visits                                                                          |
+| `bounce_rate`                              | Percentage of visits that did not meaningfully engage; by default, one page only and no custom event |
+| `visit_duration`                           | Average session duration; zero-second bounces remain in the denominator                              |
+| `conversion_rate`                          | Unique conversions divided by unique visitors, subject to filters                                    |
+| `unique conversions` / `total conversions` | One conversion per visitor/goal versus every repeated conversion                                     |
 
 These definitions are documented in [Metrics definitions](https://plausible.io/docs/metrics-definitions)
 and the [v2 metric table](https://plausible.io/docs/stats-api). A non-interactive

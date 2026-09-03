@@ -23,7 +23,9 @@ export const deleteOrganization = oc
     UNAUTHORIZED: {},
     FORBIDDEN: {},
     NOT_FOUND: {},
+    CONFLICT: {},
     ORGANIZATION_NOT_EMPTY: {},
+    INTERNAL_SERVER_ERROR: {},
     PERSONAL_ORGANIZATION_PROTECTED: {},
   })
   .input(SOrganizationDeleteInput)

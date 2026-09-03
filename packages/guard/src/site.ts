@@ -12,6 +12,7 @@ export type SiteMembershipRole = 'owner' | 'admin' | 'member'
 
 export interface SiteMembershipPort {
   getRole(organizationId: string, userId: string): PortResult<SiteMembershipRole | undefined>
+  hasPendingGovernanceOperation(organizationId: string): PortResult<boolean>
 }
 
 export interface SiteScopeGuardDependencies {
@@ -24,7 +25,7 @@ export interface SiteScopeGuardOptions {
 }
 
 export async function assertSiteScope(
-  user: AuthUser | undefined,
+  user: Pick<AuthUser, 'id'> | undefined,
   siteId: string,
   dependencies: SiteScopeGuardDependencies,
   options: SiteScopeGuardOptions = {},
@@ -41,7 +42,8 @@ export async function assertSiteScope(
   }
 
   const role = await dependencies.membership.getRole(organizationId, user.id)
-  if (role === undefined) {
+  if (role === undefined) throw new ORPCError('NOT_FOUND')
+  if (await dependencies.membership.hasPendingGovernanceOperation(organizationId)) {
     throw new ORPCError('NOT_FOUND')
   }
   if (!hasRequiredRole(role, options.requiredRole ?? 'member')) {
@@ -49,9 +51,34 @@ export async function assertSiteScope(
   }
 }
 
+export async function assertSiteManagementScope(
+  user: Pick<AuthUser, 'id'> | undefined,
+  siteId: string,
+  dependencies: SiteScopeGuardDependencies,
+  options: SiteScopeGuardOptions = { requiredRole: 'admin' },
+): Promise<void> {
+  assertAuthenticated(user)
+
+  const siteExists = await dependencies.siteScope.exists(siteId)
+  const organizationId = siteExists
+    ? await dependencies.siteScope.getOrganizationId(siteId)
+    : undefined
+  if (!siteExists || organizationId === undefined) throw new ORPCError('NOT_FOUND')
+
+  const role = await dependencies.membership.getRole(organizationId, user.id)
+  if (role === undefined) throw new ORPCError('NOT_FOUND')
+  if (await dependencies.membership.hasPendingGovernanceOperation(organizationId)) {
+    throw new ORPCError('CONFLICT')
+  }
+  if (!hasRequiredRole(role, options.requiredRole ?? 'admin')) {
+    throw new ORPCError('FORBIDDEN')
+  }
+}
+
 export class InMemorySiteScopePort implements SiteScopePort, SiteMembershipPort {
   readonly #sites = new Map<string, { organizationId: string; active: boolean }>()
   readonly #memberships = new Map<string, SiteMembershipRole>()
+  readonly #pendingOrganizations = new Set<string>()
 
   constructor(
     sites: ReadonlyArray<InMemorySiteRecord> = [],
@@ -79,6 +106,11 @@ export class InMemorySiteScopePort implements SiteScopePort, SiteMembershipPort 
     this.#memberships.delete(membershipKey(organizationId, userId))
   }
 
+  setPendingGovernanceOperation(organizationId: string, pending = true): void {
+    if (pending) this.#pendingOrganizations.add(organizationId)
+    else this.#pendingOrganizations.delete(organizationId)
+  }
+
   exists(siteId: string): boolean {
     return this.#sites.has(siteId)
   }
@@ -94,6 +126,10 @@ export class InMemorySiteScopePort implements SiteScopePort, SiteMembershipPort 
   getRole(organizationId: string, userId: string): SiteMembershipRole | undefined {
     return this.#memberships.get(membershipKey(organizationId, userId))
   }
+
+  hasPendingGovernanceOperation(organizationId: string): boolean {
+    return this.#pendingOrganizations.has(organizationId)
+  }
 }
 
 export interface InMemorySiteRecord {
@@ -108,7 +144,9 @@ export interface InMemorySiteMembership {
   readonly role: SiteMembershipRole
 }
 
-function assertAuthenticated(user: AuthUser | undefined): asserts user is AuthUser {
+function assertAuthenticated(
+  user: Pick<AuthUser, 'id'> | undefined,
+): asserts user is Pick<AuthUser, 'id'> {
   if (user === undefined) throw new ORPCError('UNAUTHORIZED')
 }
 

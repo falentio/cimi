@@ -1,10 +1,10 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { SMembership, SMembershipChangeRoleFields } from '../schema.ts'
+import { SMembershipChangeRoleFields, SMembershipNonOwner } from '../schema.ts'
 
 export const SMembershipChangeRoleInput = SMembershipChangeRoleFields
 export type SMembershipChangeRoleInput = v.InferOutput<typeof SMembershipChangeRoleInput>
-export const SMembershipChangeRoleOutput = SMembership
+export const SMembershipChangeRoleOutput = SMembershipNonOwner
 export type SMembershipChangeRoleOutput = v.InferOutput<typeof SMembershipChangeRoleOutput>
 
 export const changeMemberRole = oc
@@ -24,7 +24,9 @@ export const changeMemberRole = oc
     FORBIDDEN: {},
     NOT_FOUND: {},
     BAD_REQUEST: {},
+    CONFLICT: {},
     OWNER_PROTECTED: {},
+    INTERNAL_SERVER_ERROR: {},
   })
   .input(SMembershipChangeRoleInput)
   .output(SMembershipChangeRoleOutput)

@@ -3,7 +3,7 @@ import { SGoalCreateInput } from './command/create.ts'
 import { SGoalUpdateInput } from './command/update.ts'
 
 const createInput = {
-  siteId: 'site-1',
+  siteId: 'ste-1',
   name: 'Checkout completed',
   action: { kind: 'page_view' },
   propertyFilters: [],

@@ -1,30 +1,9 @@
-import { afterEach, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 import { createAuth } from '@cimi/auth/server'
 import { schema as contractSchema } from '@cimi/contract'
-import { closeDb, schema, type Db } from '@cimi/db'
+import { closeDb, schema } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createApiApp } from '../../../index.ts'
-
-const fixtures: Array<{
-  db: Db
-  analytics: Awaited<ReturnType<typeof createTestAnalyticsDb>>
-}> = []
-
-afterEach(async () => {
-  try {
-    await Promise.all(
-      fixtures.map(async ({ db, analytics }) => {
-        try {
-          await analytics.close()
-        } finally {
-          closeDb(db)
-        }
-      }),
-    )
-  } finally {
-    fixtures.length = 0
-  }
-})
 
 async function createFixture() {
   const db = createMigratedTestDb()
@@ -38,8 +17,16 @@ async function createFixture() {
         baseURL: 'http://localhost',
       })
       const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
-      fixtures.push({ db, analytics })
-      return app
+      return {
+        app,
+        async [Symbol.asyncDispose]() {
+          try {
+            await analytics.close()
+          } finally {
+            closeDb(db)
+          }
+        },
+      }
     } catch (error) {
       try {
         await analytics.close()
@@ -73,7 +60,8 @@ async function signUp(
 }
 
 test('hello world is public and computes a greeting', async () => {
-  const app = await createFixture()
+  await using fixture = await createFixture()
+  const { app } = fixture
 
   const response = await app.fetch(new Request('http://localhost/api/hello/world?name=Ada'))
 
@@ -82,7 +70,8 @@ test('hello world is public and computes a greeting', async () => {
 })
 
 test('an authenticated owner can create, list, get, and remove a greeting', async () => {
-  const app = await createFixture()
+  await using fixture = await createFixture()
+  const { app } = fixture
   const cookie = await signUp(app, 'ada@example.com', 'Ada')
 
   const createResponse = await app.fetch(
@@ -133,7 +122,8 @@ test('an authenticated owner can create, list, get, and remove a greeting', asyn
 })
 
 test('hello commands require authentication and removal is owner-scoped', async () => {
-  const app = await createFixture()
+  await using fixture = await createFixture()
+  const { app } = fixture
   const ownerCookie = await signUp(app, 'ada@example.com', 'Ada')
   const otherCookie = await signUp(app, 'grace@example.com', 'Grace')
 
@@ -145,6 +135,15 @@ test('hello commands require authentication and removal is owner-scoped', async 
     }),
   )
   expect(unauthenticated.status).toBe(401)
+
+  const unauthenticatedRemove = await app.fetch(
+    new Request('http://localhost/api/hello/remove', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 'hel_1' }),
+    }),
+  )
+  expect(unauthenticatedRemove.status).toBe(401)
 
   const createResponse = await app.fetch(
     new Request('http://localhost/api/hello/create', {

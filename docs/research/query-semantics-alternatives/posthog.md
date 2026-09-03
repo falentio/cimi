@@ -79,15 +79,15 @@ top-N behavior, and whether pagination is offset, cursor, or unsupported.
 
 The documented event aggregations are:
 
-| Metric | Definition |
-| --- | --- |
-| Total count | Total event occurrences in the period/bucket. |
-| Unique users | Unique users who performed the event in the period/bucket. |
-| Daily active users | Unique users in the day-level window. |
-| WAU / MAU | Unique users in rolling 7-day / 30-day windows. |
-| Unique sessions | Unique sessions in which the event occurred. |
-| Unique groups | Unique groups that performed the event. |
-| Property math | Average, sum, min, max, median, or p75/p90/p95/p99 of a numeric property. |
+| Metric             | Definition                                                                |
+| ------------------ | ------------------------------------------------------------------------- |
+| Total count        | Total event occurrences in the period/bucket.                             |
+| Unique users       | Unique users who performed the event in the period/bucket.                |
+| Daily active users | Unique users in the day-level window.                                     |
+| WAU / MAU          | Unique users in rolling 7-day / 30-day windows.                           |
+| Unique sessions    | Unique sessions in which the event occurred.                              |
+| Unique groups      | Unique groups that performed the event.                                   |
+| Property math      | Average, sum, min, max, median, or p75/p90/p95/p99 of a numeric property. |
 
 The official aggregation docs state that two occurrences by the same user count
 as one for Unique users. The implementation maps the main unique-user path to

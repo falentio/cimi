@@ -1,5 +1,6 @@
-lomba
-rybbit/
+# vendored third-party source (plain clones, never submodules — see AGENTS.md)
+docs/vendor/**
+!docs/vendor/README.md
 .DS_Store
 node_modules/
 dist/
@@ -19,6 +20,7 @@ coverage/
 
 # herdr skill: vendored libghostty-vt (regeneratable via herdr/scripts/vendor_libghostty_vt.py)
 .agents/skills/skills/herdr/vendor/libghostty-vt/
+.agents/skills/skills/herdr/website/
 
 # linked worktrees
 .worktrees/

@@ -8,7 +8,6 @@ export const auth = betterAuth({
     admin(),
     organization({
       allowUserToCreateOrganization: false,
-      disableOrganizationDeletion: true,
       schema: {
         organization: { modelName: 'authOrganization' },
         member: { modelName: 'authMember' },

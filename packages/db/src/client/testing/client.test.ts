@@ -40,7 +40,7 @@ describe('createDb + migrateControlDb', () => {
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
-    expect(migrationRows).toHaveLength(1)
+    expect(migrationRows).toHaveLength(7)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
     const tableRows = db.$client
@@ -81,6 +81,8 @@ describe('createDb + migrateControlDb', () => {
         'invitation',
         'membership',
         'organization',
+        'organization_governance_operation',
+        'organization_repair_operation',
         'public_dashboard',
         'projection_checkpoint',
         'projection_gap',
@@ -141,13 +143,13 @@ describe('createDb + migrateControlDb', () => {
         `INSERT INTO organization (id, name, owner_user_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?)`,
       )
-      .run('organization-1', 'Organization', 'user-1', now, now)
+      .run('org-1', 'Organization', 'user-1', now, now)
     db.$client
       .prepare(
         `INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run('site-1', 'organization-1', 'Site', 'example.com', 'ingestion-1', now, now)
+      .run('ste-1', 'org-1', 'Site', 'example.com', 'ing-1', now, now)
     db.$client
       .prepare(
         `INSERT INTO installation (id, created_at, updated_at)
@@ -165,7 +167,7 @@ describe('createDb + migrateControlDb', () => {
         'collection-policy-invalid',
         'installation-1',
         'installation',
-        'site-1',
+        'ste-1',
         1,
         '{}',
         now,
@@ -194,7 +196,7 @@ describe('createDb + migrateControlDb', () => {
       )
       .run(
         1,
-        'site-1',
+        'ste-1',
         'event-1',
         'custom_event',
         now,
@@ -252,14 +254,14 @@ describe('createDb + migrateControlDb', () => {
           (profile_id, site_id, identified_user_id, status, profile_epoch, first_seen_at, last_seen_at, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run('profile-1', 'site-1', 'identified-1', 'active', 1, now, now, now, now)
+      .run('profile-1', 'ste-1', 'identified-1', 'active', 1, now, now, now, now)
     db.$client
       .prepare(
         `INSERT INTO identity_profile_epoch
           (profile_id, site_id, identified_user_id, epoch, status, started_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run('profile-1', 'site-1', 'identified-1', 1, 'active', now)
+      .run('profile-1', 'ste-1', 'identified-1', 1, 'active', now)
     const insertIdentityLink = db.$client.prepare(
       `INSERT INTO identity_link
         (id, site_id, profile_id, profile_epoch, anonymous_identity_id, effective_from, linked_at)
@@ -268,7 +270,7 @@ describe('createDb + migrateControlDb', () => {
     expect(() =>
       insertIdentityLink.run(
         'identity-link-invalid',
-        'site-1',
+        'ste-1',
         'profile-1',
         2,
         'anonymous-1',
@@ -329,6 +331,571 @@ describe('createDb + migrateControlDb', () => {
     ).toThrow()
 
     closeDb(db)
+  })
+
+  it('enforces Organization governance constraints at runtime', () => {
+    const db = createMigratedTestDb()
+
+    try {
+      expect(db.$client.pragma('foreign_keys', { simple: true })).toBe(1)
+
+      const now = Date.now()
+      const insertUser = db.$client.prepare(
+        `INSERT INTO user (id, name, email, email_verified, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      insertUser.run('user-1', 'User 1', 'user-1@example.com', 1, now, now)
+      insertUser.run('user-2', 'User 2', 'user-2@example.com', 1, now, now)
+      insertUser.run('user-3', 'User 3', 'user-3@example.com', 1, now, now)
+
+      const insertOrganization = db.$client.prepare(
+        `INSERT INTO organization
+          (id, name, authority_organization_id, owner_user_id, is_personal, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      insertOrganization.run('personal-1', 'Personal 1', null, 'user-1', 1, now, now)
+      expect(() =>
+        insertOrganization.run('personal-2', 'Personal 2', null, 'user-1', 1, now, now),
+      ).toThrow()
+      insertOrganization.run('personal-2', 'Personal 2', null, 'user-2', 1, now, now)
+      insertOrganization.run('org-1', 'Organization 1', 'authority-1', 'user-1', 0, now, now)
+      insertOrganization.run('org-2', 'Organization 2', 'authority-2', 'user-2', 0, now, now)
+      insertOrganization.run(
+        'organization-3',
+        'Organization 3',
+        'authority-3',
+        'user-1',
+        0,
+        now,
+        now,
+      )
+      expect(() =>
+        insertOrganization.run(
+          'organization-4',
+          'Organization 4',
+          'authority-2',
+          'user-3',
+          0,
+          now,
+          now,
+        ),
+      ).toThrow()
+
+      const insertMembership = db.$client.prepare(
+        `INSERT INTO membership (organization_id, user_id, role, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      insertMembership.run('org-1', 'user-1', 'owner', now, now)
+      insertMembership.run('org-1', 'user-2', 'admin', now, now)
+      expect(() => insertMembership.run('org-1', 'user-2', 'admin', now, now)).toThrow()
+      expect(() => insertMembership.run('org-1', 'user-3', 'owner', now, now)).toThrow()
+      expect(() => insertMembership.run('org-1', 'user-3', 'moderator', now, now)).toThrow()
+      expect(() =>
+        insertMembership.run('missing-organization', 'user-3', 'member', now, now),
+      ).toThrow()
+      expect(() => insertMembership.run('org-1', 'missing-user', 'member', now, now)).toThrow()
+      expect(() => db.$client.prepare('DELETE FROM user WHERE id = ?').run('user-2')).toThrow()
+
+      const insertGovernanceOperation = db.$client.prepare(
+        `INSERT INTO organization_governance_operation
+          (id, organization_id, operation_type, previous_owner_user_id, target_user_id,
+           target_role, status, attempt_count, requested_at, last_attempt_at, completed_at,
+           failure_code, failure_message, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      insertGovernanceOperation.run(
+        'governance-1',
+        'org-1',
+        'transfer-ownership',
+        'user-1',
+        'user-2',
+        null,
+        'pending',
+        0,
+        now,
+        null,
+        null,
+        null,
+        null,
+        now,
+        now,
+      )
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-2',
+          'org-1',
+          'remove-member',
+          'user-1',
+          'user-2',
+          null,
+          'pending',
+          0,
+          now,
+          null,
+          null,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      insertGovernanceOperation.run(
+        'governance-3',
+        'org-1',
+        'remove-member',
+        'user-1',
+        'user-2',
+        null,
+        'completed',
+        0,
+        now,
+        null,
+        now,
+        null,
+        null,
+        now,
+        now,
+      )
+      insertGovernanceOperation.run(
+        'governance-4',
+        'org-2',
+        'change-member-role',
+        'user-2',
+        'user-3',
+        'admin',
+        'completed',
+        0,
+        now,
+        null,
+        now,
+        null,
+        null,
+        now,
+        now,
+      )
+      insertGovernanceOperation.run(
+        'governance-4-member',
+        'org-2',
+        'change-member-role',
+        'user-2',
+        'user-3',
+        'member',
+        'completed',
+        1,
+        now,
+        now,
+        now,
+        null,
+        null,
+        now,
+        now,
+      )
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-5',
+          'org-2',
+          'change-member-role',
+          'user-2',
+          'user-3',
+          'owner',
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-6',
+          'org-2',
+          'change-member-role',
+          'user-2',
+          'user-3',
+          null,
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-7',
+          'org-2',
+          'transfer-ownership',
+          'user-2',
+          'user-3',
+          'member',
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-8',
+          'org-2',
+          'leave-organization',
+          'user-2',
+          'user-2',
+          null,
+          'completed',
+          -1,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-9',
+          'missing-organization',
+          'transfer-ownership',
+          'user-1',
+          'user-2',
+          null,
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-10',
+          'org-2',
+          'transfer-ownership',
+          'missing-user',
+          'user-2',
+          null,
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertGovernanceOperation.run(
+          'governance-11',
+          'org-2',
+          'transfer-ownership',
+          'user-2',
+          'missing-user',
+          null,
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+
+      const insertRepairOperation = db.$client.prepare(
+        `INSERT INTO organization_repair_operation
+          (id, organization_id, local_organization_id, operation_type, owner_user_id,
+           authority_organization_id, authority_cleanup_required, authority_slug, previous_name,
+           desired_name, status, attempt_count, requested_at, last_attempt_at, completed_at,
+           failure_code, failure_message, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      insertRepairOperation.run(
+        'repair-1',
+        null,
+        'local-create-1',
+        'create-organization',
+        'user-1',
+        null,
+        0,
+        'create-slug-1',
+        null,
+        'Created Organization',
+        'pending',
+        0,
+        now,
+        null,
+        null,
+        null,
+        null,
+        now,
+        now,
+      )
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-2',
+          null,
+          'local-create-2',
+          'create-organization',
+          'user-1',
+          null,
+          0,
+          'create-slug-2',
+          null,
+          'Created Organization 2',
+          'pending',
+          0,
+          now,
+          null,
+          null,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      insertRepairOperation.run(
+        'repair-3',
+        null,
+        'local-create-3',
+        'create-organization',
+        'user-1',
+        null,
+        0,
+        'create-slug-3',
+        null,
+        'Created Organization 3',
+        'completed',
+        0,
+        now,
+        null,
+        now,
+        null,
+        null,
+        now,
+        now,
+      )
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-4',
+          null,
+          'local-create-4',
+          'create-organization',
+          'user-1',
+          null,
+          0,
+          null,
+          null,
+          'Created Organization 4',
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-5',
+          null,
+          'local-create-5',
+          'create-organization',
+          'user-1',
+          null,
+          0,
+          'create-slug-5',
+          'Previous Name',
+          'Created Organization 5',
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      insertRepairOperation.run(
+        'repair-6',
+        'org-2',
+        'local-update-1',
+        'update-organization',
+        'user-2',
+        'authority-2',
+        0,
+        null,
+        'Previous Name',
+        'Updated Organization',
+        'pending',
+        0,
+        now,
+        null,
+        null,
+        null,
+        null,
+        now,
+        now,
+      )
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-7',
+          'org-2',
+          'local-update-2',
+          'update-organization',
+          'user-2',
+          'authority-2',
+          0,
+          null,
+          'Previous Name',
+          'Updated Organization 2',
+          'pending',
+          0,
+          now,
+          null,
+          null,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-8',
+          'org-2',
+          'local-update-3',
+          'update-organization',
+          'user-2',
+          'authority-2',
+          0,
+          null,
+          'Previous Name',
+          'Updated Organization 3',
+          'completed',
+          -1,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-9',
+          'org-2',
+          'local-update-4',
+          'update-organization',
+          'user-2',
+          'authority-2',
+          0,
+          'unexpected-slug',
+          'Previous Name',
+          'Updated Organization 4',
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-10',
+          null,
+          'local-update-5',
+          'update-organization',
+          'user-2',
+          'authority-2',
+          0,
+          null,
+          'Previous Name',
+          'Updated Organization 5',
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+      expect(() =>
+        insertRepairOperation.run(
+          'repair-11',
+          'org-2',
+          'local-update-6',
+          'update-organization',
+          'missing-user',
+          'authority-2',
+          0,
+          null,
+          'Previous Name',
+          'Updated Organization 6',
+          'completed',
+          0,
+          now,
+          null,
+          now,
+          null,
+          null,
+          now,
+          now,
+        ),
+      ).toThrow()
+
+      db.$client.prepare('DELETE FROM organization WHERE id = ?').run('org-1')
+      expect(
+        db.$client
+          .prepare('SELECT COUNT(*) AS count FROM membership WHERE organization_id = ?')
+          .get('org-1'),
+      ).toEqual({ count: 0 })
+      expect(
+        db.$client
+          .prepare(
+            'SELECT COUNT(*) AS count FROM organization_governance_operation WHERE organization_id = ?',
+          )
+          .get('org-1'),
+      ).toEqual({ count: 0 })
+    } finally {
+      closeDb(db)
+    }
   })
 
   it('uses the configured control path and creates its missing parent directory', async () => {

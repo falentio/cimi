@@ -45,15 +45,15 @@ long browser-negative user agent. Values below are speed relative to the regex
 baseline; values above `1.00x` are faster. The results are machine-specific
 and are directional rather than a product performance guarantee.
 
-| Matcher | Browser | Early bot | Middle bot | Late bot | Long negative | Cache hit |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Regex baseline | 1.00x | 1.00x | 1.00x | 1.00x | 1.00x | 1.00x |
-| Valibot check | 0.36x | 0.64x | 0.94x | 0.76x | 1.22x | 0.61x |
-| Valibot wrapper plus regex | 0.98x | 0.89x | 0.88x | 0.92x | 1.00x | 0.48x |
-| Direct literal/regex hybrid | 0.50x | 0.79x | 1.28x | 1.11x | 1.23x | 0.89x |
-| Map-transition Aho-Corasick | 1.18x | 0.51x | 1.23x | 3.62x | 1.22x | 0.97x |
-| Dense Aho-Corasick | 2.01x | 0.74x | 1.66x | 5.64x | 2.07x | 0.97x |
-| Dense trie without failure links | 1.83x | 0.68x | 1.33x | 4.14x | 2.02x | 0.96x |
+| Matcher                          | Browser | Early bot | Middle bot | Late bot | Long negative | Cache hit |
+| -------------------------------- | ------: | --------: | ---------: | -------: | ------------: | --------: |
+| Regex baseline                   |   1.00x |     1.00x |      1.00x |    1.00x |         1.00x |     1.00x |
+| Valibot check                    |   0.36x |     0.64x |      0.94x |    0.76x |         1.22x |     0.61x |
+| Valibot wrapper plus regex       |   0.98x |     0.89x |      0.88x |    0.92x |         1.00x |     0.48x |
+| Direct literal/regex hybrid      |   0.50x |     0.79x |      1.28x |    1.11x |         1.23x |     0.89x |
+| Map-transition Aho-Corasick      |   1.18x |     0.51x |      1.23x |    3.62x |         1.22x |     0.97x |
+| Dense Aho-Corasick               |   2.01x |     0.74x |      1.66x |    5.64x |         2.07x |     0.97x |
+| Dense trie without failure links |   1.83x |     0.68x |      1.33x |    4.14x |         2.02x |     0.96x |
 
 ## Findings
 

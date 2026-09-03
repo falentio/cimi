@@ -27,12 +27,12 @@ The raw public identifier is first-party durable configuration, while its hash r
 
 **Audience:** Both
 
-| Field                       | Schema                   | Description                                         |
-| --------------------------- | ------------------------ | --------------------------------------------------- |
-| `siteId`                    | `SId`                    | Site scope.                                         |
-| `enabled`                   | `boolean`                | Whether the public URL currently resolves.          |
+| Field                       | Schema                       | Description                                                            |
+| --------------------------- | ---------------------------- | ---------------------------------------------------------------------- |
+| `siteId`                    | `SId`                        | Site scope.                                                            |
+| `enabled`                   | `boolean`                    | Whether the public URL currently resolves.                             |
 | `publicDashboardIdentifier` | bounded string (1-128 chars) | In-house generated public URL selector, never a management credential. |
-| `updatedAt`                 | `SPublicAbsoluteDateTime` | Configuration timestamp.                            |
+| `updatedAt`                 | `SPublicAbsoluteDateTime`    | Configuration timestamp.                                               |
 
 Public Query output contains only approved aggregate metric/dimension values and suppression-safe empty results.
 
@@ -45,8 +45,8 @@ Dimension keys preserve the source canonical bound of 2,048 characters.
 
 **Audience:** FE
 
-| #   | Procedure                         | Method | Path                               | Auth   | CQRS    |
-| --- | --------------------------------- | ------ | ---------------------------------- | ------ | ------- |
+| #   | Procedure                         | Method | Path                                                | Auth   | CQRS    |
+| --- | --------------------------------- | ------ | --------------------------------------------------- | ------ | ------- |
 | Q1  | `getPublicDashboardConfig`        | GET    | `/public-dashboard/getPublicDashboardConfig`        | admin  | query   |
 | Q2  | `queryPublicDashboard`            | GET    | `/public-dashboard/queryPublicDashboard`            | public | query   |
 | C1  | `enablePublicDashboard`           | POST   | `/public-dashboard/enablePublicDashboard`           | admin  | command |
@@ -171,13 +171,13 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code                   | HTTP | Trigger                                                                                                     |
-| ---------------------- | ---: | ----------------------------------------------------------------------------------------------------------- |
-| `NOT_FOUND`            |  404 | Identifier is unknown, rotated, or disabled.                                                                |
-| `BAD_REQUEST`          |  400 | Range, derived hourly bucket count, granularity, metric, dimension, or filter is not in the public catalog. |
-| `TOO_MANY_REQUESTS`    |  429 | Site/IP rate limit exceeded; include `Retry-After`, `X-RateLimit-Scope`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`. |
+| Code                   | HTTP | Trigger                                                                                                                                                                |
+| ---------------------- | ---: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOT_FOUND`            |  404 | Identifier is unknown, rotated, or disabled.                                                                                                                           |
+| `BAD_REQUEST`          |  400 | Range, derived hourly bucket count, granularity, metric, dimension, or filter is not in the public catalog.                                                            |
+| `TOO_MANY_REQUESTS`    |  429 | Site/IP rate limit exceeded; include `Retry-After`, `X-RateLimit-Scope`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`.                        |
 | `QUERY_LIMIT_EXCEEDED` |  422 | Effective Retention is incomplete, preflight statistics are stale or uncertain, a relevant/unbounded Projection Gap exists, or Public Query exceeds bounded execution. |
-| `SERVICE_UNAVAILABLE`  |  503 | Analytics store is not ready to serve the public query.                                                     |
+| `SERVICE_UNAVAILABLE`  |  503 | Analytics store is not ready to serve the public query.                                                                                                                |
 
 ## 11. Related Resources & Dependencies
 
