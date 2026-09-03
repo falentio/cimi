@@ -7,9 +7,11 @@ import { ERROR_CATALOG } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
+import type { AcceptanceJournalPort, LifecycleLock } from '@cimi/kernel'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
+import { createInstallation, type UpgradeArtifactPort } from './resources/installation/index.ts'
 import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
@@ -31,6 +33,9 @@ export interface CreateApiAppDependencies {
   analytics: AnalyticsDb
   baseUrl?: string | undefined
   lifecycle?: HealthLifecycle | undefined
+  lock?: LifecycleLock | undefined
+  journal?: AcceptanceJournalPort | undefined
+  upgradeArtifact?: UpgradeArtifactPort | undefined
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): Hono {
@@ -43,12 +48,19 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     membership: membership.service,
   })
   const site = createSite({ db: deps.db, membership: membership.service })
+  const installation = createInstallation({
+    db: deps.db,
+    ...(deps.lock === undefined ? {} : { lock: deps.lock }),
+    ...(deps.journal === undefined ? {} : { journal: deps.journal }),
+    ...(deps.upgradeArtifact === undefined ? {} : { upgradeArtifact: deps.upgradeArtifact }),
+  })
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler(deps)),
     },
     hello: hello.router,
+    installation: installation.router,
     organization: organization.router,
     membership: membership.router,
     site: site.router,

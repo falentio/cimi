@@ -11,6 +11,7 @@ export interface ApiContext {
 export const api = implement({
   health: contract.health,
   hello: contract.hello,
+  installation: contract.installation,
   organization: contract.organization,
   membership: contract.membership,
   site: contract.site,
