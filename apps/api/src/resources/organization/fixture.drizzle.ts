@@ -98,6 +98,42 @@ export interface OrganizationDrizzleFixture extends Disposable {
   readonly db: Db
 }
 
+export type OrganizationMemberSeed = {
+  userId: string
+  role: 'owner' | 'admin' | 'member'
+}
+
+export async function seedOrganizationDrizzle(
+  db: Db,
+  options: {
+    organization?: Partial<OrganizationRow>
+    members?: readonly OrganizationMemberSeed[]
+  } = {},
+): Promise<void> {
+  const organization = createOrganizationRow(options.organization)
+  const members = options.members ?? [{ userId: organization.ownerUserId, role: 'owner' as const }]
+  for (const member of members) {
+    if (member.userId === 'user_1') continue
+    await db.insert(schema.TUser).values(
+      createOrganizationUserRow({
+        id: member.userId,
+        name: member.userId,
+        email: `${member.userId}@example.com`,
+      }),
+    )
+  }
+  await db.insert(schema.TOrganization).values(organization)
+  await db.insert(schema.TMembership).values(
+    members.map((member) => ({
+      organizationId: organization.id,
+      userId: member.userId,
+      role: member.role,
+      createdAt,
+      updatedAt: createdAt,
+    })),
+  )
+}
+
 export async function createOrganizationDrizzleFixture(): Promise<OrganizationDrizzleFixture> {
   const db = createMigratedTestDb()
   try {
