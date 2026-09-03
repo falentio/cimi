@@ -1,21 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { HelloRepositoryDrizzle } from '../repository.drizzle.ts'
-import { createHelloDbFixture, createHelloRecord, destroyHelloDbFixture } from '../fixtures.ts'
+import {
+  createHelloDrizzleFixture,
+  createHelloRow,
+  destroyHelloDrizzleFixture,
+} from '../fixture.drizzle.ts'
 
 describe('HelloRepositoryDrizzle.list', () => {
-  let fixture: Awaited<ReturnType<typeof createHelloDbFixture>>
+  let fixture: Awaited<ReturnType<typeof createHelloDrizzleFixture>>
 
   beforeEach(async () => {
-    fixture = await createHelloDbFixture()
+    fixture = await createHelloDrizzleFixture()
   })
 
-  afterEach(() => destroyHelloDbFixture(fixture))
+  afterEach(() => destroyHelloDrizzleFixture(fixture))
 
   it('filters names and paginates with a stable next offset', async () => {
     const repo = new HelloRepositoryDrizzle({ db: fixture.db })
-    await repo.insert(createHelloRecord({ id: 'hello_1', name: 'Ada' }))
+    await repo.insert(createHelloRow({ id: 'hello_1', name: 'Ada' }))
     await repo.insert(
-      createHelloRecord({
+      createHelloRow({
         id: 'hello_2',
         ownerId: 'user_2',
         name: 'Grace',

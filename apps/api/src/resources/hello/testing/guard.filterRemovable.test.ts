@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture } from '../fixtures.ts'
+import { createHelloFixture } from '../fixture.ts'
 
 describe('HelloGuard removal filtering', () => {
   it('does not permit a foreign owner to reach the delete repository call', async () => {

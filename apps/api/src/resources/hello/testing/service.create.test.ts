@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HelloRepository } from '../repository.ts'
-import { createHelloFixture, createHello } from '../fixtures.ts'
+import { createHelloFixture, createHello } from '../fixture.ts'
 
 describe('HelloService.create', () => {
   it('creates a greeting with generated identity and owner fields', async () => {

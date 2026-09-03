@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture } from '../fixtures.ts'
+import { createHelloFixture } from '../fixture.ts'
 
 describe('HelloService.remove', () => {
   it('removes an owned greeting and hides missing or inaccessible records', async () => {

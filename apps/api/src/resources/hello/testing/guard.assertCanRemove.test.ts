@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture } from '../fixtures.ts'
+import { createHelloFixture } from '../fixture.ts'
 
 describe('HelloGuard.assertCanRemove', () => {
   it('allows the record owner and hides missing or foreign records', async () => {

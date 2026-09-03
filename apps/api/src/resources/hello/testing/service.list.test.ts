@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture, createHello } from '../fixtures.ts'
+import { createHelloFixture, createHello } from '../fixture.ts'
 
 describe('HelloService.list', () => {
   it('passes list defaults and the name filter to the repository', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture } from '../fixtures.ts'
+import { createHelloFixture } from '../fixture.ts'
 
 describe('HelloService.world', () => {
   it('computes a personalized greeting without using the repository', () => {

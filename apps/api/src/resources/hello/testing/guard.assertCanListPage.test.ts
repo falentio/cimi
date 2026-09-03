@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture } from '../fixtures.ts'
+import { createHelloFixture } from '../fixture.ts'
 
 describe('HelloGuard list access', () => {
   it('does not inspect ownership for the public list operation', async () => {

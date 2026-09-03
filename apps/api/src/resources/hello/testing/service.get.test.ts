@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHelloFixture, createHello } from '../fixtures.ts'
+import { createHelloFixture, createHello } from '../fixture.ts'
 
 describe('HelloService.get', () => {
   it('returns a greeting by id and rejects missing records', async () => {
