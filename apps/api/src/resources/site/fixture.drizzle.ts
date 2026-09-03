@@ -9,6 +9,8 @@ export type MembershipRow = typeof schema.TMembership.$inferSelect
 export type SiteRow = typeof schema.TSite.$inferSelect
 export type OrganizationGovernanceOperationRow =
   typeof schema.TOrganizationGovernanceOperation.$inferSelect
+export type OrganizationRepairOperationRow = typeof schema.TOrganizationRepairOperation.$inferSelect
+export type SiteTombstoneRow = typeof schema.TSiteTombstone.$inferSelect
 
 export function createSiteUserRow(overrides: Partial<UserRow> = {}): UserRow {
   return {
@@ -97,6 +99,47 @@ export function createSiteGovernanceOperationRow(
     failureMessage: null,
     createdAt,
     updatedAt: createdAt,
+    ...overrides,
+  }
+}
+
+export function createSiteRepairOperationRow(
+  overrides: Partial<OrganizationRepairOperationRow> = {},
+): OrganizationRepairOperationRow {
+  return {
+    id: 'repair_1',
+    organizationId: 'organization_1',
+    localOrganizationId: 'organization_1',
+    operationType: 'update-organization',
+    ownerUserId: 'user_1',
+    authorityOrganizationId: 'authority_1',
+    authorityCleanupRequired: false,
+    authoritySlug: null,
+    previousName: 'Analytics',
+    desiredName: 'Renamed Analytics',
+    status: 'pending',
+    attemptCount: 0,
+    lastAttemptAt: null,
+    completedAt: null,
+    failureCode: null,
+    failureMessage: null,
+    requestedAt: createdAt,
+    createdAt,
+    updatedAt: createdAt,
+    ...overrides,
+  }
+}
+
+export function createSiteTombstoneRow(
+  overrides: Partial<SiteTombstoneRow> = {},
+): SiteTombstoneRow {
+  return {
+    siteId: 'site_1',
+    organizationId: 'organization_1',
+    hostname: 'example.com',
+    purgeOperationId: 'operation_purge_1',
+    purgedAt: createdAt,
+    createdAt,
     ...overrides,
   }
 }
