@@ -11,7 +11,6 @@ export default defineConfig({
   },
   fmt: {
     ignorePatterns: [
-      'lomba/**',
       'rybbit/**',
       'node_modules/**',
       'dist/**',
@@ -24,7 +23,6 @@ export default defineConfig({
   },
   lint: {
     ignorePatterns: [
-      'lomba/**',
       'rybbit/**',
       'node_modules/**',
       'dist/**',
