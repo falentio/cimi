@@ -291,14 +291,8 @@ const expectedErrors: Record<string, ErrorMap> = {
     'CONFLICT',
     'INTERNAL_SERVER_ERROR',
   ),
-  'site.listSites': catalog('UNAUTHORIZED', 'BAD_REQUEST', 'CONFLICT', 'INTERNAL_SERVER_ERROR'),
-  'site.getSite': catalog(
-    'UNAUTHORIZED',
-    'NOT_FOUND',
-    'BAD_REQUEST',
-    'CONFLICT',
-    'INTERNAL_SERVER_ERROR',
-  ),
+  'site.listSites': catalog('UNAUTHORIZED', 'BAD_REQUEST', 'INTERNAL_SERVER_ERROR'),
+  'site.getSite': catalog('UNAUTHORIZED', 'NOT_FOUND', 'BAD_REQUEST', 'INTERNAL_SERVER_ERROR'),
   'site.getSiteDeletionStatus': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
