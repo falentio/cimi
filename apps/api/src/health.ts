@@ -60,6 +60,20 @@ export function resolveHealthStatus(
   })
 }
 
+export type IngestionAdmission = 'accept' | 'accept-only' | 'paused'
+export type AnalyticsReadAdmission = 'ok' | 'unavailable'
+
+export interface AdmissionGate {
+  ingestion: IngestionAdmission
+  analyticsReads: AnalyticsReadAdmission
+}
+
+export function resolveAdmissionGate(status: HealthStatus): AdmissionGate {
+  if (status === 'healthy') return { ingestion: 'accept', analyticsReads: 'ok' }
+  if (status === 'degraded') return { ingestion: 'accept-only', analyticsReads: 'unavailable' }
+  return { ingestion: 'paused', analyticsReads: 'unavailable' }
+}
+
 export async function systemHealthHandler(deps: CreateApiAppDependencies): Promise<{
   status: HealthStatus
   controlStore: StoreHealth

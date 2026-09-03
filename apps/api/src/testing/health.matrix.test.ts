@@ -2,6 +2,7 @@ import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { schema } from '@cimi/contract'
 import {
+  resolveAdmissionGate,
   resolveHealthStatus,
   resolveInstallationHealth,
   type InstallationHealthInput,
@@ -103,4 +104,30 @@ describe('resolveInstallationHealth', () => {
       }),
     ).toThrow(v.ValiError)
   })
+})
+
+describe('resolveAdmissionGate', () => {
+  it('accepts everything only when healthy', () => {
+    expect(resolveAdmissionGate('healthy')).toEqual({
+      ingestion: 'accept',
+      analyticsReads: 'ok',
+    })
+  })
+
+  it('keeps accept-only ingestion while analytics reads stay unavailable', () => {
+    expect(resolveAdmissionGate('degraded')).toEqual({
+      ingestion: 'accept-only',
+      analyticsReads: 'unavailable',
+    })
+  })
+
+  it.each(['recovering', 'maintenance', 'unavailable'] as const)(
+    'pauses ingestion and analytics reads while %s',
+    (status) => {
+      expect(resolveAdmissionGate(status)).toEqual({
+        ingestion: 'paused',
+        analyticsReads: 'unavailable',
+      })
+    },
+  )
 })
