@@ -82,10 +82,13 @@ describe('resolveInstallationHealth', () => {
       base,
       { ...base, analyticsStore: 'degraded' },
       { ...base, analyticsStore: 'rebuilding' },
+      { ...base, analyticsStore: 'unavailable' },
       { ...base, cleanupPending: true },
       { ...base, installationStatus: 'recovering', analyticsStore: 'rebuilding' },
       { ...base, installationStatus: 'maintenance', cleanupPending: true },
       { ...base, installationStatus: 'recovering', controlStore: 'unavailable' },
+      { ...base, controlStore: 'degraded' },
+      { ...base, controlStore: 'rebuilding' },
     ]
     for (const input of inputs) {
       expect(() => parseHealth(input)).not.toThrow()

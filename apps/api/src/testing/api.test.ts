@@ -1,5 +1,6 @@
+import * as v from 'valibot'
 import { expect, test, vi } from 'vitest'
-import { ERROR_CATALOG, SSystemHealthOutput } from '@cimi/contract'
+import { ERROR_CATALOG, SSystemHealthOutput, schema as contractSchema } from '@cimi/contract'
 import { schema, type Db } from '@cimi/db'
 import { createApiApp } from '../index.ts'
 import { createApiTestFixture, signUpTestUser } from './fixture.ts'
@@ -18,7 +19,9 @@ test('system health reports live control and analytics stores', async () => {
   expect(body.analyticsStore).toBe('ready')
   expect(body.cleanupPending).toBe(false)
   expect(body.version).toBe('0.0.1')
-  expect(body.checkedAt).toMatch(/T/)
+  expect(() =>
+    v.parse(contractSchema.SDateTime, (body as { checkedAt: string }).checkedAt),
+  ).not.toThrow()
 
   const lifecycleApp = createApiApp({
     db,
@@ -43,6 +46,102 @@ test('system health reports live control and analytics stores', async () => {
     status: 'maintenance',
     cleanupPending: true,
   })
+})
+
+test('system health maps installation and legacy states', async () => {
+  await using fixture = await createApiTestFixture()
+  const { auth, db, analytics } = fixture
+
+  async function healthWith(snapshot: object) {
+    const app = createApiApp({
+      db,
+      auth,
+      analytics,
+      lifecycle: {
+        async getSnapshot() {
+          return snapshot
+        },
+      },
+    })
+    const response = await app.fetch(new Request('http://localhost/api/system/health'))
+    expect(response.status).toBe(200)
+    return (await response.json()) as { status: string }
+  }
+
+  await expect(
+    healthWith({
+      installationStatus: 'degraded',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: true,
+    }),
+  ).resolves.toMatchObject({ status: 'degraded' })
+  await expect(
+    healthWith({
+      installationStatus: 'maintenance',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'maintenance' })
+  await expect(
+    healthWith({
+      installationStatus: 'recovering',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'recovering' })
+  await expect(
+    healthWith({
+      installationStatus: 'uninitialized',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'recovering' })
+  await expect(
+    healthWith({
+      status: 'unavailable',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'recovering' })
+  await expect(
+    healthWith({
+      installationStatus: 'maintenance',
+      status: 'healthy',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'maintenance' })
+  await expect(
+    healthWith({
+      installationStatus: 'ready',
+      status: 'maintenance',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'healthy' })
+
+  const throwingApp = createApiApp({
+    db,
+    auth,
+    analytics,
+    lifecycle: {
+      async getSnapshot() {
+        throw new Error('lifecycle down')
+      },
+    },
+  })
+  const throwingResponse = await throwingApp.fetch(
+    new Request('http://localhost/api/system/health'),
+  )
+  expect(throwingResponse.status).toBe(200)
+  await expect(throwingResponse.json()).resolves.toMatchObject({ status: 'recovering' })
 })
 
 test('rejects an unauthenticated authenticated hello procedure before input handling', async () => {
