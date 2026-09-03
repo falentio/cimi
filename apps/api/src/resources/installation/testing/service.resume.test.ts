@@ -81,4 +81,39 @@ describe('InstallationService.resumeOnStartup', () => {
 
     expect(result).toMatchObject({ status: 'maintenance' })
   })
+
+  it.each(['ready', 'degraded'] as const)(
+    'moves a stalled %s operation to recovering',
+    async (status) => {
+      const { repository, service } = createInstallationFixture()
+      repository.find.mockResolvedValue(createInstallationRecord({ status, activeOperation }))
+      repository.update.mockResolvedValue(
+        createInstallationRecord({ status: 'recovering', activeOperation }),
+      )
+
+      const result = await service.resumeOnStartup()
+
+      expect(result).toMatchObject({ status: 'recovering' })
+      expect(repository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'recovering' }),
+      )
+    },
+  )
+
+  it('rejects an incoherent record on boot', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        cleanupPending: false,
+        derivedCleanup: {
+          status: 'pending',
+          startedAt: null,
+          completedAt: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.resumeOnStartup()).rejects.toThrow('Installation cleanup flags disagree')
+  })
 })

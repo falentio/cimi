@@ -144,6 +144,7 @@ test('getStatus before init returns not found', async () => {
 
   const status = await apiTestRequest(app, '/installation/getInstallationStatus', owner.cookie)
   expect(status.status).toBe(404)
+  await expect(status.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 })
 
 test('upgrade rejects a wrong confirmation', async () => {
@@ -162,6 +163,51 @@ test('upgrade rejects a wrong confirmation', async () => {
     confirmation: 'WRONG',
   })
   expect(upgrade.status).toBe(400)
+  await expect(upgrade.json()).resolves.toMatchObject({ status: 400 })
+})
+
+test('upgrade with an incompatible artifact maps to 422', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app, auth, db, analytics } = fixture
+  const owner = await signUpTestUser(app, 'incompat-owner@example.com', 'Incompat Owner')
+
+  const created = await apiTestRequest(
+    app,
+    '/installation/initializeInstallation',
+    owner.cookie,
+    {},
+  )
+  expect(created.status).toBe(201)
+
+  const incompatibleApp = createApiApp({
+    db,
+    auth,
+    analytics,
+    upgradeArtifact: { isCompatible: () => false },
+  })
+  const upgrade = await apiTestRequest(
+    incompatibleApp,
+    '/installation/upgradeInstallation',
+    owner.cookie,
+    { confirmation: 'UPGRADE' },
+  )
+  expect(upgrade.status).toBe(422)
+  await expect(upgrade.json()).resolves.toMatchObject({
+    code: 'INCOMPATIBLE_BACKUP',
+    status: 422,
+  })
+})
+
+test('initialize rejects invalid retention shapes', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app } = fixture
+  const owner = await signUpTestUser(app, 'shape-owner@example.com', 'Shape Owner')
+
+  const bad = await apiTestRequest(app, '/installation/initializeInstallation', owner.cookie, {
+    defaultRetention: { eventMonths: -1, profileMonths: 12, replayMonths: null },
+  })
+  expect(bad.status).toBe(400)
+  await expect(bad.json()).resolves.toMatchObject({ status: 400 })
 })
 
 test('second init with differing retention conflicts', async () => {
@@ -268,4 +314,28 @@ test('startup resumes an interrupted upgrade as recovering', async () => {
   const health = await restarted.fetch(new Request('http://localhost/api/system/health'))
   expect(health.status).toBe(200)
   await expect(health.json()).resolves.toMatchObject({ status: 'recovering' })
+})
+
+test('startup leaves an idle installation alone', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app, auth, db, analytics } = fixture
+  const owner = await signUpTestUser(app, 'idle-owner@example.com', 'Idle Owner')
+
+  const created = await apiTestRequest(
+    app,
+    '/installation/initializeInstallation',
+    owner.cookie,
+    {},
+  )
+  expect(created.status).toBe(201)
+
+  const restarted = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+  const poll = await restarted.fetch(
+    new Request('http://localhost/api/installation/getInstallationStatus', {
+      method: 'GET',
+      headers: { cookie: owner.cookie },
+    }),
+  )
+  expect(poll.status).toBe(200)
+  await expect(poll.json()).resolves.toMatchObject({ status: 'ready', activeOperation: null })
 })

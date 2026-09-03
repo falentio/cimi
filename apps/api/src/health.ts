@@ -44,7 +44,6 @@ export function resolveInstallationHealth(input: InstallationHealthInput): Healt
   if (input.controlStore !== 'ready') return 'unavailable'
   if (input.installationStatus === 'recovering') return 'recovering'
   if (input.installationStatus === 'maintenance') return 'maintenance'
-  if (input.installationStatus === 'degraded') return 'degraded'
   if (input.installationStatus === 'uninitialized') return 'recovering'
   if (input.analyticsStore !== 'ready' || input.cleanupPending) return 'degraded'
   return 'healthy'
@@ -109,7 +108,7 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   return v.parse(schema.SHealth, {
     status: resolveInstallationHealth({
       installationStatus:
-        lifecycle.installationStatus ?? toInstallationStatus(lifecycle.status) ?? 'ready',
+        lifecycle.installationStatus ?? toInstallationStatus(lifecycle.status) ?? 'uninitialized',
       controlStore,
       analyticsStore,
       cleanupPending,

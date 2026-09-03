@@ -88,6 +88,126 @@ describe('InstallationService.upgrade', () => {
     lock.release()
   })
 
+  it('rejects an async incompatible manifest', async () => {
+    const { repository, service } = createInstallationFixture({
+      ids,
+      upgradeArtifact: { isCompatible: async () => false },
+    })
+    repository.find.mockResolvedValue(createInstallationRecord())
+
+    await expect(service.upgrade(input, admin)).rejects.toMatchObject({
+      code: 'INCOMPATIBLE_BACKUP',
+    })
+    expect(repository.beginUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('accepts an async compatible manifest and asserts artifact wiring', async () => {
+    const { repository, service } = createInstallationFixture({
+      ids,
+      upgradeArtifact: { isCompatible: async () => true },
+    })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+
+    const result = await service.upgrade(input, admin)
+
+    expect(result.activeOperation).toMatchObject({ operationId: 'bop_1', kind: 'upgrade' })
+    expect(repository.beginUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationId: 'bop_1',
+        activeOperation: expect.objectContaining({
+          phase: 'pre_upgrade_safety',
+          progress: 0,
+        }),
+        artifact: expect.objectContaining({
+          id: 'bar_1',
+          generationId: 'bop_1',
+          storageKey: 'safety/bop_1',
+          schemaVersion: '1',
+          sizeBytes: 0,
+          checksumAlgorithm: 'sha256',
+          checksumValue: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        }),
+      }),
+    )
+  })
+
+  it('rejects an incoherent record', async () => {
+    const { repository, service } = createInstallationFixture({ ids })
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        cleanupPending: false,
+        derivedCleanup: {
+          status: 'pending',
+          startedAt: null,
+          completedAt: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.upgrade(input, admin)).rejects.toThrow(
+      'Installation cleanup flags disagree',
+    )
+  })
+
+  it('conflicts when an operation is already active', async () => {
+    const { repository, service } = createInstallationFixture({ ids })
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'ready',
+        activeOperation: {
+          operationId: 'bop_0',
+          kind: 'upgrade',
+          phase: 'pre_upgrade_safety',
+          progress: 0,
+          lastSafeSequence: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.upgrade(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(repository.beginUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('propagates a journal drain failure and releases the lock', async () => {
+    const repository = mock<InstallationRepository>()
+    const lock = new InMemoryLifecycleLock()
+    repository.find.mockResolvedValue(createInstallationRecord())
+    const service = new InstallationService({
+      repository,
+      lock,
+      journal: new InMemoryAcceptanceJournalPort(() => {
+        throw new Error('drain boom')
+      }),
+      ids,
+    })
+
+    await expect(service.upgrade(input, admin)).rejects.toThrow('drain boom')
+    expect(repository.beginUpgrade).not.toHaveBeenCalled()
+    expect(lock.acquire('upgrade')).toBe(true)
+    lock.release()
+  })
+
+  it('maps a raced beginUpgrade constraint to conflict', async () => {
+    const { repository, service } = createInstallationFixture({ ids })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockRejectedValue(
+      new Error('UNIQUE constraint failed: backup_operation.id'),
+    )
+
+    await expect(service.upgrade(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
+  it('rethrows a non-constraint beginUpgrade error', async () => {
+    const { repository, service } = createInstallationFixture({ ids })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockRejectedValue(new Error('boom'))
+
+    await expect(service.upgrade(input, admin)).rejects.toThrow('boom')
+  })
+
   it.each([
     { status: 'ready', ok: true },
     { status: 'degraded', ok: true },

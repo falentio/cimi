@@ -174,6 +174,69 @@ describe('InstallationService.initialize', () => {
     await expect(service.initialize(input, admin)).rejects.toThrow('boom')
   })
 
+  it('rethrows when the raced row disappears', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined)
+    repository.insert.mockRejectedValue(
+      new Error('UNIQUE constraint failed: installation.singleton_key'),
+    )
+
+    await expect(service.initialize(input, admin)).rejects.toThrow(/constraint|unique/i)
+    expect(repository.find).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects an incoherent stored record', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        cleanupPending: false,
+        derivedCleanup: {
+          status: 'pending',
+          startedAt: null,
+          completedAt: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.initialize(input, admin)).rejects.toThrow(
+      'Installation cleanup flags disagree',
+    )
+  })
+
+  it('conflicts when activating an uninitialized row races away', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({ status: 'uninitialized', dataDirectoryReady: true }),
+    )
+    repository.update.mockResolvedValue(undefined)
+
+    await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
+  it('conflicts on divergent retention for a degraded idle record', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'degraded',
+        defaultRetention: { eventMonths: 24, profileMonths: 24, replayMonths: null },
+      }),
+    )
+
+    await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
+  it('distinguishes null replayMonths from a number', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        defaultRetention: { eventMonths: 12, profileMonths: 12, replayMonths: 6 },
+      }),
+    )
+
+    await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
   it.each(['upgrade', 'restore', 'site_deletion', 'site_recovery', 'site_purge'] as const)(
     'returns conflict when a %s operation is active',
     async (kind) => {

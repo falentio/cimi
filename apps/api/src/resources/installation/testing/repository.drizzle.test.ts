@@ -52,6 +52,12 @@ function beginUpgradeInput(operationId: string, now: Date, artifactId = 'bar_1')
 }
 
 describe('InstallationRepositoryDrizzle', () => {
+  it('returns undefined when no installation exists', async () => {
+    using fixture = createInstallationDrizzleFixture()
+
+    await expect(fixture.repository.find()).resolves.toBeUndefined()
+  })
+
   it('round-trips an insert through find', async () => {
     using fixture = createInstallationDrizzleFixture()
 
@@ -70,6 +76,28 @@ describe('InstallationRepositoryDrizzle', () => {
       id: 'ins_1',
       status: 'ready',
     })
+  })
+
+  it('stores insert defaults for cleanup and retention', async () => {
+    using fixture = createInstallationDrizzleFixture()
+
+    const inserted = await fixture.repository.insert({
+      id: 'ins_1',
+      eventMonths: 12,
+      profileMonths: 12,
+      replayMonths: null,
+      dataDirectoryReady: true,
+      createdAt,
+      updatedAt,
+    })
+
+    expect(inserted).toMatchObject({
+      defaultRetention: { eventMonths: 12, profileMonths: 12, replayMonths: null },
+      cleanupPending: false,
+      derivedCleanup: expect.objectContaining({ status: 'not_applicable' }),
+      backupCleanup: expect.objectContaining({ status: 'not_applicable' }),
+    })
+    expect(inserted.updatedAt).toBe(updatedAt.toISOString())
   })
 
   it('persists an update', async () => {
@@ -92,6 +120,49 @@ describe('InstallationRepositoryDrizzle', () => {
 
     expect(updated).toMatchObject({ status: 'degraded' })
     await expect(fixture.repository.find()).resolves.toMatchObject({ status: 'degraded' })
+  })
+
+  it('returns undefined when updating a missing installation', async () => {
+    using fixture = createInstallationDrizzleFixture()
+
+    await expect(
+      fixture.repository.update({ status: 'ready', activeOperation: null, updatedAt }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('persists retention and dataDirectoryReady on update', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert({
+      id: 'ins_1',
+      eventMonths: 12,
+      profileMonths: 12,
+      replayMonths: null,
+      dataDirectoryReady: true,
+      createdAt,
+      updatedAt,
+    })
+
+    const updated = await fixture.repository.update({
+      status: 'ready',
+      activeOperation: null,
+      retention: { eventMonths: 24, profileMonths: 24, replayMonths: 6 },
+      dataDirectoryReady: false,
+      updatedAt: new Date('2026-09-02T00:00:00.000Z'),
+    })
+
+    expect(updated).toMatchObject({
+      id: 'ins_1',
+      defaultRetention: { eventMonths: 24, profileMonths: 24, replayMonths: 6 },
+      dataDirectoryReady: false,
+    })
+  })
+
+  it('throws when beginning an upgrade without an installation', async () => {
+    using fixture = createInstallationDrizzleFixture()
+
+    await expect(
+      fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt)),
+    ).rejects.toThrow('Installation is not initialized')
   })
 
   it('persists maintenance with backup rows on beginUpgrade', async () => {
@@ -124,6 +195,44 @@ describe('InstallationRepositoryDrizzle', () => {
       .where(eq(schema.TBackupArtifact.operationId, 'bop_1'))
       .all()
     expect(artifacts).toHaveLength(1)
+  })
+
+  it('stores strict operation and artifact rows on beginUpgrade', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert({
+      id: 'ins_1',
+      eventMonths: 12,
+      profileMonths: 12,
+      replayMonths: null,
+      dataDirectoryReady: true,
+      createdAt,
+      updatedAt,
+    })
+
+    await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
+
+    const operations = fixture.db
+      .select()
+      .from(schema.TBackupOperation)
+      .where(eq(schema.TBackupOperation.id, 'bop_1'))
+      .all()
+    expect(operations[0]).toMatchObject({
+      operationType: 'backup',
+      status: 'creating',
+      scope: 'installation',
+      id: 'bop_1',
+    })
+    const artifacts = fixture.db
+      .select()
+      .from(schema.TBackupArtifact)
+      .where(eq(schema.TBackupArtifact.operationId, 'bop_1'))
+      .all()
+    expect(artifacts[0]).toMatchObject({
+      id: 'bar_1',
+      generationId: 'bop_1',
+      storageKey: 'safety/bop_1',
+      checksumValue: EMPTY_SHA256,
+    })
   })
 
   it('rejects a duplicate insert', async () => {

@@ -54,6 +54,39 @@ describe('resolveInstallationHealth', () => {
     },
   )
 
+  it('maps degraded installation with healthy stores to healthy for contract validity', () => {
+    expect(
+      resolveInstallationHealth({
+        installationStatus: 'degraded',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      }),
+    ).toBe('healthy')
+  })
+
+  it('maps degraded installation with cleanup to degraded', () => {
+    expect(
+      resolveInstallationHealth({
+        installationStatus: 'degraded',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: true,
+      }),
+    ).toBe('degraded')
+  })
+
+  it('maps uninitialized with a bad control store to unavailable', () => {
+    expect(
+      resolveInstallationHealth({
+        installationStatus: 'uninitialized',
+        controlStore: 'degraded',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      }),
+    ).toBe('unavailable')
+  })
+
   it.each(['degraded', 'rebuilding', 'unavailable'] as const)(
     'reports unavailable when the control store is %s',
     (controlStore) => {
@@ -89,6 +122,9 @@ describe('resolveInstallationHealth', () => {
       { ...base, installationStatus: 'recovering', controlStore: 'unavailable' },
       { ...base, controlStore: 'degraded' },
       { ...base, controlStore: 'rebuilding' },
+      { ...base, installationStatus: 'degraded' },
+      { ...base, installationStatus: 'degraded', cleanupPending: true },
+      { ...base, installationStatus: 'uninitialized' },
     ]
     for (const input of inputs) {
       expect(() => parseHealth(input)).not.toThrow()

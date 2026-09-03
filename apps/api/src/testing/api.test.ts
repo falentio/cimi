@@ -1,7 +1,8 @@
 import * as v from 'valibot'
 import { expect, test, vi } from 'vitest'
 import { ERROR_CATALOG, SSystemHealthOutput, schema as contractSchema } from '@cimi/contract'
-import { schema, type Db } from '@cimi/db'
+import { closeDb, schema, type Db } from '@cimi/db'
+import { createMigratedTestDb } from '@cimi/db/testing'
 import { createApiApp } from '../index.ts'
 import { createApiTestFixture, signUpTestUser } from './fixture.ts'
 
@@ -14,7 +15,7 @@ test('system health reports live control and analytics stores', async () => {
 
   const body = await res.json()
   expect(body).toEqual(expect.schemaMatching(SSystemHealthOutput))
-  expect(body.status).toBe('healthy')
+  expect(body.status).toBe('recovering')
   expect(body.controlStore).toBe('ready')
   expect(body.analyticsStore).toBe('ready')
   expect(body.cleanupPending).toBe(false)
@@ -22,6 +23,20 @@ test('system health reports live control and analytics stores', async () => {
   expect(() =>
     v.parse(contractSchema.SDateTime, (body as { checkedAt: string }).checkedAt),
   ).not.toThrow()
+
+  const owner = await signUpTestUser(app, 'health-owner@example.com', 'Health Owner')
+  const created = await app.fetch(
+    new Request('http://localhost/api/installation/initializeInstallation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: owner.cookie },
+      body: JSON.stringify({}),
+    }),
+  )
+  expect(created.status).toBe(201)
+
+  const afterInit = await app.fetch(new Request('http://localhost/api/system/health'))
+  expect(afterInit.status).toBe(200)
+  await expect(afterInit.json()).resolves.toMatchObject({ status: 'healthy' })
 
   const lifecycleApp = createApiApp({
     db,
@@ -76,6 +91,14 @@ test('system health maps installation and legacy states', async () => {
       cleanupPending: true,
     }),
   ).resolves.toMatchObject({ status: 'degraded' })
+  await expect(
+    healthWith({
+      installationStatus: 'degraded',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'healthy' })
   await expect(
     healthWith({
       installationStatus: 'maintenance',
@@ -143,6 +166,156 @@ test('system health maps installation and legacy states', async () => {
   expect(throwingResponse.status).toBe(200)
   await expect(throwingResponse.json()).resolves.toMatchObject({ status: 'recovering' })
 })
+
+test('system health covers legacy installation states', async () => {
+  await using fixture = await createApiTestFixture()
+  const { auth, db, analytics } = fixture
+
+  async function healthWith(snapshot: object) {
+    const app = createApiApp({
+      db,
+      auth,
+      analytics,
+      lifecycle: {
+        async getSnapshot() {
+          return snapshot
+        },
+      },
+    })
+    const response = await app.fetch(new Request('http://localhost/api/system/health'))
+    expect(response.status).toBe(200)
+    return (await response.json()) as { status: string }
+  }
+
+  const cases: Array<{ snapshot: object; status: string }> = [
+    {
+      snapshot: {
+        status: 'healthy',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'healthy',
+    },
+    {
+      snapshot: {
+        status: 'degraded',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'healthy',
+    },
+    {
+      snapshot: {
+        status: 'maintenance',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'maintenance',
+    },
+    {
+      snapshot: {
+        status: 'recovering',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'recovering',
+    },
+    {
+      snapshot: {
+        status: 'ready',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'healthy',
+    },
+    {
+      snapshot: {
+        status: 'uninitialized',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'recovering',
+    },
+    {
+      snapshot: {
+        status: 'nope',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'recovering',
+    },
+  ]
+  for (const { snapshot, status } of cases) {
+    await expect(healthWith(snapshot)).resolves.toMatchObject({ status })
+  }
+})
+
+test('system health degrades on store failures', async () => {
+  await using fixture = await createApiTestFixture()
+  const { auth, db, analytics } = fixture
+  const bootApp = appFrom(db, auth, analytics)
+  const owner = await signUpTestUser(bootApp, 'store-owner@example.com', 'Store Owner')
+
+  const initRes = await bootApp.fetch(
+    new Request('http://localhost/api/installation/initializeInstallation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: owner.cookie },
+      body: JSON.stringify({}),
+    }),
+  )
+  expect([200, 201]).toContain(initRes.status)
+
+  async function healthWithStores(stores: { controlOk: boolean; analyticsOk: boolean | 'throw' }) {
+    const analyticsForTest =
+      stores.analyticsOk === 'throw'
+        ? {
+            ready: async () => {
+              throw new Error('analytics down')
+            },
+          }
+        : stores.analyticsOk
+          ? analytics
+          : { ready: async () => false, close: async () => undefined }
+    let dbForTest = db
+    if (!stores.controlOk) {
+      dbForTest = createMigratedTestDb()
+      closeDb(dbForTest)
+    }
+    const app = createApiApp({
+      db: dbForTest,
+      auth,
+      analytics: analyticsForTest as typeof analytics,
+    })
+    const response = await app.fetch(new Request('http://localhost/api/system/health'))
+    expect(response.status).toBe(200)
+    return (await response.json()) as { status: string; controlStore: string }
+  }
+
+  await expect(healthWithStores({ controlOk: true, analyticsOk: false })).resolves.toMatchObject({
+    status: 'degraded',
+  })
+  await expect(healthWithStores({ controlOk: true, analyticsOk: 'throw' })).resolves.toMatchObject({
+    status: 'degraded',
+  })
+  await expect(healthWithStores({ controlOk: false, analyticsOk: true })).resolves.toMatchObject({
+    status: 'unavailable',
+  })
+})
+
+function appFrom(
+  db: Parameters<typeof createApiApp>[0]['db'],
+  auth: Parameters<typeof createApiApp>[0]['auth'],
+  analytics: Parameters<typeof createApiApp>[0]['analytics'],
+) {
+  return createApiApp({ db, auth, analytics })
+}
 
 test('rejects an unauthenticated authenticated hello procedure before input handling', async () => {
   await using fixture = await createApiTestFixture()

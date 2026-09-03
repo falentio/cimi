@@ -157,6 +157,7 @@ export class InstallationService {
       const existing = await this.repository.find()
       if (existing === undefined) throw new ORPCError('CONFLICT', { status: 409 })
       assertInstallationCoherent(existing)
+      if (existing.activeOperation !== null) throw new ORPCError('CONFLICT', { status: 409 })
       if (!canTransition(existing.status, 'maintenance')) {
         throw new ORPCError('CONFLICT', { status: 409 })
       }

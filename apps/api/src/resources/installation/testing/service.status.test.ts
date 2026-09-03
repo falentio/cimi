@@ -102,6 +102,54 @@ describe('InstallationService.getStatus', () => {
     await expect(service.getStatus(admin)).rejects.toThrow('Installation cleanup flags disagree')
   })
 
+  it.each(['running', 'completed', 'failed'] as const)(
+    'rejects backup %s before derived completes',
+    async (backupStatus) => {
+      const { service, repository } = createInstallationFixture()
+      const startedAt = '2026-09-01T00:00:00.000Z'
+      repository.find.mockResolvedValue(
+        createInstallationRecord({
+          cleanupPending: true,
+          derivedCleanup: {
+            status: 'pending',
+            startedAt: null,
+            completedAt: null,
+            errorCode: null,
+          },
+          backupCleanup: {
+            status: backupStatus,
+            startedAt,
+            completedAt: startedAt,
+            errorCode: backupStatus === 'failed' ? 'BACKUP_FAILED' : null,
+          },
+        }),
+      )
+
+      await expect(service.getStatus(admin)).rejects.toThrow(
+        'Installation backup cleanup started before derived cleanup completed',
+      )
+    },
+  )
+
+  it('allows backup pending when derived already completed', async () => {
+    const { service, repository } = createInstallationFixture()
+    const stamp = '2026-09-01T00:00:00.000Z'
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        cleanupPending: true,
+        derivedCleanup: {
+          status: 'completed',
+          startedAt: stamp,
+          completedAt: stamp,
+          errorCode: null,
+        },
+        backupCleanup: { status: 'pending', startedAt: null, completedAt: null, errorCode: null },
+      }),
+    )
+
+    await expect(service.getStatus(admin)).resolves.toMatchObject({ status: 'ready' })
+  })
+
   it('rejects a non-admin', async () => {
     const { service, repository } = createInstallationFixture()
 
