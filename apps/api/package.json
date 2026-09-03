@@ -15,6 +15,7 @@
     "@cimi/contract": "workspace:*",
     "@cimi/db": "workspace:*",
     "@cimi/guard": "workspace:*",
+    "@cimi/kernel": "workspace:*",
     "@cimi/utils": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
