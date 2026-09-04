@@ -446,24 +446,22 @@ export class InstallationService implements LifecycleOperationStatusReader {
           })
         } catch {}
       }
-      if (!ownershipLost) {
-        const failCode =
-          error instanceof UpgradeIncompatibilityError
-            ? 'INCOMPATIBLE_BACKUP'
-            : error instanceof InsufficientStorageError
-              ? 'INSUFFICIENT_STORAGE'
-              : error instanceof SafetyArtifactUnavailableError
+      const failCode =
+        error instanceof UpgradeIncompatibilityError
+          ? 'INCOMPATIBLE_BACKUP'
+          : error instanceof InsufficientStorageError
+            ? 'INSUFFICIENT_STORAGE'
+            : error instanceof SafetyArtifactUnavailableError
+              ? 'INTERNAL_SERVER_ERROR'
+              : error instanceof SafetyArtifactChecksumMismatchError
                 ? 'INTERNAL_SERVER_ERROR'
-                : error instanceof SafetyArtifactChecksumMismatchError
-                  ? 'INTERNAL_SERVER_ERROR'
-                  : 'INTERNAL_SERVER_ERROR'
-        await this.repository.failUpgrade({
-          operationId: input.operationId,
-          ownerToken: input.ownerToken,
-          errorCode: failCode,
-          now: this.clock(),
-        })
-      }
+                : 'INTERNAL_SERVER_ERROR'
+      await this.repository.failUpgrade({
+        operationId: input.operationId,
+        ownerToken: input.ownerToken,
+        errorCode: failCode,
+        now: this.clock(),
+      })
     }
   }
 }

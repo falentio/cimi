@@ -12,7 +12,7 @@ import {
 // desired behavior, fails today, and names its blocker plus green criterion.
 // Convert or delete each one as its fix lands.
 
-const admin = { id: 'user_1', role: 'admin' } as unknown as AuthUser
+const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
 const input = { confirmation: 'UPGRADE' } as const
 const ids = {
   installationId: () => 'ins_1',
