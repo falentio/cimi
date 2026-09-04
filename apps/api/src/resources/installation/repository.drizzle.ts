@@ -178,46 +178,6 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
     })
   }
 
-  async update(
-    input: InstallationRepository.UpdateInput,
-  ): Promise<InstallationRepository.Record | undefined> {
-    return this.db.transaction((tx) => {
-      const current = tx
-        .select({ id: schema.TInstallation.id })
-        .from(schema.TInstallation)
-        .where(eq(schema.TInstallation.singletonKey, 'default'))
-        .limit(1)
-        .all()[0]
-      if (current === undefined) return undefined
-      tx.update(schema.TInstallation)
-        .set({
-          status: input.status,
-          activeOperationId: input.activeOperation?.operationId ?? null,
-          activeOperationKind: input.activeOperation?.kind ?? null,
-          activeOperationPhase: input.activeOperation?.phase ?? null,
-          activeOperationCheckpoint: input.activeOperation?.checkpoint ?? null,
-          activeOperationProgress: input.activeOperation?.progress ?? null,
-          activeOperationOwnerToken: null,
-          activeOperationLastSafeSequence: input.activeOperation?.lastSafeSequence ?? null,
-          activeOperationErrorCode: input.activeOperation?.errorCode ?? null,
-          ...(input.dataDirectoryReady === undefined
-            ? {}
-            : { dataDirectoryReady: input.dataDirectoryReady }),
-          updatedAt: input.updatedAt,
-        })
-        .where(eq(schema.TInstallation.singletonKey, 'default'))
-        .run()
-      const row = tx
-        .select()
-        .from(schema.TInstallation)
-        .where(eq(schema.TInstallation.singletonKey, 'default'))
-        .limit(1)
-        .all()[0]
-      if (row === undefined) throw new Error('Installation update returned no row')
-      return toRecord(row, selectActiveRetention(tx, row.id))
-    })
-  }
-
   async beginUpgrade(
     input: InstallationRepository.BeginUpgradeInput,
   ): Promise<InstallationRepository.Record> {
@@ -536,7 +496,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .set({
           status: 'failed',
           phase: 'failed',
-          errorCode: 'INTERNAL_SERVER_ERROR',
+          errorCode: toBackupErrorCode(input.errorCode),
           completedAt: input.now,
           updatedAt: input.now,
         })
@@ -694,6 +654,26 @@ function sameRetention(
     current.profileMonths === next.profileMonths &&
     current.replayMonths === next.replayMonths
   )
+}
+
+function toBackupErrorCode(
+  errorCode: InstallationRepository.UpgradeTerminalInput['errorCode'],
+):
+  | 'BACKUP_FAILED'
+  | 'INCOMPATIBLE_BACKUP'
+  | 'INSUFFICIENT_STORAGE'
+  | 'CONFLICT'
+  | 'INTERNAL_SERVER_ERROR' {
+  if (
+    errorCode === 'BACKUP_FAILED' ||
+    errorCode === 'INCOMPATIBLE_BACKUP' ||
+    errorCode === 'INSUFFICIENT_STORAGE' ||
+    errorCode === 'CONFLICT' ||
+    errorCode === 'INTERNAL_SERVER_ERROR'
+  ) {
+    return errorCode
+  }
+  return 'INTERNAL_SERVER_ERROR'
 }
 
 function toRecord(

@@ -41,7 +41,6 @@ export const initializeInstallation = oc
   .errors({
     UNAUTHORIZED: {},
     FORBIDDEN: {},
-    NOT_FOUND: {},
     BAD_REQUEST: {},
     CONFLICT: {},
     INTERNAL_SERVER_ERROR: {},

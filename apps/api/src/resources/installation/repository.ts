@@ -7,9 +7,6 @@ export interface InstallationRepository {
   activate(
     input: InstallationRepository.ActivateInput,
   ): Promise<InstallationRepository.Record | undefined>
-  update(
-    input: InstallationRepository.UpdateInput,
-  ): Promise<InstallationRepository.Record | undefined>
   beginUpgrade(
     input: InstallationRepository.BeginUpgradeInput,
   ): Promise<InstallationRepository.Record>
@@ -62,13 +59,6 @@ export declare namespace InstallationRepository {
     updatedAt: Date
   }
 
-  export interface UpdateInput {
-    status: Status
-    activeOperation: Installation['activeOperation']
-    dataDirectoryReady?: boolean | undefined
-    updatedAt: Date
-  }
-
   export interface SafetyArtifactInput {
     id: string
     generationId: string
@@ -118,6 +108,7 @@ export declare namespace InstallationRepository {
   export interface UpgradeTerminalInput {
     operationId: string
     ownerToken: string
+    errorCode?: ActiveOperation['errorCode']
     now: Date
   }
 }

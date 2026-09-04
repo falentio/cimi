@@ -25,7 +25,11 @@ export type PersistedLifecycleOperationKind = Exclude<LifecycleOperationKind, 'p
 
 export type LifecycleLockKind = PersistedLifecycleOperationKind | 'initialization'
 
-export const LIFECYCLE_OPERATION_PHASES = ['pre_upgrade_safety', 'site_transition'] as const
+export const LIFECYCLE_OPERATION_PHASES = [
+  'pre_upgrade_safety',
+  'site_transition',
+  'lifecycle_transition',
+] as const
 export type LifecycleOperationPhase = (typeof LIFECYCLE_OPERATION_PHASES)[number]
 
 export const LIFECYCLE_OPERATION_CHECKPOINTS = [

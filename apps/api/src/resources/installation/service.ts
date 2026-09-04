@@ -12,6 +12,7 @@ import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import type { InstallationRepository } from './repository.ts'
+import { InsufficientStorageError, UpgradeIncompatibilityError } from './upgrade-executor.ts'
 
 export type InstallationInitializeInput = InferOutput<typeof schema.SInstallationInitializeFields>
 export type InstallationInitializeOutput =
@@ -77,6 +78,9 @@ function isCleanupPending(status: InstallationRepository.CleanupStage['status'])
 }
 
 function assertInstallationCoherent(record: InstallationRepository.Record): void {
+  if (record.status === 'ready' && !record.dataDirectoryReady) {
+    throw new Error('Installation is not ready without a data directory')
+  }
   const pending =
     isCleanupPending(record.derivedCleanup.status) || isCleanupPending(record.backupCleanup.status)
   if (record.cleanupPending !== pending) throw new Error('Installation cleanup flags disagree')
@@ -184,6 +188,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     let retainLease = false
     try {
+      if (!this.dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
       const existing = await this.repository.find()
       if (existing === undefined) throw new ORPCError('CONFLICT', { status: 409 })
       assertInstallationCoherent(existing)
@@ -214,6 +219,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
       }
       this.upgradeLease = lease
       retainLease = true
+      // Lock-held quiescence: 202 returns while drain runs first in background.
       this.startUpgradeExecution({
         operationId,
         ownerToken,
@@ -282,6 +288,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
   async snapshotForHealth(): Promise<InstallationHealthSnapshot | undefined> {
     const existing = await this.repository.find()
     if (existing === undefined) return undefined
+    assertInstallationCoherent(existing)
     return { installationStatus: existing.status, cleanupPending: existing.cleanupPending }
   }
 
@@ -292,7 +299,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     assertInstallationCoherent(record)
     if (record.activeOperation !== null) throw new ORPCError('CONFLICT', { status: 409 })
     if (!this.dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
-    if (record.status !== 'uninitialized' && isSameRetention(record.defaultRetention, retention)) {
+    if (record.status === 'ready' && isSameRetention(record.defaultRetention, retention)) {
       return { status: 200, body: toPublicInstallation(record) }
     }
     if (record.status === 'uninitialized') {
@@ -384,7 +391,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
         now: this.clock(),
       })
       if (completed === undefined) ownershipLost = true
-    } catch {
+    } catch (error) {
       if (artifact !== undefined && !ownershipLost) {
         try {
           await this.upgradeExecutor.rollback({
@@ -394,9 +401,16 @@ export class InstallationService implements LifecycleOperationStatusReader {
         } catch {}
       }
       if (!ownershipLost) {
+        const failCode =
+          error instanceof UpgradeIncompatibilityError
+            ? 'INCOMPATIBLE_BACKUP'
+            : error instanceof InsufficientStorageError
+              ? 'INSUFFICIENT_STORAGE'
+              : 'INTERNAL_SERVER_ERROR'
         await this.repository.failUpgrade({
           operationId: input.operationId,
           ownerToken: input.ownerToken,
+          errorCode: failCode,
           now: this.clock(),
         })
       }

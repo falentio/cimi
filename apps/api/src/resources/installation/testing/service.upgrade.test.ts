@@ -263,6 +263,52 @@ describe('InstallationService.upgrade', () => {
     expect(repository.completeUpgrade).not.toHaveBeenCalled()
   })
 
+  it('records INCOMPATIBLE_BACKUP when migration reports an incompatible manifest', async () => {
+    const { UpgradeIncompatibilityError } = await import('../upgrade-executor.ts')
+    const executor = createFakeUpgradeExecutor({
+      migrate: vi.fn().mockRejectedValue(new UpgradeIncompatibilityError('manifest is newer')),
+    })
+    const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.recordSafetyArtifact.mockResolvedValue(maintenanceRecord())
+    repository.updateUpgradeProgress.mockResolvedValue(maintenanceRecord())
+    repository.failUpgrade.mockResolvedValue(
+      createInstallationRecord({ status: 'degraded', activeOperation: null }),
+    )
+
+    await service.upgrade(input, admin)
+    await service.stop()
+
+    expect(repository.failUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ operationId: 'bop_1', errorCode: 'INCOMPATIBLE_BACKUP' }),
+    )
+  })
+
+  it('records INSUFFICIENT_STORAGE when the safety artifact cannot be stored', async () => {
+    const { InsufficientStorageError } = await import('../upgrade-executor.ts')
+    const executor = createFakeUpgradeExecutor({
+      createSafetyArtifact: vi
+        .fn()
+        .mockRejectedValue(new InsufficientStorageError('no space left')),
+    })
+    const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.failUpgrade.mockResolvedValue(
+      createInstallationRecord({ status: 'degraded', activeOperation: null }),
+    )
+
+    await service.upgrade(input, admin)
+    await service.stop()
+
+    expect(repository.failUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ operationId: 'bop_1', errorCode: 'INSUFFICIENT_STORAGE' }),
+    )
+  })
+
   it('rejects a second upgrade while an operation is durable', async () => {
     const { repository, service } = createInstallationFixture({ ids })
     repository.find.mockResolvedValue(maintenanceRecord())

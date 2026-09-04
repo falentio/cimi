@@ -30,7 +30,11 @@ export const SLifecycleOperationKind = v.picklist([
   'site_recovery',
   'site_purge',
 ])
-export const SLifecycleOperationPhase = v.picklist(['pre_upgrade_safety', 'site_transition'])
+export const SLifecycleOperationPhase = v.picklist([
+  'pre_upgrade_safety',
+  'site_transition',
+  'lifecycle_transition',
+])
 export const SLifecycleOperationCheckpoint = v.picklist([
   'none',
   'sqlite_captured',

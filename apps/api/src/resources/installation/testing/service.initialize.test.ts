@@ -54,15 +54,13 @@ describe('InstallationService.initialize', () => {
     expect(repository.insert).not.toHaveBeenCalled()
   })
 
-  it('reuses a degraded installation with a 200 for convergent input', async () => {
+  it('rejects a degraded installation with a conflict for convergent input', async () => {
     const { repository, service } = createInstallationFixture()
     repository.find.mockResolvedValue(createInstallationRecord({ status: 'degraded' }))
 
-    const result = await service.initialize(input, admin)
-
-    expect(result.status).toBe(200)
+    await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
     expect(repository.insert).not.toHaveBeenCalled()
-    expect(repository.update).not.toHaveBeenCalled()
+    expect(repository.activate).not.toHaveBeenCalled()
   })
 
   it('rejects incompatible retention with a conflict', async () => {
