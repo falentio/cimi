@@ -13,7 +13,12 @@ export const AUTH_META_VALUES = [
 export type AuthMetaValue = (typeof AUTH_META_VALUES)[number]
 export type AuthScope = AuthMetaValue
 
+export const ADMISSION_VALUES = ['ingestion', 'analytics-read', 'exempt'] as const
+
+export type AdmissionClass = (typeof ADMISSION_VALUES)[number]
+
 export interface AuthMeta extends Meta {
   auth?: AuthMetaValue
   devOnly?: boolean
+  admission?: AdmissionClass
 }

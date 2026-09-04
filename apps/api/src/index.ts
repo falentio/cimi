@@ -16,7 +16,12 @@ import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
-import { systemHealthHandler, type HealthLifecycle } from './health.ts'
+import {
+  resolveAdmissionGate,
+  systemHealthHandler,
+  type AdmissionGate,
+  type HealthLifecycle,
+} from './health.ts'
 import { normalizeApiError } from './errors.ts'
 
 export { normalizeApiError } from './errors.ts'
@@ -110,6 +115,19 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
           options.context['user'],
           getCoarseAuthorizationLevel(options.procedure['~orpc'].meta['auth']),
         )
+        return options.next()
+      },
+      async (options) => {
+        const gate = await resolveRequestAdmissionGate({ ...deps, lifecycle })
+        options.context['admission'] = gate.ingestion
+        if (isAdmissionExempt(options.path, options.procedure['~orpc'].meta['admission'])) {
+          return options.next()
+        }
+        if (options.procedure['~orpc'].meta['admission'] === 'analytics-read') {
+          if (gate.analyticsReads === 'unavailable') throw admissionUnavailable()
+          return options.next()
+        }
+        if (gate.ingestion === 'paused') throw admissionUnavailable()
         return options.next()
       },
     ],
@@ -206,6 +224,31 @@ function getCoarseAuthorizationLevel(auth: string | undefined): AuthorizationLev
     default:
       return 'authenticated'
   }
+}
+
+const ADMISSION_EXEMPT_RESOURCES = new Set(['health', 'installation'])
+
+function isAdmissionExempt(path: readonly string[], admission: string | undefined): boolean {
+  if (admission === 'exempt') return true
+  return path.length > 0 && ADMISSION_EXEMPT_RESOURCES.has(path[0]!)
+}
+
+async function resolveRequestAdmissionGate(
+  depsWithLifecycle: CreateApiAppDependencies & { lifecycle: HealthLifecycle },
+): Promise<AdmissionGate> {
+  try {
+    const health = await systemHealthHandler(depsWithLifecycle)
+    return resolveAdmissionGate(health.status)
+  } catch {
+    return { ingestion: 'paused', analyticsReads: 'unavailable' }
+  }
+}
+
+function admissionUnavailable(): ORPCError<string, unknown> {
+  return new ORPCError('SERVICE_UNAVAILABLE', {
+    status: ERROR_CATALOG.SERVICE_UNAVAILABLE.status,
+    message: ERROR_CATALOG.SERVICE_UNAVAILABLE.message,
+  })
 }
 
 async function getUser(auth: Auth, request: Request): Promise<AuthUser | undefined> {
