@@ -228,7 +228,10 @@ test('upgrade failure rolls back through the executor and persists a safe error'
     apiTestRequest(app, '/installation/getInstallationStatus', owner.cookie).then((response) =>
       response.json(),
     ),
-  ).resolves.toMatchObject({ status: 'degraded', activeOperation: null })
+  ).resolves.toMatchObject({
+    status: 'degraded',
+    activeOperation: { kind: 'upgrade', errorCode: 'INTERNAL_SERVER_ERROR' },
+  })
   expect(
     db
       .select({

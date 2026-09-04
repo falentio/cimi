@@ -401,9 +401,27 @@ test('serves system health without a session lookup', async () => {
 
 test('normalizes provider errors before the public response', async () => {
   await using fixture = await createApiTestFixture()
-  const { app, db } = fixture
+  const { db, auth, analytics } = fixture
   vi.spyOn(db, 'select').mockImplementation(() => {
     throw new Error('provider connection secret')
+  })
+  const app = createApiApp({
+    db,
+    auth,
+    analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+    lifecycle: {
+      async getSnapshot() {
+        return {
+          installationStatus: 'ready' as const,
+          controlStore: 'ready' as const,
+          analyticsStore: 'ready' as const,
+          cleanupPending: false,
+        }
+      },
+    },
   })
 
   const response = await app.fetch(new Request('http://localhost/api/hello/get?id=hello-1'))

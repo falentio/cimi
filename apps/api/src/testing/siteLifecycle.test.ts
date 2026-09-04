@@ -102,7 +102,7 @@ test('rejects a site lifecycle command from another API module during an upgrade
     const deletion = await apiTestRequest(secondModule, '/site/deleteSite', owner.cookie, {
       siteId: site.id,
     })
-    expect(deletion.status).toBe(409)
+    expect(deletion.status).toBe(503)
   } finally {
     await secondModule.close()
     releaseMigration?.()
