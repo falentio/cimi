@@ -428,6 +428,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
             eq(schema.TInstallation.singletonKey, 'default'),
             eq(schema.TInstallation.activeOperationId, input.operationId),
             eq(schema.TInstallation.activeOperationOwnerToken, input.ownerToken),
+            eq(schema.TInstallation.dataDirectoryReady, true),
           ),
         )
         .run()
