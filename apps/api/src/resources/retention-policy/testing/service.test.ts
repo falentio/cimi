@@ -130,6 +130,24 @@ describe('RetentionPolicyService.update', () => {
     )
   })
 
+  it('passes injected clock and ids to the repository', async () => {
+    const now = new Date('2026-09-02T00:00:00.000Z')
+    const { repository, service } = createRetentionPolicyFixture({
+      clock: () => now,
+      ids: { retentionPolicyId: () => 'rtn_fixed' },
+    })
+    repository.saveInstallationDefault.mockResolvedValue(
+      createStoredResolution({ installationDefault: override, effectivePolicy: override }),
+    )
+
+    await service.update({ scope: 'installation', policy: override }, admin)
+    expect(repository.saveInstallationDefault).toHaveBeenCalledWith({
+      id: 'rtn_fixed',
+      policy: override,
+      now,
+    })
+  })
+
   it('saves a site override', async () => {
     const { repository, service } = createRetentionPolicyFixture()
     repository.saveSiteOverride.mockResolvedValue(
@@ -173,6 +191,16 @@ describe('RetentionPolicyService.update', () => {
     expect(repository.saveInstallationDefault).not.toHaveBeenCalled()
   })
 
+  it('rejects an undefined site policy without touching the repository', async () => {
+    const { repository, service } = createRetentionPolicyFixture()
+
+    await expect(
+      service.update({ scope: 'site', siteId: 'ste_1', policy: undefined } as never, siteOwner),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect(repository.saveSiteOverride).not.toHaveBeenCalled()
+    expect(repository.clearSiteOverride).not.toHaveBeenCalled()
+  })
+
   it('returns conflict when the retention lock is held', async () => {
     const { repository, lock, service } = createRetentionPolicyFixture()
     const lease = lock.acquire('retention')
@@ -182,6 +210,21 @@ describe('RetentionPolicyService.update', () => {
         service.update({ scope: 'installation', policy: override }, admin),
       ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
       expect(repository.saveInstallationDefault).not.toHaveBeenCalled()
+    } finally {
+      if (lease !== undefined) await lease.release()
+    }
+  })
+
+  it('returns conflict for a site update when the retention lock is held', async () => {
+    const { repository, lock, service } = createRetentionPolicyFixture()
+    const lease = lock.acquire('retention')
+    expect(lease).toBeDefined()
+    try {
+      await expect(
+        service.update({ scope: 'site', siteId: 'ste_1', policy: override }, siteOwner),
+      ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+      expect(repository.saveSiteOverride).not.toHaveBeenCalled()
+      expect(repository.clearSiteOverride).not.toHaveBeenCalled()
     } finally {
       if (lease !== undefined) await lease.release()
     }

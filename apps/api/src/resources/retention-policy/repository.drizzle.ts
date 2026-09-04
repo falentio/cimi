@@ -33,7 +33,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
       installationId: installation.id,
       installationDefault,
       siteOverride,
-      effectivePolicy: siteOverride ?? installationDefault,
+      effectivePolicy: { ...(siteOverride ?? installationDefault) },
       updatedAt: (
         siteRow?.updatedAt ??
         installationPolicy?.updatedAt ??
@@ -171,7 +171,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         installationId: installation.id,
         installationDefault,
         siteOverride: null,
-        effectivePolicy: installationDefault,
+        effectivePolicy: { ...installationDefault },
         updatedAt: input.now.toISOString(),
       }
     })

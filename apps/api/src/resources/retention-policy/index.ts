@@ -9,7 +9,6 @@ import { RetentionPolicyService, type RetentionPolicyIdFactory } from './service
 export { retentionPolicyRouter }
 export {
   RetentionPolicyService,
-  effectivePolicy,
   type RetentionPolicyServiceDependencies,
   type RetentionPolicyIdFactory,
 } from './service.ts'

@@ -1,3 +1,4 @@
+import { schema as contractSchema } from '@cimi/contract'
 import { InMemorySiteScopePort } from '@cimi/guard'
 import type { InMemorySiteMembership, InMemorySiteRecord } from '@cimi/guard'
 import { InMemoryLifecycleLock } from '@cimi/kernel'
@@ -34,12 +35,12 @@ export function createRetentionPolicyFixture(options: RetentionPolicyFixtureOpti
 export function createStoredResolution(
   overrides: Partial<RetentionPolicyRepository.StoredResolution> = {},
 ): RetentionPolicyRepository.StoredResolution {
-  const installationDefault = { eventMonths: 12, profileMonths: 12, replayMonths: null }
+  const installationDefault = { ...contractSchema.DEFAULT_RETENTION_POLICY }
   return {
     installationId: 'ins_1',
     installationDefault,
     siteOverride: null,
-    effectivePolicy: installationDefault,
+    effectivePolicy: { ...installationDefault },
     updatedAt,
     ...overrides,
   }

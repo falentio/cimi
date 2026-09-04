@@ -24,13 +24,6 @@ export interface RetentionPolicyServiceDependencies {
   ids?: RetentionPolicyIdFactory | undefined
 }
 
-export function effectivePolicy(
-  installationDefault: RetentionPolicyRepository.Policy,
-  siteOverride: RetentionPolicyRepository.Policy | null,
-): RetentionPolicyRepository.Policy {
-  return siteOverride ?? installationDefault
-}
-
 export class RetentionPolicyService {
   private readonly repository: RetentionPolicyRepository
   private readonly lock: LifecycleLock
@@ -102,6 +95,9 @@ export class RetentionPolicyService {
       }
     }
     await assertSiteManagementScope(user, input.siteId, this.scope)
+    if (input.policy === undefined) {
+      throw new ORPCError('BAD_REQUEST')
+    }
     const lease = await this.lock.acquire('retention')
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     try {
