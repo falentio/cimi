@@ -21,7 +21,7 @@ export const getGoalReport = oc
     tags: ['goal'],
     successStatus: 200,
   })
-  .meta({ auth: 'authenticated' })
+  .meta({ auth: 'authenticated', admission: 'analytics-read' })
   .errors({
     UNAUTHORIZED: {},
     NOT_FOUND: {},

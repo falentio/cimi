@@ -23,7 +23,7 @@ export const collectEvent = oc
     tags: ['event-ingestion'],
     successStatus: 200,
   })
-  .meta({ auth: 'public' })
+  .meta({ auth: 'public', admission: 'ingestion' })
   .errors({
     BAD_REQUEST: {},
     FORBIDDEN: {},

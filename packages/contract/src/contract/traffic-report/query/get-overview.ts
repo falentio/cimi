@@ -28,7 +28,7 @@ export const getTrafficOverview = oc
     tags: ['traffic-report'],
     successStatus: 200,
   })
-  .meta({ auth: 'authenticated' })
+  .meta({ auth: 'authenticated', admission: 'analytics-read' })
   .errors({
     UNAUTHORIZED: {},
     NOT_FOUND: {},

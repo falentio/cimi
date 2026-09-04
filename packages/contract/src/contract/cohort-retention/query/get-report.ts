@@ -21,7 +21,7 @@ export const getRetentionReport = oc
     tags: ['cohort-retention'],
     successStatus: 200,
   })
-  .meta({ auth: 'authenticated' })
+  .meta({ auth: 'authenticated', admission: 'analytics-read' })
   .errors({
     UNAUTHORIZED: {},
     NOT_FOUND: {},
