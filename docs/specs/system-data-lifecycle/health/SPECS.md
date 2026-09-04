@@ -11,9 +11,9 @@ updated: 2026-08-24
 
 **Audience:** Both
 
-Health reports whether the application and its embedded control/analytics stores are ready for the operating envelope. It is a read-only liveness/readiness contract, not a detailed operator console. Overall lifecycle state and store state are separate: when SQLite/control is `ready` and DuckDB/analytics is `degraded`, `rebuilding`, or `unavailable`, collection may continue in accept-only mode; if SQLite/control is not ready, durable acceptance is unavailable too. The canonical contract resource is `health` and its procedure is `health`; `/system/health` is only the transport route.
+Health reports whether the application and its embedded control/analytics stores are ready for the operating envelope. It is a read-only liveness/readiness contract, not a detailed operator console. Overall lifecycle state and store state are separate: when SQLite/control is `ready` and DuckDB/analytics is `degraded`, `rebuilding`, or `unavailable`, collection may continue in accept-only mode; if SQLite/control is not ready, durable acceptance is unavailable too. The canonical contract resource is `health` and its procedure is `health`; `/system/health` is only the contract transport route, served at `GET /api/system/health` under the runtime prefix.
 
-The canonical procedure is `health`; its explicit OpenAPI route is `GET /system/health`. `system.health` is not a contract or operation name.
+The canonical procedure is `health`; its explicit contract route is `GET /system/health`, served at `GET /api/system/health`. `system.health` is not a contract or operation name. `health` is served and is exempt from lifecycle admission enforcement.
 
 ## 2. Base Schema
 
@@ -57,7 +57,7 @@ The contract accepts only these combinations:
 
 **Purpose:** Determine whether the application can serve its basic contract.
 
-**Behavior:** Do not include secrets, paths, raw SQL errors, or analytics data. Return only a row from the health state matrix. When control is `ready` and analytics is `degraded`, `rebuilding`, or `unavailable`, collection may accept Events durably, but every analytics read returns generic `SERVICE_UNAVAILABLE` (503) before cache or execution. During write-quiesced maintenance or restore, new collection admission is paused and the active/pending acceptance queues drain before the operation proceeds; collection is paused rather than accept-only. Projection lag may produce `stale` freshness only when the analytics store is `ready` and there is no relevant or unbounded Projection Gap; such a gap returns `QUERY_LIMIT_EXCEEDED` (422) before cache or execution for the current or comparison interval. A ready restore with pending historical cleanup reports `degraded` plus `cleanupPending`, never a clean `healthy` generation.
+**Behavior:** Do not include secrets, paths, raw SQL errors, or analytics data. Return only a row from the health state matrix. When control is `ready` and analytics is `degraded`, `rebuilding`, or `unavailable`, collection may accept Events durably, but every analytics read returns generic `SERVICE_UNAVAILABLE` (503) before cache or execution. During write-quiesced maintenance or restore, new collection admission is paused and the active/pending acceptance queues drain before the operation proceeds; collection is paused rather than accept-only. Projection lag may produce `stale` freshness only when the analytics store is `ready` and there is no relevant or unbounded Projection Gap; such a gap returns `QUERY_LIMIT_EXCEEDED` (422) before cache or execution for the current or comparison interval. A ready restore with pending historical cleanup reports `degraded` plus `cleanupPending`, never a clean `healthy` generation. Runtime admission enforcement reads this matrix through a single gate: `health` and `installation` are exempt, paused maps to `SERVICE_UNAVAILABLE` (503), and accept-only passes through for the ingestion service to downgrade.
 
 **Errors:** `INTERNAL_SERVER_ERROR` (500 when the health check itself cannot produce a response).
 

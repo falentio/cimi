@@ -54,6 +54,8 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 **Audience:** FE
 
+Contract paths below are served under the `/api` runtime prefix. Q1, C1, and C2 are served and are exempt from lifecycle admission enforcement.
+
 | #   | Procedure                | Method | Path                                   | Auth  | CQRS    |
 | --- | ------------------------ | ------ | -------------------------------------- | ----- | ------- |
 | Q1  | `getInstallationStatus`  | GET    | `/installation/getInstallationStatus`  | admin | query   |
