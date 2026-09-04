@@ -17,7 +17,7 @@ export const getInstallationStatus = oc
     tags: ['installation'],
     successStatus: 200,
   })
-  .meta({ auth: 'admin' })
+  .meta({ auth: 'admin', admission: 'exempt' })
   .errors({
     UNAUTHORIZED: {},
     FORBIDDEN: {},

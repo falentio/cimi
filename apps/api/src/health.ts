@@ -1,10 +1,20 @@
+import * as v from 'valibot'
+import { schema } from '@cimi/contract'
+import { validateBaseSchema } from '@cimi/db'
 import type { CreateApiAppDependencies } from './index.ts'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'recovering' | 'maintenance' | 'unavailable'
 export type StoreHealth = 'ready' | 'degraded' | 'rebuilding' | 'unavailable'
+export type InstallationStatus =
+  | 'uninitialized'
+  | 'ready'
+  | 'degraded'
+  | 'maintenance'
+  | 'recovering'
 
 export interface HealthSnapshot {
   status?: HealthStatus
+  installationStatus?: InstallationStatus
   controlStore?: StoreHealth
   analyticsStore?: StoreHealth
   cleanupPending?: boolean
@@ -12,6 +22,60 @@ export interface HealthSnapshot {
 
 export interface HealthLifecycle {
   getSnapshot(): Promise<HealthSnapshot>
+}
+
+export interface InstallationHealthInput {
+  installationStatus: InstallationStatus
+  controlStore: StoreHealth
+  analyticsStore: StoreHealth
+  cleanupPending: boolean
+}
+
+const LEGACY_INSTALLATION_STATUS_MAP: Record<string, InstallationStatus> = {
+  healthy: 'ready',
+  unavailable: 'recovering',
+  degraded: 'degraded',
+  maintenance: 'maintenance',
+  recovering: 'recovering',
+  ready: 'ready',
+  uninitialized: 'uninitialized',
+}
+
+export function resolveInstallationHealth(input: InstallationHealthInput): HealthStatus {
+  if (input.controlStore !== 'ready') return 'unavailable'
+  if (input.installationStatus === 'recovering') return 'recovering'
+  if (input.installationStatus === 'maintenance') return 'maintenance'
+  if (input.installationStatus === 'uninitialized') return 'recovering'
+  if (input.analyticsStore !== 'ready' || input.cleanupPending) return 'degraded'
+  return 'healthy'
+}
+
+export function resolveHealthStatus(
+  installationStatus: InstallationStatus,
+  controlStore: StoreHealth,
+  analyticsStore: StoreHealth,
+  cleanupPending: boolean,
+): HealthStatus {
+  return resolveInstallationHealth({
+    installationStatus,
+    controlStore,
+    analyticsStore,
+    cleanupPending,
+  })
+}
+
+export type IngestionAdmission = 'accept' | 'accept-only' | 'paused'
+export type AnalyticsReadAdmission = 'ok' | 'unavailable'
+
+export interface AdmissionGate {
+  ingestion: IngestionAdmission
+  analyticsReads: AnalyticsReadAdmission
+}
+
+export function resolveAdmissionGate(status: HealthStatus): AdmissionGate {
+  if (status === 'healthy') return { ingestion: 'accept', analyticsReads: 'ok' }
+  if (status === 'degraded') return { ingestion: 'accept-only', analyticsReads: 'unavailable' }
+  return { ingestion: 'paused', analyticsReads: 'unavailable' }
 }
 
 export async function systemHealthHandler(deps: CreateApiAppDependencies): Promise<{
@@ -25,7 +89,10 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   let controlDatabase = false
   try {
     const result = deps.db.$client.prepare('select 1').get()
-    controlDatabase = Boolean(result)
+    if (result !== undefined) {
+      validateBaseSchema(deps.db)
+      controlDatabase = true
+    }
   } catch {
     controlDatabase = false
   }
@@ -38,17 +105,32 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   }
 
   const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
-  const controlStore = controlDatabase ? (lifecycle.controlStore ?? 'ready') : 'unavailable'
+  let dataDirectoryReady = false
+  try {
+    dataDirectoryReady =
+      typeof deps.dataDirectoryReady === 'function'
+        ? deps.dataDirectoryReady()
+        : deps.dataDirectoryReady
+  } catch {}
+  const controlStore =
+    controlDatabase && dataDirectoryReady ? (lifecycle.controlStore ?? 'ready') : 'unavailable'
   const analyticsStore = analyticsDatabase ? (lifecycle.analyticsStore ?? 'ready') : 'unavailable'
+  const cleanupPending = lifecycle.cleanupPending ?? false
 
-  return {
-    status: resolveHealthStatus(lifecycle.status, controlStore, analyticsStore),
+  return v.parse(schema.SHealth, {
+    status: resolveInstallationHealth({
+      installationStatus:
+        lifecycle.installationStatus ?? toInstallationStatus(lifecycle.status) ?? 'uninitialized',
+      controlStore,
+      analyticsStore,
+      cleanupPending,
+    }),
     controlStore,
     analyticsStore,
-    cleanupPending: lifecycle.cleanupPending ?? false,
+    cleanupPending,
     version: '0.0.1',
     checkedAt: new Date().toISOString(),
-  }
+  })
 }
 
 async function getLifecycleSnapshot(
@@ -59,17 +141,11 @@ async function getLifecycleSnapshot(
   try {
     return await lifecycle.getSnapshot()
   } catch {
-    return { status: 'recovering' }
+    return { installationStatus: 'recovering' }
   }
 }
 
-function resolveHealthStatus(
-  requestedStatus: HealthStatus | undefined,
-  controlStore: StoreHealth,
-  analyticsStore: StoreHealth,
-): HealthStatus {
-  if (requestedStatus && requestedStatus !== 'healthy') return requestedStatus
-  if (controlStore !== 'ready') return 'unavailable'
-  if (analyticsStore !== 'ready') return 'degraded'
-  return 'healthy'
+function toInstallationStatus(status: HealthStatus | undefined): InstallationStatus | undefined {
+  if (status === undefined) return undefined
+  return LEGACY_INSTALLATION_STATUS_MAP[status] ?? 'recovering'
 }

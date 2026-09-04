@@ -1,4 +1,4 @@
-import { access, mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, expect, test } from 'vitest'
@@ -17,7 +17,7 @@ test('system health reports live control and analytics stores', async () => {
   expect(res.status).toBe(200)
   const body = await res.json()
   expect(body).toEqual(expect.schemaMatching(SSystemHealthOutput))
-  expect(body.status).toBe('healthy')
+  expect(body.status).toBe('recovering')
   expect(body.controlStore).toBe('ready')
   expect(body.analyticsStore).toBe('ready')
   expect(body.cleanupPending).toBe(false)
@@ -44,9 +44,11 @@ test('auth sign-up route is mounted and sets a session cookie', async () => {
 test('uses the configured control database path', async () => {
   const customRoot = await mkdtemp(join(tmpdir(), 'cimi-control-path-'))
   const controlPath = join(customRoot, 'nested', 'control.sqlite')
+  const analyticsPath = join(customRoot, 'analytics')
+  await mkdir(analyticsPath)
   const customApp = await createFrontendServerApp({
     ...process.env,
-    CIMI_DATA_DIR: join(customRoot, 'analytics'),
+    CIMI_DATA_DIR: analyticsPath,
     CIMI_CONTROL_DB_PATH: controlPath,
   })
 
@@ -56,6 +58,18 @@ test('uses the configured control database path', async () => {
     await customApp.close()
     await rm(customRoot, { recursive: true, force: true })
   }
+})
+
+test('does not create a missing configured data directory', async () => {
+  const missingDataDirectory = join(tempDir, 'missing-data')
+  await expect(
+    createFrontendServerApp({
+      ...process.env,
+      CIMI_DATA_DIR: missingDataDirectory,
+      CIMI_CONTROL_DB_PATH: join(tempDir, 'missing-control.sqlite'),
+    }),
+  ).rejects.toThrow('Configured data directory is not ready')
+  await expect(access(missingDataDirectory)).rejects.toMatchObject({ code: 'ENOENT' })
 })
 
 afterAll(async () => {

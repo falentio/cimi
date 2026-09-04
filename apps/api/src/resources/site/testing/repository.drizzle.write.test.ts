@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { schema } from '@cimi/db'
+import { eq } from 'drizzle-orm'
+import { ANALYTICS_PROJECTION_VERSION, schema } from '@cimi/db'
 import { SiteRepositoryDrizzle } from '../repository.drizzle.ts'
 import {
   createSiteDrizzleFixture,
@@ -27,6 +28,19 @@ describe.concurrent('SiteRepositoryDrizzle.write', () => {
         updatedAt: createdAt,
       }),
     ).resolves.toMatchObject({ id: 'ste_2', hostname: 'staging.example.com' })
+    await expect(
+      fixture.db
+        .select()
+        .from(schema.TProjectionCheckpoint)
+        .where(eq(schema.TProjectionCheckpoint.siteId, 'ste_2')),
+    ).resolves.toMatchObject([
+      expect.objectContaining({
+        siteId: 'ste_2',
+        projectedReplaySequence: 0,
+        readiness: 'ready',
+        projectionVersion: ANALYTICS_PROJECTION_VERSION,
+      }),
+    ])
     await expect(repo.findById('ste_2')).resolves.toMatchObject({ status: 'active' })
   })
 

@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { loadConfig } from '@cimi/config'
 import { createSingleton } from '@cimi/utils'
@@ -22,7 +22,8 @@ export async function createFrontendServerApp(
   env: Record<string, string | undefined> = process.env,
 ): Promise<FrontendServerApp> {
   const cfg = loadConfig(env)
-  mkdirSync(cfg.dataDir, { recursive: true })
+  const dataDirectoryReady = isDirectory(cfg.dataDir)
+  if (!dataDirectoryReady) throw new Error('Configured data directory is not ready')
   const controlDbPath = resolveControlDbPath(env, process.cwd())
   mkdirSync(dirname(controlDbPath), { recursive: true })
   const db = createDb({ path: controlDbPath })
@@ -39,13 +40,26 @@ export async function createFrontendServerApp(
         baseURL: cfg.baseUrl,
         secret: cfg.authSecret,
       })
-      const app = createApiApp({ db, auth, analytics, baseUrl: cfg.baseUrl })
+      const app = createApiApp({
+        db,
+        auth,
+        analytics,
+        baseUrl: cfg.baseUrl,
+        dataDirectoryReady: () => isDirectory(cfg.dataDir),
+        controlDatabasePath: controlDbPath,
+        dataDirectoryPath: cfg.dataDir,
+      })
+      const closeApiApp = app.close.bind(app)
       return Object.assign(app, {
         async close(): Promise<void> {
           try {
-            await analytics.close()
+            await closeApiApp()
           } finally {
-            closeDb(db)
+            try {
+              await analytics.close()
+            } finally {
+              closeDb(db)
+            }
           }
         },
       })
@@ -58,6 +72,14 @@ export async function createFrontendServerApp(
   } catch (error) {
     closeDb(db)
     throw error
+  }
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
   }
 }
 

@@ -37,11 +37,10 @@ export const initializeInstallation = oc
     outputStructure: 'detailed',
     successStatus: 200,
   })
-  .meta({ auth: 'admin' })
+  .meta({ auth: 'admin', admission: 'exempt' })
   .errors({
     UNAUTHORIZED: {},
     FORBIDDEN: {},
-    NOT_FOUND: {},
     BAD_REQUEST: {},
     CONFLICT: {},
     INTERNAL_SERVER_ERROR: {},

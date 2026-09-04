@@ -1,6 +1,8 @@
+import * as v from 'valibot'
 import { expect, test, vi } from 'vitest'
-import { ERROR_CATALOG, SSystemHealthOutput } from '@cimi/contract'
-import { schema, type Db } from '@cimi/db'
+import { ERROR_CATALOG, SSystemHealthOutput, schema as contractSchema } from '@cimi/contract'
+import { closeDb, schema, type Db } from '@cimi/db'
+import { createMigratedTestDb } from '@cimi/db/testing'
 import { createApiApp } from '../index.ts'
 import { createApiTestFixture, signUpTestUser } from './fixture.ts'
 
@@ -13,17 +15,36 @@ test('system health reports live control and analytics stores', async () => {
 
   const body = await res.json()
   expect(body).toEqual(expect.schemaMatching(SSystemHealthOutput))
-  expect(body.status).toBe('healthy')
+  expect(body.status).toBe('recovering')
   expect(body.controlStore).toBe('ready')
   expect(body.analyticsStore).toBe('ready')
   expect(body.cleanupPending).toBe(false)
   expect(body.version).toBe('0.0.1')
-  expect(body.checkedAt).toMatch(/T/)
+  expect(() =>
+    v.parse(contractSchema.SDateTime, (body as { checkedAt: string }).checkedAt),
+  ).not.toThrow()
+
+  const owner = await signUpTestUser(app, 'health-owner@example.com', 'Health Owner')
+  const created = await app.fetch(
+    new Request('http://localhost/api/installation/initializeInstallation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: owner.cookie },
+      body: JSON.stringify({}),
+    }),
+  )
+  expect(created.status).toBe(201)
+
+  const afterInit = await app.fetch(new Request('http://localhost/api/system/health'))
+  expect(afterInit.status).toBe(200)
+  await expect(afterInit.json()).resolves.toMatchObject({ status: 'healthy' })
 
   const lifecycleApp = createApiApp({
     db,
     auth,
     analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
     lifecycle: {
       async getSnapshot() {
         return {
@@ -44,6 +65,279 @@ test('system health reports live control and analytics stores', async () => {
     cleanupPending: true,
   })
 })
+
+test('system health maps installation and legacy states', async () => {
+  await using fixture = await createApiTestFixture()
+  const { auth, db, analytics } = fixture
+
+  async function healthWith(snapshot: object) {
+    const app = createApiApp({
+      db,
+      auth,
+      analytics,
+      dataDirectoryReady: true,
+      controlDatabasePath: ':memory:',
+      dataDirectoryPath: '/tmp/cimi-test-data',
+      lifecycle: {
+        async getSnapshot() {
+          return snapshot
+        },
+      },
+    })
+    const response = await app.fetch(new Request('http://localhost/api/system/health'))
+    expect(response.status).toBe(200)
+    return (await response.json()) as { status: string }
+  }
+
+  await expect(
+    healthWith({
+      installationStatus: 'degraded',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: true,
+    }),
+  ).resolves.toMatchObject({ status: 'degraded' })
+  await expect(
+    healthWith({
+      installationStatus: 'degraded',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'healthy' })
+  await expect(
+    healthWith({
+      installationStatus: 'maintenance',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'maintenance' })
+  await expect(
+    healthWith({
+      installationStatus: 'recovering',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'recovering' })
+  await expect(
+    healthWith({
+      installationStatus: 'uninitialized',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'recovering' })
+  await expect(
+    healthWith({
+      status: 'unavailable',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'recovering' })
+  await expect(
+    healthWith({
+      installationStatus: 'maintenance',
+      status: 'healthy',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'maintenance' })
+  await expect(
+    healthWith({
+      installationStatus: 'ready',
+      status: 'maintenance',
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+      cleanupPending: false,
+    }),
+  ).resolves.toMatchObject({ status: 'healthy' })
+
+  const throwingApp = createApiApp({
+    db,
+    auth,
+    analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+    lifecycle: {
+      async getSnapshot() {
+        throw new Error('lifecycle down')
+      },
+    },
+  })
+  const throwingResponse = await throwingApp.fetch(
+    new Request('http://localhost/api/system/health'),
+  )
+  expect(throwingResponse.status).toBe(200)
+  await expect(throwingResponse.json()).resolves.toMatchObject({ status: 'recovering' })
+})
+
+test('system health covers legacy installation states', async () => {
+  await using fixture = await createApiTestFixture()
+  const { auth, db, analytics } = fixture
+
+  async function healthWith(snapshot: object) {
+    const app = createApiApp({
+      db,
+      auth,
+      analytics,
+      dataDirectoryReady: true,
+      controlDatabasePath: ':memory:',
+      dataDirectoryPath: '/tmp/cimi-test-data',
+      lifecycle: {
+        async getSnapshot() {
+          return snapshot
+        },
+      },
+    })
+    const response = await app.fetch(new Request('http://localhost/api/system/health'))
+    expect(response.status).toBe(200)
+    return (await response.json()) as { status: string }
+  }
+
+  const cases: Array<{ snapshot: object; status: string }> = [
+    {
+      snapshot: {
+        status: 'healthy',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'healthy',
+    },
+    {
+      snapshot: {
+        status: 'degraded',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'healthy',
+    },
+    {
+      snapshot: {
+        status: 'maintenance',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'maintenance',
+    },
+    {
+      snapshot: {
+        status: 'recovering',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'recovering',
+    },
+    {
+      snapshot: {
+        status: 'ready',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'healthy',
+    },
+    {
+      snapshot: {
+        status: 'uninitialized',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'recovering',
+    },
+    {
+      snapshot: {
+        status: 'nope',
+        controlStore: 'ready',
+        analyticsStore: 'ready',
+        cleanupPending: false,
+      },
+      status: 'recovering',
+    },
+  ]
+  for (const { snapshot, status } of cases) {
+    await expect(healthWith(snapshot)).resolves.toMatchObject({ status })
+  }
+})
+
+test('system health degrades on store failures', async () => {
+  await using fixture = await createApiTestFixture()
+  const { auth, db, analytics } = fixture
+  const bootApp = appFrom(db, auth, analytics)
+  const owner = await signUpTestUser(bootApp, 'store-owner@example.com', 'Store Owner')
+
+  const initRes = await bootApp.fetch(
+    new Request('http://localhost/api/installation/initializeInstallation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: owner.cookie },
+      body: JSON.stringify({}),
+    }),
+  )
+  expect([200, 201]).toContain(initRes.status)
+
+  async function healthWithStores(stores: { controlOk: boolean; analyticsOk: boolean | 'throw' }) {
+    const analyticsForTest =
+      stores.analyticsOk === 'throw'
+        ? {
+            ready: async () => {
+              throw new Error('analytics down')
+            },
+          }
+        : stores.analyticsOk
+          ? analytics
+          : { ready: async () => false, close: async () => undefined }
+    let dbForTest = db
+    if (!stores.controlOk) {
+      dbForTest = createMigratedTestDb()
+      closeDb(dbForTest)
+    }
+    const app = createApiApp({
+      db: dbForTest,
+      auth,
+      analytics: analyticsForTest as typeof analytics,
+      dataDirectoryReady: true,
+      controlDatabasePath: ':memory:',
+      dataDirectoryPath: '/tmp/cimi-test-data',
+    })
+    const response = await app.fetch(new Request('http://localhost/api/system/health'))
+    expect(response.status).toBe(200)
+    return (await response.json()) as { status: string; controlStore: string }
+  }
+
+  await expect(healthWithStores({ controlOk: true, analyticsOk: false })).resolves.toMatchObject({
+    status: 'degraded',
+  })
+  await expect(healthWithStores({ controlOk: true, analyticsOk: 'throw' })).resolves.toMatchObject({
+    status: 'degraded',
+  })
+  await expect(healthWithStores({ controlOk: false, analyticsOk: true })).resolves.toMatchObject({
+    status: 'unavailable',
+  })
+})
+
+function appFrom(
+  db: Parameters<typeof createApiApp>[0]['db'],
+  auth: Parameters<typeof createApiApp>[0]['auth'],
+  analytics: Parameters<typeof createApiApp>[0]['analytics'],
+) {
+  return createApiApp({
+    db,
+    auth,
+    analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+  })
+}
 
 test('rejects an unauthenticated authenticated hello procedure before input handling', async () => {
   await using fixture = await createApiTestFixture()
@@ -90,11 +384,44 @@ test('returns a safe internal error when session lookup fails', async () => {
   expect(JSON.stringify(body)).not.toContain('provider connection secret')
 })
 
+test('serves system health without a session lookup', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app, auth } = fixture
+  vi.spyOn(auth.api, 'getSession').mockRejectedValueOnce(new Error('auth unavailable'))
+
+  const response = await app.fetch(new Request('http://localhost/api/system/health'))
+
+  expect(response.status).toBe(200)
+  await expect(response.json()).resolves.toMatchObject({
+    controlStore: 'ready',
+    analyticsStore: 'ready',
+  })
+  expect(auth.api.getSession).not.toHaveBeenCalled()
+})
+
 test('normalizes provider errors before the public response', async () => {
   await using fixture = await createApiTestFixture()
-  const { app, db } = fixture
+  const { db, auth, analytics } = fixture
   vi.spyOn(db, 'select').mockImplementation(() => {
     throw new Error('provider connection secret')
+  })
+  const app = createApiApp({
+    db,
+    auth,
+    analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+    lifecycle: {
+      async getSnapshot() {
+        return {
+          installationStatus: 'ready' as const,
+          controlStore: 'ready' as const,
+          analyticsStore: 'ready' as const,
+          cleanupPending: false,
+        }
+      },
+    },
   })
 
   const response = await app.fetch(new Request('http://localhost/api/hello/get?id=hello-1'))

@@ -23,6 +23,30 @@ export type LifecycleOperationKind =
 
 export type PersistedLifecycleOperationKind = Exclude<LifecycleOperationKind, 'purge'>
 
+export type LifecycleLockKind = PersistedLifecycleOperationKind | 'initialization'
+
+export const LIFECYCLE_OPERATION_PHASES = [
+  'pre_upgrade_safety',
+  'site_transition',
+  'lifecycle_transition',
+] as const
+export type LifecycleOperationPhase = (typeof LIFECYCLE_OPERATION_PHASES)[number]
+
+export const LIFECYCLE_OPERATION_CHECKPOINTS = [
+  'none',
+  'sqlite_captured',
+  'duckdb_rebuilt',
+  'structurally_ready',
+] as const
+export type LifecycleOperationCheckpoint = (typeof LIFECYCLE_OPERATION_CHECKPOINTS)[number]
+
+export interface LifecycleOperationStatus {
+  readonly operationId: string
+  readonly kind: PersistedLifecycleOperationKind
+  readonly phase: LifecycleOperationPhase
+  readonly checkpoint: LifecycleOperationCheckpoint
+}
+
 /** Normalize the issue-facing purge alias to the contract and DB name. */
 export function normalizeLifecycleOperationKind(
   kind: LifecycleOperationKind,
@@ -30,10 +54,18 @@ export function normalizeLifecycleOperationKind(
   return kind === 'purge' ? 'site_purge' : kind
 }
 
-export interface LifecycleLock {
-  acquire(kind: LifecycleOperationKind): PortResult<boolean>
+export interface LifecycleLease {
+  readonly kind: LifecycleLockKind
   release(): PortResult<void>
+}
+
+export interface LifecycleLock {
+  acquire(kind: LifecycleOperationKind | 'initialization'): PortResult<LifecycleLease | undefined>
   isLocked(): PortResult<boolean>
+}
+
+export interface LifecycleOperationStatusReader {
+  getActiveOperation(): PortResult<LifecycleOperationStatus | null>
 }
 
 export type CollectionPolicy = Readonly<Record<string, unknown>>
@@ -85,24 +117,41 @@ export class InMemoryRetentionResolver implements RetentionResolver {
 }
 
 export class InMemoryLifecycleLock implements LifecycleLock {
-  #kind: PersistedLifecycleOperationKind | undefined
+  #lease: { readonly token: symbol; readonly kind: LifecycleLockKind } | undefined
 
-  acquire(kind: LifecycleOperationKind): boolean {
-    if (this.#kind !== undefined) return false
-    this.#kind = normalizeLifecycleOperationKind(kind)
-    return true
-  }
-
-  release(): void {
-    this.#kind = undefined
+  acquire(kind: LifecycleOperationKind | 'initialization'): LifecycleLease | undefined {
+    if (this.#lease !== undefined) return undefined
+    const lease = {
+      token: Symbol('lifecycle-lease'),
+      kind: kind === 'initialization' ? kind : normalizeLifecycleOperationKind(kind),
+    }
+    this.#lease = lease
+    return {
+      kind: lease.kind,
+      release: () => {
+        if (this.#lease?.token === lease.token) this.#lease = undefined
+      },
+    }
   }
 
   isLocked(): boolean {
-    return this.#kind !== undefined
+    return this.#lease !== undefined
   }
 
-  get kind(): PersistedLifecycleOperationKind | undefined {
-    return this.#kind
+  get kind(): LifecycleLockKind | undefined {
+    return this.#lease?.kind
+  }
+}
+
+export class InMemoryLifecycleOperationStatusReader implements LifecycleOperationStatusReader {
+  #activeOperation: LifecycleOperationStatus | null = null
+
+  setActiveOperation(operation: LifecycleOperationStatus | null): void {
+    this.#activeOperation = operation
+  }
+
+  getActiveOperation(): LifecycleOperationStatus | null {
+    return this.#activeOperation
   }
 }
 

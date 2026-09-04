@@ -4,6 +4,17 @@ export interface AnalyticsMigration {
   sql: string
 }
 
+export const ANALYTICS_REQUIRED_TABLES = [
+  'visitors',
+  'analytics_sessions',
+  'events',
+  'event_properties',
+  'projection_checkpoints',
+  'projection_gaps',
+] as const
+
+export const ANALYTICS_PROJECTION_VERSION = 'v1'
+
 export const ANALYTICS_MIGRATIONS: AnalyticsMigration[] = [
   {
     version: 1,

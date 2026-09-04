@@ -30,10 +30,22 @@ export const SLifecycleOperationKind = v.picklist([
   'site_recovery',
   'site_purge',
 ])
+export const SLifecycleOperationPhase = v.picklist([
+  'pre_upgrade_safety',
+  'site_transition',
+  'lifecycle_transition',
+])
+export const SLifecycleOperationCheckpoint = v.picklist([
+  'none',
+  'sqlite_captured',
+  'duckdb_rebuilt',
+  'structurally_ready',
+])
 export const SLifecycleOperationStatus = v.strictObject({
   operationId: SId,
   kind: SLifecycleOperationKind,
-  phase: v.pipe(v.string(), v.minLength(1), v.maxLength(64)),
+  phase: SLifecycleOperationPhase,
+  checkpoint: SLifecycleOperationCheckpoint,
   progress: v.nullable(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
   lastSafeSequence: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
   errorCode: v.nullable(SLifecycleErrorCode),

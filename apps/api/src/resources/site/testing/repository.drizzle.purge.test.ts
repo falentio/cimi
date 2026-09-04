@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { SiteRepositoryDrizzle } from '../repository.drizzle.ts'
 import { createSiteDrizzleFixture } from '../fixture.drizzle.ts'
+import { eq } from 'drizzle-orm'
+import { schema } from '@cimi/db'
 
 const requestedAt = new Date('2026-09-01T00:00:00.000Z')
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
@@ -132,6 +134,20 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
       siteId: 'ste_1',
       status: 'deleting',
       operationId: 'sop_1',
+    })
+  })
+
+  it('returns a safe cleanup error code', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    fixture.db
+      .update(schema.TSite)
+      .set({ cleanupStatus: 'failed', cleanupError: 'secret cleanup details' })
+      .where(eq(schema.TSite.id, 'ste_1'))
+      .run()
+
+    await expect(repo.getDeletionStatus('ste_1')).resolves.toMatchObject({
+      cleanup: { status: 'failed', errorCode: 'CLEANUP_FAILED' },
     })
   })
 })

@@ -458,7 +458,7 @@ describe('site deletion schemas', () => {
       cleanup: {
         status: 'pending',
         updatedAt: '2026-08-24T00:01:00Z',
-        error: null,
+        errorCode: null,
       },
     }
 

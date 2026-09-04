@@ -10,6 +10,11 @@ import {
 import type { AuthUser } from '@cimi/auth'
 
 const adminUser = { id: 'u1', role: 'admin' } as unknown as AuthUser
+const installationAdmin = {
+  id: 'u1',
+  role: 'admin',
+  installationGrant: true,
+} as unknown as AuthUser
 const normalUser = { id: 'u1', role: 'user' } as unknown as AuthUser
 
 describe('assertIsAdmin', () => {
@@ -115,7 +120,10 @@ describe('AssertOptions.code', () => {
 describe('assertAuthorization', () => {
   it('treats admin as coarse authenticated admission, not installation authority', () => {
     expect(() => assertAuthorization(normalUser, 'admin')).not.toThrow()
-    expect(() => assertAuthorization(adminUser, 'installation-admin')).not.toThrow()
+    expect(() => assertAuthorization(installationAdmin, 'installation-admin')).not.toThrow()
+    expect(() => assertAuthorization(adminUser, 'installation-admin')).toThrowError(
+      ORPCError<string, unknown>,
+    )
     expect(() => assertAuthorization(normalUser, 'installation-admin')).toThrowError(
       ORPCError<string, unknown>,
     )

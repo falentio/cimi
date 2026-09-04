@@ -20,10 +20,16 @@ ready -> degraded
 ready -> recovering
 maintenance -> ready
 maintenance -> recovering
+maintenance -> degraded
 recovering -> ready
 recovering -> degraded
+recovering -> maintenance
 degraded -> ready
+degraded -> maintenance
+degraded -> recovering
 ```
+
+Resume and fail paths use the extra edges. `claimUpgrade` moves `maintenance -> recovering` on startup resume. `failUpgrade` moves `maintenance` or `recovering -> degraded` and preserves the terminal `activeOperation` with a non-null `errorCode`. Retry moves `degraded -> maintenance` with a new operation ID.
 
 ## 2. Base Schema
 
@@ -47,6 +53,8 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 ## 3. Endpoint Quick Index
 
 **Audience:** FE
+
+Contract paths below are served under the `/api` runtime prefix. Q1, C1, and C2 are served and are exempt from lifecycle admission enforcement.
 
 | #   | Procedure                | Method | Path                                   | Auth  | CQRS    |
 | --- | ------------------------ | ------ | -------------------------------------- | ----- | ------- |
@@ -74,7 +82,7 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 **Purpose:** Establish initial installation metadata and default retention policy through the admin RPC surface.
 
-**Behavior:** Bootstrap authorization must be satisfied by the installation's configured admin flow. `defaultRetention` is optional; when omitted, initialization stores the retention-policy default of `eventMonths: 12`, `profileMonths: 12`, and `replayMonths: null`. Initialization is convergent when repeated with the same valid current state; it never overwrites existing Sites or analytics. Return 200 for reuse and 201 for first initialization. One installation-wide lifecycle lock serializes initialization with backup, restore, upgrade, retention, Site deletion/recovery/purge, and destructive cleanup.
+**Behavior:** Bootstrap authorization must be satisfied by the installation's configured admin flow. `defaultRetention` is optional; when omitted, initialization stores the retention-policy default of `eventMonths: 12`, `profileMonths: 12`, and `replayMonths: null`. Initialization is convergent when repeated with the same valid current state; it never overwrites existing Sites or analytics. Return 200 for reuse and 201 for first initialization. First initialization uses the `insert` path which creates a `ready` row directly. A seeded `uninitialized` row uses the `activate()` path to reach `ready`. One installation-wide lifecycle lock serializes initialization with Site deletion/recovery/purge today. Backup, restore, and retention join the same global lock in a future change.
 
 **Events Emitted:** None in MVP.
 
@@ -107,7 +115,7 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 | Auth Level | Meaning                     | Procedures |
 | ---------- | --------------------------- | ---------- |
-| `admin`    | Installation administrator. | Q1, C1     |
+| `admin`    | Installation administrator. | Q1, C1, C2 |
 
 ## 8. Event Catalog
 

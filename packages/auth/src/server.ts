@@ -37,4 +37,4 @@ export function createAuth(deps: CreateAuthDependencies) {
 
 export type Auth = ReturnType<typeof createAuth>
 
-export type AuthUser = Auth['$Infer']['Session']['user']
+export type AuthUser = Auth['$Infer']['Session']['user'] & { installationGrant?: boolean }

@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest'
+import { createApiApp } from '../index.ts'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.ts'
+import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 
 test('deletes and recovers a site through 202 lifecycle routes', async () => {
   await using fixture = await createApiTestFixture()
@@ -48,4 +50,61 @@ test('deletes and recovers a site through 202 lifecycle routes', async () => {
   )
   expect(getResponse.status).toBe(404)
   await expect(getResponse.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+})
+
+test('rejects a site lifecycle command from another API module during an upgrade', async () => {
+  let releaseMigration: (() => void) | undefined
+  const migration = new Promise<void>((resolve) => {
+    releaseMigration = resolve
+  })
+  await using fixture = await createApiTestFixture({
+    upgradeExecutor: createFakeUpgradeExecutor({ migrate: () => migration }),
+  })
+  const { app, auth, db, analytics } = fixture
+  const owner = await signUpTestUser(app, 'cross-module-owner@example.com', 'Cross Module Owner')
+
+  const initialized = await apiTestRequest(
+    app,
+    '/installation/initializeInstallation',
+    owner.cookie,
+    {},
+  )
+  expect(initialized.status).toBe(201)
+  const organizationResponse = await apiTestRequest(
+    app,
+    '/organization/createOrganization',
+    owner.cookie,
+    { name: 'Cross Module Org' },
+  )
+  expect(organizationResponse.status).toBe(201)
+  const organization = await organizationResponse.json()
+  const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
+    organizationId: organization.id,
+    name: 'Production',
+    hostname: 'cross-module.example.com',
+  })
+  expect(siteResponse.status).toBe(201)
+  const site = await siteResponse.json()
+  const upgrade = await apiTestRequest(app, '/installation/upgradeInstallation', owner.cookie, {
+    confirmation: 'UPGRADE',
+  })
+  expect(upgrade.status).toBe(202)
+
+  const secondModule = createApiApp({
+    db,
+    auth,
+    analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+  })
+  try {
+    const deletion = await apiTestRequest(secondModule, '/site/deleteSite', owner.cookie, {
+      siteId: site.id,
+    })
+    expect(deletion.status).toBe(503)
+  } finally {
+    await secondModule.close()
+    releaseMigration?.()
+  }
 })

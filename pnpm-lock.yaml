@@ -147,6 +147,9 @@ importers:
       '@cimi/guard':
         specifier: workspace:*
         version: link:../../packages/guard
+      '@cimi/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
       '@cimi/utils':
         specifier: workspace:*
         version: link:../../packages/utils

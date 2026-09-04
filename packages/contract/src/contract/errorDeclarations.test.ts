@@ -164,7 +164,6 @@ const expectedErrors: Record<string, ErrorMap> = {
   'installation.initializeInstallation': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
-    'NOT_FOUND',
     'BAD_REQUEST',
     'CONFLICT',
     'INTERNAL_SERVER_ERROR',

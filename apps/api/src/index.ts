@@ -7,14 +7,25 @@ import { ERROR_CATALOG } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
+import { InMemoryLifecycleLock, type AcceptanceJournalPort, type LifecycleLock } from '@cimi/kernel'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
+import {
+  createInstallation,
+  type DataDirectoryReadiness,
+  type UpgradeExecutor,
+} from './resources/installation/index.ts'
 import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
-import { createSite } from './resources/site/index.ts'
-import { systemHealthHandler, type HealthLifecycle } from './health.ts'
+import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
+import {
+  resolveAdmissionGate,
+  systemHealthHandler,
+  type HealthLifecycle,
+  type HealthStatus,
+} from './health.ts'
 import { normalizeApiError } from './errors.ts'
 
 export { normalizeApiError } from './errors.ts'
@@ -31,9 +42,19 @@ export interface CreateApiAppDependencies {
   analytics: AnalyticsDb
   baseUrl?: string | undefined
   lifecycle?: HealthLifecycle | undefined
+  lock?: LifecycleLock | undefined
+  journal?: AcceptanceJournalPort | undefined
+  dataDirectoryReady: DataDirectoryReadiness
+  controlDatabasePath: string
+  dataDirectoryPath: string
+  upgradeExecutor?: UpgradeExecutor | undefined
 }
 
-export function createApiApp(deps: CreateApiAppDependencies): Hono {
+export type ApiApp = Hono & { close(): Promise<void> }
+
+const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
+
+export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   const hello = createHello({ db: deps.db })
   const authority = createOrganizationAuthority(deps.auth)
   const membership = createMembership({ db: deps.db, authority })
@@ -42,13 +63,36 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     authority,
     membership: membership.service,
   })
-  const site = createSite({ db: deps.db, membership: membership.service })
+  const lock = deps.lock ?? getLifecycleLock(deps.db)
+  const installation = createInstallation({
+    db: deps.db,
+    analytics: deps.analytics,
+    lock,
+    ...(deps.journal === undefined ? {} : { journal: deps.journal }),
+    dataDirectoryReady: deps.dataDirectoryReady,
+    controlDatabasePath: deps.controlDatabasePath,
+    dataDirectoryPath: deps.dataDirectoryPath,
+    ...(deps.upgradeExecutor === undefined ? {} : { upgradeExecutor: deps.upgradeExecutor }),
+  })
+  const site = createSite({
+    db: deps.db,
+    lock,
+    lifecycle: installation.service,
+    membership: membership.service,
+  })
+  const siteLifecycleWorker = createSiteLifecycleWorker({ db: deps.db, lock })
+  siteLifecycleWorker.start()
+  void installation.service.resumeOnStartup().catch(() => undefined)
+  const lifecycle = deps.lifecycle ?? {
+    getSnapshot: () => installation.service.snapshotForHealth().then((snapshot) => snapshot ?? {}),
+  }
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
   const router = api.router({
     health: {
-      health: api.health.health.handler(async () => systemHealthHandler(deps)),
+      health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
     },
     hello: hello.router,
+    installation: installation.router,
     organization: organization.router,
     membership: membership.router,
     site: site.router,
@@ -80,6 +124,24 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
         )
         return options.next()
       },
+      async (options) => {
+        const status = await resolveRequestHealthStatus({ ...deps, lifecycle })
+        const gate = resolveAdmissionGate(status)
+        options.context['admission'] = gate.ingestion
+        if (isAdmissionExempt(options.path, options.procedure['~orpc'].meta['admission'])) {
+          return options.next()
+        }
+        if (options.procedure['~orpc'].meta['admission'] === 'analytics-read') {
+          if (gate.analyticsReads === 'unavailable') throw admissionUnavailable()
+          return options.next()
+        }
+        if (options.procedure['~orpc'].meta['admission'] === 'ingestion') {
+          if (gate.ingestion === 'paused') throw admissionUnavailable()
+          return options.next()
+        }
+        if (status === 'maintenance' || status === 'unavailable') throw admissionUnavailable()
+        return options.next()
+      },
     ],
     plugins: [
       new OpenAPIReferencePlugin({
@@ -95,6 +157,11 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
   })
 
   const app = new Hono()
+
+  app.get('/api/system/health', async () => {
+    const health = await systemHealthHandler({ ...deps, lifecycle })
+    return Response.json(health)
+  })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/auth/*', async (c) => {
     if (isNativeGovernanceMutation(c.req.raw)) return new Response('Not Found', { status: 404 })
@@ -125,7 +192,23 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     return new Response('Not Found', { status: 404 })
   })
 
-  return app
+  let closed = false
+  return Object.assign(app, {
+    async close(): Promise<void> {
+      if (closed) return
+      closed = true
+      await siteLifecycleWorker.stop()
+      await installation.service.stop()
+    },
+  })
+}
+
+function getLifecycleLock(db: Db): LifecycleLock {
+  const existing = defaultLifecycleLocks.get(db)
+  if (existing !== undefined) return existing
+  const lock = new InMemoryLifecycleLock()
+  defaultLifecycleLocks.set(db, lock)
+  return lock
 }
 
 const NATIVE_GOVERNANCE_MUTATION_PATHS = new Set([
@@ -163,7 +246,37 @@ function getCoarseAuthorizationLevel(auth: string | undefined): AuthorizationLev
   }
 }
 
+const ADMISSION_EXEMPT_RESOURCES = new Set(['health', 'installation'])
+
+function isAdmissionExempt(path: readonly string[], admission: string | undefined): boolean {
+  if (admission === 'exempt') return true
+  return path.length > 0 && ADMISSION_EXEMPT_RESOURCES.has(path[0]!)
+}
+
+async function resolveRequestHealthStatus(
+  depsWithLifecycle: CreateApiAppDependencies & { lifecycle: HealthLifecycle },
+): Promise<HealthStatus> {
+  try {
+    const health = await systemHealthHandler(depsWithLifecycle)
+    return health.status
+  } catch {
+    return 'unavailable'
+  }
+}
+
+function admissionUnavailable(): ORPCError<string, unknown> {
+  return new ORPCError('SERVICE_UNAVAILABLE', {
+    status: ERROR_CATALOG.SERVICE_UNAVAILABLE.status,
+    message: ERROR_CATALOG.SERVICE_UNAVAILABLE.message,
+  })
+}
+
 async function getUser(auth: Auth, request: Request): Promise<AuthUser | undefined> {
   const session = await auth.api.getSession({ headers: request.headers })
-  return session?.user
+  const sessionUser: AuthUser | undefined = session?.user
+  if (sessionUser === undefined) return undefined
+  return {
+    ...sessionUser,
+    installationGrant: sessionUser.installationGrant ?? sessionUser.role === 'admin',
+  }
 }

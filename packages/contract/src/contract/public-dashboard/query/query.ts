@@ -43,7 +43,7 @@ export const queryPublicDashboard = oc
     tags: ['public-dashboard'],
     successStatus: 200,
   })
-  .meta({ auth: 'public' })
+  .meta({ auth: 'public', admission: 'analytics-read' })
   .errors({
     BAD_REQUEST: {},
     NOT_FOUND: {},

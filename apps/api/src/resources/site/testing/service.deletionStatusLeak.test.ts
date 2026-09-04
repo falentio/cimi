@@ -20,7 +20,7 @@ const deletingStatus = {
   deletedAt: null,
   recoveryDeadline: '2026-09-30T00:00:00.000Z',
   purgeAt: null,
-  cleanup: { status: 'pending' as const, updatedAt: '2026-08-31T00:00:00.000Z', error: null },
+  cleanup: { status: 'pending' as const, updatedAt: '2026-08-31T00:00:00.000Z', errorCode: null },
 }
 
 const purgedStatus = {
@@ -31,7 +31,7 @@ const purgedStatus = {
   deletedAt: '2026-10-02T00:00:00.000Z',
   recoveryDeadline: '2026-10-02T00:00:00.000Z',
   purgeAt: '2026-10-02T00:00:00.000Z',
-  cleanup: { status: 'complete' as const, updatedAt: '2026-10-02T00:00:00.000Z', error: null },
+  cleanup: { status: 'complete' as const, updatedAt: '2026-10-02T00:00:00.000Z', errorCode: null },
 }
 
 describe('SiteService.getDeletionStatus allowlist', () => {

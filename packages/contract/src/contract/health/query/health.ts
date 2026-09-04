@@ -21,6 +21,6 @@ export const health = oc
     tags: ['health'],
     successStatus: 200,
   })
-  .meta({ auth: 'public' })
+  .meta({ auth: 'public', admission: 'exempt' })
   .errors({ INTERNAL_SERVER_ERROR: {} })
   .output(SHealthOutput)

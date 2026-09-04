@@ -83,7 +83,7 @@ The Ingestion Identifier is never a read or management credential.
 
 **Purpose:** Report asynchronous Site deletion, recovery, and purge status without returning hidden Site data or credentials.
 
-**Behavior:** Require persisted Owner or Administrator Site-management scope. Return the lifecycle status, operation ID, requested/deleted timestamps, recovery deadline, purge time, and cleanup status/error summary. The query may report `active`, `deleting`, `deleted`, `recovering`, or `purged`; it never returns the Site configuration, Ingestion Identifier, or Public Dashboard Identifier. Unknown or inaccessible Sites return indistinguishable `NOT_FOUND`.
+**Behavior:** Require persisted Owner or Administrator Site-management scope. Return the lifecycle status, operation ID, requested/deleted timestamps, recovery deadline, purge time, cleanup status, and safe cleanup error code. The query may report `active`, `deleting`, `deleted`, `recovering`, or `purged`; it never returns the Site configuration, Ingestion Identifier, or Public Dashboard Identifier. Unknown or inaccessible Sites return indistinguishable `NOT_FOUND`.
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
 

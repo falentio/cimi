@@ -25,6 +25,7 @@ export function assertAuthenticated(user: AuthUser | undefined): asserts user is
 export function assertInstallationAdmin(user: AuthUser | undefined): void {
   assertAuthenticated(user)
   assertIsAdmin(user)
+  if (user.installationGrant !== true) throw new ORPCError('FORBIDDEN')
 }
 
 export function assertAuthorization(user: AuthUser | undefined, level: AuthorizationLevel): void {
