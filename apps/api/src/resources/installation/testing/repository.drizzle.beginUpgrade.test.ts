@@ -28,8 +28,14 @@ describe('InstallationRepositoryDrizzle.beginUpgrade', () => {
       activeOperation: expect.objectContaining({
         operationId: 'bop_1',
         kind: 'upgrade',
+        phase: 'pre_upgrade_safety',
         checkpoint: 'none',
+        progress: 0,
       }),
+      updatedAt: updatedAt.toISOString(),
+    })
+    expect(fixture.db.select().from(schema.TInstallation).all()[0]).toMatchObject({
+      activeOperationOwnerToken: 'owner_1',
     })
     const operations = fixture.db
       .select()
@@ -37,6 +43,7 @@ describe('InstallationRepositoryDrizzle.beginUpgrade', () => {
       .where(eq(schema.TBackupOperation.id, 'bop_1'))
       .all()
     expect(operations).toHaveLength(1)
+    expect(operations[0]).toMatchObject({ ownerToken: 'owner_1' })
     expect(
       fixture.db
         .select()
@@ -46,19 +53,41 @@ describe('InstallationRepositoryDrizzle.beginUpgrade', () => {
     ).toHaveLength(0)
   })
 
-  it('rolls back a failed beginUpgrade', async () => {
+  it('throws when a different upgrade is already active', async () => {
     using fixture = createInstallationDrizzleFixture()
     await fixture.repository.insert(createInstallationInsertInput())
     await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
 
     await expect(
       fixture.repository.beginUpgrade(
-        beginUpgradeInput('bop_1', new Date('2026-09-02T00:00:00.000Z')),
+        beginUpgradeInput('bop_2', new Date('2026-09-02T00:00:00.000Z')),
       ),
-    ).rejects.toThrow(/constraint|unique|reserved|lifecycle operation is active/i)
+    ).rejects.toThrow('Installation lifecycle operation is active')
 
     const current = await fixture.repository.find()
     expect(current?.activeOperation).toMatchObject({ operationId: 'bop_1' })
     expect(current?.updatedAt).toBe(updatedAt.toISOString())
+  })
+
+  it('rejects reusing an operation id', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert(createInstallationInsertInput())
+    await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
+    await fixture.repository.completeUpgrade({
+      operationId: 'bop_1',
+      ownerToken: 'owner_1',
+      now: new Date('2026-09-01T00:03:00.000Z'),
+    })
+
+    await expect(
+      fixture.repository.beginUpgrade(
+        beginUpgradeInput('bop_1', new Date('2026-09-01T00:04:00.000Z')),
+      ),
+    ).rejects.toThrow(/UNIQUE constraint failed.*backup_operation/i)
+
+    await expect(fixture.repository.find()).resolves.toMatchObject({
+      status: 'ready',
+      activeOperation: null,
+    })
   })
 })

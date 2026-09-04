@@ -30,6 +30,104 @@ describe('InstallationRepositoryDrizzle.failUpgrade', () => {
     await expect(fixture.repository.find()).resolves.toMatchObject({
       status: 'degraded',
       activeOperation: null,
+      updatedAt: new Date('2026-09-01T00:04:00.000Z').toISOString(),
+    })
+  })
+
+  it('returns undefined when failing without an active operation', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert(createInstallationInsertInput())
+
+    await expect(
+      fixture.repository.failUpgrade({
+        operationId: 'bop_1',
+        ownerToken: 'owner_1',
+        now: new Date('2026-09-01T00:04:00.000Z'),
+      }),
+    ).resolves.toBeUndefined()
+    await expect(fixture.repository.find()).resolves.toMatchObject({
+      status: 'ready',
+      activeOperation: null,
+    })
+  })
+
+  it('returns undefined for a mismatched operation id', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert(createInstallationInsertInput())
+    await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
+
+    await expect(
+      fixture.repository.failUpgrade({
+        operationId: 'bop_2',
+        ownerToken: 'owner_1',
+        now: new Date('2026-09-01T00:04:00.000Z'),
+      }),
+    ).resolves.toBeUndefined()
+    await expect(fixture.repository.find()).resolves.toMatchObject({
+      status: 'maintenance',
+      activeOperation: expect.objectContaining({ operationId: 'bop_1' }),
+    })
+  })
+
+  it('returns undefined for a mismatched owner token', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert(createInstallationInsertInput())
+    await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
+
+    await expect(
+      fixture.repository.failUpgrade({
+        operationId: 'bop_1',
+        ownerToken: 'owner_2',
+        now: new Date('2026-09-01T00:04:00.000Z'),
+      }),
+    ).resolves.toBeUndefined()
+    await expect(fixture.repository.find()).resolves.toMatchObject({
+      status: 'maintenance',
+      activeOperation: expect.objectContaining({ operationId: 'bop_1' }),
+    })
+  })
+
+  it('returns undefined when failing twice', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert(createInstallationInsertInput())
+    await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
+    await fixture.repository.failUpgrade({
+      operationId: 'bop_1',
+      ownerToken: 'owner_1',
+      now: new Date('2026-09-01T00:04:00.000Z'),
+    })
+
+    await expect(
+      fixture.repository.failUpgrade({
+        operationId: 'bop_1',
+        ownerToken: 'owner_1',
+        now: new Date('2026-09-01T00:05:00.000Z'),
+      }),
+    ).resolves.toBeUndefined()
+    await expect(fixture.repository.find()).resolves.toMatchObject({
+      status: 'degraded',
+      activeOperation: null,
+      updatedAt: new Date('2026-09-01T00:04:00.000Z').toISOString(),
+    })
+  })
+
+  it('begins a new operation after failing', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert(createInstallationInsertInput())
+    await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
+    await fixture.repository.failUpgrade({
+      operationId: 'bop_1',
+      ownerToken: 'owner_1',
+      now: new Date('2026-09-01T00:04:00.000Z'),
+    })
+
+    const record = await fixture.repository.beginUpgrade(
+      beginUpgradeInput('bop_2', new Date('2026-09-01T00:05:00.000Z')),
+    )
+
+    expect(record).toMatchObject({
+      status: 'maintenance',
+      activeOperation: expect.objectContaining({ operationId: 'bop_2' }),
     })
   })
 })
