@@ -129,4 +129,141 @@ describe('InstallationService.resumeOnStartup', () => {
     expect(result).toMatchObject({ status: 'ready', activeOperation: null })
     expect(repository.claimUpgrade).not.toHaveBeenCalled()
   })
+
+  it('returns undefined without claiming when the lock is held', async () => {
+    const { repository, lock, service } = createInstallationFixture({ clock: staleClock })
+    const lease = lock.acquire('upgrade')
+    expect(lease).toBeDefined()
+    try {
+      await expect(service.resumeOnStartup()).resolves.toBeUndefined()
+      expect(repository.find).not.toHaveBeenCalled()
+      expect(repository.claimUpgrade).not.toHaveBeenCalled()
+    } finally {
+      if (lease !== undefined) lease.release()
+    }
+  })
+
+  it('returns undefined when no installation record exists', async () => {
+    const { repository, service } = createInstallationFixture({ clock: staleClock })
+    repository.find.mockResolvedValue(undefined)
+
+    await expect(service.resumeOnStartup()).resolves.toBeUndefined()
+    expect(repository.claimUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('leaves a site_recovery operation for the site worker', async () => {
+    const { repository, service } = createInstallationFixture({ clock: staleClock })
+    const recoveryOperation = { ...activeOperation, kind: 'site_recovery' as const }
+    repository.find.mockResolvedValue(
+      createInstallationRecord({ status: 'ready', activeOperation: recoveryOperation }),
+    )
+
+    const result = await service.resumeOnStartup()
+
+    expect(result).toMatchObject({ status: 'ready', activeOperation: recoveryOperation })
+    expect(repository.claimUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('leaves a site_purge operation for the site worker', async () => {
+    const { repository, service } = createInstallationFixture({ clock: staleClock })
+    const purgeOperation = { ...activeOperation, kind: 'site_purge' as const }
+    repository.find.mockResolvedValue(
+      createInstallationRecord({ status: 'ready', activeOperation: purgeOperation }),
+    )
+
+    const result = await service.resumeOnStartup()
+
+    expect(result).toMatchObject({ status: 'ready', activeOperation: purgeOperation })
+    expect(repository.claimUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('skips creating a safety artifact when one already exists', async () => {
+    const createSafetyArtifact = vi.fn()
+    const migrate = vi.fn().mockResolvedValue(undefined)
+    const executor = createFakeUpgradeExecutor({
+      createSafetyArtifact,
+      migrate,
+      rebuildAnalytics: vi.fn().mockResolvedValue(undefined),
+    })
+    const { repository, service } = createInstallationFixture({
+      clock: staleClock,
+      upgradeExecutor: executor,
+    })
+    const stored = createInstallationRecord({
+      status: 'maintenance',
+      activeOperation,
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const claimed = createInstallationRecord({
+      status: 'recovering',
+      activeOperation,
+      updatedAt: '2026-09-01T00:10:00.000Z',
+    })
+    repository.find.mockResolvedValue(stored)
+    repository.claimUpgrade.mockResolvedValue(claimed)
+    repository.findSafetyArtifact.mockResolvedValue({
+      id: 'bar_1',
+      generationId: 'bop_1',
+      storageKey: 'safety/bop_1.sqlite',
+      schemaVersion: '1',
+      sizeBytes: 8,
+      checksumAlgorithm: 'sha256' as const,
+      checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    })
+    repository.updateUpgradeProgress.mockResolvedValue(claimed)
+    repository.completeUpgrade.mockResolvedValue(createInstallationRecord())
+
+    const result = await service.resumeOnStartup()
+    await service.stop()
+
+    expect(result).toMatchObject({ status: 'recovering' })
+    expect(createSafetyArtifact).not.toHaveBeenCalled()
+    expect(migrate).toHaveBeenCalledWith({ operationId: 'bop_1' })
+  })
+
+  it('records a failed upgrade when migration throws', async () => {
+    const executor = createFakeUpgradeExecutor({
+      createSafetyArtifact: vi.fn().mockResolvedValue({
+        id: 'bar_1',
+        generationId: 'bop_1',
+        storageKey: 'safety/bop_1.sqlite',
+        schemaVersion: '1',
+        sizeBytes: 8,
+        checksumAlgorithm: 'sha256' as const,
+        checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      }),
+      migrate: vi.fn().mockRejectedValue(new Error('migration failed')),
+      rebuildAnalytics: vi.fn().mockResolvedValue(undefined),
+    })
+    const { repository, service } = createInstallationFixture({
+      clock: staleClock,
+      upgradeExecutor: executor,
+    })
+    const stored = createInstallationRecord({
+      status: 'maintenance',
+      activeOperation,
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const claimed = createInstallationRecord({
+      status: 'recovering',
+      activeOperation,
+      updatedAt: '2026-09-01T00:10:00.000Z',
+    })
+    repository.find.mockResolvedValue(stored)
+    repository.claimUpgrade.mockResolvedValue(claimed)
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.recordSafetyArtifact.mockResolvedValue(claimed)
+    repository.updateUpgradeProgress.mockResolvedValue(claimed)
+    repository.failUpgrade.mockResolvedValue(
+      createInstallationRecord({ status: 'degraded', activeOperation: null }),
+    )
+
+    await service.resumeOnStartup()
+    await service.stop()
+
+    expect(repository.failUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ operationId: 'bop_1' }),
+    )
+    expect(repository.completeUpgrade).not.toHaveBeenCalled()
+  })
 })

@@ -319,4 +319,25 @@ describe('InstallationService.initialize', () => {
     await expect(service.initialize(input, member)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     expect(repository.find).not.toHaveBeenCalled()
   })
+
+  it('propagates an activation failure', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({ status: 'uninitialized', dataDirectoryReady: true }),
+    )
+    repository.activate.mockRejectedValue(new Error('boom'))
+
+    await expect(service.initialize(input, admin)).rejects.toThrow('boom')
+  })
+
+  it('conflicts on a missing data directory for a fresh installation', async () => {
+    const { repository, service } = createInstallationFixture({ dataDirectoryReady: false })
+    repository.find.mockResolvedValue(undefined)
+
+    await expect(service.initialize(input, admin)).rejects.toMatchObject({
+      code: 'CONFLICT',
+      status: 409,
+    })
+    expect(repository.insert).not.toHaveBeenCalled()
+  })
 })
