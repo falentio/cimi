@@ -6,7 +6,7 @@ import {
   createInstallationRecord,
 } from '../fixture.ts'
 
-const admin = { id: 'user_1', role: 'admin' } as unknown as AuthUser
+const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
 const input = { confirmation: 'UPGRADE' } as const
 const ids = {
   installationId: () => 'ins_1',
@@ -228,7 +228,7 @@ describe('InstallationService.upgrade', () => {
     )
   })
 
-  it('skips rollback and failUpgrade when recordSafetyArtifact loses ownership', async () => {
+  it('records failure without rollback when recordSafetyArtifact loses ownership', async () => {
     const rollback = vi.fn().mockResolvedValue(undefined)
     const executor = createFakeUpgradeExecutor({ rollback })
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
@@ -241,18 +241,28 @@ describe('InstallationService.upgrade', () => {
     await service.upgrade(input, admin)
     await service.stop()
 
-    expect(repository.failUpgrade).not.toHaveBeenCalled()
+    expect(repository.failUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ operationId: 'bop_1' }),
+    )
     expect(rollback).not.toHaveBeenCalled()
   })
 
-  it('skips rollback and failUpgrade when progress 0.5 loses ownership', async () => {
+  it('records failure without rollback when progress 0.5 loses ownership', async () => {
     const rollback = vi.fn().mockResolvedValue(undefined)
     const executor = createFakeUpgradeExecutor({ rollback })
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+    const existing = {
+      id: 'bar_1',
+      generationId: 'bop_1',
+      storageKey: 'safety/bop_1.sqlite',
+      schemaVersion: '1',
+      sizeBytes: 8,
+      checksumAlgorithm: 'sha256' as const,
+      checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    }
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
-    repository.findSafetyArtifact.mockResolvedValue(undefined)
-    repository.recordSafetyArtifact.mockResolvedValue(maintenanceRecord())
+    repository.findSafetyArtifact.mockResolvedValue(existing)
     repository.updateUpgradeProgress.mockImplementation(async (update) =>
       update.progress === 0.5 ? undefined : maintenanceRecord(),
     )
@@ -261,7 +271,9 @@ describe('InstallationService.upgrade', () => {
     await service.upgrade(input, admin)
     await service.stop()
 
-    expect(repository.failUpgrade).not.toHaveBeenCalled()
+    expect(repository.failUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ operationId: 'bop_1' }),
+    )
     expect(rollback).not.toHaveBeenCalled()
   })
 
