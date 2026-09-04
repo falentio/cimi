@@ -9,6 +9,13 @@ describe('InstallationService.snapshotForHealth', () => {
     await expect(service.snapshotForHealth()).resolves.toBeUndefined()
   })
 
+  it('propagates find failures', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockRejectedValue(new Error('boom'))
+
+    await expect(service.snapshotForHealth()).rejects.toThrow('boom')
+  })
+
   it('maps a ready row to a ready snapshot', async () => {
     const { repository, service } = createInstallationFixture()
     repository.find.mockResolvedValue(createInstallationRecord())
@@ -76,6 +83,34 @@ describe('InstallationService.snapshotForHealth', () => {
     })
   })
 
+  it('propagates backup cleanupPending', async () => {
+    const { repository, service } = createInstallationFixture()
+    const stamp = '2026-09-01T00:00:00.000Z'
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'ready',
+        cleanupPending: true,
+        derivedCleanup: {
+          status: 'completed',
+          startedAt: stamp,
+          completedAt: stamp,
+          errorCode: null,
+        },
+        backupCleanup: {
+          status: 'running',
+          startedAt: stamp,
+          completedAt: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.snapshotForHealth()).resolves.toEqual({
+      installationStatus: 'ready',
+      cleanupPending: true,
+    })
+  })
+
   it.each([
     { status: 'pending', pending: true },
     { status: 'not_started', pending: true },
@@ -102,6 +137,6 @@ describe('InstallationService.snapshotForHealth', () => {
     )
 
     const snapshot = await service.snapshotForHealth()
-    expect(snapshot?.cleanupPending).toBe(pending)
+    expect(snapshot).toEqual({ installationStatus: 'ready', cleanupPending: pending })
   })
 })

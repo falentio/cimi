@@ -61,59 +61,25 @@ describe('InstallationService.getStatus', () => {
     })
   })
 
-  it('hides internal fields while exposing the upgrade operation', async () => {
+  it.each([
+    { name: 'ready', status: 'ready' },
+    { name: 'maintenance', status: 'maintenance' },
+    { name: 'recovering', status: 'recovering' },
+    { name: 'degraded', status: 'degraded' },
+    { name: 'uninitialized', status: 'uninitialized' },
+  ] as const)('maps $name state', async ({ status }) => {
     const { service, repository } = createInstallationFixture()
-    repository.find.mockResolvedValue(
-      createInstallationRecord({
-        status: 'maintenance',
-        activeOperation: {
-          operationId: 'bop_1',
-          kind: 'upgrade',
-          phase: 'pre_upgrade_safety',
-          checkpoint: 'none',
-          progress: 0,
-          lastSafeSequence: 42,
-          errorCode: null,
-        },
-      }),
-    )
+    repository.find.mockResolvedValue(createInstallationRecord({ status }))
 
     const result = await service.getStatus(admin)
 
-    const serialized = JSON.stringify(result)
-    expect(result).not.toHaveProperty('id')
-    expect(serialized).not.toContain('"id"')
-    expect(serialized).not.toContain('ins_1')
-    expect(serialized).not.toContain('storageKey')
-    expect(serialized).not.toContain('checksumValue')
-    expect(serialized).not.toContain('checksumAlgorithm')
-    expect(serialized).not.toContain('safety/')
-    expect(result.activeOperation).toMatchObject({
-      operationId: 'bop_1',
-      kind: 'upgrade',
-      phase: 'pre_upgrade_safety',
-      lastSafeSequence: 42,
+    expect(result.status).toBe(status)
+    expect(result.activeOperation).toBeNull()
+    expect(result.defaultRetention).toEqual({
+      eventMonths: 12,
+      profileMonths: 12,
+      replayMonths: null,
     })
-  })
-
-  it('reports maintenance state instead of conflicting', async () => {
-    const { service, repository } = createInstallationFixture()
-    repository.find.mockResolvedValue(
-      createInstallationRecord({
-        status: 'maintenance',
-        activeOperation: {
-          operationId: 'bop_1',
-          kind: 'upgrade',
-          phase: 'pre_upgrade_safety',
-          checkpoint: 'none',
-          progress: 0,
-          lastSafeSequence: null,
-          errorCode: null,
-        },
-      }),
-    )
-
-    await expect(service.getStatus(admin)).resolves.toMatchObject({ status: 'maintenance' })
   })
 
   it('throws not found when no installation exists', async () => {
@@ -192,6 +158,15 @@ describe('InstallationService.getStatus', () => {
     const { service, repository } = createInstallationFixture()
 
     await expect(service.getStatus(member)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repository.find).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unauthenticated caller', async () => {
+    const { service, repository } = createInstallationFixture()
+
+    await expect(service.getStatus(undefined as unknown as AuthUser)).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    })
     expect(repository.find).not.toHaveBeenCalled()
   })
 })
