@@ -54,7 +54,7 @@ describe('resolveInstallationHealth', () => {
     },
   )
 
-  it('maps degraded installation with healthy stores to degraded', () => {
+  it('maps degraded installation with healthy stores to healthy', () => {
     expect(
       resolveInstallationHealth({
         installationStatus: 'degraded',
@@ -62,7 +62,7 @@ describe('resolveInstallationHealth', () => {
         analyticsStore: 'ready',
         cleanupPending: false,
       }),
-    ).toBe('degraded')
+    ).toBe('healthy')
   })
 
   it('maps degraded installation with cleanup to degraded', () => {

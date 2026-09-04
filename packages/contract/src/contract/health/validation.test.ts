@@ -70,7 +70,7 @@ describe('health contract', () => {
     ).toThrow(v.ValiError)
   })
 
-  it('accepts degraded output when both stores are ready without cleanup', () => {
+  it('rejects degraded output when both stores are ready without cleanup', () => {
     expect(() =>
       v.parse(SHealthOutput, {
         status: 'degraded',
@@ -80,7 +80,7 @@ describe('health contract', () => {
         version: '0.0.1',
         checkedAt: '2026-08-23T00:00:00Z',
       }),
-    ).not.toThrow()
+    ).toThrow(v.ValiError)
   })
 
   it('accepts the recovering and maintenance matrix rows', () => {

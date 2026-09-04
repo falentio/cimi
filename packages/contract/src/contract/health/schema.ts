@@ -27,7 +27,7 @@ const isAllowedHealthState = ({
     return controlStore === 'ready' && analyticsStore === 'ready' && !cleanupPending
   }
   if (status === 'degraded') {
-    return controlStore === 'ready'
+    return controlStore === 'ready' && (analyticsStore !== 'ready' || cleanupPending)
   }
   if (status === 'recovering' || status === 'maintenance') {
     return controlStore === 'ready'

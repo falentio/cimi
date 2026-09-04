@@ -46,7 +46,6 @@ export function resolveInstallationHealth(input: InstallationHealthInput): Healt
   if (input.installationStatus === 'recovering') return 'recovering'
   if (input.installationStatus === 'maintenance') return 'maintenance'
   if (input.installationStatus === 'uninitialized') return 'recovering'
-  if (input.installationStatus === 'degraded') return 'degraded'
   if (input.analyticsStore !== 'ready' || input.cleanupPending) return 'degraded'
   return 'healthy'
 }
