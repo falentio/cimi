@@ -2,11 +2,26 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { migrateControlDb, restoreDbFromBackup, type Db } from '@cimi/db'
+import { ORPCError } from '@orpc/server'
 import type { InstallationRepository } from './repository.ts'
 import type { UpgradeExecutor } from './service.ts'
 
 export class UpgradeIncompatibilityError extends Error {}
 export class InsufficientStorageError extends Error {}
+export class SafetyArtifactUnavailableError extends Error {}
+export class SafetyArtifactChecksumMismatchError extends Error {}
+
+export function classifyStorageExhausted(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException)?.code
+  if (code === 'ENOSPC' || code === 'SQLITE_FULL') return true
+  if (typeof code === 'string' && code.startsWith('SQLITE_IOERR')) return true
+  const message = error instanceof Error ? error.message : String(error)
+  return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)
+}
+
+export function assertSafeOperationId(id: string): void {
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new ORPCError('BAD_REQUEST')
+}
 
 export interface SqliteUpgradeExecutorDependencies {
   db: Db
@@ -37,6 +52,7 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     operationId: string
     artifactId: string
   }): Promise<InstallationRepository.SafetyArtifactInput> {
+    assertSafeOperationId(input.operationId)
     const storageKey = `safety/${input.operationId}.sqlite`
     const artifactPath = join(this.dataDirectoryPath, storageKey)
     try {
@@ -58,9 +74,12 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
       }
     } catch (error) {
       if (error instanceof InsufficientStorageError) throw error
-      throw new InsufficientStorageError('SQLite safety artifact storage failed', {
-        cause: error,
-      })
+      if (classifyStorageExhausted(error)) {
+        throw new InsufficientStorageError('SQLite safety artifact storage failed', {
+          cause: error,
+        })
+      }
+      throw error
     }
   }
 
@@ -72,7 +91,7 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
       if (/incompatible|newer|unsupported|schema version/i.test(message)) {
         throw new UpgradeIncompatibilityError(message, { cause: error })
       }
-      if (/storage|space|ENOSPC/i.test(message)) {
+      if (classifyStorageExhausted(error)) {
         throw new InsufficientStorageError(message, { cause: error })
       }
       throw error
@@ -88,13 +107,14 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     operationId: string
     artifact: InstallationRepository.SafetyArtifactInput
   }): Promise<void> {
+    assertSafeOperationId(input.operationId)
     const artifactPath = join(this.dataDirectoryPath, input.artifact.storageKey)
     let artifactStats: Awaited<ReturnType<typeof stat>>
     try {
       artifactStats = await stat(artifactPath)
     } catch (error) {
       if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-        throw new InsufficientStorageError(
+        throw new SafetyArtifactUnavailableError(
           `SQLite safety artifact is unavailable for ${input.operationId}`,
           { cause: error },
         )
@@ -102,13 +122,17 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
       throw error
     }
     if (!artifactStats.isFile() || artifactStats.size !== input.artifact.sizeBytes) {
-      throw new Error(`SQLite safety artifact is unavailable for ${input.operationId}`)
+      throw new SafetyArtifactChecksumMismatchError(
+        `SQLite safety artifact is unavailable for ${input.operationId}`,
+      )
     }
     const checksum = createHash('sha256')
       .update(await readFile(artifactPath))
       .digest('hex')
     if (checksum !== input.artifact.checksumValue) {
-      throw new Error(`SQLite safety artifact checksum mismatch for ${input.operationId}`)
+      throw new SafetyArtifactChecksumMismatchError(
+        `SQLite safety artifact checksum mismatch for ${input.operationId}`,
+      )
     }
     await restoreDbFromBackup({
       backupPath: artifactPath,
