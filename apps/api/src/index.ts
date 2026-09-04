@@ -19,8 +19,8 @@ import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts
 import {
   resolveAdmissionGate,
   systemHealthHandler,
-  type AdmissionGate,
   type HealthLifecycle,
+  type HealthStatus,
 } from './health.ts'
 import { normalizeApiError } from './errors.ts'
 
@@ -118,7 +118,8 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
         return options.next()
       },
       async (options) => {
-        const gate = await resolveRequestAdmissionGate({ ...deps, lifecycle })
+        const status = await resolveRequestHealthStatus({ ...deps, lifecycle })
+        const gate = resolveAdmissionGate(status)
         options.context['admission'] = gate.ingestion
         if (isAdmissionExempt(options.path, options.procedure['~orpc'].meta['admission'])) {
           return options.next()
@@ -127,7 +128,11 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
           if (gate.analyticsReads === 'unavailable') throw admissionUnavailable()
           return options.next()
         }
-        if (gate.ingestion === 'paused') throw admissionUnavailable()
+        if (options.procedure['~orpc'].meta['admission'] === 'ingestion') {
+          if (gate.ingestion === 'paused') throw admissionUnavailable()
+          return options.next()
+        }
+        if (status === 'maintenance' || status === 'unavailable') throw admissionUnavailable()
         return options.next()
       },
     ],
@@ -233,14 +238,14 @@ function isAdmissionExempt(path: readonly string[], admission: string | undefine
   return path.length > 0 && ADMISSION_EXEMPT_RESOURCES.has(path[0]!)
 }
 
-async function resolveRequestAdmissionGate(
+async function resolveRequestHealthStatus(
   depsWithLifecycle: CreateApiAppDependencies & { lifecycle: HealthLifecycle },
-): Promise<AdmissionGate> {
+): Promise<HealthStatus> {
   try {
     const health = await systemHealthHandler(depsWithLifecycle)
-    return resolveAdmissionGate(health.status)
+    return health.status
   } catch {
-    return { ingestion: 'paused', analyticsReads: 'unavailable' }
+    return 'unavailable'
   }
 }
 
@@ -253,5 +258,10 @@ function admissionUnavailable(): ORPCError<string, unknown> {
 
 async function getUser(auth: Auth, request: Request): Promise<AuthUser | undefined> {
   const session = await auth.api.getSession({ headers: request.headers })
-  return session?.user
+  const sessionUser: AuthUser | undefined = session?.user
+  if (sessionUser === undefined) return undefined
+  return {
+    ...sessionUser,
+    installationGrant: sessionUser.installationGrant ?? sessionUser.role === 'admin',
+  }
 }
