@@ -237,9 +237,21 @@ export class InstallationService implements LifecycleOperationStatusReader {
         if (!isConstraintError(error)) throw error
         throw new ORPCError('CONFLICT', { status: 409 })
       }
+      try {
+        await this.journal.drain()
+      } catch (error) {
+        try {
+          await this.repository.failUpgrade({
+            operationId,
+            ownerToken,
+            errorCode: 'INTERNAL_SERVER_ERROR',
+            now: this.clock(),
+          })
+        } catch {}
+        throw error
+      }
       this.upgradeLease = lease
       retainLease = true
-      // Lock-held quiescence: 202 returns while drain runs first in background.
       this.startUpgradeExecution({
         operationId,
         ownerToken,
@@ -372,7 +384,6 @@ export class InstallationService implements LifecycleOperationStatusReader {
     let artifact: InstallationRepository.SafetyArtifactInput | undefined
     let ownershipLost = false
     try {
-      await this.journal.drain()
       artifact = await this.repository.findSafetyArtifact(input.operationId)
       let safetyRecorded = false
       if (artifact === undefined) {
