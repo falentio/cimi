@@ -105,7 +105,15 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   }
 
   const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
-  const controlStore = controlDatabase ? (lifecycle.controlStore ?? 'ready') : 'unavailable'
+  let dataDirectoryReady = false
+  try {
+    dataDirectoryReady =
+      typeof deps.dataDirectoryReady === 'function'
+        ? deps.dataDirectoryReady()
+        : deps.dataDirectoryReady
+  } catch {}
+  const controlStore =
+    controlDatabase && dataDirectoryReady ? (lifecycle.controlStore ?? 'ready') : 'unavailable'
   const analyticsStore = analyticsDatabase ? (lifecycle.analyticsStore ?? 'ready') : 'unavailable'
   const cleanupPending = lifecycle.cleanupPending ?? false
 

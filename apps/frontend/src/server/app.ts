@@ -22,7 +22,8 @@ export async function createFrontendServerApp(
   env: Record<string, string | undefined> = process.env,
 ): Promise<FrontendServerApp> {
   const cfg = loadConfig(env)
-  mkdirSync(cfg.dataDir, { recursive: true })
+  const dataDirectoryReady = isDirectory(cfg.dataDir)
+  if (!dataDirectoryReady) throw new Error('Configured data directory is not ready')
   const controlDbPath = resolveControlDbPath(env, process.cwd())
   mkdirSync(dirname(controlDbPath), { recursive: true })
   const db = createDb({ path: controlDbPath })
@@ -44,7 +45,7 @@ export async function createFrontendServerApp(
         auth,
         analytics,
         baseUrl: cfg.baseUrl,
-        dataDirectoryReady: statSync(cfg.dataDir).isDirectory(),
+        dataDirectoryReady: () => isDirectory(cfg.dataDir),
         controlDatabasePath: controlDbPath,
         dataDirectoryPath: cfg.dataDir,
       })
@@ -71,6 +72,14 @@ export async function createFrontendServerApp(
   } catch (error) {
     closeDb(db)
     throw error
+  }
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
   }
 }
 

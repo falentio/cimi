@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { closeDb, createDb } from '../../client.ts'
 import {
+  ControlMigrationIncompatibilityError,
   migrateControlDb,
   migrateControlDbAtPath,
   resolveControlDbPath,
@@ -908,5 +909,19 @@ describe('createDb + migrateControlDb', () => {
     migrateControlDbAtPath(configuredPath)
 
     await expect(access(configuredPath)).resolves.toBeUndefined()
+  })
+
+  it('rejects a future control migration before running the migrator', () => {
+    const db = createMigratedTestDb()
+
+    try {
+      db.$client
+        .prepare('INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)')
+        .run('0'.repeat(64), 9_999_999_999_999)
+
+      expect(() => migrateControlDb(db)).toThrow(ControlMigrationIncompatibilityError)
+    } finally {
+      closeDb(db)
+    }
   })
 })

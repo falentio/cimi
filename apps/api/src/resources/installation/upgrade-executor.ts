@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { migrateControlDb, restoreDbFromBackup, type Db } from '@cimi/db'
+import {
+  ControlMigrationIncompatibilityError,
+  migrateControlDb,
+  restoreDbFromBackup,
+  type Db,
+} from '@cimi/db'
 import { ORPCError } from '@orpc/server'
 import type { InstallationRepository } from './repository.ts'
 import type { UpgradeExecutor } from './service.ts'
@@ -56,6 +61,10 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     const storageKey = `safety/${input.operationId}.sqlite`
     const artifactPath = join(this.dataDirectoryPath, storageKey)
     try {
+      const dataDirectory = await stat(this.dataDirectoryPath)
+      if (!dataDirectory.isDirectory()) {
+        throw new Error('Configured data directory is not ready')
+      }
       await mkdir(dirname(artifactPath), { recursive: true })
       await this.db.$client.backup(artifactPath)
       const artifactStats = await stat(artifactPath)
@@ -87,6 +96,9 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     try {
       migrateControlDb(this.db)
     } catch (error) {
+      if (error instanceof ControlMigrationIncompatibilityError) {
+        throw new UpgradeIncompatibilityError(error.message, { cause: error })
+      }
       const message = error instanceof Error ? error.message : String(error)
       if (/incompatible|newer|unsupported|schema version/i.test(message)) {
         throw new UpgradeIncompatibilityError(message, { cause: error })
@@ -137,6 +149,8 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     await restoreDbFromBackup({
       backupPath: artifactPath,
       destinationPath: this.controlDatabasePath,
+      db: this.db,
     })
+    await this.analyticsRebuild({ operationId: input.operationId })
   }
 }

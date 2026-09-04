@@ -1,15 +1,16 @@
-import type { Db } from '@cimi/db'
+import type { AnalyticsDb, Db } from '@cimi/db'
 import { InMemoryAcceptanceJournalPort } from '@cimi/kernel'
 import type { AcceptanceJournalPort, LifecycleLock } from '@cimi/kernel'
 import { InstallationRepositoryDrizzle } from './repository.drizzle.ts'
 import { installationRouter } from './router.ts'
 import { InstallationService } from './service.ts'
 import { SqliteUpgradeExecutor } from './upgrade-executor.ts'
-import type { InstallationIdFactory, UpgradeExecutor } from './service.ts'
+import type { DataDirectoryReadiness, InstallationIdFactory, UpgradeExecutor } from './service.ts'
 
 export { installationRouter }
 export {
   InstallationService,
+  type DataDirectoryReadiness,
   type InstallationServiceDependencies,
   type UpgradeExecutor,
 } from './service.ts'
@@ -24,9 +25,10 @@ export type { InstallationRepository } from './repository.ts'
 
 export interface CreateInstallationDependencies {
   db: Db
+  analytics: AnalyticsDb
   lock: LifecycleLock
   journal?: AcceptanceJournalPort | undefined
-  dataDirectoryReady: boolean
+  dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
   clock?: (() => Date) | undefined
@@ -36,6 +38,7 @@ export interface CreateInstallationDependencies {
 
 export function createInstallation({
   db,
+  analytics,
   lock,
   journal,
   dataDirectoryReady,
@@ -47,7 +50,13 @@ export function createInstallation({
 }: CreateInstallationDependencies) {
   const repository = new InstallationRepositoryDrizzle({ db })
   const executor =
-    upgradeExecutor ?? new SqliteUpgradeExecutor({ db, controlDatabasePath, dataDirectoryPath })
+    upgradeExecutor ??
+    new SqliteUpgradeExecutor({
+      db,
+      controlDatabasePath,
+      dataDirectoryPath,
+      analyticsRebuild: () => analytics.rebuild({ controlDb: db }),
+    })
   const service = new InstallationService({
     repository,
     lock,

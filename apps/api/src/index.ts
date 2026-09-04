@@ -11,7 +11,11 @@ import { InMemoryLifecycleLock, type AcceptanceJournalPort, type LifecycleLock }
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
-import { createInstallation, type UpgradeExecutor } from './resources/installation/index.ts'
+import {
+  createInstallation,
+  type DataDirectoryReadiness,
+  type UpgradeExecutor,
+} from './resources/installation/index.ts'
 import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
@@ -40,13 +44,15 @@ export interface CreateApiAppDependencies {
   lifecycle?: HealthLifecycle | undefined
   lock?: LifecycleLock | undefined
   journal?: AcceptanceJournalPort | undefined
-  dataDirectoryReady: boolean
+  dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
   upgradeExecutor?: UpgradeExecutor | undefined
 }
 
 export type ApiApp = Hono & { close(): Promise<void> }
+
+const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
 
 export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   const hello = createHello({ db: deps.db })
@@ -57,9 +63,10 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     authority,
     membership: membership.service,
   })
-  const lock = deps.lock ?? new InMemoryLifecycleLock()
+  const lock = deps.lock ?? getLifecycleLock(deps.db)
   const installation = createInstallation({
     db: deps.db,
+    analytics: deps.analytics,
     lock,
     ...(deps.journal === undefined ? {} : { journal: deps.journal }),
     dataDirectoryReady: deps.dataDirectoryReady,
@@ -194,6 +201,14 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       await installation.service.stop()
     },
   })
+}
+
+function getLifecycleLock(db: Db): LifecycleLock {
+  const existing = defaultLifecycleLocks.get(db)
+  if (existing !== undefined) return existing
+  const lock = new InMemoryLifecycleLock()
+  defaultLifecycleLocks.set(db, lock)
+  return lock
 }
 
 const NATIVE_GOVERNANCE_MUTATION_PATHS = new Set([

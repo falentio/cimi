@@ -15,29 +15,48 @@ const activeOperation = {
   errorCode: null,
 } as const
 const siteOperation = { ...activeOperation, kind: 'site_deletion' as const }
-const freshClock = () => new Date('2026-09-01T00:01:00.000Z')
 const staleClock = () => new Date('2026-09-01T00:10:00.000Z')
 
 describe('InstallationService.resumeOnStartup', () => {
-  it('does not flip a fresh interrupted operation to recovering', async () => {
-    const executor = createFakeUpgradeExecutor({ createSafetyArtifact: vi.fn() })
+  it('claims an interrupted operation without waiting for it to become stale', async () => {
+    const executor = createFakeUpgradeExecutor({
+      createSafetyArtifact: vi.fn().mockResolvedValue({
+        id: 'bar_1',
+        generationId: 'bop_1',
+        storageKey: 'safety/bop_1.sqlite',
+        schemaVersion: '1',
+        sizeBytes: 8,
+        checksumAlgorithm: 'sha256',
+        checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      }),
+    })
     const { repository, service } = createInstallationFixture({
-      clock: freshClock,
+      clock: () => new Date('2026-09-01T00:01:00.000Z'),
       upgradeExecutor: executor,
     })
-    repository.find.mockResolvedValue(
-      createInstallationRecord({
-        status: 'maintenance',
-        activeOperation,
-        updatedAt: '2026-09-01T00:00:00.000Z',
-      }),
-    )
+    const stored = createInstallationRecord({
+      status: 'maintenance',
+      activeOperation,
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const claimed = createInstallationRecord({ status: 'recovering', activeOperation })
+    repository.find.mockResolvedValue(stored)
+    repository.claimUpgrade.mockResolvedValue(claimed)
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.recordSafetyArtifact.mockResolvedValue(claimed)
+    repository.updateUpgradeProgress.mockResolvedValue(claimed)
+    repository.completeUpgrade.mockResolvedValue(createInstallationRecord())
 
     const result = await service.resumeOnStartup()
+    await service.stop()
 
-    expect(result).toMatchObject({ status: 'maintenance', activeOperation })
-    expect(repository.claimUpgrade).not.toHaveBeenCalled()
-    expect(executor.createSafetyArtifact).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ status: 'recovering', activeOperation })
+    expect(repository.claimUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationId: 'bop_1',
+        expectedUpdatedAt: new Date('2026-09-01T00:00:00.000Z'),
+      }),
+    )
   })
 
   it('claims a stale operation and resumes through the executor', async () => {

@@ -1,5 +1,5 @@
 import { and, asc, count, eq, inArray, isNull, lte } from 'drizzle-orm'
-import { schema, type Db } from '@cimi/db'
+import { ANALYTICS_PROJECTION_VERSION, schema, type Db } from '@cimi/db'
 import type { SiteRepository } from './repository.ts'
 
 export interface SiteRepositoryDrizzleDependencies {
@@ -91,6 +91,19 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .all()
       const row = rows[0]
       if (row === undefined) throw new Error('Site insert returned no row')
+      tx.insert(schema.TProjectionCheckpoint)
+        .values({
+          siteId: input.id,
+          projectedReplaySequence: 0,
+          occurrenceCoveredFrom: null,
+          occurrenceCoveredThrough: null,
+          effectiveRetentionFrom: null,
+          statisticsRefreshedAt: null,
+          readiness: 'ready',
+          projectionVersion: ANALYTICS_PROJECTION_VERSION,
+          updatedAt: input.updatedAt,
+        })
+        .run()
       return toSite(row)
     })
   }

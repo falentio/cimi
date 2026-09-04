@@ -3,12 +3,13 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { closeDb, createDb, migrateControlDb } from '@cimi/db'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   classifyStorageExhausted,
   SafetyArtifactChecksumMismatchError,
   SafetyArtifactUnavailableError,
   SqliteUpgradeExecutor,
+  UpgradeIncompatibilityError,
 } from '../upgrade-executor.ts'
 
 describe('SqliteUpgradeExecutor', () => {
@@ -46,32 +47,29 @@ describe('SqliteUpgradeExecutor', () => {
     const db = createDb({ path: controlDatabasePath })
     try {
       migrateControlDb(db)
+      const analyticsRebuild = vi.fn().mockResolvedValue(undefined)
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
         dataDirectoryPath: directory,
+        analyticsRebuild,
       })
       const artifact = await executor.createSafetyArtifact({
         operationId: 'bop_1',
         artifactId: 'bar_1',
       })
       db.$client.prepare('CREATE TABLE upgrade_marker (id TEXT PRIMARY KEY)').run()
-      closeDb(db)
 
       await executor.rollback({ operationId: 'bop_1', artifact })
 
-      const restored = createDb({ path: controlDatabasePath })
-      try {
-        expect(
-          restored.$client
-            .prepare(
-              "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'upgrade_marker'",
-            )
-            .get(),
-        ).toBeUndefined()
-      } finally {
-        closeDb(restored)
-      }
+      expect(
+        db.$client
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'upgrade_marker'",
+          )
+          .get(),
+      ).toBeUndefined()
+      expect(analyticsRebuild).toHaveBeenCalledWith({ operationId: 'bop_1' })
       await expect(stat(join(directory, artifact.storageKey))).resolves.toMatchObject({
         size: artifact.sizeBytes,
       })
@@ -97,6 +95,30 @@ describe('SqliteUpgradeExecutor', () => {
 
       await expect(executor.migrate({ operationId: 'bop_1' })).resolves.toBeUndefined()
       await expect(executor.rebuildAnalytics({ operationId: 'bop_1' })).resolves.toBeUndefined()
+    } finally {
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('classifies a newer control migration as incompatible', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    try {
+      migrateControlDb(db)
+      db.$client
+        .prepare('INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)')
+        .run('future-migration', Date.now())
+      const executor = new SqliteUpgradeExecutor({
+        db,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+
+      await expect(executor.migrate({ operationId: 'bop_1' })).rejects.toBeInstanceOf(
+        UpgradeIncompatibilityError,
+      )
     } finally {
       closeDb(db)
       await rm(directory, { recursive: true, force: true })

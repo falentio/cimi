@@ -91,6 +91,7 @@ describe('InstallationService.upgrade', () => {
       'findArtifact',
       'create',
       'record',
+      'progress-0.5',
       'migrate',
       'rebuild',
       'progress-0.9',

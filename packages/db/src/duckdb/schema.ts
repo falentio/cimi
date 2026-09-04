@@ -13,6 +13,8 @@ export const ANALYTICS_REQUIRED_TABLES = [
   'projection_gaps',
 ] as const
 
+export const ANALYTICS_PROJECTION_VERSION = 'v1'
+
 export const ANALYTICS_MIGRATIONS: AnalyticsMigration[] = [
   {
     version: 1,
