@@ -10,105 +10,6 @@ const siteMember = { id: 'user_2', role: 'member' } as unknown as AuthUser
 const policy = { eventMonths: 12, profileMonths: 12, replayMonths: null }
 const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
 
-describe('RetentionPolicyService.get', () => {
-  it('returns the installation default with a null site override', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-    repository.findResolved.mockResolvedValue(createStoredResolution())
-
-    await expect(service.get({ scope: 'installation' }, admin)).resolves.toEqual({
-      scope: 'installation',
-      installationDefault: policy,
-      siteOverride: null,
-      effectivePolicy: policy,
-      updatedAt: '2026-09-01T00:00:00.000Z',
-    })
-    expect(repository.findResolved).toHaveBeenCalledWith({ siteId: null })
-  })
-
-  it('inherits the installation default for a site without an override', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-    repository.findResolved.mockResolvedValue(createStoredResolution())
-
-    await expect(service.get({ scope: 'site', siteId: 'ste_1' }, siteOwner)).resolves.toEqual({
-      scope: 'site',
-      siteId: 'ste_1',
-      installationDefault: policy,
-      siteOverride: null,
-      effectivePolicy: policy,
-      updatedAt: '2026-09-01T00:00:00.000Z',
-    })
-    expect(repository.findResolved).toHaveBeenCalledWith({ siteId: 'ste_1' })
-  })
-
-  it('prefers the site override for the effective policy', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-    repository.findResolved.mockResolvedValue(
-      createStoredResolution({ siteOverride: override, effectivePolicy: override }),
-    )
-
-    await expect(service.get({ scope: 'site', siteId: 'ste_1' }, siteOwner)).resolves.toEqual({
-      scope: 'site',
-      siteId: 'ste_1',
-      installationDefault: policy,
-      siteOverride: override,
-      effectivePolicy: override,
-      updatedAt: '2026-09-01T00:00:00.000Z',
-    })
-  })
-
-  it('passes through the built-in 12/12/null fallback', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-    repository.findResolved.mockResolvedValue(
-      createStoredResolution({
-        installationDefault: policy,
-        siteOverride: null,
-        effectivePolicy: policy,
-      }),
-    )
-
-    await expect(service.get({ scope: 'installation' }, admin)).resolves.toMatchObject({
-      installationDefault: { eventMonths: 12, profileMonths: 12, replayMonths: null },
-      effectivePolicy: { eventMonths: 12, profileMonths: 12, replayMonths: null },
-    })
-  })
-
-  it('rejects an unauthenticated installation read', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-
-    await expect(service.get({ scope: 'installation' }, undefined)).rejects.toMatchObject({
-      code: 'UNAUTHORIZED',
-    })
-    expect(repository.findResolved).not.toHaveBeenCalled()
-  })
-
-  it('rejects a non-admin installation read', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-
-    await expect(service.get({ scope: 'installation' }, member)).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-    })
-    expect(repository.findResolved).not.toHaveBeenCalled()
-  })
-
-  it('rejects a site read the user cannot access', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-
-    await expect(service.get({ scope: 'site', siteId: 'ste_1' }, siteMember)).rejects.toMatchObject(
-      { code: 'NOT_FOUND' },
-    )
-    expect(repository.findResolved).not.toHaveBeenCalled()
-  })
-
-  it('rejects a read for an unknown site', async () => {
-    const { repository, service } = createRetentionPolicyFixture()
-
-    await expect(
-      service.get({ scope: 'site', siteId: 'ste_missing' }, siteOwner),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
-    expect(repository.findResolved).not.toHaveBeenCalled()
-  })
-})
-
 describe('RetentionPolicyService.update', () => {
   it('saves the installation default', async () => {
     const { repository, service } = createRetentionPolicyFixture()
@@ -249,5 +150,69 @@ describe('RetentionPolicyService.update', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
     expect(repository.saveSiteOverride).not.toHaveBeenCalled()
     expect(repository.clearSiteOverride).not.toHaveBeenCalled()
+  })
+
+  it('rejects an installation update without an admin grant', async () => {
+    const { repository, service } = createRetentionPolicyFixture()
+
+    await expect(
+      service.update({ scope: 'installation', policy: override }, member),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repository.saveInstallationDefault).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unauthenticated site update', async () => {
+    const { repository, service } = createRetentionPolicyFixture()
+
+    await expect(
+      service.update({ scope: 'site', siteId: 'ste_1', policy: override }, undefined),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    expect(repository.saveSiteOverride).not.toHaveBeenCalled()
+    expect(repository.clearSiteOverride).not.toHaveBeenCalled()
+  })
+
+  it('rejects a site update for an unknown site', async () => {
+    const { repository, service } = createRetentionPolicyFixture()
+
+    await expect(
+      service.update({ scope: 'site', siteId: 'ste_missing', policy: override }, siteOwner),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(repository.saveSiteOverride).not.toHaveBeenCalled()
+    expect(repository.clearSiteOverride).not.toHaveBeenCalled()
+  })
+
+  it('rejects an undefined installation policy', async () => {
+    const { repository, service } = createRetentionPolicyFixture()
+
+    await expect(
+      service.update({ scope: 'installation', policy: undefined } as never, admin),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect(repository.saveInstallationDefault).not.toHaveBeenCalled()
+  })
+
+  it('releases the lock after a repository failure so a retry succeeds', async () => {
+    const { repository, lock, service } = createRetentionPolicyFixture()
+    repository.saveInstallationDefault.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(
+      service.update({ scope: 'installation', policy: override }, admin),
+    ).rejects.toThrow('boom')
+
+    repository.saveInstallationDefault.mockResolvedValue(
+      createStoredResolution({ installationDefault: override, effectivePolicy: override }),
+    )
+    await expect(
+      service.update({ scope: 'installation', policy: override }, admin),
+    ).resolves.toEqual({
+      scope: 'installation',
+      installationDefault: override,
+      siteOverride: null,
+      effectivePolicy: override,
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    expect(repository.saveInstallationDefault).toHaveBeenCalledTimes(2)
+    const lease = lock.acquire('retention')
+    expect(lease).toBeDefined()
+    if (lease !== undefined) await lease.release()
   })
 })
