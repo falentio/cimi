@@ -91,12 +91,45 @@ describe('InstallationService.upgrade', () => {
       'findArtifact',
       'create',
       'record',
-      'progress-0.5',
       'migrate',
       'rebuild',
       'progress-0.9',
       'complete',
     ])
+  })
+
+  it('bumps progress to 0.5 when reusing an existing safety artifact', async () => {
+    const order: string[] = []
+    const existing = {
+      id: 'bar_1',
+      generationId: 'bop_1',
+      storageKey: 'safety/bop_1.sqlite',
+      schemaVersion: '1',
+      sizeBytes: 8,
+      checksumAlgorithm: 'sha256' as const,
+      checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    }
+    const executor = createFakeUpgradeExecutor()
+    const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockImplementation(async () => {
+      order.push('begin')
+      return maintenanceRecord()
+    })
+    repository.findSafetyArtifact.mockResolvedValue(existing)
+    repository.updateUpgradeProgress.mockImplementation(async (update) => {
+      order.push(update.progress === 0.5 ? 'progress-0.5' : 'progress-0.9')
+      return maintenanceRecord()
+    })
+    repository.completeUpgrade.mockImplementation(async () => {
+      order.push('complete')
+      return createInstallationRecord()
+    })
+
+    await service.upgrade(input, admin)
+    await service.stop()
+
+    expect(order).toEqual(['begin', 'progress-0.5', 'progress-0.9', 'complete'])
   })
 
   it('holds admission until the asynchronous executor reaches a terminal state', async () => {
@@ -314,6 +347,50 @@ describe('InstallationService.upgrade', () => {
     repository.find.mockResolvedValue(maintenanceRecord())
 
     await expect(service.upgrade(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(repository.beginUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('retries an upgrade after a terminal failure', async () => {
+    const terminal = createInstallationRecord({
+      status: 'degraded',
+      activeOperation: {
+        operationId: 'bop_0',
+        kind: 'upgrade',
+        phase: 'pre_upgrade_safety',
+        checkpoint: 'sqlite_captured',
+        progress: 0.25,
+        lastSafeSequence: null,
+        errorCode: 'INTERNAL_SERVER_ERROR',
+      },
+    })
+    const { repository, service } = createInstallationFixture({ ids })
+    repository.find.mockResolvedValue(terminal)
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.recordSafetyArtifact.mockResolvedValue(maintenanceRecord())
+    repository.updateUpgradeProgress.mockResolvedValue(maintenanceRecord())
+    repository.completeUpgrade.mockResolvedValue(createInstallationRecord())
+
+    const accepted = await service.upgrade(input, admin)
+    await service.stop()
+
+    expect(accepted).toMatchObject({ status: 'maintenance' })
+    expect(repository.beginUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ operationId: 'bop_1' }),
+    )
+  })
+
+  it('rejects an unsafe operation id with BAD_REQUEST', async () => {
+    const unsafeIds = {
+      installationId: () => 'ins_1',
+      retentionPolicyId: () => 'rtn_1',
+      operationId: () => '../evil',
+      artifactId: () => 'bar_1',
+    }
+    const { repository, service } = createInstallationFixture({ ids: unsafeIds })
+    repository.find.mockResolvedValue(createInstallationRecord())
+
+    await expect(service.upgrade(input, admin)).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(repository.beginUpgrade).not.toHaveBeenCalled()
   })
 })

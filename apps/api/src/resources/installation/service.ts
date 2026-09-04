@@ -12,7 +12,13 @@ import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import type { InstallationRepository } from './repository.ts'
-import { InsufficientStorageError, UpgradeIncompatibilityError } from './upgrade-executor.ts'
+import {
+  assertSafeOperationId,
+  InsufficientStorageError,
+  SafetyArtifactChecksumMismatchError,
+  SafetyArtifactUnavailableError,
+  UpgradeIncompatibilityError,
+} from './upgrade-executor.ts'
 
 export type InstallationInitializeInput = InferOutput<typeof schema.SInstallationInitializeFields>
 export type InstallationInitializeOutput =
@@ -77,6 +83,10 @@ function isCleanupPending(status: InstallationRepository.CleanupStage['status'])
   return status !== 'not_applicable' && status !== 'completed'
 }
 
+function isTerminal(operation: InstallationRepository.ActiveOperation | null): boolean {
+  return operation !== null && operation.errorCode !== null
+}
+
 function assertInstallationCoherent(record: InstallationRepository.Record): void {
   if (record.status === 'ready' && !record.dataDirectoryReady) {
     throw new Error('Installation is not ready without a data directory')
@@ -91,6 +101,13 @@ function assertInstallationCoherent(record: InstallationRepository.Record): void
     record.derivedCleanup.status !== 'completed'
   ) {
     throw new Error('Installation backup cleanup started before derived cleanup completed')
+  }
+  if (
+    record.status === 'degraded' &&
+    record.activeOperation !== null &&
+    !isTerminal(record.activeOperation)
+  ) {
+    throw new Error('Degraded installation without terminal operation')
   }
 }
 
@@ -192,12 +209,15 @@ export class InstallationService implements LifecycleOperationStatusReader {
       const existing = await this.repository.find()
       if (existing === undefined) throw new ORPCError('CONFLICT', { status: 409 })
       assertInstallationCoherent(existing)
-      if (existing.activeOperation !== null) throw new ORPCError('CONFLICT', { status: 409 })
+      if (existing.activeOperation !== null && !isTerminal(existing.activeOperation)) {
+        throw new ORPCError('CONFLICT', { status: 409 })
+      }
       if (!canTransition(existing.status, 'maintenance')) {
         throw new ORPCError('CONFLICT', { status: 409 })
       }
       const now = this.clock()
       const operationId = this.ids.operationId()
+      assertSafeOperationId(operationId)
       const ownerToken = generateId('own')
       let record: InstallationRepository.Record
       try {
@@ -255,6 +275,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
       assertInstallationCoherent(existing)
       if (
         existing.activeOperation === null ||
+        isTerminal(existing.activeOperation) ||
         isSiteLifecycleOperation(existing.activeOperation.kind)
       ) {
         return toPublicInstallation(existing)
@@ -297,7 +318,9 @@ export class InstallationService implements LifecycleOperationStatusReader {
     retention: InstallationRepository.Retention,
   ): Promise<InstallationInitializeOutput> {
     assertInstallationCoherent(record)
-    if (record.activeOperation !== null) throw new ORPCError('CONFLICT', { status: 409 })
+    if (record.activeOperation !== null && !isTerminal(record.activeOperation)) {
+      throw new ORPCError('CONFLICT', { status: 409 })
+    }
     if (!this.dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
     if (record.status === 'ready' && isSameRetention(record.defaultRetention, retention)) {
       return { status: 200, body: toPublicInstallation(record) }
@@ -343,6 +366,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     try {
       await this.journal.drain()
       artifact = await this.repository.findSafetyArtifact(input.operationId)
+      let safetyRecorded = false
       if (artifact === undefined) {
         artifact = await this.upgradeExecutor.createSafetyArtifact({
           operationId: input.operationId,
@@ -358,18 +382,21 @@ export class InstallationService implements LifecycleOperationStatusReader {
           ownershipLost = true
           throw new Error('Upgrade execution ownership was lost')
         }
+        safetyRecorded = true
       }
-      const migrationStarted = await this.repository.updateUpgradeProgress({
-        operationId: input.operationId,
-        ownerToken: input.ownerToken,
-        checkpoint: 'sqlite_captured',
-        progress: 0.5,
-        backupPhase: 'rebuilding_duckdb',
-        now: this.clock(),
-      })
-      if (migrationStarted === undefined) {
-        ownershipLost = true
-        throw new Error('Upgrade execution ownership was lost')
+      if (!safetyRecorded) {
+        const migrationStarted = await this.repository.updateUpgradeProgress({
+          operationId: input.operationId,
+          ownerToken: input.ownerToken,
+          checkpoint: 'sqlite_captured',
+          progress: 0.5,
+          backupPhase: 'rebuilding_duckdb',
+          now: this.clock(),
+        })
+        if (migrationStarted === undefined) {
+          ownershipLost = true
+          throw new Error('Upgrade execution ownership was lost')
+        }
       }
       await this.upgradeExecutor.migrate({ operationId: input.operationId })
       await this.upgradeExecutor.rebuildAnalytics({ operationId: input.operationId })
@@ -406,7 +433,11 @@ export class InstallationService implements LifecycleOperationStatusReader {
             ? 'INCOMPATIBLE_BACKUP'
             : error instanceof InsufficientStorageError
               ? 'INSUFFICIENT_STORAGE'
-              : 'INTERNAL_SERVER_ERROR'
+              : error instanceof SafetyArtifactUnavailableError
+                ? 'INTERNAL_SERVER_ERROR'
+                : error instanceof SafetyArtifactChecksumMismatchError
+                  ? 'INTERNAL_SERVER_ERROR'
+                  : 'INTERNAL_SERVER_ERROR'
         await this.repository.failUpgrade({
           operationId: input.operationId,
           ownerToken: input.ownerToken,

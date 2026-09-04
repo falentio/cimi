@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm'
 import { schema as contractSchema } from '@cimi/contract'
 import { schema, type Db } from '@cimi/db'
 import type { InstallationRepository } from './repository.ts'
@@ -206,7 +206,11 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(
           and(
             eq(schema.TInstallation.singletonKey, 'default'),
-            isNull(schema.TInstallation.activeOperationId),
+            inArray(schema.TInstallation.status, ['ready', 'degraded']),
+            or(
+              isNull(schema.TInstallation.activeOperationId),
+              isNotNull(schema.TInstallation.activeOperationErrorCode),
+            ),
           ),
         )
         .run()
@@ -471,14 +475,8 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .update(schema.TInstallation)
         .set({
           status: 'degraded',
-          activeOperationId: null,
-          activeOperationKind: null,
-          activeOperationPhase: null,
-          activeOperationCheckpoint: null,
-          activeOperationProgress: null,
+          activeOperationErrorCode: input.errorCode ?? 'INTERNAL_SERVER_ERROR',
           activeOperationOwnerToken: null,
-          activeOperationLastSafeSequence: null,
-          activeOperationErrorCode: null,
           updatedAt: input.now,
         })
         .where(

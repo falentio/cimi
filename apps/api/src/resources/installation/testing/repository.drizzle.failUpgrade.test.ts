@@ -29,8 +29,49 @@ describe('InstallationRepositoryDrizzle.failUpgrade', () => {
     ).toMatchObject({ status: 'failed', phase: 'failed', errorCode: 'INTERNAL_SERVER_ERROR' })
     await expect(fixture.repository.find()).resolves.toMatchObject({
       status: 'degraded',
-      activeOperation: null,
+      activeOperation: expect.objectContaining({
+        operationId: 'bop_1',
+        kind: 'upgrade',
+        phase: 'pre_upgrade_safety',
+        errorCode: 'INTERNAL_SERVER_ERROR',
+      }),
       updatedAt: new Date('2026-09-01T00:04:00.000Z').toISOString(),
+    })
+  })
+
+  it('preserves checkpoint and progress on terminal failure', async () => {
+    using fixture = createInstallationDrizzleFixture()
+    await fixture.repository.insert(createInstallationInsertInput())
+    await fixture.repository.beginUpgrade(beginUpgradeInput('bop_1', updatedAt))
+    await fixture.repository.recordSafetyArtifact({
+      operationId: 'bop_1',
+      ownerToken: 'owner_1',
+      artifact: {
+        id: 'bar_1',
+        generationId: 'bop_1',
+        storageKey: 'safety/bop_1.sqlite',
+        schemaVersion: '1',
+        sizeBytes: 8,
+        checksumAlgorithm: 'sha256',
+        checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      },
+      now: new Date('2026-09-01T00:02:00.000Z'),
+    })
+
+    await fixture.repository.failUpgrade({
+      operationId: 'bop_1',
+      ownerToken: 'owner_1',
+      errorCode: 'INSUFFICIENT_STORAGE',
+      now: new Date('2026-09-01T00:04:00.000Z'),
+    })
+
+    await expect(fixture.repository.find()).resolves.toMatchObject({
+      status: 'degraded',
+      activeOperation: expect.objectContaining({
+        operationId: 'bop_1',
+        checkpoint: 'sqlite_captured',
+        errorCode: 'INSUFFICIENT_STORAGE',
+      }),
     })
   })
 
@@ -106,7 +147,10 @@ describe('InstallationRepositoryDrizzle.failUpgrade', () => {
     ).resolves.toBeUndefined()
     await expect(fixture.repository.find()).resolves.toMatchObject({
       status: 'degraded',
-      activeOperation: null,
+      activeOperation: expect.objectContaining({
+        operationId: 'bop_1',
+        errorCode: 'INTERNAL_SERVER_ERROR',
+      }),
       updatedAt: new Date('2026-09-01T00:04:00.000Z').toISOString(),
     })
   })

@@ -255,7 +255,10 @@ describe('InstallationService.resumeOnStartup', () => {
     repository.recordSafetyArtifact.mockResolvedValue(claimed)
     repository.updateUpgradeProgress.mockResolvedValue(claimed)
     repository.failUpgrade.mockResolvedValue(
-      createInstallationRecord({ status: 'degraded', activeOperation: null }),
+      createInstallationRecord({
+        status: 'degraded',
+        activeOperation: { ...activeOperation, errorCode: 'INTERNAL_SERVER_ERROR' },
+      }),
     )
 
     await service.resumeOnStartup()
@@ -265,5 +268,20 @@ describe('InstallationService.resumeOnStartup', () => {
       expect.objectContaining({ operationId: 'bop_1' }),
     )
     expect(repository.completeUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('treats a terminal operation as idle without resuming', async () => {
+    const { repository, service } = createInstallationFixture({ clock: staleClock })
+    const terminal = createInstallationRecord({
+      status: 'degraded',
+      activeOperation: { ...activeOperation, errorCode: 'INTERNAL_SERVER_ERROR' },
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    repository.find.mockResolvedValue(terminal)
+
+    const result = await service.resumeOnStartup()
+
+    expect(result).toMatchObject({ status: 'degraded' })
+    expect(repository.claimUpgrade).not.toHaveBeenCalled()
   })
 })

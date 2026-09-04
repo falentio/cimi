@@ -89,6 +89,51 @@ describe('InstallationService.getStatus', () => {
     await expect(service.getStatus(admin)).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
+  it('allows degraded with a terminal active operation', async () => {
+    const { service, repository } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'degraded',
+        activeOperation: {
+          operationId: 'bop_1',
+          kind: 'upgrade',
+          phase: 'pre_upgrade_safety',
+          checkpoint: 'sqlite_captured',
+          progress: 0.25,
+          lastSafeSequence: null,
+          errorCode: 'INTERNAL_SERVER_ERROR',
+        },
+      }),
+    )
+
+    await expect(service.getStatus(admin)).resolves.toMatchObject({
+      status: 'degraded',
+      activeOperation: expect.objectContaining({ errorCode: 'INTERNAL_SERVER_ERROR' }),
+    })
+  })
+
+  it('rejects degraded with a non-terminal active operation', async () => {
+    const { service, repository } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'degraded',
+        activeOperation: {
+          operationId: 'bop_1',
+          kind: 'upgrade',
+          phase: 'pre_upgrade_safety',
+          checkpoint: 'none',
+          progress: 0,
+          lastSafeSequence: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.getStatus(admin)).rejects.toThrow(
+      'Degraded installation without terminal operation',
+    )
+  })
+
   it('rejects an incoherent cleanup flag', async () => {
     const { service, repository } = createInstallationFixture()
     repository.find.mockResolvedValue(
