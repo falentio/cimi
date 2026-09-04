@@ -4,6 +4,7 @@ import { schema } from '@cimi/db'
 import {
   createInstallationDrizzleFixture,
   createInstallationInsertInput,
+  createdAt,
   updatedAt,
 } from '../fixture.drizzle.ts'
 
@@ -13,11 +14,38 @@ describe('InstallationRepositoryDrizzle.insert', () => {
 
     const inserted = await fixture.repository.insert(createInstallationInsertInput())
 
-    expect(inserted).toMatchObject({ status: 'ready', activeOperation: null })
+    expect(inserted).toMatchObject({
+      id: 'ins_1',
+      status: 'ready',
+      activeOperation: null,
+      defaultRetention: { eventMonths: 12, profileMonths: 12, replayMonths: null },
+      updatedAt: updatedAt.toISOString(),
+    })
     await expect(fixture.repository.find()).resolves.toMatchObject({
       id: 'ins_1',
       status: 'ready',
     })
+    const installationRows = fixture.db
+      .select()
+      .from(schema.TInstallation)
+      .where(eq(schema.TInstallation.id, 'ins_1'))
+      .all()
+    expect(installationRows).toHaveLength(1)
+    expect(installationRows[0]?.createdAt.toISOString()).toBe(createdAt.toISOString())
+    expect(installationRows[0]?.updatedAt.toISOString()).toBe(updatedAt.toISOString())
+    expect(
+      fixture.db
+        .select()
+        .from(schema.TRetentionPolicy)
+        .where(eq(schema.TRetentionPolicy.installationId, 'ins_1'))
+        .all(),
+    ).toMatchObject([
+      {
+        eventMonths: 12,
+        profileMonths: 12,
+        replayMonths: null,
+      },
+    ])
   })
 
   it('stores insert defaults for cleanup and retention', async () => {
@@ -41,11 +69,42 @@ describe('InstallationRepositoryDrizzle.insert', () => {
     ).toMatchObject([
       {
         id: 'rtn_1',
+        installationId: 'ins_1',
         scope: 'installation',
+        eventMonths: 12,
+        profileMonths: 12,
+        replayMonths: null,
         version: 1,
         status: 'active',
       },
     ])
+    const retentionRows = fixture.db
+      .select()
+      .from(schema.TRetentionPolicy)
+      .where(eq(schema.TRetentionPolicy.installationId, 'ins_1'))
+      .all()
+    expect(retentionRows[0]?.effectiveFrom.toISOString()).toBe(createdAt.toISOString())
+    expect(retentionRows[0]?.createdAt.toISOString()).toBe(createdAt.toISOString())
+    expect(retentionRows[0]?.updatedAt.toISOString()).toBe(updatedAt.toISOString())
+  })
+
+  it('stores non-null replay months without directory readiness', async () => {
+    using fixture = createInstallationDrizzleFixture()
+
+    const inserted = await fixture.repository.insert(
+      createInstallationInsertInput({ replayMonths: 6, dataDirectoryReady: false }),
+    )
+
+    expect(inserted).toMatchObject({
+      id: 'ins_1',
+      defaultRetention: { eventMonths: 12, profileMonths: 12, replayMonths: 6 },
+      dataDirectoryReady: false,
+      updatedAt: updatedAt.toISOString(),
+    })
+    await expect(fixture.repository.find()).resolves.toMatchObject({
+      defaultRetention: { eventMonths: 12, profileMonths: 12, replayMonths: 6 },
+      dataDirectoryReady: false,
+    })
   })
 
   it('rejects a duplicate insert', async () => {
@@ -56,7 +115,7 @@ describe('InstallationRepositoryDrizzle.insert', () => {
       fixture.repository.insert(
         createInstallationInsertInput({ id: 'ins_2', retentionPolicyId: 'rtn_2' }),
       ),
-    ).rejects.toThrow(/constraint|unique|reserved/i)
+    ).rejects.toThrow(/UNIQUE constraint failed.*installation\.singleton_key/i)
   })
 
   it('rejects a retention that violates the check', async () => {
@@ -64,6 +123,6 @@ describe('InstallationRepositoryDrizzle.insert', () => {
 
     await expect(
       fixture.repository.insert(createInstallationInsertInput({ profileMonths: 24 })),
-    ).rejects.toThrow(/constraint/i)
+    ).rejects.toThrow(/CHECK constraint failed.*installation_retention_policy_check/i)
   })
 })
