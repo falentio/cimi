@@ -452,7 +452,23 @@ export class InstallationService implements LifecycleOperationStatusReader {
         ownerToken: input.ownerToken,
         now: this.clock(),
       })
-      if (completed === undefined) ownershipLost = true
+      if (completed === undefined) {
+        try {
+          const current = await this.repository.find()
+          if (
+            current?.activeOperation?.operationId === input.operationId &&
+            current.dataDirectoryReady === false
+          ) {
+            await this.repository.failUpgrade({
+              operationId: input.operationId,
+              ownerToken: input.ownerToken,
+              errorCode: 'INTERNAL_SERVER_ERROR',
+              now: this.clock(),
+            })
+          }
+        } catch {}
+        ownershipLost = true
+      }
     } catch (error) {
       if (artifact !== undefined && !ownershipLost) {
         try {

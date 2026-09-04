@@ -73,9 +73,8 @@ describe('deferred installation gaps', () => {
   })
 
   it('does not mark an upgrade ready when the data directory is not ready', async () => {
-    // Blocker: completion has no readiness precondition. The full gate needs
-    // the health check decision, but dataDirectoryReady is the minimal signal
-    // available today. Green when completion verifies readiness before ready.
+    // Repository refuses ready without the data directory. Service re-reads
+    // a refused completion and fails the op degraded so retry opens.
     using fixture = createInstallationDrizzleFixture()
     await fixture.repository.insert(createInstallationInsertInput({ dataDirectoryReady: false }))
     const now = new Date('2026-09-02T00:00:00.000Z')
