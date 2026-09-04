@@ -7,6 +7,7 @@ import type {
   LifecycleLock,
   LifecycleOperationStatus,
   LifecycleOperationStatusReader,
+  StoreHealth,
 } from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
@@ -114,6 +115,8 @@ function assertInstallationCoherent(record: InstallationRepository.Record): void
 export interface InstallationHealthSnapshot {
   installationStatus: InstallationRepository.Status
   cleanupPending: boolean
+  controlStore?: StoreHealth
+  analyticsStore?: StoreHealth
 }
 
 export class InstallationService implements LifecycleOperationStatusReader {
@@ -322,7 +325,20 @@ export class InstallationService implements LifecycleOperationStatusReader {
     const existing = await this.repository.find()
     if (existing === undefined) return undefined
     assertInstallationCoherent(existing)
-    return { installationStatus: existing.status, cleanupPending: existing.cleanupPending }
+    const base: InstallationHealthSnapshot = {
+      installationStatus: existing.status,
+      cleanupPending: existing.cleanupPending,
+    }
+    if (existing.activeOperation?.kind !== 'upgrade') return base
+    const readiness = await this.repository.findUpgradeReadiness(
+      existing.activeOperation.operationId,
+    )
+    if (readiness === undefined) return base
+    return {
+      ...base,
+      controlStore: readiness.controlStore,
+      analyticsStore: readiness.analyticsStore,
+    }
   }
 
   private async reuseExisting(

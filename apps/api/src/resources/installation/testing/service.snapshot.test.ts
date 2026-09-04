@@ -42,11 +42,94 @@ describe('InstallationService.snapshotForHealth', () => {
         },
       }),
     )
+    repository.findUpgradeReadiness.mockResolvedValue({
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+    })
+
+    await expect(service.snapshotForHealth()).resolves.toEqual({
+      installationStatus: 'maintenance',
+      cleanupPending: false,
+      controlStore: 'ready',
+      analyticsStore: 'ready',
+    })
+  })
+
+  it('populates rebuilding analytics while an upgrade rebuilds', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'maintenance',
+        activeOperation: {
+          operationId: 'bop_1',
+          kind: 'upgrade',
+          phase: 'pre_upgrade_safety',
+          checkpoint: 'sqlite_captured',
+          progress: 0.5,
+          lastSafeSequence: null,
+          errorCode: null,
+        },
+      }),
+    )
+    repository.findUpgradeReadiness.mockResolvedValue({
+      controlStore: 'ready',
+      analyticsStore: 'rebuilding',
+    })
+
+    await expect(service.snapshotForHealth()).resolves.toEqual({
+      installationStatus: 'maintenance',
+      cleanupPending: false,
+      controlStore: 'ready',
+      analyticsStore: 'rebuilding',
+    })
+  })
+
+  it('omits stores when upgrade readiness is missing', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'maintenance',
+        activeOperation: {
+          operationId: 'bop_1',
+          kind: 'upgrade',
+          phase: 'pre_upgrade_safety',
+          checkpoint: 'none',
+          progress: 0,
+          lastSafeSequence: null,
+          errorCode: null,
+        },
+      }),
+    )
+    repository.findUpgradeReadiness.mockResolvedValue(undefined)
 
     await expect(service.snapshotForHealth()).resolves.toEqual({
       installationStatus: 'maintenance',
       cleanupPending: false,
     })
+  })
+
+  it('omits stores when the active operation is not an upgrade', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find.mockResolvedValue(
+      createInstallationRecord({
+        status: 'recovering',
+        activeOperation: {
+          operationId: 'bop_1',
+          kind: 'site_recovery',
+          phase: 'site_transition',
+          checkpoint: 'none',
+          progress: 0,
+          lastSafeSequence: null,
+          errorCode: null,
+        },
+      }),
+    )
+
+    await expect(service.snapshotForHealth()).resolves.toEqual({
+      installationStatus: 'recovering',
+      cleanupPending: false,
+    })
+    expect(repository.findUpgradeReadiness).not.toHaveBeenCalled()
   })
 
   it.each(['recovering', 'degraded', 'uninitialized'] as const)(

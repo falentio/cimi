@@ -1,4 +1,5 @@
 import type { schema } from '@cimi/contract'
+import type { StoreHealth } from '@cimi/kernel'
 import type { InferOutput } from 'valibot'
 
 export interface InstallationRepository {
@@ -28,6 +29,9 @@ export interface InstallationRepository {
   failUpgrade(
     input: InstallationRepository.UpgradeTerminalInput,
   ): Promise<InstallationRepository.Record | undefined>
+  findUpgradeReadiness(
+    operationId: string,
+  ): Promise<InstallationRepository.UpgradeReadiness | undefined>
 }
 
 export declare namespace InstallationRepository {
@@ -110,5 +114,10 @@ export declare namespace InstallationRepository {
     ownerToken: string
     errorCode?: ActiveOperation['errorCode']
     now: Date
+  }
+
+  export interface UpgradeReadiness {
+    controlStore: StoreHealth
+    analyticsStore: StoreHealth
   }
 }

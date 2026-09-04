@@ -520,6 +520,32 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
     })
   }
 
+  async findUpgradeReadiness(
+    operationId: string,
+  ): Promise<InstallationRepository.UpgradeReadiness | undefined> {
+    const rows = await this.db
+      .select()
+      .from(schema.TBackupOperation)
+      .where(
+        and(
+          eq(schema.TBackupOperation.id, operationId),
+          eq(schema.TBackupOperation.operationType, 'upgrade'),
+        ),
+      )
+      .limit(1)
+    const operation = rows[0]
+    if (operation === undefined) return undefined
+    return {
+      controlStore: operation.controlReadiness === 'ready' ? 'ready' : 'unavailable',
+      analyticsStore:
+        operation.analyticsReadiness === 'ready'
+          ? 'ready'
+          : operation.analyticsReadiness === 'rebuilding'
+            ? 'rebuilding'
+            : 'unavailable',
+    }
+  }
+
   private async findActiveRetention(
     installationId: string,
   ): Promise<InstallationRepository.Retention | undefined> {
