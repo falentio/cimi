@@ -69,4 +69,76 @@ describe('SqliteUpgradeExecutor', () => {
       await rm(directory, { recursive: true, force: true })
     }
   })
+
+  it('migrate and rebuildAnalytics resolve on a migrated database', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    try {
+      migrateControlDb(db)
+      const executor = new SqliteUpgradeExecutor({
+        db,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+
+      await expect(executor.migrate({ operationId: 'bop_1' })).resolves.toBeUndefined()
+      await expect(executor.rebuildAnalytics({ operationId: 'bop_1' })).resolves.toBeUndefined()
+    } finally {
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects rollback when the artifact file is missing', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    try {
+      migrateControlDb(db)
+      const executor = new SqliteUpgradeExecutor({
+        db,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+      const artifact = await executor.createSafetyArtifact({
+        operationId: 'bop_1',
+        artifactId: 'bar_1',
+      })
+      await rm(join(directory, artifact.storageKey))
+
+      await expect(executor.rollback({ operationId: 'bop_1', artifact })).rejects.toThrow()
+    } finally {
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects rollback on checksum mismatch', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    try {
+      migrateControlDb(db)
+      const executor = new SqliteUpgradeExecutor({
+        db,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+      const artifact = await executor.createSafetyArtifact({
+        operationId: 'bop_1',
+        artifactId: 'bar_1',
+      })
+
+      await expect(
+        executor.rollback({
+          operationId: 'bop_1',
+          artifact: { ...artifact, checksumValue: '0'.repeat(64) },
+        }),
+      ).rejects.toThrow(/checksum mismatch/)
+    } finally {
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
 })
