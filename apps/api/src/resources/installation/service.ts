@@ -332,8 +332,16 @@ export class InstallationService implements LifecycleOperationStatusReader {
         dataDirectoryReady: this.dataDirectoryReady,
         updatedAt: this.clock(),
       })
-      if (updated === undefined) throw new ORPCError('CONFLICT', { status: 409 })
-      return { status: 201, body: toPublicInstallation(updated) }
+      if (updated !== undefined) return { status: 201, body: toPublicInstallation(updated) }
+      const reread = await this.repository.find()
+      if (
+        reread !== undefined &&
+        reread.status === 'ready' &&
+        isSameRetention(reread.defaultRetention, retention)
+      ) {
+        return { status: 200, body: toPublicInstallation(reread) }
+      }
+      throw new ORPCError('CONFLICT', { status: 409 })
     }
     throw new ORPCError('CONFLICT', { status: 409 })
   }

@@ -214,6 +214,21 @@ describe('InstallationService.initialize', () => {
     await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
   })
 
+  it('reuses the winner when activation loses a convergent race', async () => {
+    const { repository, service } = createInstallationFixture()
+    repository.find
+      .mockResolvedValueOnce(
+        createInstallationRecord({ status: 'uninitialized', dataDirectoryReady: true }),
+      )
+      .mockResolvedValueOnce(createInstallationRecord())
+    repository.activate.mockResolvedValue(undefined)
+
+    const result = await service.initialize(input, admin)
+
+    expect(result.status).toBe(200)
+    expect(repository.find).toHaveBeenCalledTimes(2)
+  })
+
   it('conflicts on divergent retention for a degraded idle record', async () => {
     const { repository, service } = createInstallationFixture()
     repository.find.mockResolvedValue(
