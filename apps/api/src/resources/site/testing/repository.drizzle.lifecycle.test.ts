@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { schema } from '@cimi/db'
 import { SiteRepositoryDrizzle } from '../repository.drizzle.ts'
 import { createSiteDrizzleFixture, createSiteTombstoneRow } from '../fixture.drizzle.ts'
 
 const requestedAt = new Date('2026-09-01T00:00:00.000Z')
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
+
+function insertInstallation(db: ReturnType<typeof createSiteDrizzleFixture>['db']): void {
+  db.insert(schema.TInstallation)
+    .values({
+      id: 'ins_1',
+      singletonKey: 'default',
+      status: 'ready',
+      eventRetentionMonths: 12,
+      profileRetentionMonths: 12,
+      replayRetentionMonths: null,
+      dataDirectoryReady: true,
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
+    })
+    .run()
+}
 
 describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
   it('begins a delete for an active site', async () => {
@@ -15,6 +32,55 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
       repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt }),
     ).resolves.toEqual({ status: 'accepted', operationId: 'sop_1' })
     await expect(repo.findById('ste_1')).resolves.toMatchObject({ status: 'deleting' })
+  })
+
+  it('correlates a site lifecycle operation with the installation projection', async () => {
+    using fixture = createSiteDrizzleFixture()
+    insertInstallation(fixture.db)
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+
+    await expect(
+      repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt }),
+    ).resolves.toEqual({ status: 'accepted', operationId: 'sop_1' })
+    expect(
+      fixture.db
+        .select({
+          operationId: schema.TInstallation.activeOperationId,
+          kind: schema.TInstallation.activeOperationKind,
+          phase: schema.TInstallation.activeOperationPhase,
+        })
+        .from(schema.TInstallation)
+        .where(eq(schema.TInstallation.singletonKey, 'default'))
+        .all(),
+    ).toEqual([{ operationId: 'sop_1', kind: 'site_deletion', phase: 'site_transition' }])
+
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+    expect(
+      fixture.db
+        .select({ operationId: schema.TInstallation.activeOperationId })
+        .from(schema.TInstallation)
+        .where(eq(schema.TInstallation.singletonKey, 'default'))
+        .all(),
+    ).toEqual([{ operationId: null }])
+  })
+
+  it('rejects a site lifecycle operation while installation work is active', async () => {
+    using fixture = createSiteDrizzleFixture()
+    insertInstallation(fixture.db)
+    fixture.db
+      .update(schema.TInstallation)
+      .set({
+        activeOperationId: 'bop_1',
+        activeOperationKind: 'upgrade',
+        activeOperationPhase: 'pre_upgrade_safety',
+      })
+      .where(eq(schema.TInstallation.singletonKey, 'default'))
+      .run()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+
+    await expect(
+      repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt }),
+    ).resolves.toEqual({ status: 'conflict', currentStatus: 'active' })
   })
 
   it('returns the in-flight operation when a delete is repeated', async () => {

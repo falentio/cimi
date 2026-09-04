@@ -42,4 +42,22 @@ describe('SiteService.delete', () => {
       service.delete({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
     ).rejects.toMatchObject({ code: 'CONFLICT' })
   })
+
+  it('rejects a delete while installation work is active', async () => {
+    const { repository, lifecycle, service, lock } = createSiteFixture()
+    lifecycle.setActiveOperation({
+      operationId: 'bop_1',
+      kind: 'upgrade',
+      phase: 'pre_upgrade_safety',
+      checkpoint: 'none',
+    })
+
+    await expect(
+      service.delete({ siteId: 'ste_1' }, { id: 'user_1' }, new Headers()),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(repository.beginDelete).not.toHaveBeenCalled()
+    const lease = lock.acquire('backup')
+    expect(lease).toBeDefined()
+    lease?.release()
+  })
 })

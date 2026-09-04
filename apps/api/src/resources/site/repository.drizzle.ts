@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, lte } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, isNull, lte } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import type { SiteRepository } from './repository.ts'
 
@@ -169,7 +169,16 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           : { status: 'conflict', currentStatus: 'purged' }
       }
 
+      const installation = selectInstallation(tx)
+
       if (site.status === 'deleting' && site.currentOperationId !== null) {
+        if (
+          installation !== undefined &&
+          installation.activeOperationId !== null &&
+          installation.activeOperationId !== site.currentOperationId
+        ) {
+          return { status: 'conflict', currentStatus: site.status }
+        }
         const operation = tx
           .select({ id: schema.TSiteLifecycleOperation.id })
           .from(schema.TSiteLifecycleOperation)
@@ -185,6 +194,10 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         if (operation !== undefined) return { status: 'accepted', operationId: operation.id }
       }
       if (site.status !== 'active') return { status: 'conflict', currentStatus: site.status }
+
+      if (installation !== undefined && installation.activeOperationId !== null) {
+        return { status: 'conflict', currentStatus: site.status }
+      }
 
       const activeOperation = tx
         .select({ id: schema.TSiteLifecycleOperation.id })
@@ -229,6 +242,12 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(and(eq(schema.TSite.id, input.siteId), eq(schema.TSite.status, 'active')))
         .run()
       if (updated.changes !== 1) throw new Error('Site deletion transition was lost')
+      setInstallationOperation(tx, {
+        operationId: input.operationId,
+        kind: 'site_deletion',
+        expectedOperationId: null,
+        updatedAt: input.requestedAt,
+      })
       return { status: 'accepted', operationId: input.operationId }
     })
   }
@@ -255,7 +274,16 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           : { status: 'conflict', currentStatus: 'purged' }
       }
 
+      const installation = selectInstallation(tx)
+
       if (site.status === 'recovering' && site.currentOperationId !== null) {
+        if (
+          installation !== undefined &&
+          installation.activeOperationId !== null &&
+          installation.activeOperationId !== site.currentOperationId
+        ) {
+          return { status: 'conflict', currentStatus: site.status }
+        }
         const operation = tx
           .select({ id: schema.TSiteLifecycleOperation.id })
           .from(schema.TSiteLifecycleOperation)
@@ -278,6 +306,14 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         (site.recoveryDeadline === null || input.requestedAt >= site.recoveryDeadline)
       ) {
         return { status: 'conflict', currentStatus: 'deleted' }
+      }
+
+      if (
+        installation !== undefined &&
+        installation.activeOperationId !== null &&
+        installation.activeOperationId !== site.currentOperationId
+      ) {
+        return { status: 'conflict', currentStatus: site.status }
       }
 
       if (site.currentOperationId !== null) {
@@ -323,6 +359,12 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         )
         .run()
       if (updated.changes !== 1) throw new Error('Site recovery transition was lost')
+      setInstallationOperation(tx, {
+        operationId: input.operationId,
+        kind: 'site_recovery',
+        expectedOperationId: installation?.activeOperationId ?? null,
+        updatedAt: input.requestedAt,
+      })
       return { status: 'accepted', operationId: input.operationId }
     })
   }
@@ -350,6 +392,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         operation?.operationType === 'delete' &&
         operation.status === 'completed'
       ) {
+        clearInstallationOperation(tx, input.operationId, input.completedAt)
         return { status: 'completed' }
       }
       if (
@@ -391,6 +434,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         })
         .where(eq(schema.TSiteLifecycleOperation.id, input.operationId))
         .run()
+      clearInstallationOperation(tx, input.operationId, input.completedAt)
       return { status: 'completed' }
     })
   }
@@ -428,6 +472,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         operation?.operationType === 'recover' &&
         operation.status === 'completed'
       ) {
+        clearInstallationOperation(tx, input.operationId, input.completedAt)
         return { status: 'completed' }
       }
       if (
@@ -471,6 +516,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         })
         .where(eq(schema.TSiteLifecycleOperation.id, input.operationId))
         .run()
+      clearInstallationOperation(tx, input.operationId, input.completedAt)
       return { status: 'completed' }
     })
   }
@@ -484,6 +530,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .limit(1)
         .all()[0]
       if (existingTombstone !== undefined) {
+        clearInstallationOperation(tx, input.operationId, input.requestedAt)
         return existingTombstone.purgeOperationId === input.operationId
           ? { status: 'completed' }
           : { status: 'conflict', currentStatus: 'purged' }
@@ -504,6 +551,10 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       ) {
         return { status: 'conflict', currentStatus: site.status }
       }
+      const installation = selectInstallation(tx)
+      if (installation !== undefined && installation.activeOperationId !== null) {
+        return { status: 'conflict', currentStatus: site.status }
+      }
       tx.insert(schema.TSiteLifecycleOperation)
         .values({
           id: input.operationId,
@@ -518,6 +569,12 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           updatedAt: input.requestedAt,
         })
         .run()
+      setInstallationOperation(tx, {
+        operationId: input.operationId,
+        kind: 'site_purge',
+        expectedOperationId: null,
+        updatedAt: input.requestedAt,
+      })
       tx.insert(schema.TSiteTombstone)
         .values({
           siteId: site.id,
@@ -564,6 +621,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(and(eq(schema.TSite.id, input.siteId), eq(schema.TSite.status, 'deleted')))
         .run()
       if (deleted.changes !== 1) throw new Error('Site purge transition was lost')
+      clearInstallationOperation(tx, input.operationId, input.requestedAt)
       return { status: 'completed' }
     })
   }
@@ -641,7 +699,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         cleanup: {
           status: 'complete',
           updatedAt: tombstone.purgedAt.toISOString(),
-          error: null,
+          errorCode: null,
         },
       }
     }
@@ -672,7 +730,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       cleanup: {
         status: site.cleanupStatus,
         updatedAt: (site.cleanupUpdatedAt ?? site.updatedAt).toISOString(),
-        error: site.cleanupError,
+        errorCode: toSafeCleanupErrorCode(site.cleanupError),
       },
     }
   }
@@ -706,4 +764,82 @@ function toSiteRecord(row: typeof schema.TSite.$inferSelect): SiteRepository.Sit
     cleanupUpdatedAt: row.cleanupUpdatedAt?.toISOString() ?? null,
     cleanupError: row.cleanupError,
   }
+}
+
+type SqliteTransaction = Parameters<Parameters<Db['transaction']>[0]>[0]
+
+function selectInstallation(tx: SqliteTransaction) {
+  return tx
+    .select({
+      activeOperationId: schema.TInstallation.activeOperationId,
+    })
+    .from(schema.TInstallation)
+    .where(eq(schema.TInstallation.singletonKey, 'default'))
+    .limit(1)
+    .all()[0]
+}
+
+function setInstallationOperation(
+  tx: SqliteTransaction,
+  input: {
+    operationId: string
+    kind: 'site_deletion' | 'site_recovery' | 'site_purge'
+    expectedOperationId: string | null
+    updatedAt: Date
+  },
+): void {
+  const expected =
+    input.expectedOperationId === null
+      ? isNull(schema.TInstallation.activeOperationId)
+      : eq(schema.TInstallation.activeOperationId, input.expectedOperationId)
+  const updated = tx
+    .update(schema.TInstallation)
+    .set({
+      activeOperationId: input.operationId,
+      activeOperationKind: input.kind,
+      activeOperationPhase: 'site_transition',
+      activeOperationCheckpoint: 'none',
+      activeOperationProgress: 0,
+      activeOperationOwnerToken: null,
+      activeOperationLastSafeSequence: null,
+      activeOperationErrorCode: null,
+      updatedAt: input.updatedAt,
+    })
+    .where(and(eq(schema.TInstallation.singletonKey, 'default'), expected))
+    .run()
+  if (updated.changes > 1) throw new Error('Installation operation transition was not singular')
+  if (updated.changes === 0 && selectInstallation(tx) !== undefined) {
+    throw new Error('Installation lifecycle operation is active')
+  }
+}
+
+function clearInstallationOperation(
+  tx: SqliteTransaction,
+  operationId: string,
+  updatedAt: Date,
+): void {
+  tx.update(schema.TInstallation)
+    .set({
+      activeOperationId: null,
+      activeOperationKind: null,
+      activeOperationPhase: null,
+      activeOperationCheckpoint: null,
+      activeOperationProgress: null,
+      activeOperationOwnerToken: null,
+      activeOperationLastSafeSequence: null,
+      activeOperationErrorCode: null,
+      updatedAt,
+    })
+    .where(
+      and(
+        eq(schema.TInstallation.singletonKey, 'default'),
+        eq(schema.TInstallation.activeOperationId, operationId),
+      ),
+    )
+    .run()
+}
+
+function toSafeCleanupErrorCode(value: string | null): SiteRepository.CleanupErrorCode | null {
+  if (value === null) return null
+  return value === 'INTERNAL_SERVER_ERROR' ? 'INTERNAL_SERVER_ERROR' : 'CLEANUP_FAILED'
 }

@@ -16,7 +16,15 @@ async function createFixture() {
         secret: 'test-secret-1234567890',
         baseURL: 'http://localhost',
       })
-      const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+      const app = createApiApp({
+        db,
+        auth,
+        analytics,
+        baseUrl: 'http://localhost',
+        dataDirectoryReady: true,
+        controlDatabasePath: ':memory:',
+        dataDirectoryPath: '/tmp/cimi-test-data',
+      })
       return {
         app,
         async [Symbol.asyncDispose]() {

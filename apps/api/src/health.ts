@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { schema } from '@cimi/contract'
+import { validateBaseSchema } from '@cimi/db'
 import type { CreateApiAppDependencies } from './index.ts'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'recovering' | 'maintenance' | 'unavailable'
@@ -88,7 +89,10 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   let controlDatabase = false
   try {
     const result = deps.db.$client.prepare('select 1').get()
-    controlDatabase = Boolean(result)
+    if (result !== undefined) {
+      validateBaseSchema(deps.db)
+      controlDatabase = true
+    }
   } catch {
     controlDatabase = false
   }

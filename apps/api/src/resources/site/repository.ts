@@ -31,6 +31,7 @@ export declare namespace SiteRepository {
   export type Site = InferOutput<typeof schema.SSite>
   export type LifecycleStatus = InferOutput<typeof schema.SSiteLifecycleStatus>
   export type CleanupStatus = 'not-required' | 'pending' | 'complete' | 'failed'
+  export type CleanupErrorCode = InferOutput<typeof schema.SSiteDeletionErrorCode>
   export type FindManyResult = InferOutput<typeof schema.SSiteListOutput>
 
   export interface SiteRecord extends Site {
@@ -133,7 +134,7 @@ export declare namespace SiteRepository {
     cleanup: {
       status: CleanupStatus
       updatedAt: string
-      error: string | null
+      errorCode: CleanupErrorCode | null
     }
   }
 }

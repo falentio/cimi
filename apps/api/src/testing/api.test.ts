@@ -42,6 +42,9 @@ test('system health reports live control and analytics stores', async () => {
     db,
     auth,
     analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
     lifecycle: {
       async getSnapshot() {
         return {
@@ -72,6 +75,9 @@ test('system health maps installation and legacy states', async () => {
       db,
       auth,
       analytics,
+      dataDirectoryReady: true,
+      controlDatabasePath: ':memory:',
+      dataDirectoryPath: '/tmp/cimi-test-data',
       lifecycle: {
         async getSnapshot() {
           return snapshot
@@ -154,6 +160,9 @@ test('system health maps installation and legacy states', async () => {
     db,
     auth,
     analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
     lifecycle: {
       async getSnapshot() {
         throw new Error('lifecycle down')
@@ -176,6 +185,9 @@ test('system health covers legacy installation states', async () => {
       db,
       auth,
       analytics,
+      dataDirectoryReady: true,
+      controlDatabasePath: ':memory:',
+      dataDirectoryPath: '/tmp/cimi-test-data',
       lifecycle: {
         async getSnapshot() {
           return snapshot
@@ -292,6 +304,9 @@ test('system health degrades on store failures', async () => {
       db: dbForTest,
       auth,
       analytics: analyticsForTest as typeof analytics,
+      dataDirectoryReady: true,
+      controlDatabasePath: ':memory:',
+      dataDirectoryPath: '/tmp/cimi-test-data',
     })
     const response = await app.fetch(new Request('http://localhost/api/system/health'))
     expect(response.status).toBe(200)
@@ -314,7 +329,14 @@ function appFrom(
   auth: Parameters<typeof createApiApp>[0]['auth'],
   analytics: Parameters<typeof createApiApp>[0]['analytics'],
 ) {
-  return createApiApp({ db, auth, analytics })
+  return createApiApp({
+    db,
+    auth,
+    analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+  })
 }
 
 test('rejects an unauthenticated authenticated hello procedure before input handling', async () => {
@@ -360,6 +382,21 @@ test('returns a safe internal error when session lookup fails', async () => {
     message: ERROR_CATALOG.INTERNAL_SERVER_ERROR.message,
   })
   expect(JSON.stringify(body)).not.toContain('provider connection secret')
+})
+
+test('serves system health without a session lookup', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app, auth } = fixture
+  vi.spyOn(auth.api, 'getSession').mockRejectedValueOnce(new Error('auth unavailable'))
+
+  const response = await app.fetch(new Request('http://localhost/api/system/health'))
+
+  expect(response.status).toBe(200)
+  await expect(response.json()).resolves.toMatchObject({
+    controlStore: 'ready',
+    analyticsStore: 'ready',
+  })
+  expect(auth.api.getSession).not.toHaveBeenCalled()
 })
 
 test('normalizes provider errors before the public response', async () => {

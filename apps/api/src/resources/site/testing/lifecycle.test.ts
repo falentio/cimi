@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mock } from 'vitest-mock-extended'
+import { InMemoryLifecycleLock } from '@cimi/kernel'
 import type { SiteRepository } from '../repository.ts'
 import { SiteLifecycleWorker } from '../lifecycle.ts'
 
@@ -10,7 +11,7 @@ function createWorker() {
   repository.findPendingLifecycleOperations.mockResolvedValue([])
   repository.findDuePurges.mockResolvedValue([])
   const onError = vi.fn()
-  const worker = new SiteLifecycleWorker({ repository, onError })
+  const worker = new SiteLifecycleWorker({ repository, lock: new InMemoryLifecycleLock(), onError })
   return { repository, onError, worker }
 }
 
@@ -93,6 +94,7 @@ describe('SiteLifecycleWorker', () => {
     const { repository, onError } = createWorker()
     const intervalWorker = new SiteLifecycleWorker({
       repository,
+      lock: new InMemoryLifecycleLock(),
       intervalMs: 60_000,
       onError,
     })

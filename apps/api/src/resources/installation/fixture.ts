@@ -1,13 +1,14 @@
 import { InMemoryAcceptanceJournalPort, InMemoryLifecycleLock } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
 import type { InstallationRepository } from './repository.ts'
-import { InstallationService } from './service.ts'
-import type { InstallationIdFactory, UpgradeArtifactPort } from './service.ts'
+import { InstallationService, type UpgradeExecutor } from './service.ts'
+import type { InstallationIdFactory } from './service.ts'
 
 export interface InstallationFixtureOptions {
+  readonly dataDirectoryReady?: boolean
   readonly clock?: (() => Date) | undefined
   readonly ids?: InstallationIdFactory | undefined
-  readonly upgradeArtifact?: UpgradeArtifactPort | undefined
+  readonly upgradeExecutor?: UpgradeExecutor | undefined
 }
 
 export function createInstallationFixture(options: InstallationFixtureOptions = {}) {
@@ -18,11 +19,32 @@ export function createInstallationFixture(options: InstallationFixtureOptions = 
     repository,
     lock,
     journal,
+    dataDirectoryReady: options.dataDirectoryReady ?? true,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
     ...(options.ids === undefined ? {} : { ids: options.ids }),
-    ...(options.upgradeArtifact === undefined ? {} : { upgradeArtifact: options.upgradeArtifact }),
+    upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
   })
   return { repository, lock, journal, service }
+}
+
+export function createFakeUpgradeExecutor(
+  overrides: Partial<UpgradeExecutor> = {},
+): UpgradeExecutor {
+  return {
+    createSafetyArtifact: async ({ operationId, artifactId }) => ({
+      id: artifactId,
+      generationId: operationId,
+      storageKey: `safety/${operationId}.sqlite`,
+      schemaVersion: '1',
+      sizeBytes: 8,
+      checksumAlgorithm: 'sha256',
+      checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    }),
+    migrate: async () => undefined,
+    rebuildAnalytics: async () => undefined,
+    rollback: async () => undefined,
+    ...overrides,
+  }
 }
 
 const updatedAt = '2026-09-01T00:00:00.000Z'

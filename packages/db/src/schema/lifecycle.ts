@@ -44,7 +44,11 @@ export const TInstallation = sqliteTable(
       ],
     }),
     activeOperationPhase: text('active_operation_phase'),
+    activeOperationCheckpoint: text('active_operation_checkpoint', {
+      enum: ['none', 'sqlite_captured', 'duckdb_rebuilt', 'structurally_ready'],
+    }),
     activeOperationProgress: real('active_operation_progress'),
+    activeOperationOwnerToken: text('active_operation_owner_token'),
     activeOperationLastSafeSequence: integer('active_operation_last_safe_sequence'),
     activeOperationErrorCode: text('active_operation_error_code'),
     cleanupPending: integer('cleanup_pending', { mode: 'boolean' }).notNull().default(false),
@@ -202,7 +206,7 @@ export const TBackupOperation = sqliteTable(
   'backup_operation',
   {
     id: text('id').primaryKey().notNull(),
-    operationType: text('operation_type', { enum: ['backup', 'restore'] }).notNull(),
+    operationType: text('operation_type', { enum: ['backup', 'restore', 'upgrade'] }).notNull(),
     status: text('status', { enum: ['creating', 'available', 'restoring', 'failed'] }).notNull(),
     scope: text('scope', { enum: ['installation'] })
       .notNull()
@@ -242,6 +246,7 @@ export const TBackupOperation = sqliteTable(
     startedAt: integer('started_at', { mode: 'timestamp_ms' }),
     completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    ownerToken: text('owner_token'),
   },
   (table) => [
     index('backup_operation_scope_created_idx').on(table.scope, table.createdAt, table.id),

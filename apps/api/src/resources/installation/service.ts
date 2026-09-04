@@ -1,7 +1,13 @@
 import type { AuthUser } from '@cimi/auth'
 import { schema } from '@cimi/contract'
 import { assertInstallationAdmin } from '@cimi/guard'
-import type { AcceptanceJournalPort, LifecycleLock } from '@cimi/kernel'
+import type {
+  AcceptanceJournalPort,
+  LifecycleLease,
+  LifecycleLock,
+  LifecycleOperationStatus,
+  LifecycleOperationStatusReader,
+} from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -15,12 +21,22 @@ export type InstallationUpgradeInput = { confirmation: 'UPGRADE' }
 export type InstallationUpgradeOutput = InstallationRepository.Installation
 export type InstallationStatusOutput = InstallationRepository.Installation
 
-export interface UpgradeArtifactPort {
-  isCompatible(): boolean | Promise<boolean>
+export interface UpgradeExecutor {
+  createSafetyArtifact(input: {
+    operationId: string
+    artifactId: string
+  }): Promise<InstallationRepository.SafetyArtifactInput>
+  migrate(input: { operationId: string }): Promise<void>
+  rebuildAnalytics(input: { operationId: string }): Promise<void>
+  rollback(input: {
+    operationId: string
+    artifact: InstallationRepository.SafetyArtifactInput
+  }): Promise<void>
 }
 
 export interface InstallationIdFactory {
   installationId(): string
+  retentionPolicyId(): string
   operationId(): string
   artifactId(): string
 }
@@ -29,9 +45,11 @@ export interface InstallationServiceDependencies {
   repository: InstallationRepository
   lock: LifecycleLock
   journal: AcceptanceJournalPort
+  dataDirectoryReady: boolean
   clock?: (() => Date) | undefined
   ids?: InstallationIdFactory | undefined
-  upgradeArtifact?: UpgradeArtifactPort | undefined
+  upgradeExecutor: UpgradeExecutor
+  upgradeStaleAfterMs?: number | undefined
 }
 
 // Upgrade and resume may enter maintenance/recovering from any non-uninitialized state,
@@ -72,39 +90,46 @@ function assertInstallationCoherent(record: InstallationRepository.Record): void
   }
 }
 
-const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
-
 export interface InstallationHealthSnapshot {
   installationStatus: InstallationRepository.Status
   cleanupPending: boolean
 }
 
-export class InstallationService {
+export class InstallationService implements LifecycleOperationStatusReader {
   private readonly repository: InstallationRepository
   private readonly lock: LifecycleLock
   private readonly journal: AcceptanceJournalPort
+  private readonly dataDirectoryReady: boolean
   private readonly clock: () => Date
   private readonly ids: InstallationIdFactory
-  private readonly upgradeArtifact: UpgradeArtifactPort
+  private readonly upgradeExecutor: UpgradeExecutor
+  private readonly upgradeStaleAfterMs: number
+  private upgradeLease: LifecycleLease | undefined
+  private upgradeTask: Promise<void> | undefined
 
   constructor({
     repository,
     lock,
     journal,
+    dataDirectoryReady,
     clock,
     ids,
-    upgradeArtifact,
+    upgradeExecutor,
+    upgradeStaleAfterMs,
   }: InstallationServiceDependencies) {
     this.repository = repository
     this.lock = lock
     this.journal = journal
+    this.dataDirectoryReady = dataDirectoryReady
     this.clock = clock ?? (() => new Date())
     this.ids = ids ?? {
       installationId: () => generateId('ins'),
+      retentionPolicyId: () => generateId('rtn'),
       operationId: () => generateId('bop'),
       artifactId: () => generateId('bar'),
     }
-    this.upgradeArtifact = upgradeArtifact ?? { isCompatible: () => true }
+    this.upgradeExecutor = upgradeExecutor
+    this.upgradeStaleAfterMs = upgradeStaleAfterMs ?? 5 * 60 * 1000
   }
 
   async initialize(
@@ -112,18 +137,21 @@ export class InstallationService {
     user: AuthUser,
   ): Promise<InstallationInitializeOutput> {
     assertInstallationAdmin(user)
-    if (!(await this.lock.acquire('retention'))) throw new ORPCError('CONFLICT', { status: 409 })
+    const lease = await this.lock.acquire('initialization')
+    if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     try {
+      if (!this.dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
       const existing = await this.repository.find()
       if (existing !== undefined) return this.reuseExisting(existing, input.defaultRetention)
       try {
         const now = this.clock()
         const created = await this.repository.insert({
           id: this.ids.installationId(),
+          retentionPolicyId: this.ids.retentionPolicyId(),
           eventMonths: input.defaultRetention.eventMonths,
           profileMonths: input.defaultRetention.profileMonths,
           replayMonths: input.defaultRetention.replayMonths,
-          dataDirectoryReady: true,
+          dataDirectoryReady: this.dataDirectoryReady,
           createdAt: now,
           updatedAt: now,
         })
@@ -135,7 +163,7 @@ export class InstallationService {
         return this.reuseExisting(raced, input.defaultRetention)
       }
     } finally {
-      await this.lock.release()
+      await lease.release()
     }
   }
 
@@ -152,7 +180,9 @@ export class InstallationService {
     user: AuthUser,
   ): Promise<InstallationUpgradeOutput> {
     assertInstallationAdmin(user)
-    if (!(await this.lock.acquire('upgrade'))) throw new ORPCError('CONFLICT', { status: 409 })
+    const lease = await this.lock.acquire('upgrade')
+    if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+    let retainLease = false
     try {
       const existing = await this.repository.find()
       if (existing === undefined) throw new ORPCError('CONFLICT', { status: 409 })
@@ -161,30 +191,20 @@ export class InstallationService {
       if (!canTransition(existing.status, 'maintenance')) {
         throw new ORPCError('CONFLICT', { status: 409 })
       }
-      await this.journal.drain()
-      if (!(await this.upgradeArtifact.isCompatible())) {
-        throw new ORPCError('INCOMPATIBLE_BACKUP', { status: 422 })
-      }
       const now = this.clock()
       const operationId = this.ids.operationId()
+      const ownerToken = generateId('own')
       let record: InstallationRepository.Record
       try {
         record = await this.repository.beginUpgrade({
           operationId,
+          ownerToken,
           activeOperation: {
             phase: 'pre_upgrade_safety',
+            checkpoint: 'none',
             progress: 0,
             lastSafeSequence: null,
             errorCode: null,
-          },
-          artifact: {
-            id: this.ids.artifactId(),
-            generationId: operationId,
-            storageKey: `safety/${operationId}`,
-            schemaVersion: '1',
-            sizeBytes: 0,
-            checksumAlgorithm: 'sha256',
-            checksumValue: EMPTY_SHA256,
           },
           now,
         })
@@ -192,26 +212,71 @@ export class InstallationService {
         if (!isConstraintError(error)) throw error
         throw new ORPCError('CONFLICT', { status: 409 })
       }
+      this.upgradeLease = lease
+      retainLease = true
+      this.startUpgradeExecution({
+        operationId,
+        ownerToken,
+        artifactId: this.ids.artifactId(),
+        lease,
+      })
       return toPublicInstallation(record)
     } finally {
-      await this.lock.release()
+      if (!retainLease) await lease.release()
     }
   }
 
-  async resumeOnStartup(): Promise<InstallationStatusOutput | undefined> {
+  async getActiveOperation(): Promise<LifecycleOperationStatus | null> {
     const existing = await this.repository.find()
-    if (existing === undefined) return undefined
-    assertInstallationCoherent(existing)
-    if (existing.activeOperation === null || existing.status === 'recovering') {
-      return toPublicInstallation(existing)
+    return existing?.activeOperation ?? null
+  }
+
+  async stop(): Promise<void> {
+    const task = this.upgradeTask
+    if (task !== undefined) await task
+    const lease = this.upgradeLease
+    this.upgradeLease = undefined
+    if (lease !== undefined) await lease.release()
+  }
+
+  async resumeOnStartup(): Promise<InstallationStatusOutput | undefined> {
+    const lease = await this.lock.acquire('upgrade')
+    if (lease === undefined) return undefined
+    let retainLease = false
+    try {
+      const existing = await this.repository.find()
+      if (existing === undefined) return undefined
+      assertInstallationCoherent(existing)
+      if (
+        existing.activeOperation === null ||
+        isSiteLifecycleOperation(existing.activeOperation.kind)
+      ) {
+        return toPublicInstallation(existing)
+      }
+      const now = this.clock()
+      if (!isStale(existing.updatedAt, now, this.upgradeStaleAfterMs)) {
+        return toPublicInstallation(existing)
+      }
+      const ownerToken = generateId('own')
+      const claimed = await this.repository.claimUpgrade({
+        operationId: existing.activeOperation.operationId,
+        expectedUpdatedAt: new Date(existing.updatedAt),
+        ownerToken,
+        now,
+      })
+      if (claimed === undefined) return toPublicInstallation(existing)
+      retainLease = true
+      this.upgradeLease = lease
+      this.startUpgradeExecution({
+        operationId: existing.activeOperation.operationId,
+        ownerToken,
+        artifactId: this.ids.artifactId(),
+        lease,
+      })
+      return toPublicInstallation(claimed)
+    } finally {
+      if (!retainLease) await lease.release()
     }
-    if (!canTransition(existing.status, 'recovering')) return toPublicInstallation(existing)
-    const updated = await this.repository.update({
-      status: 'recovering',
-      activeOperation: existing.activeOperation,
-      updatedAt: this.clock(),
-    })
-    return toPublicInstallation(updated ?? existing)
   }
 
   async snapshotForHealth(): Promise<InstallationHealthSnapshot | undefined> {
@@ -226,22 +291,116 @@ export class InstallationService {
   ): Promise<InstallationInitializeOutput> {
     assertInstallationCoherent(record)
     if (record.activeOperation !== null) throw new ORPCError('CONFLICT', { status: 409 })
-    if (!record.dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
+    if (!this.dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
     if (record.status !== 'uninitialized' && isSameRetention(record.defaultRetention, retention)) {
       return { status: 200, body: toPublicInstallation(record) }
     }
     if (record.status === 'uninitialized') {
-      const updated = await this.repository.update({
-        status: 'ready',
-        activeOperation: null,
+      const updated = await this.repository.activate({
+        retentionPolicyId: this.ids.retentionPolicyId(),
         retention,
-        dataDirectoryReady: true,
+        dataDirectoryReady: this.dataDirectoryReady,
         updatedAt: this.clock(),
       })
       if (updated === undefined) throw new ORPCError('CONFLICT', { status: 409 })
       return { status: 201, body: toPublicInstallation(updated) }
     }
     throw new ORPCError('CONFLICT', { status: 409 })
+  }
+
+  private startUpgradeExecution(input: {
+    operationId: string
+    ownerToken: string
+    artifactId: string
+    lease: LifecycleLease
+  }): void {
+    let task: Promise<void>
+    task = this.executeUpgrade(input)
+      .catch(() => undefined)
+      .finally(async () => {
+        if (this.upgradeTask === task) this.upgradeTask = undefined
+        if (this.upgradeLease === input.lease) this.upgradeLease = undefined
+        await input.lease.release()
+      })
+    this.upgradeTask = task
+    void task.catch(() => undefined)
+  }
+
+  private async executeUpgrade(input: {
+    operationId: string
+    ownerToken: string
+    artifactId: string
+  }): Promise<void> {
+    let artifact: InstallationRepository.SafetyArtifactInput | undefined
+    let ownershipLost = false
+    try {
+      await this.journal.drain()
+      artifact = await this.repository.findSafetyArtifact(input.operationId)
+      if (artifact === undefined) {
+        artifact = await this.upgradeExecutor.createSafetyArtifact({
+          operationId: input.operationId,
+          artifactId: input.artifactId,
+        })
+        const recorded = await this.repository.recordSafetyArtifact({
+          operationId: input.operationId,
+          ownerToken: input.ownerToken,
+          artifact,
+          now: this.clock(),
+        })
+        if (recorded === undefined) {
+          ownershipLost = true
+          throw new Error('Upgrade execution ownership was lost')
+        }
+      }
+      const migrationStarted = await this.repository.updateUpgradeProgress({
+        operationId: input.operationId,
+        ownerToken: input.ownerToken,
+        checkpoint: 'sqlite_captured',
+        progress: 0.5,
+        backupPhase: 'rebuilding_duckdb',
+        now: this.clock(),
+      })
+      if (migrationStarted === undefined) {
+        ownershipLost = true
+        throw new Error('Upgrade execution ownership was lost')
+      }
+      await this.upgradeExecutor.migrate({ operationId: input.operationId })
+      await this.upgradeExecutor.rebuildAnalytics({ operationId: input.operationId })
+      const rebuilt = await this.repository.updateUpgradeProgress({
+        operationId: input.operationId,
+        ownerToken: input.ownerToken,
+        checkpoint: 'duckdb_rebuilt',
+        progress: 0.9,
+        backupPhase: 'rebuilding_duckdb',
+        now: this.clock(),
+      })
+      if (rebuilt === undefined) {
+        ownershipLost = true
+        throw new Error('Upgrade execution ownership was lost')
+      }
+      const completed = await this.repository.completeUpgrade({
+        operationId: input.operationId,
+        ownerToken: input.ownerToken,
+        now: this.clock(),
+      })
+      if (completed === undefined) ownershipLost = true
+    } catch {
+      if (artifact !== undefined && !ownershipLost) {
+        try {
+          await this.upgradeExecutor.rollback({
+            operationId: input.operationId,
+            artifact,
+          })
+        } catch {}
+      }
+      if (!ownershipLost) {
+        await this.repository.failUpgrade({
+          operationId: input.operationId,
+          ownerToken: input.ownerToken,
+          now: this.clock(),
+        })
+      }
+    }
   }
 }
 
@@ -273,5 +432,14 @@ function toPublicInstallation(
 
 function isConstraintError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  return /constraint|unique|reserved/i.test(error.message)
+  return /constraint|unique|reserved|lifecycle operation is active/i.test(error.message)
+}
+
+function isSiteLifecycleOperation(kind: InstallationRepository.ActiveOperation['kind']): boolean {
+  return kind === 'site_deletion' || kind === 'site_recovery' || kind === 'site_purge'
+}
+
+function isStale(updatedAt: string, now: Date, thresholdMs: number): boolean {
+  const age = now.getTime() - Date.parse(updatedAt)
+  return Number.isFinite(age) && age >= thresholdMs
 }

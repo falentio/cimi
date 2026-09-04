@@ -26,11 +26,13 @@ describe('in-memory kernel ports', () => {
   it('serializes lifecycle operations with one global lock', () => {
     const lock = new InMemoryLifecycleLock()
 
-    expect(lock.acquire('backup')).toBe(true)
-    expect(lock.acquire('restore')).toBe(false)
+    const lease = lock.acquire('backup')
+    expect(lease).toBeDefined()
+    expect(lock.acquire('restore')).toBeUndefined()
     expect(lock.isLocked()).toBe(true)
     expect(lock.kind).toBe('backup')
-    lock.release()
+    if (lease === undefined) throw new Error('expected a lifecycle lease')
+    lease.release()
     expect(lock.isLocked()).toBe(false)
   })
 
@@ -39,8 +41,22 @@ describe('in-memory kernel ports', () => {
     expect(normalizeLifecycleOperationKind('site_purge')).toBe('site_purge')
 
     const lock = new InMemoryLifecycleLock()
-    expect(lock.acquire('purge')).toBe(true)
+    expect(lock.acquire('purge')).toBeDefined()
     expect(lock.kind).toBe('site_purge')
+  })
+
+  it('does not let a stale lease release a newer owner', () => {
+    const lock = new InMemoryLifecycleLock()
+    const first = lock.acquire('backup')
+    if (first === undefined) throw new Error('expected the first lease')
+    first.release()
+    const second = lock.acquire('restore')
+    if (second === undefined) throw new Error('expected the second lease')
+
+    first.release()
+
+    expect(lock.isLocked()).toBe(true)
+    second.release()
   })
 
   it('resolves collection policy and exposes readiness state', () => {

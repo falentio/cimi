@@ -3,8 +3,10 @@ import { closeDb, schema } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
 import { createApiApp } from '../index.ts'
+import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
+import type { UpgradeExecutor } from '../resources/installation/service.ts'
 
-export async function createApiTestFixture() {
+export async function createApiTestFixture(options: { upgradeExecutor?: UpgradeExecutor } = {}) {
   const db = createMigratedTestDb()
   try {
     const analytics = await createTestAnalyticsDb()
@@ -15,7 +17,16 @@ export async function createApiTestFixture() {
         secret: 'test-secret-1234567890',
         baseURL: 'http://localhost',
       })
-      const app = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+      const app = createApiApp({
+        db,
+        auth,
+        analytics,
+        baseUrl: 'http://localhost',
+        dataDirectoryReady: true,
+        controlDatabasePath: ':memory:',
+        dataDirectoryPath: '/tmp/cimi-test-data',
+        upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
+      })
       return {
         app,
         auth,
@@ -23,9 +34,13 @@ export async function createApiTestFixture() {
         analytics,
         async [Symbol.asyncDispose]() {
           try {
-            await analytics.close()
+            await app.close()
           } finally {
-            closeDb(db)
+            try {
+              await analytics.close()
+            } finally {
+              closeDb(db)
+            }
           }
         },
       }

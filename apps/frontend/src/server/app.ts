@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { loadConfig } from '@cimi/config'
 import { createSingleton } from '@cimi/utils'
@@ -39,13 +39,26 @@ export async function createFrontendServerApp(
         baseURL: cfg.baseUrl,
         secret: cfg.authSecret,
       })
-      const app = createApiApp({ db, auth, analytics, baseUrl: cfg.baseUrl })
+      const app = createApiApp({
+        db,
+        auth,
+        analytics,
+        baseUrl: cfg.baseUrl,
+        dataDirectoryReady: statSync(cfg.dataDir).isDirectory(),
+        controlDatabasePath: controlDbPath,
+        dataDirectoryPath: cfg.dataDir,
+      })
+      const closeApiApp = app.close.bind(app)
       return Object.assign(app, {
         async close(): Promise<void> {
           try {
-            await analytics.close()
+            await closeApiApp()
           } finally {
-            closeDb(db)
+            try {
+              await analytics.close()
+            } finally {
+              closeDb(db)
+            }
           }
         },
       })

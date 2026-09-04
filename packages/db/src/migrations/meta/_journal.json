@@ -50,6 +50,13 @@
       "when": 1788385239441,
       "tag": "0006_previous_the_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788461939619,
+      "tag": "0007_upgrade_operation_fencing",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,13 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api'
-import { ANALYTICS_MIGRATIONS } from './schema.ts'
+import { ANALYTICS_REQUIRED_TABLES, ANALYTICS_MIGRATIONS } from './schema.ts'
 
-export { ANALYTICS_MIGRATIONS, type AnalyticsMigration } from './schema.ts'
+export {
+  ANALYTICS_MIGRATIONS,
+  ANALYTICS_REQUIRED_TABLES,
+  type AnalyticsMigration,
+} from './schema.ts'
 
 export const ANALYTICS_DB_FILENAME = 'analytics.duckdb'
 
@@ -51,9 +55,14 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       if (closed) return false
 
       try {
-        const reader = await connection.runAndReadAll('SELECT 1')
-        await reader.readAll()
-        return true
+        const reader = await connection.runAndReadAll(
+          `SELECT count(*) AS table_count
+           FROM information_schema.tables
+           WHERE table_schema = 'main'
+             AND table_name IN (${ANALYTICS_REQUIRED_TABLES.map((table) => `'${table}'`).join(', ')})`,
+        )
+        const row = reader.getRowObjects()[0]
+        return Number(row?.['table_count']) === ANALYTICS_REQUIRED_TABLES.length
       } catch {
         return false
       }

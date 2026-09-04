@@ -51,7 +51,7 @@ describe('SiteService.rotateIngestionIdentifier', () => {
       deletedAt: '2026-08-31T00:00:00.000Z',
       recoveryDeadline: null,
       purgeAt: null,
-      cleanup: { status: 'pending', updatedAt: '2026-08-31T00:00:00.000Z', error: null },
+      cleanup: { status: 'pending', updatedAt: '2026-08-31T00:00:00.000Z', errorCode: null },
     })
 
     await expect(

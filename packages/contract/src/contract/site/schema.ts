@@ -48,8 +48,9 @@ export const SSiteLifecycleStatus = v.picklist([
   'recovering',
   'purged',
 ])
+export const SSiteDeletionErrorCode = v.picklist(['CLEANUP_FAILED', 'INTERNAL_SERVER_ERROR'])
 export const SSiteDeletionCleanupStatus = v.strictObject({
   status: v.picklist(['not-required', 'pending', 'complete', 'failed']),
   updatedAt: SDateTime,
-  error: v.nullable(v.pipe(v.string(), v.maxLength(512))),
+  errorCode: v.nullable(SSiteDeletionErrorCode),
 })

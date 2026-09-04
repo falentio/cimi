@@ -7,15 +7,15 @@ import { ERROR_CATALOG } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
-import type { AcceptanceJournalPort, LifecycleLock } from '@cimi/kernel'
+import { InMemoryLifecycleLock, type AcceptanceJournalPort, type LifecycleLock } from '@cimi/kernel'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
-import { createInstallation, type UpgradeArtifactPort } from './resources/installation/index.ts'
+import { createInstallation, type UpgradeExecutor } from './resources/installation/index.ts'
 import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
-import { createSite } from './resources/site/index.ts'
+import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
 import { systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
 
@@ -35,10 +35,15 @@ export interface CreateApiAppDependencies {
   lifecycle?: HealthLifecycle | undefined
   lock?: LifecycleLock | undefined
   journal?: AcceptanceJournalPort | undefined
-  upgradeArtifact?: UpgradeArtifactPort | undefined
+  dataDirectoryReady: boolean
+  controlDatabasePath: string
+  dataDirectoryPath: string
+  upgradeExecutor?: UpgradeExecutor | undefined
 }
 
-export function createApiApp(deps: CreateApiAppDependencies): Hono {
+export type ApiApp = Hono & { close(): Promise<void> }
+
+export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   const hello = createHello({ db: deps.db })
   const authority = createOrganizationAuthority(deps.auth)
   const membership = createMembership({ db: deps.db, authority })
@@ -47,13 +52,24 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     authority,
     membership: membership.service,
   })
-  const site = createSite({ db: deps.db, membership: membership.service })
+  const lock = deps.lock ?? new InMemoryLifecycleLock()
   const installation = createInstallation({
     db: deps.db,
-    ...(deps.lock === undefined ? {} : { lock: deps.lock }),
+    lock,
     ...(deps.journal === undefined ? {} : { journal: deps.journal }),
-    ...(deps.upgradeArtifact === undefined ? {} : { upgradeArtifact: deps.upgradeArtifact }),
+    dataDirectoryReady: deps.dataDirectoryReady,
+    controlDatabasePath: deps.controlDatabasePath,
+    dataDirectoryPath: deps.dataDirectoryPath,
+    ...(deps.upgradeExecutor === undefined ? {} : { upgradeExecutor: deps.upgradeExecutor }),
   })
+  const site = createSite({
+    db: deps.db,
+    lock,
+    lifecycle: installation.service,
+    membership: membership.service,
+  })
+  const siteLifecycleWorker = createSiteLifecycleWorker({ db: deps.db, lock })
+  siteLifecycleWorker.start()
   void installation.service.resumeOnStartup().catch(() => undefined)
   const lifecycle = deps.lifecycle ?? {
     getSnapshot: () => installation.service.snapshotForHealth().then((snapshot) => snapshot ?? {}),
@@ -112,6 +128,11 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
 
   const app = new Hono()
 
+  app.get('/api/system/health', async () => {
+    const health = await systemHealthHandler({ ...deps, lifecycle })
+    return Response.json(health)
+  })
+
   app.on(['GET', 'POST', 'OPTIONS'], '/api/auth/*', async (c) => {
     if (isNativeGovernanceMutation(c.req.raw)) return new Response('Not Found', { status: 404 })
     return deps.auth.handler(c.req.raw)
@@ -141,7 +162,15 @@ export function createApiApp(deps: CreateApiAppDependencies): Hono {
     return new Response('Not Found', { status: 404 })
   })
 
-  return app
+  let closed = false
+  return Object.assign(app, {
+    async close(): Promise<void> {
+      if (closed) return
+      closed = true
+      await siteLifecycleWorker.stop()
+      await installation.service.stop()
+    },
+  })
 }
 
 const NATIVE_GOVERNANCE_MUTATION_PATHS = new Set([

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { InMemorySiteScopePort } from '@cimi/guard'
+import { InMemoryLifecycleLock, InMemoryLifecycleOperationStatusReader } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
 import type { SiteRepository } from '../repository.ts'
 import { SiteService } from '../service.ts'
@@ -62,6 +63,8 @@ describe('SiteService.list', () => {
     const service = new SiteService({
       repository,
       scope: { siteScope: scope, membership: scope },
+      lock: new InMemoryLifecycleLock(),
+      lifecycle: new InMemoryLifecycleOperationStatusReader(),
       membership: undefined,
     })
     const page = { items: [createSite()], nextOffset: null, hasMore: false, totalCount: 1 }

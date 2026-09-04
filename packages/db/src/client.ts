@@ -27,3 +27,15 @@ export function closeDb(db: Db): void {
   db.$client.close()
   closedDatabases.add(db)
 }
+
+export async function restoreDbFromBackup(input: {
+  backupPath: string
+  destinationPath: string
+}): Promise<void> {
+  const backup = new Database(input.backupPath, { fileMustExist: true, readonly: true })
+  try {
+    await backup.backup(input.destinationPath)
+  } finally {
+    backup.close()
+  }
+}

@@ -6,6 +6,11 @@ import {
   assertSiteScope,
   type SiteScopeGuardDependencies,
 } from '@cimi/guard'
+import type {
+  LifecycleLock,
+  LifecycleOperationStatusReader,
+  PersistedLifecycleOperationKind,
+} from '@cimi/kernel'
 import { canonicalizeHostname, generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -15,17 +20,23 @@ import type { OrganizationMembershipReconciler } from '../organization/service.t
 export interface SiteServiceDependencies {
   repository: SiteRepository
   scope: SiteScopeGuardDependencies
+  lock: LifecycleLock
+  lifecycle: LifecycleOperationStatusReader
   membership?: OrganizationMembershipReconciler | undefined
 }
 
 export class SiteService {
   private readonly repository: SiteRepository
   private readonly scope: SiteScopeGuardDependencies
+  private readonly lock: LifecycleLock
+  private readonly lifecycle: LifecycleOperationStatusReader
   private readonly membership: OrganizationMembershipReconciler | undefined
 
-  constructor({ repository, scope, membership }: SiteServiceDependencies) {
+  constructor({ repository, scope, lock, lifecycle, membership }: SiteServiceDependencies) {
     this.repository = repository
     this.scope = scope
+    this.lock = lock
+    this.lifecycle = lifecycle
     this.membership = membership
   }
 
@@ -135,14 +146,16 @@ export class SiteService {
   ): Promise<InferOutput<typeof schema.SSiteDeleteOutput>> {
     await this.reconcileSiteOrganization(input.siteId, user, headers)
     await assertSiteManagementScope(user, input.siteId, this.scope, { requiredRole: 'owner' })
-    const result = await this.repository.beginDelete({
-      siteId: input.siteId,
-      operationId: generateId('sop'),
-      requestedAt: new Date(),
+    return this.withLifecycleLease('site_deletion', async () => {
+      const result = await this.repository.beginDelete({
+        siteId: input.siteId,
+        operationId: generateId('sop'),
+        requestedAt: new Date(),
+      })
+      if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
+      if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
+      return { accepted: true, status: 'deleting', operationId: result.operationId }
     })
-    if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
-    if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
-    return { accepted: true, status: 'deleting', operationId: result.operationId }
   }
 
   async recover(
@@ -152,14 +165,16 @@ export class SiteService {
   ): Promise<InferOutput<typeof schema.SSiteRecoverOutput>> {
     await this.reconcileSiteOrganization(input.siteId, user, headers)
     await assertSiteManagementScope(user, input.siteId, this.scope)
-    const result = await this.repository.beginRecover({
-      siteId: input.siteId,
-      operationId: generateId('sop'),
-      requestedAt: new Date(),
+    return this.withLifecycleLease('site_recovery', async () => {
+      const result = await this.repository.beginRecover({
+        siteId: input.siteId,
+        operationId: generateId('sop'),
+        requestedAt: new Date(),
+      })
+      if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
+      if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
+      return { accepted: true, status: 'recovering', operationId: result.operationId }
     })
-    if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
-    if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
-    return { accepted: true, status: 'recovering', operationId: result.operationId }
   }
 
   async rotateIngestionIdentifier(
@@ -199,6 +214,27 @@ export class SiteService {
     if (organizationId !== undefined)
       await this.reconcileOrganization(organizationId, user.id, headers)
   }
+
+  private async withLifecycleLease<T>(
+    kind: 'site_deletion' | 'site_recovery',
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const lease = await this.lock.acquire(kind)
+    if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+    try {
+      const activeOperation = await this.lifecycle.getActiveOperation()
+      if (activeOperation !== null && !isSiteLifecycleKind(activeOperation.kind)) {
+        throw new ORPCError('CONFLICT', { status: 409 })
+      }
+      return await operation()
+    } finally {
+      await lease.release()
+    }
+  }
+}
+
+function isSiteLifecycleKind(kind: PersistedLifecycleOperationKind): boolean {
+  return kind === 'site_deletion' || kind === 'site_recovery' || kind === 'site_purge'
 }
 
 function emptySitePage(): InferOutput<typeof schema.SSiteListOutput> {

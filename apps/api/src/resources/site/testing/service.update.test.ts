@@ -18,7 +18,7 @@ function createDeletionStatus() {
     deletedAt: null,
     recoveryDeadline: null,
     purgeAt: null,
-    cleanup: { status: 'pending' as const, updatedAt: '2026-08-31T00:00:00.000Z', error: null },
+    cleanup: { status: 'pending' as const, updatedAt: '2026-08-31T00:00:00.000Z', errorCode: null },
   }
 }
 

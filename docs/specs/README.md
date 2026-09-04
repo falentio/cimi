@@ -67,7 +67,7 @@ domain.
 
 All first-release product specifications are `draft` until the corresponding contract schemas and handlers exist. This is intentional: planning is complete enough to implement without reopening domain decisions, but no first-release product implementation is part of this package. Illustrative specifications under `examples/` may use their own implementation status.
 
-A declared contract member is not a served API route. A procedure is available only after a runtime handler is registered and its authorization, persistence, lifecycle, transport, and error boundaries are implemented. At the current repository state, `apps/api` registers `health` at `GET /api/system/health` (contract path `GET /system/health`) and the illustrative `hello` procedures; first-release product procedures remain planned contract surface. Update this status paragraph whenever route registration changes.
+A declared contract member is not a served API route. A procedure is available only after a runtime handler is registered and its authorization, persistence, lifecycle, transport, and error boundaries are implemented. At the current repository state, `apps/api` serves `health` at `GET /api/system/health`, the illustrative `hello` procedures, and the `installation`, `organization`, `membership`, `invitation`, and `site` resource procedures. The remaining first-release resources are contract-only. They are `collection-policy`, `event-ingestion`, `identity-profile`, `traffic-report`, `event-report`, `goal`, `funnel`, `cohort-retention`, `public-dashboard`, `retention-policy`, and `backup-restore`. Update this status paragraph whenever route registration changes.
 
 ## Boundary Decisions
 

@@ -3,6 +3,7 @@ import {
   type InMemorySiteMembership,
   type InMemorySiteRecord,
 } from '@cimi/guard'
+import { InMemoryLifecycleLock, InMemoryLifecycleOperationStatusReader } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
 import type { SiteRepository } from './repository.ts'
@@ -24,12 +25,16 @@ export function createSiteFixture({ membership, sites, memberships }: SiteFixtur
     memberships ?? [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
   )
   const reconciler = membership ?? createReconcilerMock()
+  const lock = new InMemoryLifecycleLock()
+  const lifecycle = new InMemoryLifecycleOperationStatusReader()
   const service = new SiteService({
     repository,
     scope: { siteScope: scope, membership: scope },
+    lock,
+    lifecycle,
     membership: reconciler,
   })
-  return { repository, scope, membership: reconciler, service }
+  return { repository, scope, lock, lifecycle, membership: reconciler, service }
 }
 
 function createReconcilerMock(): OrganizationMembershipReconciler {

@@ -28,6 +28,7 @@ describe('InstallationService.snapshotForHealth', () => {
           operationId: 'bop_1',
           kind: 'upgrade',
           phase: 'pre_upgrade_safety',
+          checkpoint: 'none',
           progress: 0,
           lastSafeSequence: null,
           errorCode: null,

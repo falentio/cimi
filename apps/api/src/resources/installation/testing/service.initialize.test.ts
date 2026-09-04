@@ -79,7 +79,8 @@ describe('InstallationService.initialize', () => {
 
   it('returns conflict when the lifecycle lock is held', async () => {
     const { repository, lock, service } = createInstallationFixture()
-    expect(lock.acquire('upgrade')).toBe(true)
+    const lease = lock.acquire('upgrade')
+    expect(lease).toBeDefined()
     try {
       await expect(service.initialize(input, admin)).rejects.toMatchObject({
         code: 'CONFLICT',
@@ -87,7 +88,7 @@ describe('InstallationService.initialize', () => {
       })
       expect(repository.find).not.toHaveBeenCalled()
     } finally {
-      lock.release()
+      if (lease !== undefined) lease.release()
     }
   })
 
@@ -133,7 +134,7 @@ describe('InstallationService.initialize', () => {
     repository.insert.mockRejectedValue(
       new Error('UNIQUE constraint failed: installation.singleton_key'),
     )
-    repository.update.mockResolvedValue(createInstallationRecord())
+    repository.activate.mockResolvedValue(createInstallationRecord())
 
     const result = await service.initialize(input, admin)
 
@@ -151,6 +152,7 @@ describe('InstallationService.initialize', () => {
           operationId: 'bop_1',
           kind: 'upgrade',
           phase: 'pre_upgrade_safety',
+          checkpoint: 'none',
           progress: 0,
           lastSafeSequence: null,
           errorCode: null,
@@ -209,7 +211,7 @@ describe('InstallationService.initialize', () => {
     repository.find.mockResolvedValue(
       createInstallationRecord({ status: 'uninitialized', dataDirectoryReady: true }),
     )
-    repository.update.mockResolvedValue(undefined)
+    repository.activate.mockResolvedValue(undefined)
 
     await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
   })
@@ -248,6 +250,7 @@ describe('InstallationService.initialize', () => {
             operationId: 'bop_1',
             kind,
             phase: 'pre_upgrade_safety',
+            checkpoint: 'none',
             progress: 0,
             lastSafeSequence: null,
             errorCode: null,
@@ -261,7 +264,7 @@ describe('InstallationService.initialize', () => {
   )
 
   it('returns conflict when the data directory is missing', async () => {
-    const { repository, service } = createInstallationFixture()
+    const { repository, service } = createInstallationFixture({ dataDirectoryReady: false })
     repository.find.mockResolvedValue(createInstallationRecord({ dataDirectoryReady: false }))
 
     await expect(service.initialize(input, admin)).rejects.toMatchObject({ code: 'CONFLICT' })
@@ -273,13 +276,13 @@ describe('InstallationService.initialize', () => {
     repository.find.mockResolvedValue(
       createInstallationRecord({ status: 'uninitialized', dataDirectoryReady: true }),
     )
-    repository.update.mockResolvedValue(createInstallationRecord())
+    repository.activate.mockResolvedValue(createInstallationRecord())
 
     const result = await service.initialize(input, admin)
 
     expect(result.status).toBe(201)
-    expect(repository.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'ready', dataDirectoryReady: true }),
+    expect(repository.activate).toHaveBeenCalledWith(
+      expect.objectContaining({ dataDirectoryReady: true }),
     )
   })
 
@@ -292,12 +295,12 @@ describe('InstallationService.initialize', () => {
         defaultRetention: { eventMonths: 24, profileMonths: 24, replayMonths: null },
       }),
     )
-    repository.update.mockResolvedValue(createInstallationRecord())
+    repository.activate.mockResolvedValue(createInstallationRecord())
 
     const result = await service.initialize(input, admin)
 
     expect(result.status).toBe(201)
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ retention }))
+    expect(repository.activate).toHaveBeenCalledWith(expect.objectContaining({ retention }))
   })
 
   it('rejects an unauthenticated caller without touching the repository', async () => {

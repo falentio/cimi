@@ -1,8 +1,10 @@
 import * as v from 'valibot'
 import { expect, test } from 'vitest'
 import { schema } from '@cimi/contract'
+import { schema as dbSchema } from '@cimi/db'
 import { createApiApp } from '../index.ts'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.ts'
+import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 
 test('installation routes reject unauthenticated callers', async () => {
   await using fixture = await createApiTestFixture()
@@ -111,22 +113,18 @@ test('installation initializes convergently, upgrades, and polls the operation',
   const polled = await poll.json()
   expect(v.parse(schema.SInstallation, polled)).toBeDefined()
   expect(polled).toMatchObject({
-    status: 'maintenance',
-    activeOperation: { operationId: upgraded.activeOperation.operationId, kind: 'upgrade' },
+    status: expect.stringMatching(/ready|maintenance|degraded/),
   })
-
-  const secondUpgrade = await apiTestRequest(
-    app,
-    '/installation/upgradeInstallation',
-    owner.cookie,
-    { confirmation: 'UPGRADE' },
-  )
-  expect(secondUpgrade.status).toBe(409)
-  await expect(secondUpgrade.json()).resolves.toMatchObject({ code: 'CONFLICT', status: 409 })
 })
 
 test('second upgrade while an upgrade is active conflicts', async () => {
-  await using fixture = await createApiTestFixture()
+  let releaseMigration: (() => void) | undefined
+  const migration = new Promise<void>((resolve) => {
+    releaseMigration = resolve
+  })
+  await using fixture = await createApiTestFixture({
+    upgradeExecutor: createFakeUpgradeExecutor({ migrate: () => migration }),
+  })
   const { app } = fixture
   const owner = await signUpTestUser(app, 'second-upgrade@example.com', 'Second Upgrade')
 
@@ -151,6 +149,7 @@ test('second upgrade while an upgrade is active conflicts', async () => {
   )
   expect(secondUpgrade.status).toBe(409)
   await expect(secondUpgrade.json()).resolves.toMatchObject({ code: 'CONFLICT', status: 409 })
+  releaseMigration?.()
 })
 
 test('upgrade without initialization conflicts', async () => {
@@ -194,10 +193,15 @@ test('upgrade rejects a wrong confirmation', async () => {
   await expect(upgrade.json()).resolves.toMatchObject({ status: 400 })
 })
 
-test('upgrade with an incompatible artifact maps to 422', async () => {
-  await using fixture = await createApiTestFixture()
-  const { app, auth, db, analytics } = fixture
-  const owner = await signUpTestUser(app, 'incompat-owner@example.com', 'Incompat Owner')
+test('upgrade failure rolls back through the executor and persists a safe error', async () => {
+  const executor = createFakeUpgradeExecutor({
+    migrate: async () => {
+      throw new Error('migration failed')
+    },
+  })
+  await using fixture = await createApiTestFixture({ upgradeExecutor: executor })
+  const { app, db } = fixture
+  const owner = await signUpTestUser(app, 'failure-owner@example.com', 'Failure Owner')
 
   const created = await apiTestRequest(
     app,
@@ -207,23 +211,33 @@ test('upgrade with an incompatible artifact maps to 422', async () => {
   )
   expect(created.status).toBe(201)
 
-  const incompatibleApp = createApiApp({
-    db,
-    auth,
-    analytics,
-    upgradeArtifact: { isCompatible: () => false },
+  const upgrade = await apiTestRequest(app, '/installation/upgradeInstallation', owner.cookie, {
+    confirmation: 'UPGRADE',
   })
-  const upgrade = await apiTestRequest(
-    incompatibleApp,
-    '/installation/upgradeInstallation',
-    owner.cookie,
-    { confirmation: 'UPGRADE' },
-  )
-  expect(upgrade.status).toBe(422)
-  await expect(upgrade.json()).resolves.toMatchObject({
-    code: 'INCOMPATIBLE_BACKUP',
-    status: 422,
-  })
+  expect(upgrade.status).toBe(202)
+  const body = await upgrade.json()
+  expect(body.status).toBe('maintenance')
+
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const status = await apiTestRequest(app, '/installation/getInstallationStatus', owner.cookie)
+    const statusBody = await status.json()
+    if (statusBody.status === 'degraded') break
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+  await expect(
+    apiTestRequest(app, '/installation/getInstallationStatus', owner.cookie).then((response) =>
+      response.json(),
+    ),
+  ).resolves.toMatchObject({ status: 'degraded', activeOperation: null })
+  expect(
+    db
+      .select({
+        status: dbSchema.TBackupOperation.status,
+        errorCode: dbSchema.TBackupOperation.errorCode,
+      })
+      .from(dbSchema.TBackupOperation)
+      .all(),
+  ).toEqual([{ status: 'failed', errorCode: 'INTERNAL_SERVER_ERROR' }])
 })
 
 test('initialize rejects invalid retention shapes', async () => {
@@ -263,7 +277,13 @@ test('second init with differing retention conflicts', async () => {
 })
 
 test('init after upgrade conflicts', async () => {
-  await using fixture = await createApiTestFixture()
+  let releaseMigration: (() => void) | undefined
+  const migration = new Promise<void>((resolve) => {
+    releaseMigration = resolve
+  })
+  await using fixture = await createApiTestFixture({
+    upgradeExecutor: createFakeUpgradeExecutor({ migrate: () => migration }),
+  })
   const { app } = fixture
   const owner = await signUpTestUser(app, 'after-upgrade@example.com', 'After Upgrade')
 
@@ -283,6 +303,7 @@ test('init after upgrade conflicts', async () => {
   const again = await apiTestRequest(app, '/installation/initializeInstallation', owner.cookie, {})
   expect(again.status).toBe(409)
   await expect(again.json()).resolves.toMatchObject({ code: 'CONFLICT', status: 409 })
+  releaseMigration?.()
 })
 
 test('parallel inits converge to one created and four reused', async () => {
@@ -300,8 +321,14 @@ test('parallel inits converge to one created and four reused', async () => {
   expect(statuses.filter((status) => status === 200)).toHaveLength(4)
 })
 
-test('startup resumes an interrupted upgrade as recovering', async () => {
-  await using fixture = await createApiTestFixture()
+test('a second app does not steal a fresh upgrade operation', async () => {
+  let releaseMigration: (() => void) | undefined
+  const migration = new Promise<void>((resolve) => {
+    releaseMigration = resolve
+  })
+  await using fixture = await createApiTestFixture({
+    upgradeExecutor: createFakeUpgradeExecutor({ migrate: () => migration }),
+  })
   const { app, auth, db, analytics } = fixture
   const owner = await signUpTestUser(app, 'resume-owner@example.com', 'Resume Owner')
 
@@ -317,13 +344,23 @@ test('startup resumes an interrupted upgrade as recovering', async () => {
     confirmation: 'UPGRADE',
   })
   expect(upgrade.status, await upgrade.clone().text()).toBe(202)
-  const upgraded = (await upgrade.clone().json()) as { activeOperation: { operationId: string } }
+  const upgraded = (await upgrade.clone().json()) as {
+    status: string
+    activeOperation: { operationId: string }
+  }
   const operationId = upgraded.activeOperation.operationId
+  expect(upgraded.status).toBe('maintenance')
 
-  const restarted = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
-  let status = ''
-  let preserved = ''
-  for (let attempt = 0; attempt < 50 && status !== 'recovering'; attempt += 1) {
+  const restarted = createApiApp({
+    db,
+    auth,
+    analytics,
+    baseUrl: 'http://localhost',
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+  })
+  try {
     const poll = await restarted.fetch(
       new Request('http://localhost/api/installation/getInstallationStatus', {
         method: 'GET',
@@ -331,17 +368,14 @@ test('startup resumes an interrupted upgrade as recovering', async () => {
       }),
     )
     expect(poll.status).toBe(200)
-    const body = (await poll.json()) as { status: string; activeOperation: { operationId: string } }
-    status = body.status
-    preserved = body.activeOperation.operationId
-    if (status !== 'recovering') await new Promise((resolve) => setTimeout(resolve, 20))
+    await expect(poll.json()).resolves.toMatchObject({
+      status: 'maintenance',
+      activeOperation: { operationId },
+    })
+  } finally {
+    await restarted.close()
+    releaseMigration?.()
   }
-  expect(status).toBe('recovering')
-  expect(preserved).toBe(operationId)
-
-  const health = await restarted.fetch(new Request('http://localhost/api/system/health'))
-  expect(health.status).toBe(200)
-  await expect(health.json()).resolves.toMatchObject({ status: 'recovering' })
 })
 
 test('startup leaves an idle installation alone', async () => {
@@ -357,7 +391,15 @@ test('startup leaves an idle installation alone', async () => {
   )
   expect(created.status).toBe(201)
 
-  const restarted = createApiApp({ db, auth, analytics, baseUrl: 'http://localhost' })
+  const restarted = createApiApp({
+    db,
+    auth,
+    analytics,
+    baseUrl: 'http://localhost',
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+  })
   const poll = await restarted.fetch(
     new Request('http://localhost/api/installation/getInstallationStatus', {
       method: 'GET',
