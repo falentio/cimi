@@ -2,7 +2,8 @@ import type { AuthUser } from '@cimi/auth'
 import { schema as contractSchema } from '@cimi/contract'
 import { InMemorySiteScopePort } from '@cimi/guard'
 import type { InMemorySiteMembership, InMemorySiteRecord } from '@cimi/guard'
-import { InMemoryLifecycleLock } from '@cimi/kernel'
+import { InMemoryLifecycleLock, InMemoryLifecycleOperationStatusReader } from '@cimi/kernel'
+import type { LifecycleOperationStatus } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
 import type { RetentionPolicyRepository } from './repository.ts'
 import { RetentionPolicyService, type RetentionPolicyIdFactory } from './service.ts'
@@ -10,6 +11,7 @@ import { RetentionPolicyService, type RetentionPolicyIdFactory } from './service
 export interface RetentionPolicyFixtureOptions {
   readonly sites?: readonly InMemorySiteRecord[]
   readonly memberships?: readonly InMemorySiteMembership[]
+  readonly activeOperation?: (LifecycleOperationStatus & { errorCode?: string | null }) | null
   readonly clock?: (() => Date) | undefined
   readonly ids?: RetentionPolicyIdFactory | undefined
 }
@@ -23,14 +25,17 @@ export function createRetentionPolicyFixture(options: RetentionPolicyFixtureOpti
     options.sites ?? [{ siteId: 'ste_1', organizationId: 'org_1' }],
     options.memberships ?? [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
   )
+  const lifecycle = new InMemoryLifecycleOperationStatusReader()
+  if (options.activeOperation !== undefined) lifecycle.setActiveOperation(options.activeOperation)
   const service = new RetentionPolicyService({
     repository,
     lock,
     scope: { siteScope: scope, membership: scope },
+    lifecycle,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
     ...(options.ids === undefined ? {} : { ids: options.ids }),
   })
-  return { repository, lock, scope, service }
+  return { repository, lock, scope, lifecycle, service }
 }
 
 export function createStoredResolution(

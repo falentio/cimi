@@ -2,7 +2,7 @@ import type { AuthUser } from '@cimi/auth'
 import { schema } from '@cimi/contract'
 import { assertInstallationAdmin, assertSiteManagementScope } from '@cimi/guard'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import type { LifecycleLock } from '@cimi/kernel'
+import type { LifecycleLock, LifecycleOperationStatusReader } from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -20,6 +20,7 @@ export interface RetentionPolicyServiceDependencies {
   repository: RetentionPolicyRepository
   lock: LifecycleLock
   scope: SiteScopeGuardDependencies
+  lifecycle: LifecycleOperationStatusReader
   clock?: (() => Date) | undefined
   ids?: RetentionPolicyIdFactory | undefined
 }
@@ -28,13 +29,22 @@ export class RetentionPolicyService {
   private readonly repository: RetentionPolicyRepository
   private readonly lock: LifecycleLock
   private readonly scope: SiteScopeGuardDependencies
+  private readonly lifecycle: LifecycleOperationStatusReader
   private readonly clock: () => Date
   private readonly ids: RetentionPolicyIdFactory
 
-  constructor({ repository, lock, scope, clock, ids }: RetentionPolicyServiceDependencies) {
+  constructor({
+    repository,
+    lock,
+    scope,
+    lifecycle,
+    clock,
+    ids,
+  }: RetentionPolicyServiceDependencies) {
     this.repository = repository
     this.lock = lock
     this.scope = scope
+    this.lifecycle = lifecycle
     this.clock = clock ?? (() => new Date())
     this.ids = ids ?? { retentionPolicyId: () => generateId('rtn') }
   }
@@ -55,6 +65,7 @@ export class RetentionPolicyService {
       }
     }
     await assertSiteManagementScope(user, input.siteId, this.scope)
+    if (!(await this.scope.siteScope.isActive(input.siteId))) throw new ORPCError('NOT_FOUND')
     const resolved = await this.repository.findResolved({ siteId: input.siteId })
     return {
       scope: 'site',
@@ -75,6 +86,7 @@ export class RetentionPolicyService {
       const lease = await this.lock.acquire('retention')
       if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
       try {
+        await this.assertNoActiveLifecycleOperation()
         const resolved = await this.repository.saveInstallationDefault({
           id: this.ids.retentionPolicyId(),
           policy: input.policy,
@@ -92,9 +104,12 @@ export class RetentionPolicyService {
       }
     }
     await assertSiteManagementScope(user, input.siteId, this.scope)
+    if (!(await this.scope.siteScope.isActive(input.siteId)))
+      throw new ORPCError('CONFLICT', { status: 409 })
     const lease = await this.lock.acquire('retention')
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     try {
+      await this.assertNoActiveLifecycleOperation()
       const resolved =
         input.policy === null
           ? await this.repository.clearSiteOverride({ siteId: input.siteId, now: this.clock() })
@@ -115,5 +130,14 @@ export class RetentionPolicyService {
     } finally {
       await lease.release()
     }
+  }
+
+  private async assertNoActiveLifecycleOperation(): Promise<void> {
+    const active = await this.lifecycle.getActiveOperation()
+    if (active === null) return
+    if ((active as { errorCode?: unknown }).errorCode !== undefined) {
+      if ((active as { errorCode?: unknown }).errorCode !== null) return
+    }
+    throw new ORPCError('CONFLICT', { status: 409 })
   }
 }

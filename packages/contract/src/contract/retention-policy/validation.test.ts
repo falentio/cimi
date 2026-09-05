@@ -102,4 +102,55 @@ describe('retention policy contract', () => {
       v.parse(SRetentionPolicy, { eventMonths: 6, profileMonths: 12, replayMonths: null }),
     ).toThrow(v.ValiError)
   })
+
+  it('accepts minimum, maximum, and valid equality boundaries', () => {
+    expect(
+      v.parse(SRetentionPolicy, { eventMonths: 1, profileMonths: 1, replayMonths: null }),
+    ).toEqual({ eventMonths: 1, profileMonths: 1, replayMonths: null })
+    expect(
+      v.parse(SRetentionPolicy, { eventMonths: 120, profileMonths: 120, replayMonths: null }),
+    ).toEqual({ eventMonths: 120, profileMonths: 120, replayMonths: null })
+    expect(
+      v.parse(SRetentionPolicy, { eventMonths: 24, profileMonths: 18, replayMonths: 6 }),
+    ).toEqual({ eventMonths: 24, profileMonths: 18, replayMonths: 6 })
+    expect(
+      v.parse(SRetentionPolicy, { eventMonths: 12, profileMonths: 12, replayMonths: null }),
+    ).toEqual({ eventMonths: 12, profileMonths: 12, replayMonths: null })
+  })
+
+  it('rejects malformed site reads and invalid result variants', () => {
+    expect(() => v.parse(SRetentionPolicyGetInput, { scope: 'site' })).toThrow(v.ValiError)
+    expect(() => v.parse(SRetentionPolicyGetInput, { scope: 'site', siteId: 123 })).toThrow(
+      v.ValiError,
+    )
+    expect(() =>
+      v.parse(SRetentionPolicyResult, {
+        scope: 'installation',
+        installationDefault: policy,
+        siteOverride: null,
+        effectivePolicy: policy,
+        updatedAt: 'not-a-date',
+      }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicyResult, {
+        scope: 'site',
+        installationDefault: policy,
+        siteOverride: null,
+        effectivePolicy: policy,
+        updatedAt: '2026-08-23T00:00:00Z',
+      }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicyResult, {
+        scope: 'site',
+        siteId: 'ste-1',
+        installationDefault: policy,
+        siteOverride: null,
+        effectivePolicy: policy,
+        updatedAt: '2026-08-23T00:00:00Z',
+        extra: 1,
+      }),
+    ).toThrow(v.ValiError)
+  })
 })

@@ -139,4 +139,19 @@ describe('RetentionPolicyService.get', () => {
     })
     expect(repository.findResolved).not.toHaveBeenCalled()
   })
+
+  it.each(['deleting', 'deleted', 'recovering', 'purged'] as const)(
+    'hides a %s site read with NOT_FOUND',
+    async (status) => {
+      const { repository, service } = createRetentionPolicyFixture({
+        sites: [{ siteId: 'ste_1', organizationId: 'org_1', status }],
+      })
+      repository.findResolved.mockResolvedValue(createStoredResolution())
+
+      await expect(
+        service.get({ scope: 'site', siteId: 'ste_1' }, siteOwner),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+      expect(repository.findResolved).not.toHaveBeenCalled()
+    },
+  )
 })

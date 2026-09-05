@@ -201,6 +201,109 @@ describe('RetentionPolicyService.update', () => {
     expect(repository.clearSiteOverride).not.toHaveBeenCalled()
   })
 
+  it.each(['deleting', 'deleted', 'recovering', 'purged'] as const)(
+    'rejects a %s site update with CONFLICT',
+    async (status) => {
+      const { repository, service } = createRetentionPolicyFixture({
+        sites: [{ siteId: 'ste_1', organizationId: 'org_1', status }],
+      })
+
+      await expect(
+        service.update({ scope: 'site', siteId: 'ste_1', policy: override }, siteOwner),
+      ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+      expect(repository.saveSiteOverride).not.toHaveBeenCalled()
+      expect(repository.clearSiteOverride).not.toHaveBeenCalled()
+    },
+  )
+
+  it('returns conflict for an installation update while a persisted operation is active', async () => {
+    const { repository, service } = createRetentionPolicyFixture({
+      activeOperation: {
+        operationId: 'bop_1',
+        kind: 'upgrade',
+        phase: 'pre_upgrade_safety',
+        checkpoint: 'none',
+      },
+    })
+
+    await expect(
+      service.update({ scope: 'installation', policy: override }, admin),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(repository.saveInstallationDefault).not.toHaveBeenCalled()
+  })
+
+  it('returns conflict for a site update while a persisted operation is active', async () => {
+    const { repository, service } = createRetentionPolicyFixture({
+      activeOperation: {
+        operationId: 'sop_1',
+        kind: 'site_deletion',
+        phase: 'site_transition',
+        checkpoint: 'none',
+      },
+    })
+
+    await expect(
+      service.update({ scope: 'site', siteId: 'ste_1', policy: override }, siteOwner),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+    expect(repository.saveSiteOverride).not.toHaveBeenCalled()
+    expect(repository.clearSiteOverride).not.toHaveBeenCalled()
+  })
+
+  it('allows an update when the persisted operation is terminal', async () => {
+    const { repository, service } = createRetentionPolicyFixture({
+      activeOperation: {
+        operationId: 'bop_1',
+        kind: 'upgrade',
+        phase: 'pre_upgrade_safety',
+        checkpoint: 'none',
+        errorCode: 'INTERNAL_SERVER_ERROR',
+      },
+    })
+    repository.saveInstallationDefault.mockResolvedValue(
+      createStoredResolution({ installationDefault: override, effectivePolicy: override }),
+    )
+
+    await expect(
+      service.update({ scope: 'installation', policy: override }, admin),
+    ).resolves.toMatchObject({ scope: 'installation', installationDefault: override })
+    expect(repository.saveInstallationDefault).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns conflict when another lifecycle kind holds the lock', async () => {
+    const { repository, lock, service } = createRetentionPolicyFixture()
+    const lease = lock.acquire('upgrade')
+    expect(lease).toBeDefined()
+    try {
+      await expect(
+        service.update({ scope: 'installation', policy: override }, admin),
+      ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 })
+      expect(repository.saveInstallationDefault).not.toHaveBeenCalled()
+    } finally {
+      if (lease !== undefined) await lease.release()
+    }
+  })
+
+  it('serializes overlapping updates so only one proceeds', async () => {
+    const { repository, service } = createRetentionPolicyFixture()
+    let releaseRepository!: () => void
+    const gate = new Promise<void>((resolve) => {
+      releaseRepository = resolve
+    })
+    repository.saveInstallationDefault.mockImplementationOnce(async () => {
+      await gate
+      return createStoredResolution({ installationDefault: override, effectivePolicy: override })
+    })
+
+    const first = service.update({ scope: 'installation', policy: override }, admin)
+    await Promise.resolve()
+    await expect(
+      service.update({ scope: 'installation', policy: override }, admin),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    releaseRepository()
+    await expect(first).resolves.toMatchObject({ installationDefault: override })
+    expect(repository.saveInstallationDefault).toHaveBeenCalledTimes(1)
+  })
+
   it('releases the lock after a repository failure so a retry succeeds', async () => {
     const { repository, lock, service } = createRetentionPolicyFixture()
     repository.saveInstallationDefault.mockRejectedValueOnce(new Error('boom'))

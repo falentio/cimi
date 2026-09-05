@@ -88,7 +88,11 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     getSnapshot: () => installation.service.snapshotForHealth().then((snapshot) => snapshot ?? {}),
   }
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
-  const retentionPolicy = createRetentionPolicy({ db: deps.db, lock })
+  const retentionPolicy = createRetentionPolicy({
+    db: deps.db,
+    lock,
+    lifecycle: installation.service,
+  })
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),

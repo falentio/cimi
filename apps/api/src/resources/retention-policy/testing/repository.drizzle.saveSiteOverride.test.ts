@@ -271,4 +271,160 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(fixture.db.select().from(schema.TRetentionPolicy).all()).toEqual([])
   })
+
+  it('rolls back supersede when the replacement site insert fails', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(createInstallationInsertInput())
+    const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
+    const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
+    const replacement = { eventMonths: 3, profileMonths: 3, replayMonths: null }
+
+    await repository.saveSiteOverride({ id: 'rtn_site_1', siteId: 'ste_1', policy: override, now })
+
+    await expect(
+      repository.saveSiteOverride({ id: 'rtn_site_1', siteId: 'ste_1', policy: replacement, now }),
+    ).rejects.toThrow(/UNIQUE|PRIMARY/i)
+
+    const rows = fixture.db
+      .select({
+        id: schema.TRetentionPolicy.id,
+        version: schema.TRetentionPolicy.version,
+        status: schema.TRetentionPolicy.status,
+        effectiveTo: schema.TRetentionPolicy.effectiveTo,
+        effectiveFrom: schema.TRetentionPolicy.effectiveFrom,
+        updatedAt: schema.TRetentionPolicy.updatedAt,
+      })
+      .from(schema.TRetentionPolicy)
+      .where(
+        and(
+          eq(schema.TRetentionPolicy.installationId, 'ins_1'),
+          eq(schema.TRetentionPolicy.siteId, 'ste_1'),
+        ),
+      )
+      .all()
+    expect(rows).toEqual([
+      {
+        id: 'rtn_site_1',
+        version: 1,
+        status: 'active',
+        effectiveTo: null,
+        effectiveFrom: now,
+        updatedAt: now,
+      },
+    ])
+    await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toMatchObject({
+      siteOverride: override,
+      effectivePolicy: override,
+    })
+  })
+
+  it('stamps site supersede timing on replace', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(createInstallationInsertInput())
+    const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
+    const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
+    const updated = { eventMonths: 12, profileMonths: 12, replayMonths: 6 }
+    const later = new Date('2026-09-03T00:00:00.000Z')
+
+    await repository.saveSiteOverride({ id: 'rtn_site_1', siteId: 'ste_1', policy: override, now })
+    await repository.saveSiteOverride({
+      id: 'rtn_site_2',
+      siteId: 'ste_1',
+      policy: updated,
+      now: later,
+    })
+
+    const rows = fixture.db
+      .select({
+        id: schema.TRetentionPolicy.id,
+        version: schema.TRetentionPolicy.version,
+        status: schema.TRetentionPolicy.status,
+        effectiveFrom: schema.TRetentionPolicy.effectiveFrom,
+        effectiveTo: schema.TRetentionPolicy.effectiveTo,
+        updatedAt: schema.TRetentionPolicy.updatedAt,
+      })
+      .from(schema.TRetentionPolicy)
+      .where(
+        and(
+          eq(schema.TRetentionPolicy.installationId, 'ins_1'),
+          eq(schema.TRetentionPolicy.siteId, 'ste_1'),
+        ),
+      )
+      .orderBy(schema.TRetentionPolicy.version)
+      .all()
+    expect(rows).toEqual([
+      {
+        id: 'rtn_site_1',
+        version: 1,
+        status: 'superseded',
+        effectiveFrom: now,
+        effectiveTo: later,
+        updatedAt: later,
+      },
+      {
+        id: 'rtn_site_2',
+        version: 2,
+        status: 'active',
+        effectiveFrom: later,
+        effectiveTo: null,
+        updatedAt: later,
+      },
+    ])
+    await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toMatchObject({
+      siteOverride: updated,
+      effectivePolicy: updated,
+    })
+  })
+
+  it('keeps the site override while the installation default changes, then inherits the newest default on clear', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(createInstallationInsertInput())
+    const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
+    const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
+    const nextDefault = { eventMonths: 24, profileMonths: 18, replayMonths: 6 }
+    const later = new Date('2026-09-03T00:00:00.000Z')
+
+    await repository.saveSiteOverride({ id: 'rtn_site_1', siteId: 'ste_1', policy: override, now })
+    await repository.saveInstallationDefault({ id: 'rtn_2', policy: nextDefault, now: later })
+
+    await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toEqual({
+      installationId: 'ins_1',
+      installationDefault: nextDefault,
+      siteOverride: override,
+      effectivePolicy: override,
+      updatedAt: now.toISOString(),
+    })
+
+    const cleared = await repository.clearSiteOverride({ siteId: 'ste_1', now: later })
+    expect(cleared).toEqual({
+      installationId: 'ins_1',
+      installationDefault: nextDefault,
+      siteOverride: null,
+      effectivePolicy: nextDefault,
+      updatedAt: later.toISOString(),
+    })
+    await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toEqual(cleared)
+  })
+
+  it('prefers canonical policy history over a conflicting installation summary', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(createInstallationInsertInput())
+    const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
+
+    fixture.db
+      .update(schema.TInstallation)
+      .set({
+        eventRetentionMonths: 24,
+        profileRetentionMonths: 18,
+        replayRetentionMonths: 6,
+        updatedAt: now,
+      })
+      .where(eq(schema.TInstallation.singletonKey, 'default'))
+      .run()
+
+    await expect(repository.findResolved({ siteId: null })).resolves.toMatchObject({
+      installationDefault: { eventMonths: 12, profileMonths: 12, replayMonths: null },
+      effectivePolicy: { eventMonths: 12, profileMonths: 12, replayMonths: null },
+    })
+  })
 })

@@ -1,6 +1,6 @@
 import type { Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import type { LifecycleLock } from '@cimi/kernel'
+import type { LifecycleLock, LifecycleOperationStatusReader } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import { RetentionPolicyRepositoryDrizzle } from './repository.drizzle.ts'
 import { retentionPolicyRouter } from './router.ts'
@@ -21,6 +21,7 @@ export type { RetentionPolicyRepository } from './repository.ts'
 export interface CreateRetentionPolicyDependencies {
   db: Db
   lock: LifecycleLock
+  lifecycle: LifecycleOperationStatusReader
   scope?: SiteScopeGuardDependencies | undefined
   clock?: (() => Date) | undefined
   ids?: RetentionPolicyIdFactory | undefined
@@ -29,6 +30,7 @@ export interface CreateRetentionPolicyDependencies {
 export function createRetentionPolicy({
   db,
   lock,
+  lifecycle,
   scope,
   clock,
   ids,
@@ -38,6 +40,7 @@ export function createRetentionPolicy({
     repository,
     lock,
     scope: scope ?? createSiteScopeDependencies({ db }),
+    lifecycle,
     ...(clock === undefined ? {} : { clock }),
     ...(ids === undefined ? {} : { ids }),
   })
