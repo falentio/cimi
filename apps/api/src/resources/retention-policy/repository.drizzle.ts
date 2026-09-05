@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { schema as contractSchema } from '@cimi/contract'
 import { schema, type Db } from '@cimi/db'
 import { ORPCError } from '@orpc/server'
@@ -69,7 +69,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           eventMonths: input.policy.eventMonths,
           profileMonths: input.policy.profileMonths,
           replayMonths: input.policy.replayMonths,
-          version: (active?.version ?? 0) + 1,
+          version: selectMaxInstallationVersion(tx, installation.id) + 1,
           status: 'active',
           effectiveFrom: input.now,
           effectiveTo: null,
@@ -124,7 +124,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           eventMonths: input.policy.eventMonths,
           profileMonths: input.policy.profileMonths,
           replayMonths: input.policy.replayMonths,
-          version: (active?.version ?? 0) + 1,
+          version: selectMaxSiteVersion(tx, installation.id, input.siteId) + 1,
           status: 'active',
           effectiveFrom: input.now,
           effectiveTo: null,
@@ -164,7 +164,8 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           )
           .run()
       }
-      const installationDefault = selectActiveInstallationPolicy(tx, installation.id)?.policy ?? {
+      const installationPolicy = selectActiveInstallationPolicy(tx, installation.id)
+      const installationDefault = installationPolicy?.policy ?? {
         ...DEFAULT_POLICY,
       }
       return {
@@ -172,7 +173,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         installationDefault,
         siteOverride: null,
         effectivePolicy: { ...installationDefault },
-        updatedAt: input.now.toISOString(),
+        updatedAt: (installationPolicy?.updatedAt ?? installation.updatedAt).toISOString(),
       }
     })
   }
@@ -260,7 +261,45 @@ function selectActiveInstallationPolicy(tx: SqliteTransaction, installationId: s
         id: row.id,
         version: row.version,
         policy: toPolicy(row),
+        updatedAt: row.updatedAt,
       }
+}
+
+function selectMaxInstallationVersion(tx: SqliteTransaction, installationId: string): number {
+  const row = tx
+    .select({ version: schema.TRetentionPolicy.version })
+    .from(schema.TRetentionPolicy)
+    .where(
+      and(
+        eq(schema.TRetentionPolicy.installationId, installationId),
+        eq(schema.TRetentionPolicy.scope, 'installation'),
+      ),
+    )
+    .orderBy(desc(schema.TRetentionPolicy.version))
+    .limit(1)
+    .all()[0]
+  return row?.version ?? 0
+}
+
+function selectMaxSiteVersion(
+  tx: SqliteTransaction,
+  installationId: string,
+  siteId: string,
+): number {
+  const row = tx
+    .select({ version: schema.TRetentionPolicy.version })
+    .from(schema.TRetentionPolicy)
+    .where(
+      and(
+        eq(schema.TRetentionPolicy.installationId, installationId),
+        eq(schema.TRetentionPolicy.siteId, siteId),
+        eq(schema.TRetentionPolicy.scope, 'site'),
+      ),
+    )
+    .orderBy(desc(schema.TRetentionPolicy.version))
+    .limit(1)
+    .all()[0]
+  return row?.version ?? 0
 }
 
 function selectActiveSitePolicy(tx: SqliteTransaction, installationId: string, siteId: string) {

@@ -42,6 +42,8 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         id: schema.TRetentionPolicy.id,
         version: schema.TRetentionPolicy.version,
         status: schema.TRetentionPolicy.status,
+        effectiveTo: schema.TRetentionPolicy.effectiveTo,
+        updatedAt: schema.TRetentionPolicy.updatedAt,
       })
       .from(schema.TRetentionPolicy)
       .where(
@@ -53,8 +55,8 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       .all()
     expect(versions).toEqual(
       expect.arrayContaining([
-        { id: 'rtn_1', version: 1, status: 'superseded' },
-        { id: 'rtn_2', version: 2, status: 'active' },
+        { id: 'rtn_1', version: 1, status: 'superseded', effectiveTo: now, updatedAt: now },
+        { id: 'rtn_2', version: 2, status: 'active', effectiveTo: null, updatedAt: now },
       ]),
     )
     const installation = fixture.db
@@ -149,5 +151,43 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       repository.saveInstallationDefault({ id: 'rtn_x', policy, now }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(fixture.db.select().from(schema.TRetentionPolicy).all()).toEqual([])
+  })
+
+  it('stamps supersede timing and rolls back the whole write on insert failure', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(createInstallationInsertInput())
+    const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
+    const policy = { eventMonths: 24, profileMonths: 18, replayMonths: 6 }
+
+    await expect(repository.saveInstallationDefault({ id: 'rtn_1', policy, now })).rejects.toThrow(
+      /UNIQUE|PRIMARY/i,
+    )
+
+    const rows = fixture.db
+      .select({
+        id: schema.TRetentionPolicy.id,
+        version: schema.TRetentionPolicy.version,
+        status: schema.TRetentionPolicy.status,
+        effectiveTo: schema.TRetentionPolicy.effectiveTo,
+      })
+      .from(schema.TRetentionPolicy)
+      .where(
+        and(
+          eq(schema.TRetentionPolicy.installationId, 'ins_1'),
+          eq(schema.TRetentionPolicy.scope, 'installation'),
+        ),
+      )
+      .all()
+    expect(rows).toEqual([
+      {
+        id: 'rtn_1',
+        version: 1,
+        status: 'active',
+        effectiveTo: null,
+      },
+    ])
+    await expect(repository.findResolved({ siteId: null })).resolves.toMatchObject({
+      installationDefault: { eventMonths: 12, profileMonths: 12, replayMonths: null },
+    })
   })
 })

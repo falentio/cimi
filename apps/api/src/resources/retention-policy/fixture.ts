@@ -1,3 +1,4 @@
+import type { AuthUser } from '@cimi/auth'
 import { schema as contractSchema } from '@cimi/contract'
 import { InMemorySiteScopePort } from '@cimi/guard'
 import type { InMemorySiteMembership, InMemorySiteRecord } from '@cimi/guard'
@@ -42,6 +43,20 @@ export function createStoredResolution(
     siteOverride: null,
     effectivePolicy: { ...installationDefault },
     updatedAt,
+    ...overrides,
+  }
+}
+
+export function createTestAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
+  return {
+    id: 'user_1',
+    createdAt: new Date('2026-09-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    email: 'test@example.com',
+    emailVerified: true,
+    name: 'Test',
+    banned: false,
+    role: 'member',
     ...overrides,
   }
 }

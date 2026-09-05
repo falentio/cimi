@@ -68,6 +68,49 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
     })
   })
 
+  it('re-enables a site override after clear with a monotonic version', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(createInstallationInsertInput())
+    const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
+    const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
+    const later = new Date('2026-09-03T00:00:00.000Z')
+
+    await repository.saveSiteOverride({ id: 'rtn_site_1', siteId: 'ste_1', policy: override, now })
+    await repository.clearSiteOverride({ siteId: 'ste_1', now })
+    const reenabled = { eventMonths: 3, profileMonths: 3, replayMonths: null }
+    await repository.saveSiteOverride({
+      id: 'rtn_site_2',
+      siteId: 'ste_1',
+      policy: reenabled,
+      now: later,
+    })
+
+    await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toMatchObject({
+      siteOverride: reenabled,
+      effectivePolicy: reenabled,
+    })
+    const versions = fixture.db
+      .select({
+        id: schema.TRetentionPolicy.id,
+        version: schema.TRetentionPolicy.version,
+        status: schema.TRetentionPolicy.status,
+      })
+      .from(schema.TRetentionPolicy)
+      .where(
+        and(
+          eq(schema.TRetentionPolicy.installationId, 'ins_1'),
+          eq(schema.TRetentionPolicy.siteId, 'ste_1'),
+        ),
+      )
+      .all()
+    expect(versions).toEqual(
+      expect.arrayContaining([
+        { id: 'rtn_site_1', version: 1, status: 'superseded' },
+        { id: 'rtn_site_2', version: 2, status: 'active' },
+      ]),
+    )
+  })
+
   it('falls back to the built-in default for site save and clear without an installation policy', async () => {
     using fixture = createFixture()
     const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
@@ -108,8 +151,9 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: fallback,
       siteOverride: null,
       effectivePolicy: fallback,
-      updatedAt: now.toISOString(),
+      updatedAt: createdAt.toISOString(),
     })
+    await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toEqual(cleared)
     const versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,

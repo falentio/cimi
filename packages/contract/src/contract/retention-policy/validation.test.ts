@@ -2,7 +2,7 @@ import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { SRetentionPolicyUpdateInput } from './command/update.ts'
 import { SRetentionPolicyGetInput } from './query/get.ts'
-import { SRetentionPolicyResult } from './schema.ts'
+import { SRetentionPolicy, SRetentionPolicyResult } from './schema.ts'
 
 const policy = {
   eventMonths: 12,
@@ -19,6 +19,9 @@ describe('retention policy contract', () => {
     expect(() =>
       v.parse(SRetentionPolicyUpdateInput, { scope: 'installation', policy: null }),
     ).toThrow(v.ValiError)
+    expect(() => v.parse(SRetentionPolicyUpdateInput, { scope: 'installation' })).toThrow(
+      v.ValiError,
+    )
   })
 
   it('allows null only when clearing a Site override', () => {
@@ -26,6 +29,9 @@ describe('retention policy contract', () => {
       v.parse(SRetentionPolicyUpdateInput, { scope: 'site', siteId: 'ste-1', policy: null }),
     ).toEqual({ scope: 'site', siteId: 'ste-1', policy: null })
     expect(() => v.parse(SRetentionPolicyUpdateInput, { scope: 'site', policy: null })).toThrow(
+      v.ValiError,
+    )
+    expect(() => v.parse(SRetentionPolicyUpdateInput, { scope: 'site', siteId: 'ste-1' })).toThrow(
       v.ValiError,
     )
   })
@@ -45,5 +51,55 @@ describe('retention policy contract', () => {
         updatedAt: '2026-08-23T00:00:00Z',
       }),
     ).toMatchObject({ scope: 'site', siteOverride: null })
+  })
+
+  it('accepts the installation result variant', () => {
+    expect(
+      v.parse(SRetentionPolicyResult, {
+        scope: 'installation',
+        installationDefault: policy,
+        siteOverride: null,
+        effectivePolicy: policy,
+        updatedAt: '2026-08-23T00:00:00Z',
+      }),
+    ).toMatchObject({ scope: 'installation', siteOverride: null })
+  })
+
+  it('enforces numeric bounds and integer months', () => {
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 0, profileMonths: 12, replayMonths: null }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 121, profileMonths: 12, replayMonths: null }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 12.5, profileMonths: 12, replayMonths: null }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 12, profileMonths: 0, replayMonths: null }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 12, profileMonths: 12, replayMonths: 0 }),
+    ).toThrow(v.ValiError)
+  })
+
+  it('rejects unknown fields and replay boundary equality', () => {
+    expect(() =>
+      v.parse(SRetentionPolicy, {
+        eventMonths: 12,
+        profileMonths: 12,
+        replayMonths: null,
+        extra: 1,
+      }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 12, profileMonths: 12, replayMonths: 12 }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 12, profileMonths: 6, replayMonths: 6 }),
+    ).toThrow(v.ValiError)
+    expect(() =>
+      v.parse(SRetentionPolicy, { eventMonths: 6, profileMonths: 12, replayMonths: null }),
+    ).toThrow(v.ValiError)
   })
 })

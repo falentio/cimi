@@ -72,9 +72,6 @@ export class RetentionPolicyService {
   ): Promise<RetentionPolicyOutput> {
     if (input.scope === 'installation') {
       assertInstallationAdmin(user)
-      if (input.policy === null || input.policy === undefined) {
-        throw new ORPCError('BAD_REQUEST')
-      }
       const lease = await this.lock.acquire('retention')
       if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
       try {
@@ -95,9 +92,6 @@ export class RetentionPolicyService {
       }
     }
     await assertSiteManagementScope(user, input.siteId, this.scope)
-    if (input.policy === undefined) {
-      throw new ORPCError('BAD_REQUEST')
-    }
     const lease = await this.lock.acquire('retention')
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     try {

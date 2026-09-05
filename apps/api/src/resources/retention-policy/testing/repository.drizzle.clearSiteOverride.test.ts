@@ -80,7 +80,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       .all()[0]
     expect(afterSave).toEqual(summary)
 
-    await repository.clearSiteOverride({ siteId: 'ste_1', now })
+    const cleared = await repository.clearSiteOverride({ siteId: 'ste_1', now })
     const afterClear = fixture.db
       .select({
         eventRetentionMonths: schema.TInstallation.eventRetentionMonths,
@@ -91,6 +91,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       .where(eq(schema.TInstallation.singletonKey, 'default'))
       .all()[0]
     expect(afterClear).toEqual(summary)
+    await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toEqual(cleared)
     const versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,

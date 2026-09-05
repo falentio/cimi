@@ -1,11 +1,24 @@
-import type { AuthUser } from '@cimi/auth'
 import { describe, expect, it } from 'vitest'
-import { createRetentionPolicyFixture, createStoredResolution } from '../fixture.ts'
+import {
+  createRetentionPolicyFixture,
+  createStoredResolution,
+  createTestAuthUser,
+} from '../fixture.ts'
 
-const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
-const member = { id: 'user_2', role: 'member' } as unknown as AuthUser
-const siteOwner = { id: 'user_1', role: 'member' } as unknown as AuthUser
-const siteMember = { id: 'user_2', role: 'member' } as unknown as AuthUser
+const admin = createTestAuthUser({
+  id: 'user_1',
+  email: 'admin@example.com',
+  role: 'admin',
+  installationGrant: true,
+})
+const adminWithoutGrant = createTestAuthUser({
+  id: 'user_1',
+  email: 'admin@example.com',
+  role: 'admin',
+})
+const member = createTestAuthUser({ id: 'user_2', email: 'member@example.com', role: 'member' })
+const siteOwner = createTestAuthUser({ id: 'user_1', email: 'owner@example.com', role: 'member' })
+const siteMember = createTestAuthUser({ id: 'user_2', email: 'member@example.com', role: 'member' })
 
 const policy = { eventMonths: 12, profileMonths: 12, replayMonths: null }
 const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
@@ -56,7 +69,7 @@ describe('RetentionPolicyService.get', () => {
     })
   })
 
-  it('passes through the built-in 12/12/null fallback', async () => {
+  it('maps repository resolution to installation output', async () => {
     const { repository, service } = createRetentionPolicyFixture()
     repository.findResolved.mockResolvedValue(
       createStoredResolution({
@@ -90,6 +103,15 @@ describe('RetentionPolicyService.get', () => {
     expect(repository.findResolved).not.toHaveBeenCalled()
   })
 
+  it('rejects an installation read without an admin grant', async () => {
+    const { repository, service } = createRetentionPolicyFixture()
+
+    await expect(service.get({ scope: 'installation' }, adminWithoutGrant)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+    expect(repository.findResolved).not.toHaveBeenCalled()
+  })
+
   it('rejects a site read the user cannot access', async () => {
     const { repository, service } = createRetentionPolicyFixture()
 
@@ -105,6 +127,16 @@ describe('RetentionPolicyService.get', () => {
     await expect(
       service.get({ scope: 'site', siteId: 'ste_missing' }, siteOwner),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(repository.findResolved).not.toHaveBeenCalled()
+  })
+
+  it('returns conflict for a site read while governance is pending', async () => {
+    const { repository, scope, service } = createRetentionPolicyFixture()
+    scope.setPendingGovernanceOperation('org_1', true)
+
+    await expect(service.get({ scope: 'site', siteId: 'ste_1' }, siteOwner)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
     expect(repository.findResolved).not.toHaveBeenCalled()
   })
 })
