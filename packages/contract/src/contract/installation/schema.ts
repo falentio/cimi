@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { SDateTime, SId } from '../../schema/index.ts'
+import { SCleanupStage, SCleanupStageStatus, SLifecycleErrorCode } from '../../schema/lifecycle.ts'
 import { SRetentionPolicy } from '../retention-policy/schema.ts'
 
 export const SInstallationStatus = v.picklist([
@@ -8,17 +9,6 @@ export const SInstallationStatus = v.picklist([
   'degraded',
   'maintenance',
   'recovering',
-])
-export const SLifecycleErrorCode = v.picklist([
-  'BACKUP_FAILED',
-  'RESTORE_FAILED',
-  'UPGRADE_FAILED',
-  'RETENTION_FAILED',
-  'CLEANUP_FAILED',
-  'INCOMPATIBLE_BACKUP',
-  'INSUFFICIENT_STORAGE',
-  'CONFLICT',
-  'INTERNAL_SERVER_ERROR',
 ])
 export const SLifecycleOperationKind = v.picklist([
   'backup',
@@ -50,32 +40,7 @@ export const SLifecycleOperationStatus = v.strictObject({
   lastSafeSequence: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
   errorCode: v.nullable(SLifecycleErrorCode),
 })
-export const SCleanupStageStatus = v.picklist([
-  'not_applicable',
-  'not_started',
-  'pending',
-  'running',
-  'completed',
-  'failed',
-])
-export const SCleanupStage = v.pipe(
-  v.strictObject({
-    status: SCleanupStageStatus,
-    startedAt: v.nullable(SDateTime),
-    completedAt: v.nullable(SDateTime),
-    errorCode: v.nullable(SLifecycleErrorCode),
-  }),
-  v.check(({ status, startedAt, completedAt, errorCode }) => {
-    if (status === 'not_applicable' || status === 'not_started' || status === 'pending') {
-      return startedAt === null && completedAt === null && errorCode === null
-    }
-    if (status === 'running')
-      return startedAt !== null && completedAt === null && errorCode === null
-    if (status === 'completed')
-      return startedAt !== null && completedAt !== null && errorCode === null
-    return startedAt !== null && completedAt !== null && errorCode !== null
-  }, 'Cleanup stage timestamps and errors must match its status.'),
-)
+export { SCleanupStage, SCleanupStageStatus, SLifecycleErrorCode }
 export const SInstallation = v.pipe(
   v.strictObject({
     status: SInstallationStatus,

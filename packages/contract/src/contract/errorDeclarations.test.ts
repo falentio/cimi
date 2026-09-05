@@ -280,6 +280,7 @@ const expectedErrors: Record<string, ErrorMap> = {
     'FORBIDDEN',
     'NOT_FOUND',
     'BAD_REQUEST',
+    'CONFLICT',
     'INTERNAL_SERVER_ERROR',
   ),
   'retentionPolicy.updateRetentionPolicy': catalog(

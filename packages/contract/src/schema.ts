@@ -1,4 +1,5 @@
 export * from './schema/index.ts'
+export * from './schema/lifecycle.ts'
 export * from './contract/backup-restore/schema.ts'
 export * from './contract/cohort-retention/schema.ts'
 export * from './contract/collection-policy/schema.ts'

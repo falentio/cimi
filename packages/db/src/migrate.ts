@@ -22,6 +22,7 @@ export class ControlMigrationIncompatibilityError extends Error {
 export const BASE_SKELETON_TABLES = [
   'installation',
   'retention_policy',
+  'retention_effective_cutoff',
   'site_tombstone',
   'backup_restore_reference',
   'event_acceptance_journal',

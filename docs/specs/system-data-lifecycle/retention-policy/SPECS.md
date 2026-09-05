@@ -49,7 +49,7 @@ Update and read inputs are discriminated by `scope`: `installation` carries a no
 
 **Behavior:** Read-only policy inspection. Show whether a value is inherited or overridden. Do not expose storage paths or deletion-job internals.
 
-**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `INTERNAL_SERVER_ERROR` (500).
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `CONFLICT` (409 during governance), `INTERNAL_SERVER_ERROR` (500).
 
 ## 5. Commands
 

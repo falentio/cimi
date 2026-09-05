@@ -23,6 +23,17 @@ export type LifecycleOperationKind =
 
 export type PersistedLifecycleOperationKind = Exclude<LifecycleOperationKind, 'purge'>
 
+export type LifecycleErrorCode =
+  | 'BACKUP_FAILED'
+  | 'RESTORE_FAILED'
+  | 'UPGRADE_FAILED'
+  | 'RETENTION_FAILED'
+  | 'CLEANUP_FAILED'
+  | 'INCOMPATIBLE_BACKUP'
+  | 'INSUFFICIENT_STORAGE'
+  | 'CONFLICT'
+  | 'INTERNAL_SERVER_ERROR'
+
 export type LifecycleLockKind = PersistedLifecycleOperationKind | 'initialization'
 
 export const LIFECYCLE_OPERATION_PHASES = [
@@ -45,6 +56,9 @@ export interface LifecycleOperationStatus {
   readonly kind: PersistedLifecycleOperationKind
   readonly phase: LifecycleOperationPhase
   readonly checkpoint: LifecycleOperationCheckpoint
+  readonly progress: number | null
+  readonly lastSafeSequence: number | null
+  readonly errorCode: LifecycleErrorCode | null
 }
 
 /** Normalize the issue-facing purge alias to the contract and DB name. */

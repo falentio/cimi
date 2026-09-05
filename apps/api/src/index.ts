@@ -19,6 +19,7 @@ import {
 import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
+import { createRetentionPolicy } from './resources/retention-policy/index.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
 import {
   resolveAdmissionGate,
@@ -87,6 +88,12 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     getSnapshot: () => installation.service.snapshotForHealth().then((snapshot) => snapshot ?? {}),
   }
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
+  const retentionPolicy = createRetentionPolicy({
+    db: deps.db,
+    lock,
+    lifecycle: installation.service,
+  })
+  retentionPolicy.worker.start()
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
@@ -95,6 +102,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     installation: installation.router,
     organization: organization.router,
     membership: membership.router,
+    retentionPolicy: retentionPolicy.router,
     site: site.router,
     invitation: invitation.router,
   })
@@ -197,6 +205,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     async close(): Promise<void> {
       if (closed) return
       closed = true
+      await retentionPolicy.worker.stop()
       await siteLifecycleWorker.stop()
       await installation.service.stop()
     },

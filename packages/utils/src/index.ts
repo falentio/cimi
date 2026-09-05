@@ -42,6 +42,12 @@ export {
 } from './user-agent/index.ts'
 export { getRegistrableDomain } from './registrable-domain/index.ts'
 export {
+  resolveSiteLocalCutoff,
+  resolveSiteLocalDay,
+  type ResolveSiteLocalCutoffInput,
+  type ResolveSiteLocalDayInput,
+} from './retention-time/index.ts'
+export {
   classifyUA,
   isBotUA,
   type BotCategory,

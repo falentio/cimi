@@ -81,6 +81,102 @@ describe('createAnalyticsDb', () => {
     await expect(analytics.ready()).resolves.toBe(false)
   })
 
+  it('filters occurrence data at the current Site retention boundary', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analyticsPath = join(dir, 'retention-analytics.duckdb')
+    const analytics = await createAnalyticsDb({
+      path: analyticsPath,
+      tempDirectory: join(dir, 'retention-analytics-tmp'),
+    })
+    const now = Date.parse('2026-09-05T14:30:00.000Z')
+    const cutoff = now - 24 * 60 * 60 * 1000
+
+    try {
+      migrateControlDb(controlDb)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('user-1', 'User', 'user@example.com', 1, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO organization (id, name, owner_user_id, is_personal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('org-1', 'Organization', 'user-1', 0, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('ste-1', 'org-1', 'Site', 'example.com', 'ing-1', now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO installation (id, status, data_directory_ready, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run('ins-1', 'ready', 1, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO collection_policy_revision (id, installation_id, scope, version, policy_json, effective_from, committed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('pol-1', 'ins-1', 'installation', 1, '{}', now, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO retention_policy (id, installation_id, scope, event_months, profile_months, version, status, effective_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('rtn-1', 'ins-1', 'installation', 1, 1, 1, 'active', now, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO retention_effective_cutoff (site_id, installation_id, policy_id, reporting_timezone, local_day, event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at, effective_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('ste-1', 'ins-1', 'rtn-1', 'UTC', '2026-09-05', cutoff, cutoff, cutoff, now, now)
+      for (const [eventPk, eventId, occurrenceTime] of [
+        [1, 'expired', cutoff - 1] as const,
+        [2, 'retained', cutoff + 1] as const,
+      ]) {
+        controlDb.$client
+          .prepare(
+            'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          )
+          .run(
+            eventPk,
+            'ste-1',
+            eventId,
+            'custom_event',
+            occurrenceTime,
+            occurrenceTime,
+            'pol-1',
+            eventPk,
+            `fingerprint-${eventPk}`,
+            'pending',
+            occurrenceTime,
+          )
+      }
+
+      await analytics.rebuild({ controlDb })
+      await analytics.close()
+
+      const inspectionInstance = await DuckDBInstance.create(analyticsPath)
+      const inspectionConnection = await inspectionInstance.connect()
+      try {
+        const events = await inspectionConnection.runAndReadAll(
+          'SELECT event_id FROM events ORDER BY event_id',
+        )
+        expect(events.getRowObjects()).toEqual([{ event_id: 'retained' }])
+        const checkpoint = await inspectionConnection.runAndReadAll(
+          "SELECT effective_retention_from FROM projection_checkpoints WHERE site_id = 'ste-1'",
+        )
+        expect(String(checkpoint.getRowObjects()[0]?.['effective_retention_from'])).toContain(
+          '2026-09-04',
+        )
+      } finally {
+        inspectionConnection.closeSync()
+        inspectionInstance.closeSync()
+      }
+    } finally {
+      closeDb(controlDb)
+      await analytics.close()
+    }
+  })
+
   it('rebuilds derived state from the SQLite acceptance data', async () => {
     const controlDb = createDb({ path: ':memory:' })
     const analyticsPath = join(dir, 'analytics.duckdb')
