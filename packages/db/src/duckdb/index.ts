@@ -470,14 +470,16 @@ function readEvents(db: Db): EventRow[] {
          COALESCE(ec.name, eo.name, ep.name, ee.name) AS name,
          eo.destination AS destination, ep.value AS value, ep.unit AS unit,
          ee.code AS code, ee.message AS message
-       FROM accepted_event ae
-       LEFT JOIN event_page_view epv ON epv.event_pk = ae.event_pk
+        FROM accepted_event ae
+        JOIN site s ON s.id = ae.site_id AND s.status = 'active'
+        LEFT JOIN event_page_view epv ON epv.event_pk = ae.event_pk
        LEFT JOIN event_custom ec ON ec.event_pk = ae.event_pk
        LEFT JOIN event_outbound eo ON eo.event_pk = ae.event_pk
          LEFT JOIN event_performance ep ON ep.event_pk = ae.event_pk
          LEFT JOIN event_error ee ON ee.event_pk = ae.event_pk
          LEFT JOIN retention_effective_cutoff rc ON rc.site_id = ae.site_id
-        WHERE rc.site_id IS NULL OR ae.occurrence_time >= rc.event_occurrence_cutoff_at
+         WHERE (rc.site_id IS NULL OR ae.occurrence_time >= rc.event_occurrence_cutoff_at)
+           AND NOT EXISTS (SELECT 1 FROM site_tombstone st WHERE st.site_id = ae.site_id)
         ORDER BY ae.replay_sequence`,
     )
     .all() as EventRow[]
@@ -502,9 +504,11 @@ function readIdentities(db: Db): Identities {
          e.profile_id AS profileId, e.site_id AS siteId, e.identified_user_id AS identifiedUserId,
          e.epoch AS profileEpoch, p.status AS profileStatus, e.status AS epochStatus,
          e.started_at AS startedAt, e.ended_at AS endedAt
-       FROM identity_profile_epoch e
-       JOIN identity_profile p ON p.profile_id = e.profile_id
-       ORDER BY e.site_id, e.identified_user_id, e.epoch`,
+        FROM identity_profile_epoch e
+        JOIN identity_profile p ON p.profile_id = e.profile_id
+        JOIN site s ON s.id = e.site_id AND s.status = 'active'
+        WHERE NOT EXISTS (SELECT 1 FROM site_tombstone st WHERE st.site_id = e.site_id)
+        ORDER BY e.site_id, e.identified_user_id, e.epoch`,
     )
     .all() as IdentityEpochRow[]
   const links = db.$client
@@ -541,10 +545,12 @@ function readProjectionCheckpoints(db: Db): ProjectionCheckpointRow[] {
          COALESCE(pc.readiness, 'ready') AS readiness,
          COALESCE(pc.projection_version, '${ANALYTICS_PROJECTION_VERSION}') AS projectionVersion,
          COALESCE(pc.updated_at, s.updated_at) AS updatedAt
-        FROM site s
-        LEFT JOIN projection_checkpoint pc ON pc.site_id = s.id
-        LEFT JOIN retention_effective_cutoff rc ON rc.site_id = s.id
-        ORDER BY s.id`,
+         FROM site s
+         LEFT JOIN projection_checkpoint pc ON pc.site_id = s.id
+         LEFT JOIN retention_effective_cutoff rc ON rc.site_id = s.id
+         WHERE s.status = 'active'
+           AND NOT EXISTS (SELECT 1 FROM site_tombstone st WHERE st.site_id = s.id)
+         ORDER BY s.id`,
     )
     .all() as ProjectionCheckpointRow[]
 }

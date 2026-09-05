@@ -338,9 +338,10 @@ export const TBackupRestoreReference = sqliteTable('backup_restore_reference', {
   restoreSourceBackupId: text('restore_source_backup_id')
     .notNull()
     .references(() => TBackupOperation.id, { onDelete: 'restrict' }),
-  preRestoreSafetyArtifactId: text('pre_restore_safety_artifact_id')
-    .notNull()
-    .references(() => TBackupArtifact.id, { onDelete: 'restrict' }),
+  preRestoreSafetyArtifactId: text('pre_restore_safety_artifact_id').references(
+    () => TBackupArtifact.id,
+    { onDelete: 'restrict' },
+  ),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
 

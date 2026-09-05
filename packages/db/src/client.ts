@@ -90,6 +90,7 @@ export async function restoreDbFromBackup(input: {
   backupPath: string
   destinationPath: string
   db?: Db | undefined
+  prepare?: ((db: Db) => void | Promise<void>) | undefined
 }): Promise<void> {
   const tmpPath = `${input.destinationPath}.tmp.${randomBytes(8).toString('hex')}`
   let installed = false
@@ -116,6 +117,16 @@ export async function restoreDbFromBackup(input: {
       }
     } finally {
       restored.close()
+    }
+
+    if (input.prepare !== undefined) {
+      const stagedDb = createDb({ path: tmpPath })
+      try {
+        await input.prepare(stagedDb)
+        stagedDb.$client.pragma('wal_checkpoint(TRUNCATE)')
+      } finally {
+        closeDb(stagedDb)
+      }
     }
 
     const handle = input.db === undefined ? undefined : dbHandles.get(input.db)

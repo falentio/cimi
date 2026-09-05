@@ -85,6 +85,15 @@ describe.concurrent('createSiteScopeDependencies', () => {
     await expect(dependencies.siteScope.getOrganizationId('ste_1')).resolves.toBe('org_1')
   })
 
+  it('does not treat an active row with a tombstone as active', async () => {
+    using fixture = createSiteDrizzleFixture()
+    fixture.db.insert(schema.TSiteTombstone).values(createSiteTombstoneRow()).run()
+    const dependencies = createSiteScopeDependencies({ db: fixture.db })
+
+    await expect(dependencies.siteScope.exists('ste_1')).resolves.toBe(true)
+    await expect(dependencies.siteScope.isActive('ste_1')).resolves.toBe(false)
+  })
+
   it('fails closed while an Organization repair operation is pending', async () => {
     using fixture = createSiteDrizzleFixture()
     fixture.db

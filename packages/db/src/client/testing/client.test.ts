@@ -43,7 +43,7 @@ describe('createDb + migrateControlDb', () => {
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
-    expect(migrationRows).toHaveLength(10)
+    expect(migrationRows).toHaveLength(11)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
     const tableRows = db.$client

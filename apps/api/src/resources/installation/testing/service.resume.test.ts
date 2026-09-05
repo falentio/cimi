@@ -15,6 +15,7 @@ const activeOperation = {
   errorCode: null,
 } as const
 const siteOperation = { ...activeOperation, kind: 'site_deletion' as const }
+const backupOperation = { ...activeOperation, kind: 'backup' as const }
 const staleClock = () => new Date('2026-09-01T00:10:00.000Z')
 
 describe('InstallationService.resumeOnStartup', () => {
@@ -136,6 +137,18 @@ describe('InstallationService.resumeOnStartup', () => {
     const result = await service.resumeOnStartup()
 
     expect(result).toMatchObject({ status: 'ready', activeOperation: siteOperation })
+    expect(repository.claimUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('leaves backup operations for the backup-restore service', async () => {
+    const { repository, service } = createInstallationFixture({ clock: staleClock })
+    repository.find.mockResolvedValue(
+      createInstallationRecord({ status: 'maintenance', activeOperation: backupOperation }),
+    )
+
+    const result = await service.resumeOnStartup()
+
+    expect(result).toMatchObject({ status: 'maintenance', activeOperation: backupOperation })
     expect(repository.claimUpgrade).not.toHaveBeenCalled()
   })
 
