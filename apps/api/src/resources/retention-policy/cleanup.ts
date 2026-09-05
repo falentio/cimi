@@ -1,5 +1,4 @@
 import type { LifecycleLock } from '@cimi/kernel'
-import { generateId } from '@cimi/utils'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 const DEFAULT_INTERVAL_MS = 1_000
@@ -90,7 +89,7 @@ export class RetentionCleanupWorker {
       await this.repository.refreshDueBoundaries(now)
       await this.repository.recoverInterrupted(now)
       if (this.cleanup === undefined) return
-      const work = await this.repository.claimNext({ now, ownerToken: generateId('own') })
+      const work = await this.repository.claimNext({ now })
       if (work === undefined) return
       try {
         const result =

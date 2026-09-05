@@ -81,7 +81,6 @@ export declare namespace RetentionPolicyRepository {
 
   export interface ClaimNextInput {
     now: Date
-    ownerToken: string
   }
 
   export interface AdvanceInput {

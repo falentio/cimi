@@ -246,7 +246,6 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
     input: RetentionPolicyRepository.ClaimNextInput,
   ): Promise<RetentionPolicyRepository.CleanupWork | undefined> {
     return this.db.transaction((tx) => {
-      void input.ownerToken
       const derived = selectNextRun(tx, 'derived')
       const candidate = derived ?? selectNextBackupRun(tx)
       if (candidate === undefined) return undefined
