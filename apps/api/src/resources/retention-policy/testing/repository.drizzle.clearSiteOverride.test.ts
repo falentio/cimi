@@ -37,6 +37,12 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         .where(eq(schema.TRetentionPolicy.siteId, 'ste_1'))
         .all(),
     ).toEqual([])
+    expect(
+      fixture.db
+        .select({ id: schema.TRetentionPolicy.id, status: schema.TRetentionPolicy.status })
+        .from(schema.TRetentionPolicy)
+        .all(),
+    ).toEqual([{ id: 'rtn_1', status: 'active' }])
     await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toMatchObject({
       siteOverride: null,
       effectivePolicy: fallback,

@@ -474,9 +474,11 @@ function readEvents(db: Db): EventRow[] {
        LEFT JOIN event_page_view epv ON epv.event_pk = ae.event_pk
        LEFT JOIN event_custom ec ON ec.event_pk = ae.event_pk
        LEFT JOIN event_outbound eo ON eo.event_pk = ae.event_pk
-       LEFT JOIN event_performance ep ON ep.event_pk = ae.event_pk
-       LEFT JOIN event_error ee ON ee.event_pk = ae.event_pk
-       ORDER BY ae.replay_sequence`,
+         LEFT JOIN event_performance ep ON ep.event_pk = ae.event_pk
+         LEFT JOIN event_error ee ON ee.event_pk = ae.event_pk
+         LEFT JOIN retention_effective_cutoff rc ON rc.site_id = ae.site_id
+        WHERE rc.site_id IS NULL OR ae.occurrence_time >= rc.event_occurrence_cutoff_at
+        ORDER BY ae.replay_sequence`,
     )
     .all() as EventRow[]
 }
@@ -533,15 +535,16 @@ function readProjectionCheckpoints(db: Db): ProjectionCheckpointRow[] {
       `SELECT
          s.id AS siteId, COALESCE(pc.projected_replay_sequence, 0) AS projectedReplaySequence,
          occurrence_covered_from AS occurrenceCoveredFrom,
-         occurrence_covered_through AS occurrenceCoveredThrough,
-         effective_retention_from AS effectiveRetentionFrom,
+          occurrence_covered_through AS occurrenceCoveredThrough,
+          COALESCE(rc.event_occurrence_cutoff_at, pc.effective_retention_from) AS effectiveRetentionFrom,
          statistics_refreshed_at AS statisticsRefreshedAt,
          COALESCE(pc.readiness, 'ready') AS readiness,
          COALESCE(pc.projection_version, '${ANALYTICS_PROJECTION_VERSION}') AS projectionVersion,
          COALESCE(pc.updated_at, s.updated_at) AS updatedAt
-       FROM site s
-       LEFT JOIN projection_checkpoint pc ON pc.site_id = s.id
-       ORDER BY s.id`,
+        FROM site s
+        LEFT JOIN projection_checkpoint pc ON pc.site_id = s.id
+        LEFT JOIN retention_effective_cutoff rc ON rc.site_id = s.id
+        ORDER BY s.id`,
     )
     .all() as ProjectionCheckpointRow[]
 }

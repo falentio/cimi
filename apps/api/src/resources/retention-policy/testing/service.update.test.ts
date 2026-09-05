@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createRetentionPolicyFixture,
+  defaultCleanup,
   createStoredResolution,
   createTestAuthUser,
 } from '../fixture.ts'
@@ -37,6 +38,7 @@ describe('RetentionPolicyService.update', () => {
       installationDefault: override,
       siteOverride: null,
       effectivePolicy: override,
+      cleanup: defaultCleanup,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     expect(repository.saveInstallationDefault).toHaveBeenCalledWith(
@@ -55,9 +57,11 @@ describe('RetentionPolicyService.update', () => {
     )
 
     await service.update({ scope: 'installation', policy: override }, admin)
-    expect(repository.saveInstallationDefault).toHaveBeenCalledWith({
-      id: 'rtn_fixed',
+    expect(repository.commitPolicyChange).toHaveBeenCalledWith({
+      target: { scope: 'installation' },
       policy: override,
+      policyId: 'rtn_fixed',
+      changedBy: 'user_1',
       now,
     })
   })
@@ -80,6 +84,7 @@ describe('RetentionPolicyService.update', () => {
       installationDefault: policy,
       siteOverride: override,
       effectivePolicy: override,
+      cleanup: defaultCleanup,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     expect(repository.saveSiteOverride).toHaveBeenCalledWith({
@@ -223,6 +228,9 @@ describe('RetentionPolicyService.update', () => {
         kind: 'upgrade',
         phase: 'pre_upgrade_safety',
         checkpoint: 'none',
+        progress: null,
+        lastSafeSequence: null,
+        errorCode: null,
       },
     })
 
@@ -239,6 +247,9 @@ describe('RetentionPolicyService.update', () => {
         kind: 'site_deletion',
         phase: 'site_transition',
         checkpoint: 'none',
+        progress: null,
+        lastSafeSequence: null,
+        errorCode: null,
       },
     })
 
@@ -256,6 +267,8 @@ describe('RetentionPolicyService.update', () => {
         kind: 'upgrade',
         phase: 'pre_upgrade_safety',
         checkpoint: 'none',
+        progress: null,
+        lastSafeSequence: null,
         errorCode: 'INTERNAL_SERVER_ERROR',
       },
     })
@@ -322,6 +335,7 @@ describe('RetentionPolicyService.update', () => {
       installationDefault: override,
       siteOverride: null,
       effectivePolicy: override,
+      cleanup: defaultCleanup,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     expect(repository.saveInstallationDefault).toHaveBeenCalledTimes(2)

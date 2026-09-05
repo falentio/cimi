@@ -93,6 +93,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lock,
     lifecycle: installation.service,
   })
+  retentionPolicy.worker.start()
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
@@ -204,6 +205,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     async close(): Promise<void> {
       if (closed) return
       closed = true
+      await retentionPolicy.worker.stop()
       await siteLifecycleWorker.stop()
       await installation.service.stop()
     },

@@ -61,6 +61,7 @@ export class RetentionPolicyService {
         installationDefault: resolved.installationDefault,
         siteOverride: null,
         effectivePolicy: resolved.effectivePolicy,
+        cleanup: resolved.cleanup,
         updatedAt: resolved.updatedAt,
       }
     }
@@ -73,6 +74,7 @@ export class RetentionPolicyService {
       installationDefault: resolved.installationDefault,
       siteOverride: resolved.siteOverride,
       effectivePolicy: resolved.effectivePolicy,
+      cleanup: resolved.cleanup,
       updatedAt: resolved.updatedAt,
     }
   }
@@ -87,16 +89,22 @@ export class RetentionPolicyService {
       if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
       try {
         await this.assertNoActiveLifecycleOperation()
-        const resolved = await this.repository.saveInstallationDefault({
-          id: this.ids.retentionPolicyId(),
-          policy: input.policy,
-          now: this.clock(),
-        })
+        const actor = user
+        const resolved = (
+          await this.repository.commitPolicyChange({
+            target: { scope: 'installation' },
+            policy: input.policy,
+            policyId: this.ids.retentionPolicyId(),
+            changedBy: actor?.id ?? null,
+            now: this.clock(),
+          })
+        ).resolution
         return {
           scope: 'installation',
           installationDefault: resolved.installationDefault,
           siteOverride: null,
           effectivePolicy: resolved.effectivePolicy,
+          cleanup: resolved.cleanup,
           updatedAt: resolved.updatedAt,
         }
       } finally {
@@ -110,21 +118,23 @@ export class RetentionPolicyService {
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     try {
       await this.assertNoActiveLifecycleOperation()
-      const resolved =
-        input.policy === null
-          ? await this.repository.clearSiteOverride({ siteId: input.siteId, now: this.clock() })
-          : await this.repository.saveSiteOverride({
-              id: this.ids.retentionPolicyId(),
-              siteId: input.siteId,
-              policy: input.policy,
-              now: this.clock(),
-            })
+      const actor = user
+      const resolved = (
+        await this.repository.commitPolicyChange({
+          target: { scope: 'site', siteId: input.siteId },
+          policy: input.policy,
+          policyId: this.ids.retentionPolicyId(),
+          changedBy: actor?.id ?? null,
+          now: this.clock(),
+        })
+      ).resolution
       return {
         scope: 'site',
         siteId: input.siteId,
         installationDefault: resolved.installationDefault,
         siteOverride: resolved.siteOverride,
         effectivePolicy: resolved.effectivePolicy,
+        cleanup: resolved.cleanup,
         updatedAt: resolved.updatedAt,
       }
     } finally {
@@ -134,10 +144,7 @@ export class RetentionPolicyService {
 
   private async assertNoActiveLifecycleOperation(): Promise<void> {
     const active = await this.lifecycle.getActiveOperation()
-    if (active === null) return
-    if ((active as { errorCode?: unknown }).errorCode !== undefined) {
-      if ((active as { errorCode?: unknown }).errorCode !== null) return
-    }
+    if (active === null || active.errorCode !== null) return
     throw new ORPCError('CONFLICT', { status: 409 })
   }
 }

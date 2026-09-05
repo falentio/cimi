@@ -145,7 +145,9 @@ export const TRetentionCleanupRun = sqliteTable(
     installationId: text('installation_id')
       .notNull()
       .references(() => TInstallation.id, { onDelete: 'restrict' }),
-    siteId: text('site_id').references(() => TSite.id, { onDelete: 'restrict' }),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => TSite.id, { onDelete: 'restrict' }),
     policyId: text('policy_id')
       .notNull()
       .references(() => TRetentionPolicy.id, { onDelete: 'restrict' }),
@@ -153,7 +155,14 @@ export const TRetentionCleanupRun = sqliteTable(
     status: text('status', { enum: ['queued', 'running', 'succeeded', 'failed', 'cancelled'] })
       .notNull()
       .default('queued'),
-    cutoffAt: integer('cutoff_at', { mode: 'timestamp_ms' }).notNull(),
+    eventOccurrenceCutoffAt: integer('event_occurrence_cutoff_at', {
+      mode: 'timestamp_ms',
+    }).notNull(),
+    rawReceiptCutoffAt: integer('raw_receipt_cutoff_at', { mode: 'timestamp_ms' }).notNull(),
+    profileActivityCutoffAt: integer('profile_activity_cutoff_at', {
+      mode: 'timestamp_ms',
+    }).notNull(),
+    replayReceiptCutoffAt: integer('replay_receipt_cutoff_at', { mode: 'timestamp_ms' }),
     startedAt: integer('started_at', { mode: 'timestamp_ms' }),
     completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
     lastError: text('last_error'),
@@ -167,7 +176,7 @@ export const TRetentionCleanupRun = sqliteTable(
       table.createdAt,
     ),
     uniqueIndex('retention_cleanup_run_active_unique')
-      .on(table.installationId)
+      .on(table.installationId, table.siteId, table.cleanupKind)
       .where(sql`${table.status} IN ('queued', 'running')`),
     uniqueIndex('retention_cleanup_run_id_kind_unique').on(table.id, table.cleanupKind),
   ],
@@ -199,6 +208,40 @@ export const TRetentionCleanupCheckpoint = sqliteTable(
       foreignColumns: [TRetentionCleanupRun.id, TRetentionCleanupRun.cleanupKind],
       name: 'retention_cleanup_checkpoint_stage_fk',
     }),
+  ],
+)
+
+export const TRetentionEffectiveCutoff = sqliteTable(
+  'retention_effective_cutoff',
+  {
+    siteId: text('site_id')
+      .primaryKey()
+      .references(() => TSite.id, { onDelete: 'restrict' }),
+    installationId: text('installation_id')
+      .notNull()
+      .references(() => TInstallation.id, { onDelete: 'restrict' }),
+    policyId: text('policy_id')
+      .notNull()
+      .references(() => TRetentionPolicy.id, { onDelete: 'restrict' }),
+    reportingTimezone: text('reporting_timezone').notNull(),
+    localDay: text('local_day').notNull(),
+    eventOccurrenceCutoffAt: integer('event_occurrence_cutoff_at', {
+      mode: 'timestamp_ms',
+    }).notNull(),
+    rawReceiptCutoffAt: integer('raw_receipt_cutoff_at', { mode: 'timestamp_ms' }).notNull(),
+    profileActivityCutoffAt: integer('profile_activity_cutoff_at', {
+      mode: 'timestamp_ms',
+    }).notNull(),
+    replayReceiptCutoffAt: integer('replay_receipt_cutoff_at', { mode: 'timestamp_ms' }),
+    effectiveAt: integer('effective_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    index('retention_effective_cutoff_installation_idx').on(table.installationId),
+    check(
+      'retention_effective_cutoff_local_day_check',
+      sql`length(${table.localDay}) = 10 AND ${table.localDay} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`,
+    ),
   ],
 )
 

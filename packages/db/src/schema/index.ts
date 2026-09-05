@@ -43,6 +43,7 @@ export {
   TBackupOperation,
   TBackupRestoreReference,
   TInstallation,
+  TRetentionEffectiveCutoff,
   TRetentionCleanupCheckpoint,
   TRetentionCleanupRun,
   TRetentionPolicy,

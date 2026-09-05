@@ -5,6 +5,7 @@ import { createSiteDrizzleFixture, createSiteRow } from '../../site/fixture.driz
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
 import { RetentionPolicyRepositoryDrizzle } from '../repository.drizzle.ts'
+import { defaultCleanup } from '../fixture.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
 const now = new Date('2026-09-02T00:00:00.000Z')
@@ -142,6 +143,11 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: fallback,
       siteOverride: override,
       effectivePolicy: override,
+      cleanup: {
+        pending: true,
+        derived: { ...defaultCleanup.derived, status: 'pending' },
+        backup: { ...defaultCleanup.backup, status: 'pending' },
+      },
       updatedAt: now.toISOString(),
     })
 
@@ -151,7 +157,12 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: fallback,
       siteOverride: null,
       effectivePolicy: fallback,
-      updatedAt: createdAt.toISOString(),
+      cleanup: {
+        pending: true,
+        derived: { ...defaultCleanup.derived, status: 'pending' },
+        backup: { ...defaultCleanup.backup, status: 'pending' },
+      },
+      updatedAt: now.toISOString(),
     })
     await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toEqual(cleared)
     const versions = fixture.db
@@ -392,6 +403,11 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: nextDefault,
       siteOverride: override,
       effectivePolicy: override,
+      cleanup: {
+        pending: true,
+        derived: { ...defaultCleanup.derived, status: 'pending' },
+        backup: { ...defaultCleanup.backup, status: 'pending' },
+      },
       updatedAt: now.toISOString(),
     })
 
@@ -401,6 +417,11 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: nextDefault,
       siteOverride: null,
       effectivePolicy: nextDefault,
+      cleanup: {
+        pending: true,
+        derived: { ...defaultCleanup.derived, status: 'pending' },
+        backup: { ...defaultCleanup.backup, status: 'pending' },
+      },
       updatedAt: later.toISOString(),
     })
     await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toEqual(cleared)

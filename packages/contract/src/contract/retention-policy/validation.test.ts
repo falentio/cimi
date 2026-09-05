@@ -9,6 +9,11 @@ const policy = {
   profileMonths: 12,
   replayMonths: null,
 } as const
+const cleanup = {
+  pending: false,
+  derived: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
+  backup: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
+} as const
 
 describe('retention policy contract', () => {
   it('requires an explicit installation scope and non-null policy', () => {
@@ -48,6 +53,7 @@ describe('retention policy contract', () => {
         installationDefault: policy,
         siteOverride: null,
         effectivePolicy: policy,
+        cleanup,
         updatedAt: '2026-08-23T00:00:00Z',
       }),
     ).toMatchObject({ scope: 'site', siteOverride: null })
@@ -60,6 +66,7 @@ describe('retention policy contract', () => {
         installationDefault: policy,
         siteOverride: null,
         effectivePolicy: policy,
+        cleanup,
         updatedAt: '2026-08-23T00:00:00Z',
       }),
     ).toMatchObject({ scope: 'installation', siteOverride: null })

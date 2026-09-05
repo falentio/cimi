@@ -50,6 +50,9 @@ describe('SiteService.delete', () => {
       kind: 'upgrade',
       phase: 'pre_upgrade_safety',
       checkpoint: 'none',
+      progress: null,
+      lastSafeSequence: null,
+      errorCode: null,
     })
 
     await expect(

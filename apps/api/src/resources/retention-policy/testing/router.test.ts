@@ -416,6 +416,11 @@ test('retention policy routes validate transport, boundaries, and exact response
     installationDefault: { eventMonths: 12, profileMonths: 12, replayMonths: null },
     siteOverride: null,
     effectivePolicy: { eventMonths: 12, profileMonths: 12, replayMonths: null },
+    cleanup: {
+      pending: false,
+      derived: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
+      backup: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
+    },
     updatedAt: expect.any(String),
   })
 
@@ -431,6 +436,11 @@ test('retention policy routes validate transport, boundaries, and exact response
     installationDefault: { eventMonths: 1, profileMonths: 1, replayMonths: null },
     siteOverride: null,
     effectivePolicy: { eventMonths: 1, profileMonths: 1, replayMonths: null },
+    cleanup: {
+      pending: false,
+      derived: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
+      backup: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
+    },
     updatedAt: expect.any(String),
   })
 

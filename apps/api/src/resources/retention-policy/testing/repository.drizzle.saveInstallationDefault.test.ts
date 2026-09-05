@@ -5,6 +5,7 @@ import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
 import { RetentionPolicyRepositoryDrizzle } from '../repository.drizzle.ts'
+import { defaultCleanup } from '../fixture.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
 const now = new Date('2026-09-02T00:00:00.000Z')
@@ -35,6 +36,11 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: policy,
       siteOverride: null,
       effectivePolicy: policy,
+      cleanup: {
+        pending: true,
+        derived: { ...defaultCleanup.derived, status: 'pending' },
+        backup: { ...defaultCleanup.backup, status: 'pending' },
+      },
       updatedAt: now.toISOString(),
     })
     const versions = fixture.db
@@ -105,6 +111,11 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: policy,
       siteOverride: null,
       effectivePolicy: policy,
+      cleanup: {
+        pending: true,
+        derived: { ...defaultCleanup.derived, status: 'pending' },
+        backup: { ...defaultCleanup.backup, status: 'pending' },
+      },
       updatedAt: now.toISOString(),
     })
     const versions = fixture.db

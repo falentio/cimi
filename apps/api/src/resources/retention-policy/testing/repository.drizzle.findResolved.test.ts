@@ -3,6 +3,7 @@ import { schema } from '@cimi/db'
 import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { RetentionPolicyRepositoryDrizzle } from '../repository.drizzle.ts'
+import { defaultCleanup } from '../fixture.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
 
@@ -51,6 +52,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       installationDefault: { eventMonths: 12, profileMonths: 12, replayMonths: null },
       siteOverride: null,
       effectivePolicy: { eventMonths: 12, profileMonths: 12, replayMonths: null },
+      cleanup: defaultCleanup,
       updatedAt: createdAt.toISOString(),
     })
   })

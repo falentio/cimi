@@ -21,6 +21,7 @@ export {
   type LifecycleOperationCheckpoint,
   type LifecycleOperationPhase,
   type LifecycleOperationStatus,
+  type LifecycleErrorCode,
   type LifecycleOperationStatusReader,
   type PersistedLifecycleOperationKind,
   type PortResult,

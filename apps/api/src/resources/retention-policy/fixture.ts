@@ -11,15 +11,51 @@ import { RetentionPolicyService, type RetentionPolicyIdFactory } from './service
 export interface RetentionPolicyFixtureOptions {
   readonly sites?: readonly InMemorySiteRecord[]
   readonly memberships?: readonly InMemorySiteMembership[]
-  readonly activeOperation?: (LifecycleOperationStatus & { errorCode?: string | null }) | null
+  readonly activeOperation?: LifecycleOperationStatus | null
   readonly clock?: (() => Date) | undefined
   readonly ids?: RetentionPolicyIdFactory | undefined
 }
 
 const updatedAt = '2026-09-01T00:00:00.000Z'
+export const defaultCleanup: RetentionPolicyRepository.CleanupSummary = {
+  pending: false,
+  derived: {
+    status: 'not_applicable',
+    startedAt: null,
+    completedAt: null,
+    errorCode: null,
+  },
+  backup: {
+    status: 'not_applicable',
+    startedAt: null,
+    completedAt: null,
+    errorCode: null,
+  },
+}
 
 export function createRetentionPolicyFixture(options: RetentionPolicyFixtureOptions = {}) {
   const repository = mock<RetentionPolicyRepository>()
+  repository.commitPolicyChange.mockImplementation(async (input) => {
+    if (input.target.scope === 'installation') {
+      if (input.policy === null) throw new Error('Installation retention policy cannot be cleared')
+      const resolution = await repository.saveInstallationDefault({
+        id: input.policyId,
+        policy: input.policy,
+        now: input.now,
+      })
+      return { resolution, affectedBoundaries: [], queuedRunIds: [] }
+    }
+    const resolution =
+      input.policy === null
+        ? await repository.clearSiteOverride({ siteId: input.target.siteId, now: input.now })
+        : await repository.saveSiteOverride({
+            id: input.policyId,
+            siteId: input.target.siteId,
+            policy: input.policy,
+            now: input.now,
+          })
+    return { resolution, affectedBoundaries: [], queuedRunIds: [] }
+  })
   const lock = new InMemoryLifecycleLock()
   const scope = new InMemorySiteScopePort(
     options.sites ?? [{ siteId: 'ste_1', organizationId: 'org_1' }],
@@ -42,13 +78,15 @@ export function createStoredResolution(
   overrides: Partial<RetentionPolicyRepository.StoredResolution> = {},
 ): RetentionPolicyRepository.StoredResolution {
   const installationDefault = { ...contractSchema.DEFAULT_RETENTION_POLICY }
+  const { cleanup, ...rest } = overrides
   return {
     installationId: 'ins_1',
     installationDefault,
     siteOverride: null,
     effectivePolicy: { ...installationDefault },
     updatedAt,
-    ...overrides,
+    ...rest,
+    cleanup: cleanup ?? defaultCleanup,
   }
 }
 

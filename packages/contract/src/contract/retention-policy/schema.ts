@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { SDateTime, SId } from '../../schema/index.ts'
+import { SCleanupStage } from '../../schema/lifecycle.ts'
 
 export const SRetentionPolicy = v.pipe(
   v.strictObject({
@@ -19,6 +20,11 @@ const SInstallationRetentionPolicyResult = v.strictObject({
   installationDefault: SRetentionPolicy,
   siteOverride: v.nullable(SRetentionPolicy),
   effectivePolicy: SRetentionPolicy,
+  cleanup: v.strictObject({
+    pending: v.boolean(),
+    derived: SCleanupStage,
+    backup: SCleanupStage,
+  }),
   updatedAt: SDateTime,
 })
 const SSiteRetentionPolicyResult = v.strictObject({
@@ -27,6 +33,11 @@ const SSiteRetentionPolicyResult = v.strictObject({
   installationDefault: SRetentionPolicy,
   siteOverride: v.nullable(SRetentionPolicy),
   effectivePolicy: SRetentionPolicy,
+  cleanup: v.strictObject({
+    pending: v.boolean(),
+    derived: SCleanupStage,
+    backup: SCleanupStage,
+  }),
   updatedAt: SDateTime,
 })
 export const SRetentionPolicyResult = v.variant('scope', [

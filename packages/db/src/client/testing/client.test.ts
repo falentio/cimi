@@ -1,7 +1,9 @@
 import { access, mkdtemp, rm } from 'node:fs/promises'
+import { readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import Database from 'better-sqlite3'
 import { closeDb, createDb } from '../../client.ts'
 import {
   ControlMigrationIncompatibilityError,
@@ -41,7 +43,7 @@ describe('createDb + migrateControlDb', () => {
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
-    expect(migrationRows).toHaveLength(8)
+    expect(migrationRows).toHaveLength(10)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
     const tableRows = db.$client
@@ -87,6 +89,7 @@ describe('createDb + migrateControlDb', () => {
         'public_dashboard',
         'projection_checkpoint',
         'projection_gap',
+        'retention_effective_cutoff',
         'retention_cleanup_checkpoint',
         'retention_cleanup_run',
         'retention_policy',
@@ -127,6 +130,109 @@ describe('createDb + migrateControlDb', () => {
 
     closeDb(db)
     expect(() => closeDb(db)).not.toThrow()
+  })
+
+  it('remaps cleanup checkpoints when migrating installation runs to Sites', () => {
+    const path = join(dir, 'legacy.sqlite')
+    const sqlite = new Database(path)
+    const migrationsDirectory = new URL('../../migrations/', import.meta.url)
+    try {
+      sqlite.pragma('foreign_keys = OFF')
+      for (const file of readdirSync(migrationsDirectory).filter(
+        (name) => name.endsWith('.sql') && Number(name.slice(0, 4)) <= 8,
+      )) {
+        for (const statement of readFileSync(new URL(file, migrationsDirectory), 'utf8').split(
+          '--> statement-breakpoint',
+        )) {
+          if (statement.trim()) sqlite.exec(statement)
+        }
+      }
+
+      const now = Date.now()
+      sqlite
+        .prepare(
+          'INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('user-1', 'User', 'user@example.com', 1, now, now)
+      sqlite
+        .prepare(
+          'INSERT INTO organization (id, name, owner_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run('org-1', 'Organization', 'user-1', now, now)
+      sqlite
+        .prepare(
+          'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('ste-1', 'org-1', 'Site', 'example.com', 'ing-1', now, now)
+      sqlite
+        .prepare('INSERT INTO installation (id, created_at, updated_at) VALUES (?, ?, ?)')
+        .run('installation-1', now, now)
+      sqlite
+        .prepare(
+          'INSERT INTO retention_policy (id, installation_id, scope, event_months, profile_months, version, status, effective_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          'retention-policy-1',
+          'installation-1',
+          'installation',
+          12,
+          12,
+          1,
+          'active',
+          now,
+          now,
+          now,
+        )
+      sqlite
+        .prepare(
+          'INSERT INTO retention_cleanup_run (id, installation_id, site_id, policy_id, cleanup_kind, status, cutoff_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          'cleanup-run-1',
+          'installation-1',
+          null,
+          'retention-policy-1',
+          'derived',
+          'queued',
+          now,
+          now,
+          now,
+        )
+      sqlite
+        .prepare(
+          'INSERT INTO retention_cleanup_checkpoint (id, cleanup_run_id, data_class, stage, status, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('cleanup-checkpoint-1', 'cleanup-run-1', 'accepted-events', 'derived', 'pending', now)
+
+      const migration = readFileSync(
+        new URL('0009_retention_cleanup_shape.sql', migrationsDirectory),
+        'utf8',
+      )
+      for (const statement of migration.split('--> statement-breakpoint')) {
+        if (statement.trim()) sqlite.exec(statement)
+      }
+      sqlite.pragma('foreign_keys = ON')
+
+      expect(
+        sqlite.prepare('SELECT id, site_id AS siteId FROM retention_cleanup_run').all(),
+      ).toEqual([{ id: 'cleanup-run-1:ste-1', siteId: 'ste-1' }])
+      expect(
+        sqlite
+          .prepare(
+            'SELECT id, cleanup_run_id AS cleanupRunId, stage FROM retention_cleanup_checkpoint',
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: 'cleanup-checkpoint-1:cleanup-run-1:ste-1',
+          cleanupRunId: 'cleanup-run-1:ste-1',
+          stage: 'derived',
+        },
+      ])
+      expect(sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    } finally {
+      sqlite.close()
+    }
   })
 
   it('enforces first-party scope, version, epoch, restore, and cleanup invariants', async () => {
@@ -311,10 +417,24 @@ describe('createDb + migrateControlDb', () => {
     db.$client
       .prepare(
         `INSERT INTO retention_cleanup_run
-          (id, installation_id, policy_id, cleanup_kind, cutoff_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (id, installation_id, site_id, policy_id, cleanup_kind,
+           event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at,
+           replay_receipt_cutoff_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run('cleanup-run-1', 'installation-1', 'retention-policy-1', 'derived', now, now, now)
+      .run(
+        'cleanup-run-1',
+        'installation-1',
+        'ste-1',
+        'retention-policy-1',
+        'derived',
+        now,
+        now,
+        now,
+        null,
+        now,
+        now,
+      )
     const insertCleanupCheckpoint = db.$client.prepare(
       `INSERT INTO retention_cleanup_checkpoint
         (id, cleanup_run_id, data_class, stage, status, updated_at)

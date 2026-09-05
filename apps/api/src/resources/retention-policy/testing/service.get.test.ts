@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createRetentionPolicyFixture,
+  defaultCleanup,
   createStoredResolution,
   createTestAuthUser,
 } from '../fixture.ts'
@@ -33,6 +34,7 @@ describe('RetentionPolicyService.get', () => {
       installationDefault: policy,
       siteOverride: null,
       effectivePolicy: policy,
+      cleanup: defaultCleanup,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     expect(repository.findResolved).toHaveBeenCalledWith({ siteId: null })
@@ -48,6 +50,7 @@ describe('RetentionPolicyService.get', () => {
       installationDefault: policy,
       siteOverride: null,
       effectivePolicy: policy,
+      cleanup: defaultCleanup,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     expect(repository.findResolved).toHaveBeenCalledWith({ siteId: 'ste_1' })
@@ -65,6 +68,7 @@ describe('RetentionPolicyService.get', () => {
       installationDefault: policy,
       siteOverride: override,
       effectivePolicy: override,
+      cleanup: defaultCleanup,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
   })
