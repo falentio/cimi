@@ -7,7 +7,13 @@ import { ERROR_CATALOG } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
-import { InMemoryLifecycleLock, type AcceptanceJournalPort, type LifecycleLock } from '@cimi/kernel'
+import {
+  InMemoryLifecycleLock,
+  type AcceptanceJournalPort,
+  type AcceptanceQuiescencePort,
+  type LifecycleLock,
+  type ReadQuiescencePort,
+} from '@cimi/kernel'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
@@ -21,13 +27,13 @@ import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createRetentionPolicy } from './resources/retention-policy/index.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
-import {
-  resolveAdmissionGate,
-  systemHealthHandler,
-  type HealthLifecycle,
-  type HealthStatus,
-} from './health.ts'
+import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
+import {
+  createBackupRestore,
+  type BackupRestoreCleanupPort,
+  type BackupRestoreHealthSnapshot,
+} from './resources/backup-restore/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -45,6 +51,9 @@ export interface CreateApiAppDependencies {
   lifecycle?: HealthLifecycle | undefined
   lock?: LifecycleLock | undefined
   journal?: AcceptanceJournalPort | undefined
+  acceptance?: AcceptanceQuiescencePort | undefined
+  reads?: ReadQuiescencePort | undefined
+  cleanup?: BackupRestoreCleanupPort | undefined
   dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
@@ -83,10 +92,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   })
   const siteLifecycleWorker = createSiteLifecycleWorker({ db: deps.db, lock })
   siteLifecycleWorker.start()
-  void installation.service.resumeOnStartup().catch(() => undefined)
-  const lifecycle = deps.lifecycle ?? {
-    getSnapshot: () => installation.service.snapshotForHealth().then((snapshot) => snapshot ?? {}),
-  }
+  const installationStartup = installation.service.resumeOnStartup().catch(() => undefined)
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
   const retentionPolicy = createRetentionPolicy({
     db: deps.db,
@@ -94,6 +100,41 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lifecycle: installation.service,
   })
   retentionPolicy.worker.start()
+  const backupRestore = createBackupRestore({
+    db: deps.db,
+    analytics: deps.analytics,
+    lock,
+    ...(deps.acceptance === undefined ? {} : { acceptance: deps.acceptance }),
+    ...(deps.reads === undefined ? {} : { reads: deps.reads }),
+    ...(deps.cleanup === undefined ? {} : { cleanup: deps.cleanup }),
+    dataDirectoryReady: deps.dataDirectoryReady,
+    controlDatabasePath: deps.controlDatabasePath,
+    dataDirectoryPath: deps.dataDirectoryPath,
+  })
+  const backupRestoreStartup = installationStartup
+    .then(() => backupRestore.service.start())
+    .catch(() => undefined)
+  backupRestore.worker.start()
+  const lifecycle: HealthLifecycle = {
+    async getSnapshot() {
+      const installationSnapshot = deps.lifecycle
+        ? await deps.lifecycle.getSnapshot()
+        : ((await installation.service.snapshotForHealth()) ?? {})
+      const backupSnapshot: BackupRestoreHealthSnapshot = await backupRestore.service
+        .getSnapshot()
+        .catch(() => ({ admissionMode: 'normal' }))
+      const existingAdmissionMode =
+        'admissionMode' in installationSnapshot ? installationSnapshot.admissionMode : undefined
+      const admissionMode =
+        backupSnapshot.admissionMode === 'normal'
+          ? existingAdmissionMode
+          : backupSnapshot.admissionMode
+      return {
+        ...installationSnapshot,
+        ...(admissionMode === undefined ? {} : { admissionMode }),
+      }
+    },
+  }
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
@@ -105,6 +146,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     retentionPolicy: retentionPolicy.router,
     site: site.router,
     invitation: invitation.router,
+    backupRestore: backupRestore.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
@@ -133,8 +175,8 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
         return options.next()
       },
       async (options) => {
-        const status = await resolveRequestHealthStatus({ ...deps, lifecycle })
-        const gate = resolveAdmissionGate(status)
+        const requestGate = await resolveRequestAdmissionGate({ ...deps, lifecycle })
+        const { status, admissionMode, ...gate } = requestGate
         options.context['admission'] = gate.ingestion
         if (isAdmissionExempt(options.path, options.procedure['~orpc'].meta['admission'])) {
           return options.next()
@@ -147,7 +189,12 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
           if (gate.ingestion === 'paused') throw admissionUnavailable()
           return options.next()
         }
-        if (status === 'maintenance' || status === 'unavailable') throw admissionUnavailable()
+        if (
+          gate.ingestion === 'paused' &&
+          (status === 'maintenance' || status === 'unavailable' || admissionMode !== 'normal')
+        ) {
+          throw admissionUnavailable()
+        }
         return options.next()
       },
     ],
@@ -207,6 +254,9 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       closed = true
       await retentionPolicy.worker.stop()
       await siteLifecycleWorker.stop()
+      await backupRestoreStartup
+      await backupRestore.worker.stop()
+      await backupRestore.service.stop()
       await installation.service.stop()
     },
   })
@@ -255,22 +305,11 @@ function getCoarseAuthorizationLevel(auth: string | undefined): AuthorizationLev
   }
 }
 
-const ADMISSION_EXEMPT_RESOURCES = new Set(['health', 'installation'])
+const ADMISSION_EXEMPT_RESOURCES = new Set(['health', 'installation', 'backupRestore'])
 
 function isAdmissionExempt(path: readonly string[], admission: string | undefined): boolean {
   if (admission === 'exempt') return true
   return path.length > 0 && ADMISSION_EXEMPT_RESOURCES.has(path[0]!)
-}
-
-async function resolveRequestHealthStatus(
-  depsWithLifecycle: CreateApiAppDependencies & { lifecycle: HealthLifecycle },
-): Promise<HealthStatus> {
-  try {
-    const health = await systemHealthHandler(depsWithLifecycle)
-    return health.status
-  } catch {
-    return 'unavailable'
-  }
 }
 
 function admissionUnavailable(): ORPCError<string, unknown> {

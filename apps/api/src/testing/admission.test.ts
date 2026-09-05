@@ -59,6 +59,32 @@ test('paused admission rejects a standard route with SERVICE_UNAVAILABLE', async
   await app.close()
 })
 
+test('recovering admission preserves unclassified route compatibility', async () => {
+  await using fixture = await createApiTestFixture()
+  const app = createApiApp({
+    db: fixture.db,
+    auth: fixture.auth,
+    analytics: fixture.analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+    lifecycle: {
+      async getSnapshot() {
+        return {
+          installationStatus: 'recovering' as const,
+          controlStore: 'ready' as const,
+          analyticsStore: 'ready' as const,
+          cleanupPending: false,
+        }
+      },
+    },
+  })
+
+  const response = await app.fetch(new Request('http://localhost/api/hello/list'))
+  expect(response.status).toBe(200)
+  await app.close()
+})
+
 test('paused admission keeps health and installation exempt', async () => {
   await using fixture = await createApiTestFixture()
   const app = await pausedApp(fixture)

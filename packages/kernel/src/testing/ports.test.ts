@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   InMemoryAcceptanceJournalPort,
+  InMemoryAcceptanceQuiescencePort,
   InMemoryAnalyticsReadinessPort,
   InMemoryCollectionPolicyResolver,
   InMemoryLifecycleLock,
+  InMemoryReadQuiescencePort,
   InMemoryRetentionResolver,
   normalizeLifecycleOperationKind,
 } from '../index.ts'
@@ -84,5 +86,31 @@ describe('in-memory kernel ports', () => {
 
     expect(drained).toBe(true)
     expect(journal.drainCalls).toBe(1)
+  })
+
+  it('stops admission before returning a durable safe sequence', async () => {
+    const acceptance = new InMemoryAcceptanceQuiescencePort(() => ({ lastSafeSequence: 17 }))
+
+    acceptance.stopAdmission()
+    expect(acceptance.drain()).toEqual({ lastSafeSequence: 17 })
+    acceptance.resumeAdmission()
+
+    expect(acceptance.admissionStopped).toBe(false)
+    expect(acceptance.stopCalls).toBe(1)
+    expect(acceptance.drainCalls).toBe(1)
+    expect(acceptance.resumeCalls).toBe(1)
+  })
+
+  it('drains in-flight reads only after stopping read admission', async () => {
+    const reads = new InMemoryReadQuiescencePort()
+
+    reads.stopReads()
+    reads.drain()
+    reads.resumeReads()
+
+    expect(reads.readsStopped).toBe(false)
+    expect(reads.stopCalls).toBe(1)
+    expect(reads.drainCalls).toBe(1)
+    expect(reads.resumeCalls).toBe(1)
   })
 })

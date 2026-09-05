@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { schema } from '@cimi/db'
 import { SiteRepositoryDrizzle } from '../repository.drizzle.ts'
-import { createSiteDrizzleFixture } from '../fixture.drizzle.ts'
+import { createSiteDrizzleFixture, createSiteTombstoneRow } from '../fixture.drizzle.ts'
 
 const requestedAt = new Date('2026-09-01T00:00:00.000Z')
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
@@ -148,5 +148,16 @@ describe.concurrent('SiteRepositoryDrizzle.retention', () => {
       }),
       'hostname stays reserved after purge',
     ).rejects.toThrow(/reserved/)
+  })
+
+  it('hides a restored active row that is reserved by a tombstone', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    fixture.db.insert(schema.TSiteTombstone).values(createSiteTombstoneRow()).run()
+
+    await expect(
+      repo.findMany('org_1', { offset: 0, limit: 20 }),
+      'tombstoned Sites are absent from normal lists',
+    ).resolves.toMatchObject({ items: [], totalCount: 0, hasMore: false, nextOffset: null })
   })
 })

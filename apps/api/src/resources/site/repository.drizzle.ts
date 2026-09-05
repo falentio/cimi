@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, lte } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, isNull, lte, notExists } from 'drizzle-orm'
 import { ANALYTICS_PROJECTION_VERSION, schema, type Db } from '@cimi/db'
 import type { SiteRepository } from './repository.ts'
 
@@ -32,6 +32,12 @@ export class SiteRepositoryDrizzle implements SiteRepository {
     const where = and(
       eq(schema.TSite.organizationId, organizationId),
       eq(schema.TSite.status, 'active'),
+      notExists(
+        this.db
+          .select({ siteId: schema.TSiteTombstone.siteId })
+          .from(schema.TSiteTombstone)
+          .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+      ),
     )
     const [countRow] = await this.db.select({ count: count() }).from(schema.TSite).where(where)
     const rows = await this.db

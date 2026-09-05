@@ -290,7 +290,8 @@ export class InstallationService implements LifecycleOperationStatusReader {
       if (
         existing.activeOperation === null ||
         isTerminal(existing.activeOperation) ||
-        isSiteLifecycleOperation(existing.activeOperation.kind)
+        isSiteLifecycleOperation(existing.activeOperation.kind) ||
+        existing.activeOperation.kind !== 'upgrade'
       ) {
         return toPublicInstallation(existing)
       }

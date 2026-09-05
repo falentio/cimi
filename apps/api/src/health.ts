@@ -1,6 +1,7 @@
 import * as v from 'valibot'
 import { schema } from '@cimi/contract'
 import { validateBaseSchema } from '@cimi/db'
+import type { LifecycleAdmissionMode } from '@cimi/kernel'
 import type { CreateApiAppDependencies } from './index.ts'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'recovering' | 'maintenance' | 'unavailable'
@@ -18,6 +19,7 @@ export interface HealthSnapshot {
   controlStore?: StoreHealth
   analyticsStore?: StoreHealth
   cleanupPending?: boolean
+  admissionMode?: LifecycleAdmissionMode
 }
 
 export interface HealthLifecycle {
@@ -72,10 +74,49 @@ export interface AdmissionGate {
   analyticsReads: AnalyticsReadAdmission
 }
 
-export function resolveAdmissionGate(status: HealthStatus): AdmissionGate {
+export interface RequestAdmissionGate extends AdmissionGate {
+  status: HealthStatus
+  admissionMode: LifecycleAdmissionMode
+}
+
+export function resolveAdmissionGate(
+  status: HealthStatus,
+  admissionMode: LifecycleAdmissionMode = 'normal',
+): AdmissionGate {
+  if (status === 'unavailable' || status === 'recovering') {
+    return { ingestion: 'paused', analyticsReads: 'unavailable' }
+  }
+  if (admissionMode === 'restore-read-write-quiesced') {
+    return { ingestion: 'paused', analyticsReads: 'unavailable' }
+  }
+  if (admissionMode === 'backup-write-quiesced' && status !== 'degraded') {
+    return { ingestion: 'paused', analyticsReads: 'ok' }
+  }
   if (status === 'healthy') return { ingestion: 'accept', analyticsReads: 'ok' }
   if (status === 'degraded') return { ingestion: 'accept-only', analyticsReads: 'unavailable' }
   return { ingestion: 'paused', analyticsReads: 'unavailable' }
+}
+
+export async function resolveRequestAdmissionGate(
+  deps: CreateApiAppDependencies & { lifecycle: HealthLifecycle },
+): Promise<RequestAdmissionGate> {
+  try {
+    const health = await systemHealthHandler(deps)
+    const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
+    const admissionMode = lifecycle.admissionMode ?? 'normal'
+    return {
+      ...resolveAdmissionGate(health.status, admissionMode),
+      status: health.status,
+      admissionMode,
+    }
+  } catch {
+    return {
+      ingestion: 'paused',
+      analyticsReads: 'unavailable',
+      status: 'unavailable',
+      admissionMode: 'normal',
+    }
+  }
 }
 
 export async function systemHealthHandler(deps: CreateApiAppDependencies): Promise<{
