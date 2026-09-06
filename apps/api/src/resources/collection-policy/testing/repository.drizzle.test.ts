@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { schema } from '@cimi/db'
-import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
+import { createSiteDrizzleFixture, createSiteTombstoneRow } from '../../site/fixture.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { CollectionPolicyRepositoryDrizzle } from '../repository.drizzle.ts'
@@ -137,6 +137,24 @@ describe('CollectionPolicyRepositoryDrizzle', () => {
       { id: 'cpr_site_1', effectiveFrom: now, effectiveTo: next },
       { id: 'cpr_site_2', effectiveFrom: next, effectiveTo: null },
     ])
+  })
+
+  it('rejects committing a policy for a tombstoned Site', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(
+      createInstallationInsertInput({ createdAt, updatedAt: createdAt }),
+    )
+    fixture.db.insert(schema.TSiteTombstone).values(createSiteTombstoneRow()).run()
+
+    await expect(
+      fixture.repository.commitRevision({
+        target: { scope: 'site', siteId: 'ste_1' },
+        values: contractSchema.DEFAULT_COLLECTION_POLICY,
+        revisionId: 'cpr_site_1',
+        changedBy: null,
+        now,
+      }),
+    ).rejects.toThrow()
   })
 
   it('parses stored JSON at the repository boundary', async () => {

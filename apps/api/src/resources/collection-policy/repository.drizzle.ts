@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull, notExists } from 'drizzle-orm'
 import { schema as contractSchema } from '@cimi/contract'
 import { schema, type Db } from '@cimi/db'
 import { ORPCError } from '@orpc/server'
@@ -51,7 +51,18 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
         const site = tx
           .select({ id: schema.TSite.id })
           .from(schema.TSite)
-          .where(and(eq(schema.TSite.id, input.target.siteId), eq(schema.TSite.status, 'active')))
+          .where(
+            and(
+              eq(schema.TSite.id, input.target.siteId),
+              eq(schema.TSite.status, 'active'),
+              notExists(
+                tx
+                  .select({ siteId: schema.TSiteTombstone.siteId })
+                  .from(schema.TSiteTombstone)
+                  .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+              ),
+            ),
+          )
           .limit(1)
           .all()[0]
         if (site === undefined) throw new ORPCError('NOT_FOUND')

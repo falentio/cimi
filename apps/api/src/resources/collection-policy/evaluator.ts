@@ -164,6 +164,9 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
   if (policy.consentMode === 'required_for_all' && context?.consent !== 'granted') {
     return { kind: 'rejected', reason: 'consent' }
   }
+  if (input.operation === 'identify' && context?.consent !== 'granted') {
+    return { kind: 'rejected', reason: 'consent' }
+  }
   if (
     policy.consentMode === 'required_for_identity' &&
     identityRequested &&
