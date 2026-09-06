@@ -169,7 +169,7 @@ describe('collection policy admission evaluation', () => {
         resolution,
         input: {
           siteId: 'ste_1',
-          path: '/private/account',
+          path: '/private/account?token=hidden',
           identifiedUserId: 'usr_1',
           collectionContext: { consent: 'granted' },
         },

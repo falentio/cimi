@@ -149,7 +149,7 @@ export function sanitizeProperties(
 }
 
 function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): NormalizedAdmissionOutcome {
-  const path = input.path ?? extractPath(input.url)
+  const path = extractPath(input.path ?? input.url)
   if (matchesExclusion(policy, input, path)) return { kind: 'rejected', reason: 'exclusion' }
 
   const context = input.collectionContext
@@ -190,7 +190,7 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
     identity: identified ? 'identified' : 'anonymous',
     bot: bot ? 'recorded_excluded' : 'included',
     identifiedUserId: identified ? (input.identifiedUserId ?? null) : null,
-    urls: sanitizeUrls({ path, url: input.url, referrer: input.referrer, policy }),
+    urls: sanitizeUrls({ path: input.path, url: input.url, referrer: input.referrer, policy }),
     properties: sanitizeProperties(input.properties, policy),
   }
 }
