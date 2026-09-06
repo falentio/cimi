@@ -37,6 +37,7 @@ export type AdmissionRejection =
   | 'gpc_dnt'
   | 'consent'
   | 'anonymous_collection'
+  | 'identity'
   | 'bot'
 
 export type NormalizedAdmissionOutcome =
@@ -177,6 +178,12 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
   if (policy.consentMode === 'none' && context?.consent === 'denied') {
     return { kind: 'rejected', reason: 'consent' }
   }
+  if (
+    (input.operation === 'identify' || input.traits !== undefined) &&
+    input.identifiedUserId === undefined
+  ) {
+    return { kind: 'rejected', reason: 'identity' }
+  }
   const identityAllowed = identityRequested && context?.consent === 'granted'
   const bot = input.isBot === true && policy.botPolicy === 'record_excluded'
   if (policy.anonymousCollection === 'disabled' && (!identityAllowed || bot)) {
@@ -250,7 +257,8 @@ function sanitizeUrlValue(
       ? sanitizeQuery(parsed.searchParams, policy.urlPolicy.stripSensitiveValues)
       : ''
   const prefix = preserveOrigin && /^https?:\/\//i.test(value) ? parsed.origin : ''
-  return `${prefix}${parsed.pathname || '/'}${query}`
+  const sanitized = `${prefix}${parsed.pathname || '/'}${query}`
+  return sanitized.length > 2048 ? sanitized.slice(0, 2048) : sanitized
 }
 
 function sanitizeQuery(params: URLSearchParams, stripSensitiveValues: boolean): string {

@@ -143,6 +143,25 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ kind: 'rejected', reason: 'consent' })
   })
 
+  it('rejects identity operations without an identified user', () => {
+    const resolution = resolvePolicy({
+      siteId: 'ste_1',
+      layers: createPolicyLayers(policyWith({ consentMode: 'none' })),
+    })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: {
+          siteId: 'ste_1',
+          operation: 'identify',
+          collectionContext: { consent: 'granted' },
+        },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toEqual({ kind: 'rejected', reason: 'identity' })
+  })
+
   it('strips identity references without granted consent in required_for_identity mode', () => {
     const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
 
@@ -327,6 +346,18 @@ describe('collection policy admission evaluation', () => {
     expect(
       sanitizeProperties({ secret: 'no', name: 'long', nested: { value: true } }, policy),
     ).toEqual({ name: 'lon' })
+  })
+
+  it('bounds normalized URL values after encoding', () => {
+    const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
+    const outcome = evaluateAdmission({
+      resolution,
+      input: { siteId: 'ste_1', path: `/${'é'.repeat(2048)}` },
+      evaluatedAt: new Date(),
+    }).outcome
+
+    expect(outcome).toMatchObject({ kind: 'accepted' })
+    if (outcome.kind === 'accepted') expect(outcome.urls.path?.length).toBeLessThanOrEqual(2048)
   })
 
   it('sanitizes the explicit page path before persistence', () => {
