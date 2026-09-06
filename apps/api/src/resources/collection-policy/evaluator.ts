@@ -217,6 +217,7 @@ function matchesExclusion(
 }
 
 function matchesPath(path: string, excluded: string): boolean {
+  if (excluded === '/') return path.startsWith('/')
   const normalized = excluded.endsWith('/') ? excluded.slice(0, -1) : excluded
   return path === normalized || path.startsWith(`${normalized}/`)
 }

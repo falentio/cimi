@@ -155,6 +155,30 @@ describe('CollectionPolicyService', () => {
     expect(decision.outcome.kind).toBe('accepted')
   })
 
+  it('serializes admission with policy changes and lifecycle transitions', async () => {
+    const { lock, service } = createCollectionPolicyFixture()
+    const held = lock.acquire('collection_policy')
+    expect(held).toBeDefined()
+
+    await expect(service.admit({ siteId: 'ste_1' })).rejects.toMatchObject({ code: 'CONFLICT' })
+    if (held !== undefined) await held.release()
+
+    const { service: lifecycleService } = createCollectionPolicyFixture({
+      activeOperation: {
+        operationId: 'sop_1',
+        kind: 'site_deletion',
+        phase: 'site_transition',
+        checkpoint: 'none',
+        progress: null,
+        lastSafeSequence: null,
+        errorCode: null,
+      },
+    })
+    await expect(lifecycleService.admit({ siteId: 'ste_1' })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
+  })
+
   it('rejects admission for inactive Sites before reading policy', async () => {
     const { repository, service } = createCollectionPolicyFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
