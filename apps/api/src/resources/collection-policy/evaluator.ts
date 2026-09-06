@@ -178,7 +178,8 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
     return { kind: 'rejected', reason: 'consent' }
   }
   const identityAllowed = identityRequested && context?.consent === 'granted'
-  if (policy.anonymousCollection === 'disabled' && !identityAllowed) {
+  const bot = input.isBot === true && policy.botPolicy === 'record_excluded'
+  if (policy.anonymousCollection === 'disabled' && (!identityAllowed || bot)) {
     return { kind: 'rejected', reason: 'anonymous_collection' }
   }
 
@@ -186,7 +187,6 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
     return { kind: 'rejected', reason: 'bot' }
   }
 
-  const bot = input.isBot === true && policy.botPolicy === 'record_excluded'
   const identified = identityAllowed && !bot
   return {
     kind: 'accepted',
@@ -208,7 +208,7 @@ function matchesExclusion(
   const ip = input.ip
   return (
     (hostname !== undefined &&
-      policy.exclusions.hostnames.some((value) => value.toLowerCase() === hostname)) ||
+      policy.exclusions.hostnames.some((value) => canonicalizeHostname(value) === hostname)) ||
     (path !== undefined && policy.exclusions.paths.some((value) => matchesPath(path, value))) ||
     (country !== undefined &&
       policy.exclusions.countries.some((value) => value.toLowerCase() === country)) ||

@@ -215,6 +215,23 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ kind: 'rejected', reason: 'exclusion' })
   })
 
+  it('canonicalizes configured hostname exclusions', () => {
+    const resolution = resolvePolicy({
+      siteId: 'ste_1',
+      layers: createPolicyLayers(
+        policyWith({ exclusions: { ...defaults.exclusions, hostnames: ['example.com.'] } }),
+      ),
+    })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: { siteId: 'ste_1', hostname: 'example.com.' },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toEqual({ kind: 'rejected', reason: 'exclusion' })
+  })
+
   it('matches root path exclusions', () => {
     const resolution = resolvePolicy({
       siteId: 'ste_1',
@@ -250,6 +267,28 @@ describe('collection policy admission evaluation', () => {
         }).outcome,
       ).toMatchObject(expected)
     }
+  })
+
+  it('does not record excluded bots when anonymous collection is disabled', () => {
+    const resolution = resolvePolicy({
+      siteId: 'ste_1',
+      layers: createPolicyLayers(
+        policyWith({ anonymousCollection: 'disabled', botPolicy: 'record_excluded' }),
+      ),
+    })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: {
+          siteId: 'ste_1',
+          isBot: true,
+          identifiedUserId: 'usr_1',
+          collectionContext: { consent: 'granted' },
+        },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toEqual({ kind: 'rejected', reason: 'anonymous_collection' })
   })
 
   it('sanitizes URL and scalar property values', () => {
