@@ -104,7 +104,7 @@ export function evaluateAdmission({
     revision: Object.freeze({
       id: resolution.effective.revision.id,
       version: resolution.effective.revision.version,
-      target: resolution.effective.revision.target,
+      target: Object.freeze({ ...resolution.effective.revision.target }),
     }),
     values: freezePolicyValues(values),
     provenance: Object.freeze({ ...resolution.provenance }),
@@ -162,13 +162,14 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
   if (policy.consentMode === 'required_for_all' && context?.consent !== 'granted') {
     return { kind: 'rejected', reason: 'consent' }
   }
-  if (identityRequested && context?.consent !== 'granted') {
+  if (input.operation === 'identify' && context?.consent !== 'granted') {
     return { kind: 'rejected', reason: 'consent' }
   }
   if (policy.consentMode === 'none' && context?.consent === 'denied') {
     return { kind: 'rejected', reason: 'consent' }
   }
-  if (policy.anonymousCollection === 'disabled' && !identityRequested) {
+  const identityAllowed = identityRequested && context?.consent === 'granted'
+  if (policy.anonymousCollection === 'disabled' && !identityAllowed) {
     return { kind: 'rejected', reason: 'anonymous_collection' }
   }
 
@@ -177,7 +178,7 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
   }
 
   const bot = input.isBot === true && policy.botPolicy === 'record_excluded'
-  const identified = identityRequested && !bot
+  const identified = identityAllowed && !bot
   return {
     kind: 'accepted',
     identity: identified ? 'identified' : 'anonymous',

@@ -154,4 +154,13 @@ describe('CollectionPolicyService', () => {
     expect(decision.evaluatedAt).toBe(now.toISOString())
     expect(decision.outcome.kind).toBe('accepted')
   })
+
+  it('rejects admission for inactive Sites before reading policy', async () => {
+    const { repository, service } = createCollectionPolicyFixture({
+      sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
+    })
+
+    await expect(service.admit({ siteId: 'ste_1' })).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(repository.loadLayers).not.toHaveBeenCalled()
+  })
 })

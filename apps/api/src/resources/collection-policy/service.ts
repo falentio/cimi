@@ -1,6 +1,6 @@
 import type { AuthUser } from '@cimi/auth'
 import { schema } from '@cimi/contract'
-import { assertInstallationAdmin, assertSiteManagementScope } from '@cimi/guard'
+import { assertInstallationAdmin, assertSiteManagementScope, assertSiteScope } from '@cimi/guard'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
 import type { LifecycleLock, LifecycleOperationStatusReader } from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
@@ -61,10 +61,7 @@ export class CollectionPolicyService {
     input: CollectionPolicyGetInput,
     user: AuthUser | undefined,
   ): Promise<CollectionPolicyOutput> {
-    await assertSiteManagementScope(user, input.siteId, this.scope)
-    if (!(await this.scope.siteScope.isActive(input.siteId))) {
-      throw new ORPCError('NOT_FOUND')
-    }
+    await assertSiteScope(user, input.siteId, this.scope, { requiredRole: 'admin' })
     const layers = await this.repository.loadLayers(input.siteId)
     return toSafePolicy(resolvePolicy({ siteId: input.siteId, layers }))
   }
@@ -123,6 +120,9 @@ export class CollectionPolicyService {
   }
 
   async admit(input: AdmissionInput): Promise<AdmissionDecision> {
+    if (!(await this.scope.siteScope.isActive(input.siteId))) {
+      throw new ORPCError('NOT_FOUND')
+    }
     const layers = await this.repository.loadLayers(input.siteId)
     return evaluateAdmission({
       resolution: resolvePolicy({ siteId: input.siteId, layers }),

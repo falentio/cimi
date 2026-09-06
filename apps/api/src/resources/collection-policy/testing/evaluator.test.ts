@@ -113,7 +113,7 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ kind: 'rejected', reason: 'consent' })
   })
 
-  it('requires opt-in for explicit identity in none mode', () => {
+  it('keeps an explicit identity reference anonymous without opt-in', () => {
     const resolution = resolvePolicy({
       siteId: 'ste_1',
       layers: createPolicyLayers(policyWith({ consentMode: 'none' })),
@@ -123,6 +123,18 @@ describe('collection policy admission evaluation', () => {
       evaluateAdmission({
         resolution,
         input: { siteId: 'ste_1', identifiedUserId: 'usr_1' },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toMatchObject({ kind: 'accepted', identity: 'anonymous', identifiedUserId: null })
+  })
+
+  it('rejects identify without granted consent', () => {
+    const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: { siteId: 'ste_1', operation: 'identify', identifiedUserId: 'usr_1' },
         evaluatedAt: new Date(),
       }).outcome,
     ).toEqual({ kind: 'rejected', reason: 'consent' })
@@ -243,6 +255,7 @@ describe('collection policy admission evaluation', () => {
       evaluatedAt: '2026-09-05T00:00:00.000Z',
     })
     expect(Object.isFrozen(decision)).toBe(true)
+    expect(Object.isFrozen(decision.revision.target)).toBe(true)
     expect(Object.isFrozen(decision.values)).toBe(true)
     expect(Object.isFrozen(decision.outcome)).toBe(true)
   })
