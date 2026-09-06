@@ -174,8 +174,11 @@ describe('collection policy admission evaluation', () => {
     ).toMatchObject({ kind: 'accepted', identity: 'anonymous', identifiedUserId: null })
   })
 
-  it('rejects Traits without granted consent in required_for_identity mode', () => {
-    const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
+  it('rejects Traits without granted consent in every consent mode', () => {
+    const resolution = resolvePolicy({
+      siteId: 'ste_1',
+      layers: createPolicyLayers(policyWith({ consentMode: 'none' })),
+    })
 
     expect(
       evaluateAdmission({
