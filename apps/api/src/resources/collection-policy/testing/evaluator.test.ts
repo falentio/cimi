@@ -113,7 +113,7 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ kind: 'rejected', reason: 'consent' })
   })
 
-  it('keeps an explicit identity reference anonymous without opt-in', () => {
+  it('keeps an explicit identity reference anonymous without opt-in in none mode', () => {
     const resolution = resolvePolicy({
       siteId: 'ste_1',
       layers: createPolicyLayers(policyWith({ consentMode: 'none' })),
@@ -128,13 +128,13 @@ describe('collection policy admission evaluation', () => {
     ).toMatchObject({ kind: 'accepted', identity: 'anonymous', identifiedUserId: null })
   })
 
-  it('rejects identify without granted consent', () => {
+  it('rejects identity references without granted consent in required_for_identity mode', () => {
     const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
 
     expect(
       evaluateAdmission({
         resolution,
-        input: { siteId: 'ste_1', operation: 'identify', identifiedUserId: 'usr_1' },
+        input: { siteId: 'ste_1', identifiedUserId: 'usr_1' },
         evaluatedAt: new Date(),
       }).outcome,
     ).toEqual({ kind: 'rejected', reason: 'consent' })
@@ -244,6 +244,21 @@ describe('collection policy admission evaluation', () => {
     expect(
       sanitizeProperties({ secret: 'no', name: 'long', nested: { value: true } }, policy),
     ).toEqual({ name: 'lon' })
+  })
+
+  it('sanitizes the explicit page path before persistence', () => {
+    const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: { siteId: 'ste_1', path: '/docs/getting-started?token=hidden' },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toMatchObject({
+      kind: 'accepted',
+      urls: { path: '/docs/getting-started' },
+    })
   })
 
   it('snapshots the revision, values, outcome, and evaluation time', () => {

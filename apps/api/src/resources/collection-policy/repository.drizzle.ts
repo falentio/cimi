@@ -58,9 +58,13 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
       }
 
       const current = selectCurrentRevision(tx, installation.id, input.target)
+      const effectiveFrom =
+        current === undefined || input.now.getTime() > current.effectiveFrom.getTime()
+          ? input.now
+          : new Date(current.effectiveFrom.getTime() + 1)
       if (current !== undefined) {
         tx.update(schema.TCollectionPolicyRevision)
-          .set({ effectiveTo: input.now })
+          .set({ effectiveTo: effectiveFrom })
           .where(
             and(
               eq(schema.TCollectionPolicyRevision.id, current.id),
@@ -79,7 +83,7 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
           siteId: input.target.scope === 'site' ? input.target.siteId : null,
           version,
           policyJson: values,
-          effectiveFrom: input.now,
+          effectiveFrom,
           effectiveTo: null,
           committedAt: input.now,
           createdBy: input.changedBy,

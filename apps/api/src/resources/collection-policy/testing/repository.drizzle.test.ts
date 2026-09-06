@@ -94,6 +94,51 @@ describe('CollectionPolicyRepositoryDrizzle', () => {
     ])
   })
 
+  it('keeps same-time revisions in valid effective intervals', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(
+      createInstallationInsertInput({ createdAt, updatedAt: createdAt }),
+    )
+
+    await fixture.repository.commitRevision({
+      target: { scope: 'site', siteId: 'ste_1' },
+      values: contractSchema.DEFAULT_COLLECTION_POLICY,
+      revisionId: 'cpr_site_1',
+      changedBy: null,
+      now,
+    })
+    await expect(
+      fixture.repository.commitRevision({
+        target: { scope: 'site', siteId: 'ste_1' },
+        values: contractSchema.DEFAULT_COLLECTION_POLICY,
+        revisionId: 'cpr_site_2',
+        changedBy: null,
+        now,
+      }),
+    ).resolves.toMatchObject({ layers: { site: { id: 'cpr_site_2', version: 2 } } })
+
+    const rows = fixture.db
+      .select({
+        id: schema.TCollectionPolicyRevision.id,
+        effectiveFrom: schema.TCollectionPolicyRevision.effectiveFrom,
+        effectiveTo: schema.TCollectionPolicyRevision.effectiveTo,
+      })
+      .from(schema.TCollectionPolicyRevision)
+      .where(
+        and(
+          eq(schema.TCollectionPolicyRevision.siteId, 'ste_1'),
+          eq(schema.TCollectionPolicyRevision.scope, 'site'),
+        ),
+      )
+      .all()
+
+    const next = new Date(now.getTime() + 1)
+    expect(rows).toEqual([
+      { id: 'cpr_site_1', effectiveFrom: now, effectiveTo: next },
+      { id: 'cpr_site_2', effectiveFrom: next, effectiveTo: null },
+    ])
+  })
+
   it('parses stored JSON at the repository boundary', async () => {
     using fixture = createFixture()
     await fixture.installation.insert(

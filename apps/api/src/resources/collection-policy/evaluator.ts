@@ -114,16 +114,18 @@ export function evaluateAdmission({
 }
 
 export function sanitizeUrls({
+  path,
   url,
   referrer,
   policy,
 }: {
+  readonly path?: string | undefined
   readonly url: string | undefined
   readonly referrer: string | undefined
   readonly policy: PolicyValues
 }): SanitizedUrls {
   return {
-    path: sanitizeUrlValue(url, policy.urlPolicy.capturePath, policy, false),
+    path: sanitizeUrlValue(path ?? url, policy.urlPolicy.capturePath, policy, false),
     referrer: sanitizeUrlValue(referrer, policy.urlPolicy.captureReferrer, policy, true),
   }
 }
@@ -162,7 +164,11 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
   if (policy.consentMode === 'required_for_all' && context?.consent !== 'granted') {
     return { kind: 'rejected', reason: 'consent' }
   }
-  if (input.operation === 'identify' && context?.consent !== 'granted') {
+  if (
+    policy.consentMode === 'required_for_identity' &&
+    identityRequested &&
+    context?.consent !== 'granted'
+  ) {
     return { kind: 'rejected', reason: 'consent' }
   }
   if (policy.consentMode === 'none' && context?.consent === 'denied') {
@@ -184,7 +190,7 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
     identity: identified ? 'identified' : 'anonymous',
     bot: bot ? 'recorded_excluded' : 'included',
     identifiedUserId: identified ? (input.identifiedUserId ?? null) : null,
-    urls: sanitizeUrls({ url: input.url, referrer: input.referrer, policy }),
+    urls: sanitizeUrls({ path, url: input.url, referrer: input.referrer, policy }),
     properties: sanitizeProperties(input.properties, policy),
   }
 }
