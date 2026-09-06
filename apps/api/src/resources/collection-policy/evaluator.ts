@@ -169,7 +169,7 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
   }
   if (
     policy.consentMode === 'required_for_identity' &&
-    identityRequested &&
+    (input.operation === 'identify' || input.traits !== undefined) &&
     context?.consent !== 'granted'
   ) {
     return { kind: 'rejected', reason: 'consent' }
@@ -217,6 +217,7 @@ function matchesExclusion(
 }
 
 function matchesPath(path: string, excluded: string): boolean {
+  if (excluded === '') return false
   if (excluded === '/') return path.startsWith('/')
   const normalized = excluded.endsWith('/') ? excluded.slice(0, -1) : excluded
   return path === normalized || path.startsWith(`${normalized}/`)

@@ -98,4 +98,11 @@ describe('collection policy schemas', () => {
       expect.schemaMatching(PSafePolicy),
     )
   })
+
+  it('rejects empty path exclusions', () => {
+    expect({
+      scope: 'installation',
+      policy: { ...values, exclusions: { ...values.exclusions, paths: [''] } },
+    }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+  })
 })

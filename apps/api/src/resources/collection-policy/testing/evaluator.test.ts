@@ -143,13 +143,25 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ kind: 'rejected', reason: 'consent' })
   })
 
-  it('rejects identity references without granted consent in required_for_identity mode', () => {
+  it('strips identity references without granted consent in required_for_identity mode', () => {
     const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
 
     expect(
       evaluateAdmission({
         resolution,
         input: { siteId: 'ste_1', identifiedUserId: 'usr_1' },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toMatchObject({ kind: 'accepted', identity: 'anonymous', identifiedUserId: null })
+  })
+
+  it('rejects Traits without granted consent in required_for_identity mode', () => {
+    const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: { siteId: 'ste_1', traits: { plan: 'pro' } },
         evaluatedAt: new Date(),
       }).outcome,
     ).toEqual({ kind: 'rejected', reason: 'consent' })
