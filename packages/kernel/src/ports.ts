@@ -92,6 +92,23 @@ export interface AcceptanceJournalPort {
   drain(): PortResult<void>
 }
 
+export interface AcceptanceQuiescencePort {
+  stopAdmission(): PortResult<void>
+  drain(): PortResult<{ readonly lastSafeSequence: number }>
+  resumeAdmission(): PortResult<void>
+}
+
+export interface ReadQuiescencePort {
+  stopReads(): PortResult<void>
+  drain(): PortResult<void>
+  resumeReads(): PortResult<void>
+}
+
+export type LifecycleAdmissionMode =
+  | 'normal'
+  | 'backup-write-quiesced'
+  | 'restore-read-write-quiesced'
+
 export type StoreHealth = 'ready' | 'degraded' | 'rebuilding' | 'unavailable'
 
 export interface AnalyticsHealth {
@@ -202,6 +219,92 @@ export class InMemoryAcceptanceJournalPort implements AcceptanceJournalPort {
 
   get drainCalls(): number {
     return this.#drainCalls
+  }
+}
+
+export class InMemoryAcceptanceQuiescencePort implements AcceptanceQuiescencePort {
+  #admissionStopped = false
+  #stopCalls = 0
+  #drainCalls = 0
+  #resumeCalls = 0
+
+  constructor(
+    private readonly drainImplementation: () => PortResult<{
+      readonly lastSafeSequence: number
+    }> = () => ({ lastSafeSequence: 0 }),
+  ) {}
+
+  stopAdmission(): void {
+    this.#stopCalls += 1
+    this.#admissionStopped = true
+  }
+
+  drain(): PortResult<{ readonly lastSafeSequence: number }> {
+    this.#drainCalls += 1
+    if (!this.#admissionStopped) throw new Error('Acceptance admission is not stopped')
+    return this.drainImplementation()
+  }
+
+  resumeAdmission(): void {
+    this.#resumeCalls += 1
+    this.#admissionStopped = false
+  }
+
+  get admissionStopped(): boolean {
+    return this.#admissionStopped
+  }
+
+  get stopCalls(): number {
+    return this.#stopCalls
+  }
+
+  get drainCalls(): number {
+    return this.#drainCalls
+  }
+
+  get resumeCalls(): number {
+    return this.#resumeCalls
+  }
+}
+
+export class InMemoryReadQuiescencePort implements ReadQuiescencePort {
+  #readsStopped = false
+  #stopCalls = 0
+  #drainCalls = 0
+  #resumeCalls = 0
+
+  constructor(private readonly drainImplementation: () => PortResult<void> = () => undefined) {}
+
+  stopReads(): void {
+    this.#stopCalls += 1
+    this.#readsStopped = true
+  }
+
+  drain(): PortResult<void> {
+    this.#drainCalls += 1
+    if (!this.#readsStopped) throw new Error('Read admission is not stopped')
+    return this.drainImplementation()
+  }
+
+  resumeReads(): void {
+    this.#resumeCalls += 1
+    this.#readsStopped = false
+  }
+
+  get readsStopped(): boolean {
+    return this.#readsStopped
+  }
+
+  get stopCalls(): number {
+    return this.#stopCalls
+  }
+
+  get drainCalls(): number {
+    return this.#drainCalls
+  }
+
+  get resumeCalls(): number {
+    return this.#resumeCalls
   }
 }
 

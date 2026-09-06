@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, notExists } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
 import { isOwnerInvariantValid } from '../organization/owner-invariant.ts'
@@ -30,7 +30,18 @@ export function createSiteScopeDependencies({
         const rows = await db
           .select({ id: schema.TSite.id })
           .from(schema.TSite)
-          .where(and(eq(schema.TSite.id, siteId), eq(schema.TSite.status, 'active')))
+          .where(
+            and(
+              eq(schema.TSite.id, siteId),
+              eq(schema.TSite.status, 'active'),
+              notExists(
+                db
+                  .select({ siteId: schema.TSiteTombstone.siteId })
+                  .from(schema.TSiteTombstone)
+                  .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+              ),
+            ),
+          )
           .limit(1)
         return rows.length > 0
       },

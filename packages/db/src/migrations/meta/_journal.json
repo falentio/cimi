@@ -71,6 +71,13 @@
       "when": 1788599057105,
       "tag": "0009_retention_cleanup_shape",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788599057106,
+      "tag": "0010_nullable_restore_safety",
+      "breakpoints": true
     }
   ]
 }

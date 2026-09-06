@@ -160,6 +160,20 @@ describe('resolveAdmissionGate', () => {
     })
   })
 
+  it('pauses writes but keeps analytics reads during backup quiescence', () => {
+    expect(resolveAdmissionGate('maintenance', 'backup-write-quiesced')).toEqual({
+      ingestion: 'paused',
+      analyticsReads: 'ok',
+    })
+  })
+
+  it('pauses both writes and reads during restore quiescence', () => {
+    expect(resolveAdmissionGate('recovering', 'restore-read-write-quiesced')).toEqual({
+      ingestion: 'paused',
+      analyticsReads: 'unavailable',
+    })
+  })
+
   it.each(['recovering', 'maintenance', 'unavailable'] as const)(
     'pauses ingestion and analytics reads while %s',
     (status) => {
