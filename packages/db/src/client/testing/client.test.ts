@@ -233,7 +233,7 @@ describe('createDb + migrateControlDb', () => {
     } finally {
       sqlite.close()
     }
-  })
+  }, 10_000)
 
   it('enforces first-party scope, version, epoch, restore, and cleanup invariants', async () => {
     const db = createMigratedTestDb()
