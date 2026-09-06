@@ -1,8 +1,9 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { closeDb, createDb, migrateControlDb } from '@cimi/db'
+import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
 import { createTestAnalyticsDb } from '@cimi/db/testing'
+import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { ConfiguredSqliteExecutor } from '../executor.ts'
 
@@ -152,6 +153,12 @@ describe('ConfiguredSqliteExecutor', () => {
       expect(source.retentionBoundary).toBeNull()
       expect(source.retentionManifest).toEqual({ version: 1, boundaries: [] })
       await executor.validateManifest({ operationId: 'bop_1', source })
+      await expect(
+        executor.validateManifest({
+          operationId: 'bop_1',
+          source: { ...source, schemaVersion: '2' },
+        }),
+      ).rejects.toThrow('compatible')
       db.$client.prepare('UPDATE backup_executor_marker SET value = ?').run('changed')
       db.$client
         .prepare(
@@ -175,6 +182,128 @@ describe('ConfiguredSqliteExecutor', () => {
       expect(
         db.$client.prepare('SELECT active_operation_id AS operationId FROM installation').get(),
       ).toMatchObject({ operationId: 'bop_restore' })
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('restores safety metadata when rolling back a generation', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-rollback-metadata-test-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    migrateControlDb(db)
+    const analytics = await createTestAnalyticsDb()
+    try {
+      const createdAt = new Date('2026-09-01T00:00:00.000Z')
+      db.$client.prepare('CREATE TABLE rollback_marker (value TEXT NOT NULL)').run()
+      db.$client.prepare('INSERT INTO rollback_marker (value) VALUES (?)').run('before')
+      db.insert(schema.TBackupOperation)
+        .values({
+          id: 'bop_source',
+          operationType: 'backup',
+          status: 'available',
+          scope: 'installation',
+          phase: 'ready',
+          progress: 1,
+          checkpoint: 'structurally_ready',
+          lastSafeSequence: 8,
+          controlReadiness: 'ready',
+          analyticsReadiness: 'ready',
+          structuralReadiness: 'ready',
+          cleanupPending: false,
+          errorCode: null,
+          recoveryKey: null,
+          createdAt,
+          startedAt: createdAt,
+          completedAt: createdAt,
+          updatedAt: createdAt,
+          ownerToken: null,
+        })
+        .run()
+      db.insert(schema.TBackupOperation)
+        .values({
+          id: 'bop_restore',
+          operationType: 'restore',
+          status: 'restoring',
+          scope: 'installation',
+          phase: 'restoring_sqlite',
+          progress: 0.25,
+          checkpoint: 'none',
+          lastSafeSequence: 9,
+          controlReadiness: 'ready',
+          analyticsReadiness: 'ready',
+          structuralReadiness: 'not_ready',
+          cleanupPending: true,
+          errorCode: null,
+          recoveryKey: null,
+          createdAt,
+          startedAt: createdAt,
+          completedAt: null,
+          updatedAt: createdAt,
+          ownerToken: 'owner_restore',
+        })
+        .run()
+      db.insert(schema.TBackupRestoreReference)
+        .values({
+          operationId: 'bop_restore',
+          restoreSourceBackupId: 'bop_source',
+          preRestoreSafetyArtifactId: null,
+          createdAt,
+        })
+        .run()
+      const executor = new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+      const safety = await executor.createPreRestoreSafety({
+        operationId: 'bop_restore',
+        artifactId: 'bar_safety',
+        lastSafeSequence: 9,
+      })
+      db.insert(schema.TBackupArtifact)
+        .values({
+          id: safety.id,
+          operationId: safety.operationId,
+          artifactType: 'pre_restore_sqlite',
+          generationId: safety.generationId,
+          storageKey: safety.storageKey,
+          schemaVersion: safety.schemaVersion,
+          retentionBoundary: null,
+          acceptanceSequence: safety.lastSafeSequence,
+          sizeBytes: safety.sizeBytes,
+          checksumAlgorithm: safety.checksumAlgorithm,
+          checksumValue: safety.checksumValue,
+          metadata: null,
+          createdAt: safety.createdAt,
+        })
+        .run()
+      db.update(schema.TBackupRestoreReference)
+        .set({ preRestoreSafetyArtifactId: safety.id })
+        .where(eq(schema.TBackupRestoreReference.operationId, 'bop_restore'))
+        .run()
+      db.$client.prepare('UPDATE rollback_marker SET value = ?').run('after')
+
+      await executor.rollback({ operationId: 'bop_restore', safety })
+
+      expect(db.$client.prepare('SELECT value FROM rollback_marker').get()).toMatchObject({
+        value: 'before',
+      })
+      expect(
+        db.$client
+          .prepare('SELECT id FROM backup_artifact WHERE operation_id = ? AND artifact_type = ?')
+          .get('bop_restore', 'pre_restore_sqlite'),
+      ).toMatchObject({ id: safety.id })
+      expect(
+        db.$client
+          .prepare(
+            'SELECT pre_restore_safety_artifact_id AS artifactId FROM backup_restore_reference WHERE operation_id = ?',
+          )
+          .get('bop_restore'),
+      ).toMatchObject({ artifactId: safety.id })
     } finally {
       await analytics.close()
       closeDb(db)

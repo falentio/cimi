@@ -226,9 +226,74 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     await restoreDbFromBackup({
       backupPath: path,
       destinationPath: this.controlDatabasePath,
+      prepare: (stagedDb) => this.restoreSafetyMetadata(stagedDb, input.operationId, input.safety),
       db: this.db,
     })
     await this.analyticsRebuild({ operationId: input.operationId })
+  }
+
+  private restoreSafetyMetadata(db: Db, operationId: string, safety: SafetyManifest): void {
+    db.transaction((tx) => {
+      const operation = tx
+        .select({ id: schema.TBackupOperation.id })
+        .from(schema.TBackupOperation)
+        .where(eq(schema.TBackupOperation.id, operationId))
+        .limit(1)
+        .all()[0]
+      const reference = tx
+        .select()
+        .from(schema.TBackupRestoreReference)
+        .where(eq(schema.TBackupRestoreReference.operationId, operationId))
+        .limit(1)
+        .all()[0]
+      if (
+        operation === undefined ||
+        reference === undefined ||
+        safety.operationId !== operationId
+      ) {
+        throw new SafetyArtifactUnavailableError('Pre-restore safety metadata is unavailable')
+      }
+      const existing = tx
+        .select()
+        .from(schema.TBackupArtifact)
+        .where(eq(schema.TBackupArtifact.id, safety.id))
+        .limit(1)
+        .all()[0]
+      if (existing === undefined) {
+        tx.insert(schema.TBackupArtifact)
+          .values({
+            id: safety.id,
+            operationId,
+            artifactType: 'pre_restore_sqlite',
+            generationId: safety.generationId,
+            storageKey: safety.storageKey,
+            schemaVersion: safety.schemaVersion,
+            retentionBoundary: null,
+            acceptanceSequence: safety.lastSafeSequence,
+            sizeBytes: safety.sizeBytes,
+            checksumAlgorithm: safety.checksumAlgorithm,
+            checksumValue: safety.checksumValue,
+            metadata: null,
+            createdAt: safety.createdAt,
+          })
+          .run()
+      } else if (
+        existing.operationId !== operationId ||
+        existing.artifactType !== 'pre_restore_sqlite'
+      ) {
+        throw new SafetyArtifactUnavailableError('Pre-restore safety metadata is invalid')
+      }
+      if (
+        reference.preRestoreSafetyArtifactId !== null &&
+        reference.preRestoreSafetyArtifactId !== safety.id
+      ) {
+        throw new SafetyArtifactUnavailableError('Pre-restore safety metadata is invalid')
+      }
+      tx.update(schema.TBackupRestoreReference)
+        .set({ preRestoreSafetyArtifactId: safety.id })
+        .where(eq(schema.TBackupRestoreReference.operationId, operationId))
+        .run()
+    })
   }
 
   private async capture(input: {

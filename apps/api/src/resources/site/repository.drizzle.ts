@@ -19,7 +19,17 @@ export class SiteRepositoryDrizzle implements SiteRepository {
     const rows = await this.db
       .select()
       .from(schema.TSite)
-      .where(eq(schema.TSite.id, siteId))
+      .where(
+        and(
+          eq(schema.TSite.id, siteId),
+          notExists(
+            this.db
+              .select({ siteId: schema.TSiteTombstone.siteId })
+              .from(schema.TSiteTombstone)
+              .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+          ),
+        ),
+      )
       .limit(1)
     const row = rows[0]
     return row === undefined ? undefined : toSiteRecord(row)
@@ -124,6 +134,13 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .all()
       const current = currentRows[0]
       if (current === undefined) return undefined
+      const siteTombstones = tx
+        .select({ siteId: schema.TSiteTombstone.siteId })
+        .from(schema.TSiteTombstone)
+        .where(eq(schema.TSiteTombstone.siteId, input.siteId))
+        .limit(1)
+        .all()
+      if (siteTombstones.length > 0) return undefined
       const tombstones = tx
         .select({ siteId: schema.TSiteTombstone.siteId })
         .from(schema.TSiteTombstone)
@@ -160,7 +177,18 @@ export class SiteRepositoryDrizzle implements SiteRepository {
     const rows = await this.db
       .update(schema.TSite)
       .set({ ingestionIdentifier, updatedAt: new Date() })
-      .where(and(eq(schema.TSite.id, siteId), eq(schema.TSite.status, 'active')))
+      .where(
+        and(
+          eq(schema.TSite.id, siteId),
+          eq(schema.TSite.status, 'active'),
+          notExists(
+            this.db
+              .select({ siteId: schema.TSiteTombstone.siteId })
+              .from(schema.TSiteTombstone)
+              .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+          ),
+        ),
+      )
       .returning()
     const row = rows[0]
     return row === undefined ? undefined : toSite(row)
@@ -695,21 +723,14 @@ export class SiteRepositoryDrizzle implements SiteRepository {
   }
 
   async getDeletionStatus(siteId: string): Promise<SiteRepository.DeletionStatus | undefined> {
-    const rows = await this.db
-      .select()
-      .from(schema.TSite)
-      .where(eq(schema.TSite.id, siteId))
-      .limit(1)
-    const site = rows[0]
-    if (site === undefined) {
-      const tombstone = (
-        await this.db
-          .select()
-          .from(schema.TSiteTombstone)
-          .where(eq(schema.TSiteTombstone.siteId, siteId))
-          .limit(1)
-      )[0]
-      if (tombstone === undefined) return undefined
+    const tombstone = (
+      await this.db
+        .select()
+        .from(schema.TSiteTombstone)
+        .where(eq(schema.TSiteTombstone.siteId, siteId))
+        .limit(1)
+    )[0]
+    if (tombstone !== undefined) {
       return {
         siteId: tombstone.siteId,
         status: 'purged',
@@ -725,6 +746,13 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         },
       }
     }
+    const rows = await this.db
+      .select()
+      .from(schema.TSite)
+      .where(eq(schema.TSite.id, siteId))
+      .limit(1)
+    const site = rows[0]
+    if (site === undefined) return undefined
 
     const operation =
       site.currentOperationId === null

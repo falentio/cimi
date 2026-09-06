@@ -137,6 +137,38 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
     })
   })
 
+  it('treats a tombstone as authoritative over a restored active row', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    fixture.db
+      .insert(schema.TSiteTombstone)
+      .values({
+        siteId: 'ste_1',
+        organizationId: 'org_1',
+        hostname: 'example.com',
+        purgeOperationId: 'sop_purge_1',
+        purgedAt: completedAt,
+        createdAt: requestedAt,
+      })
+      .run()
+
+    await expect(repo.findById('ste_1')).resolves.toBeUndefined()
+    await expect(repo.getDeletionStatus('ste_1')).resolves.toMatchObject({
+      status: 'purged',
+      operationId: 'sop_purge_1',
+    })
+    await expect(
+      repo.updateActive({
+        siteId: 'ste_1',
+        name: 'Changed',
+        hostname: 'new.example.com',
+        reportingTimezone: 'UTC',
+        weekStartsOn: 'monday',
+      }),
+    ).resolves.toBeUndefined()
+    await expect(repo.rotateIngestionIdentifier('ste_1', 'ing_new')).resolves.toBeUndefined()
+  })
+
   it('returns a safe cleanup error code', async () => {
     using fixture = createSiteDrizzleFixture()
     const repo = new SiteRepositoryDrizzle({ db: fixture.db })

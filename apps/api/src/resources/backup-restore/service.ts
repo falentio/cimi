@@ -238,8 +238,9 @@ export class BackupRestoreService {
     let keepLease = false
     let admissionStopped = false
     let readsStopped = false
+    let claimed: BackupOperation | undefined
     try {
-      const claimed = await this.repository.claim({
+      claimed = await this.repository.claim({
         operationId: operation.id,
         expectedUpdatedAt: operation.updatedAt,
         ownerToken,
@@ -266,8 +267,19 @@ export class BackupRestoreService {
         readsStopped,
       })
     } catch (error) {
-      if (readsStopped) await this.resumeAdmission(true)
-      else if (admissionStopped) await this.resumeAdmission(false)
+      try {
+        if (readsStopped) await this.resumeAdmission(true)
+        else if (admissionStopped) await this.resumeAdmission(false)
+      } catch (resumeError) {
+        this.onError(resumeError)
+      }
+      if (claimed !== undefined) {
+        try {
+          await this.recordFailure(claimed.id, ownerToken, error, undefined)
+        } catch (failureError) {
+          this.onError(failureError)
+        }
+      }
       this.onError(error)
     } finally {
       if (!keepLease) await lease.release()
