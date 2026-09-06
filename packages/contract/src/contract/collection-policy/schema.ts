@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { SId, SScalarKey } from '../../schema/index.ts'
+import { SId, SHostname, SScalarKey } from '../../schema/index.ts'
 export { SCollectionContext } from './transport.ts'
 
 export const POLICY_FIELDS = [
@@ -35,7 +35,7 @@ const policyValueEntries = {
   }),
   profileFilterKeys: v.pipe(v.array(SScalarKey), v.maxLength(64)),
   exclusions: v.strictObject({
-    hostnames: v.pipe(v.array(v.string()), v.maxLength(128)),
+    hostnames: v.pipe(v.array(SHostname), v.maxLength(128)),
     paths: v.pipe(v.array(v.pipe(v.string(), v.nonEmpty())), v.maxLength(128)),
     countries: v.pipe(v.array(v.string()), v.maxLength(128)),
     ipRanges: v.pipe(v.array(v.string()), v.maxLength(128)),

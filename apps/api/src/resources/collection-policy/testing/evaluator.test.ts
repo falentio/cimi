@@ -348,6 +348,18 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ name: 'lon' })
   })
 
+  it('rejects non-HTTP URL schemes during sanitization', () => {
+    const policy = policyWith({})
+
+    expect(
+      sanitizeUrls({
+        url: 'javascript:alert(1)',
+        referrer: 'mailto:alice@example.com',
+        policy,
+      }),
+    ).toEqual({ path: null, referrer: null })
+  })
+
   it('bounds normalized URL values after encoding', () => {
     const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
     const outcome = evaluateAdmission({

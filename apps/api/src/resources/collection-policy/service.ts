@@ -125,34 +125,18 @@ export class CollectionPolicyService {
     if (!(await this.scope.siteScope.isActive(input.siteId))) {
       throw new ORPCError('NOT_FOUND')
     }
-    const lease = await this.lock.acquire('collection_policy')
-    if (lease === undefined) throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
-    try {
-      if (!(await this.scope.siteScope.isActive(input.siteId))) {
-        throw new ORPCError('NOT_FOUND')
-      }
-      await this.assertAdmissionAvailable()
-      const layers = await this.repository.loadLayers(input.siteId)
-      return evaluateAdmission({
-        resolution: resolvePolicy({ siteId: input.siteId, layers }),
-        input,
-        evaluatedAt: this.clock(),
-      })
-    } finally {
-      await lease.release()
-    }
+    const layers = await this.repository.loadLayers(input.siteId)
+    return evaluateAdmission({
+      resolution: resolvePolicy({ siteId: input.siteId, layers }),
+      input,
+      evaluatedAt: this.clock(),
+    })
   }
 
   private async assertNoActiveLifecycleOperation(): Promise<void> {
     const active = await this.lifecycle.getActiveOperation()
     if (active === null || active.errorCode !== null) return
     throw new ORPCError('CONFLICT', { status: 409 })
-  }
-
-  private async assertAdmissionAvailable(): Promise<void> {
-    const active = await this.lifecycle.getActiveOperation()
-    if (active === null || active.errorCode !== null) return
-    throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
   }
 }
 

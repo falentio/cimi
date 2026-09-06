@@ -246,6 +246,7 @@ function sanitizeUrlValue(
   preserveOrigin: boolean,
 ): string | null {
   if (!capture || value === undefined) return null
+  if (/^[a-z][a-z\d+.-]*:/i.test(value) && !/^https?:\/\//i.test(value)) return null
   let parsed: URL
   try {
     parsed = new URL(value, 'https://cimi.invalid')
