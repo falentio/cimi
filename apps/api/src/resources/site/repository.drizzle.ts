@@ -134,13 +134,6 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .all()
       const current = currentRows[0]
       if (current === undefined) return undefined
-      const siteTombstones = tx
-        .select({ siteId: schema.TSiteTombstone.siteId })
-        .from(schema.TSiteTombstone)
-        .where(eq(schema.TSiteTombstone.siteId, input.siteId))
-        .limit(1)
-        .all()
-      if (siteTombstones.length > 0) return undefined
       const tombstones = tx
         .select({ siteId: schema.TSiteTombstone.siteId })
         .from(schema.TSiteTombstone)
@@ -153,6 +146,13 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .limit(1)
         .all()
       if (tombstones.length > 0) throw new Error('Site hostname is reserved by a tombstone')
+      const siteTombstones = tx
+        .select({ siteId: schema.TSiteTombstone.siteId })
+        .from(schema.TSiteTombstone)
+        .where(eq(schema.TSiteTombstone.siteId, input.siteId))
+        .limit(1)
+        .all()
+      if (siteTombstones.length > 0) return undefined
       const rows = tx
         .update(schema.TSite)
         .set({
