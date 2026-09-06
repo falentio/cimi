@@ -16,6 +16,7 @@ export const api = implement({
   installation: contract.installation,
   organization: contract.organization,
   membership: contract.membership,
+  collectionPolicy: contract.collectionPolicy,
   retentionPolicy: contract.retentionPolicy,
   site: contract.site,
   invitation: contract.invitation,

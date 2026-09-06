@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { PSafePolicy, SCollectionPolicyUpdateFields, SPolicy } from './schema.ts'
+import { SCollectionPolicyUpdateOutput } from './command/update.ts'
+import {
+  DEFAULT_COLLECTION_POLICY,
+  POLICY_FIELDS,
+  PSafePolicy,
+  SCollectionPolicyUpdateFields,
+  SPolicy,
+} from './schema.ts'
 
 const values = {
   anonymousCollection: 'enabled' as const,
@@ -36,6 +43,11 @@ const source = {
 }
 
 describe('collection policy schemas', () => {
+  it('exports the normative defaults and exactly nine policy fields', () => {
+    expect(POLICY_FIELDS).toHaveLength(9)
+    expect(DEFAULT_COLLECTION_POLICY).toEqual(values)
+  })
+
   it('discriminates installation defaults from Site overrides', () => {
     expect({
       scope: 'installation',
@@ -57,6 +69,18 @@ describe('collection policy schemas', () => {
   it('does not accept a scope-less policy', () => {
     expect(values).not.toEqual(expect.schemaMatching(SPolicy))
     expect({ scope: 'site', siteId: 'ste-1', ...values }).toEqual(expect.schemaMatching(SPolicy))
+  })
+
+  it('represents mutation output at the mutated scope', () => {
+    expect({ scope: 'installation', ...values }).toEqual(
+      expect.schemaMatching(SCollectionPolicyUpdateOutput),
+    )
+    expect({ scope: 'site', siteId: 'ste-1', ...values }).toEqual(
+      expect.schemaMatching(SCollectionPolicyUpdateOutput),
+    )
+    expect({ scope: 'installation', siteId: 'ste-1', ...values }).not.toEqual(
+      expect.schemaMatching(SCollectionPolicyUpdateOutput),
+    )
   })
 
   it('requires complete installation-or-Site provenance', () => {

@@ -26,6 +26,7 @@ import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createRetentionPolicy } from './resources/retention-policy/index.ts'
+import { createCollectionPolicy } from './resources/collection-policy/index.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
 import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
@@ -99,6 +100,11 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lock,
     lifecycle: installation.service,
   })
+  const collectionPolicy = createCollectionPolicy({
+    db: deps.db,
+    lock,
+    lifecycle: installation.service,
+  })
   retentionPolicy.worker.start()
   const backupRestore = createBackupRestore({
     db: deps.db,
@@ -144,6 +150,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     organization: organization.router,
     membership: membership.router,
     retentionPolicy: retentionPolicy.router,
+    collectionPolicy: collectionPolicy.router,
     site: site.router,
     invitation: invitation.router,
     backupRestore: backupRestore.router,

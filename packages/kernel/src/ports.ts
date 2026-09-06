@@ -34,7 +34,10 @@ export type LifecycleErrorCode =
   | 'CONFLICT'
   | 'INTERNAL_SERVER_ERROR'
 
-export type LifecycleLockKind = PersistedLifecycleOperationKind | 'initialization'
+export type LifecycleLockKind =
+  | PersistedLifecycleOperationKind
+  | 'initialization'
+  | 'collection_policy'
 
 export const LIFECYCLE_OPERATION_PHASES = [
   'pre_upgrade_safety',
@@ -74,7 +77,9 @@ export interface LifecycleLease {
 }
 
 export interface LifecycleLock {
-  acquire(kind: LifecycleOperationKind | 'initialization'): PortResult<LifecycleLease | undefined>
+  acquire(
+    kind: LifecycleOperationKind | 'initialization' | 'collection_policy',
+  ): PortResult<LifecycleLease | undefined>
   isLocked(): PortResult<boolean>
 }
 
@@ -150,11 +155,16 @@ export class InMemoryRetentionResolver implements RetentionResolver {
 export class InMemoryLifecycleLock implements LifecycleLock {
   #lease: { readonly token: symbol; readonly kind: LifecycleLockKind } | undefined
 
-  acquire(kind: LifecycleOperationKind | 'initialization'): LifecycleLease | undefined {
+  acquire(
+    kind: LifecycleOperationKind | 'initialization' | 'collection_policy',
+  ): LifecycleLease | undefined {
     if (this.#lease !== undefined) return undefined
     const lease = {
       token: Symbol('lifecycle-lease'),
-      kind: kind === 'initialization' ? kind : normalizeLifecycleOperationKind(kind),
+      kind:
+        kind === 'initialization' || kind === 'collection_policy'
+          ? kind
+          : normalizeLifecycleOperationKind(kind),
     }
     this.#lease = lease
     return {
