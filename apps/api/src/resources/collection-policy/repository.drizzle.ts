@@ -85,10 +85,14 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
       }
 
       const current = selectCurrentRevision(tx, installation.id, input.target)
+      const latest = selectLatestEffectiveBoundary(tx, installation.id, input.target)
+      const latestBoundary = latest?.effectiveTo ?? latest?.effectiveFrom
+      const minimumEffectiveFrom =
+        current === undefined ? latestBoundary?.getTime() : current.effectiveFrom.getTime() + 1
       const effectiveFrom =
-        current === undefined || input.now.getTime() > current.effectiveFrom.getTime()
+        minimumEffectiveFrom === undefined || input.now.getTime() >= minimumEffectiveFrom
           ? input.now
-          : new Date(current.effectiveFrom.getTime() + 1)
+          : new Date(minimumEffectiveFrom)
       if (current !== undefined) {
         tx.update(schema.TCollectionPolicyRevision)
           .set({ effectiveTo: effectiveFrom })
@@ -181,6 +185,31 @@ function selectNextVersion(
     .limit(1)
     .all()
   return (rows[0]?.version ?? 0) + 1
+}
+
+function selectLatestEffectiveBoundary(
+  tx: SqliteTransaction,
+  installationId: string,
+  target: CollectionPolicyRepository.CommitRevisionInput['target'],
+) {
+  return tx
+    .select({
+      effectiveFrom: schema.TCollectionPolicyRevision.effectiveFrom,
+      effectiveTo: schema.TCollectionPolicyRevision.effectiveTo,
+    })
+    .from(schema.TCollectionPolicyRevision)
+    .where(
+      and(
+        eq(schema.TCollectionPolicyRevision.installationId, installationId),
+        eq(schema.TCollectionPolicyRevision.scope, target.scope),
+        target.scope === 'site'
+          ? eq(schema.TCollectionPolicyRevision.siteId, target.siteId)
+          : isNull(schema.TCollectionPolicyRevision.siteId),
+      ),
+    )
+    .orderBy(desc(schema.TCollectionPolicyRevision.version))
+    .limit(1)
+    .all()[0]
 }
 
 function selectLayers(

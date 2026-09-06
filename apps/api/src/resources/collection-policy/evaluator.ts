@@ -257,8 +257,15 @@ function sanitizeUrlValue(
       ? sanitizeQuery(parsed.searchParams, policy.urlPolicy.stripSensitiveValues)
       : ''
   const prefix = preserveOrigin && /^https?:\/\//i.test(value) ? parsed.origin : ''
-  const sanitized = `${prefix}${parsed.pathname || '/'}${query}`
-  return sanitized.length > 2048 ? sanitized.slice(0, 2048) : sanitized
+  return limitSanitizedUrl(`${prefix}${parsed.pathname || '/'}${query}`)
+}
+
+function limitSanitizedUrl(value: string): string {
+  if (value.length <= 2048) return value
+  let end = 2048
+  const percent = value.lastIndexOf('%', end - 1)
+  if (percent >= end - 2) end = percent
+  return value.slice(0, end)
 }
 
 function sanitizeQuery(params: URLSearchParams, stripSensitiveValues: boolean): string {

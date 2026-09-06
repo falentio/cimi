@@ -122,10 +122,13 @@ export class CollectionPolicyService {
   }
 
   async admit(input: AdmissionInput): Promise<AdmissionDecision> {
+    if (!(await this.scope.siteScope.isActive(input.siteId))) {
+      throw new ORPCError('NOT_FOUND')
+    }
     const lease = await this.lock.acquire('collection_policy')
-    if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+    if (lease === undefined) throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     try {
-      await this.assertNoActiveLifecycleOperation()
+      await this.assertAdmissionAvailable()
       if (!(await this.scope.siteScope.isActive(input.siteId))) {
         throw new ORPCError('NOT_FOUND')
       }
@@ -144,6 +147,12 @@ export class CollectionPolicyService {
     const active = await this.lifecycle.getActiveOperation()
     if (active === null || active.errorCode !== null) return
     throw new ORPCError('CONFLICT', { status: 409 })
+  }
+
+  private async assertAdmissionAvailable(): Promise<void> {
+    const active = await this.lifecycle.getActiveOperation()
+    if (active === null || active.errorCode !== null) return
+    throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
   }
 }
 

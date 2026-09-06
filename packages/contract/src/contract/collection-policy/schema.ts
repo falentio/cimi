@@ -110,7 +110,7 @@ export const PSafePolicy = v.strictObject({
   source: SCollectionPolicySource,
 })
 export const SCollectionPolicySiteFields = v.strictObject({ siteId: SId })
-export const SCollectionPolicyUpdateFields = v.variant('scope', [
+export const SCollectionPolicyUpdateFields = v.union([
   SInstallationDefaultPolicyUpdate,
   SSiteOverridePolicyUpdate,
   SSiteOverridePolicyClear,

@@ -171,7 +171,9 @@ describe('CollectionPolicyService', () => {
     const held = lock.acquire('collection_policy')
     expect(held).toBeDefined()
 
-    await expect(service.admit({ siteId: 'ste_1' })).rejects.toMatchObject({ code: 'CONFLICT' })
+    await expect(service.admit({ siteId: 'ste_1' })).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+    })
     if (held !== undefined) await held.release()
 
     const { service: lifecycleService } = createCollectionPolicyFixture({
@@ -186,7 +188,7 @@ describe('CollectionPolicyService', () => {
       },
     })
     await expect(lifecycleService.admit({ siteId: 'ste_1' })).rejects.toMatchObject({
-      code: 'CONFLICT',
+      code: 'SERVICE_UNAVAILABLE',
     })
   })
 
