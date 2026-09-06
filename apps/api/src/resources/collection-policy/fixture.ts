@@ -21,16 +21,19 @@ export function createCollectionPolicyFixture(options: CollectionPolicyFixtureOp
   const repository = mock<CollectionPolicyRepository>()
   repository.loadLayers.mockResolvedValue(createPolicyLayers())
   repository.commitRevision.mockImplementation(async (input) => {
-    const revision = {
-      id: input.revisionId,
-      version: input.target.scope === 'site' ? 1 : 2,
-      target: input.target,
-      values: input.values,
-    }
+    const revision =
+      input.values === null
+        ? null
+        : {
+            id: input.revisionId,
+            version: input.target.scope === 'site' ? 1 : 2,
+            target: input.target,
+            values: input.values,
+          }
     const layers: PolicyLayers =
       input.target.scope === 'site'
         ? { installation: createPolicyLayers().installation, site: revision }
-        : { installation: revision, site: null }
+        : { installation: revision ?? createPolicyLayers().installation, site: null }
     const resolution =
       input.target.scope === 'site' ? resolvePolicy({ siteId: input.target.siteId, layers }) : null
     return { layers, resolution }

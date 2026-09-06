@@ -91,7 +91,7 @@ export class CollectionPolicyService {
       }
     }
 
-    const siteId = input.policy.siteId
+    const siteId = input.policy === null ? input.siteId : input.policy.siteId
     await assertSiteManagementScope(user, siteId, this.scope)
     if (!(await this.scope.siteScope.isActive(siteId))) {
       throw new ORPCError('CONFLICT', { status: 409 })
@@ -100,8 +100,8 @@ export class CollectionPolicyService {
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     try {
       await this.assertNoActiveLifecycleOperation()
-      const values = policyValues(input.policy)
-      assertPolicyIsValid(values)
+      const values = input.policy === null ? null : policyValues(input.policy)
+      if (values !== null) assertPolicyIsValid(values)
       const committed = await this.repository.commitRevision({
         target: { scope: 'site', siteId },
         values,
@@ -109,10 +109,12 @@ export class CollectionPolicyService {
         changedBy: user?.id ?? null,
         now: this.clock(),
       })
+      const outputValues = committed.layers.site?.values ?? committed.resolution?.effective.values
+      if (outputValues === undefined) throw new ORPCError('INTERNAL_SERVER_ERROR')
       return {
         scope: 'site',
         siteId,
-        ...(committed.layers.site?.values ?? input.policy),
+        ...outputValues,
       }
     } finally {
       await lease.release()
@@ -145,7 +147,7 @@ export class CollectionPolicyService {
   }
 }
 
-function policyValues(input: CollectionPolicyUpdateInput['policy']): PolicyValues {
+function policyValues(input: NonNullable<CollectionPolicyUpdateInput['policy']>): PolicyValues {
   if (!('siteId' in input)) return input
   return {
     anonymousCollection: input.anonymousCollection,

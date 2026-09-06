@@ -66,6 +66,17 @@ describe('CollectionPolicyService', () => {
     )
   })
 
+  it('clears a Site override and returns the inherited effective policy', async () => {
+    const { repository, service } = createCollectionPolicyFixture()
+
+    await expect(
+      service.update({ scope: 'site', siteId: 'ste_1', policy: null }, owner),
+    ).resolves.toEqual({ scope: 'site', siteId: 'ste_1', ...policy })
+    expect(repository.commitRevision).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { scope: 'site', siteId: 'ste_1' }, values: null }),
+    )
+  })
+
   it('enforces installation and Site authorization before repository access', async () => {
     const { repository, service } = createCollectionPolicyFixture({
       memberships: [

@@ -64,6 +64,9 @@ describe('collection policy schemas', () => {
       scope: 'site',
       policy: values,
     }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
+    expect({ scope: 'site', siteId: 'ste-1', policy: null }).toEqual(
+      expect.schemaMatching(SCollectionPolicyUpdateFields),
+    )
   })
 
   it('does not accept a scope-less policy', () => {

@@ -61,7 +61,8 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
         .all()[0]
       if (installation === undefined) throw new ORPCError('NOT_FOUND')
 
-      const values = parse(contractSchema.SPolicyValues, input.values)
+      const values =
+        input.values === null ? null : parse(contractSchema.SPolicyValues, input.values)
       if (input.target.scope === 'site') {
         const site = tx
           .select({ id: schema.TSite.id })
@@ -100,22 +101,24 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
           .run()
       }
 
-      const version = selectNextVersion(tx, installation.id, input.target)
-      tx.insert(schema.TCollectionPolicyRevision)
-        .values({
-          id: input.revisionId,
-          installationId: installation.id,
-          scope: input.target.scope,
-          siteId: input.target.scope === 'site' ? input.target.siteId : null,
-          version,
-          policyJson: values,
-          effectiveFrom,
-          effectiveTo: null,
-          committedAt: input.now,
-          createdBy: input.changedBy,
-          createdAt: input.now,
-        })
-        .run()
+      if (values !== null) {
+        const version = selectNextVersion(tx, installation.id, input.target)
+        tx.insert(schema.TCollectionPolicyRevision)
+          .values({
+            id: input.revisionId,
+            installationId: installation.id,
+            scope: input.target.scope,
+            siteId: input.target.scope === 'site' ? input.target.siteId : null,
+            version,
+            policyJson: values,
+            effectiveFrom,
+            effectiveTo: null,
+            committedAt: input.now,
+            createdBy: input.changedBy,
+            createdAt: input.now,
+          })
+          .run()
+      }
 
       const layers = selectLayers(
         tx,

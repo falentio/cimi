@@ -94,6 +94,32 @@ describe('CollectionPolicyRepositoryDrizzle', () => {
     ])
   })
 
+  it('clears a Site override and restores installation inheritance', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(
+      createInstallationInsertInput({ createdAt, updatedAt: createdAt }),
+    )
+    await fixture.repository.commitRevision({
+      target: { scope: 'site', siteId: 'ste_1' },
+      values: { ...contractSchema.DEFAULT_COLLECTION_POLICY, captureQueryStrings: true },
+      revisionId: 'cpr_site_1',
+      changedBy: null,
+      now,
+    })
+
+    const result = await fixture.repository.commitRevision({
+      target: { scope: 'site', siteId: 'ste_1' },
+      values: null,
+      revisionId: 'cpr_site_clear',
+      changedBy: null,
+      now: new Date(now.getTime() + 1),
+    })
+
+    expect(result.layers.site).toBeNull()
+    expect(result.resolution?.effective.values).toEqual(contractSchema.DEFAULT_COLLECTION_POLICY)
+    await expect(fixture.repository.loadLayers('ste_1')).resolves.toMatchObject({ site: null })
+  })
+
   it('keeps same-time revisions in valid effective intervals', async () => {
     using fixture = createFixture()
     await fixture.installation.insert(

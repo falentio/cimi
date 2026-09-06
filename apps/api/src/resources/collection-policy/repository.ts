@@ -10,7 +10,7 @@ export interface CollectionPolicyRepository {
 export declare namespace CollectionPolicyRepository {
   export interface CommitRevisionInput {
     readonly target: PolicyTarget
-    readonly values: PolicyValues
+    readonly values: PolicyValues | null
     readonly revisionId: string
     readonly changedBy: string | null
     readonly now: Date

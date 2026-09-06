@@ -85,6 +85,11 @@ const SSiteOverridePolicyUpdate = v.strictObject({
   scope: v.literal('site'),
   policy: v.strictObject({ siteId: SId, ...policyValueEntries }),
 })
+const SSiteOverridePolicyClear = v.strictObject({
+  scope: v.literal('site'),
+  siteId: SId,
+  policy: v.null(),
+})
 
 export const SCollectionPolicySource = v.strictObject({
   anonymousCollection: v.picklist(['installation', 'site']),
@@ -108,4 +113,5 @@ export const SCollectionPolicySiteFields = v.strictObject({ siteId: SId })
 export const SCollectionPolicyUpdateFields = v.variant('scope', [
   SInstallationDefaultPolicyUpdate,
   SSiteOverridePolicyUpdate,
+  SSiteOverridePolicyClear,
 ])
