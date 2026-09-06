@@ -91,7 +91,7 @@ export class CollectionPolicyService {
       }
     }
 
-    const siteId = input.policy === null ? input.siteId : input.policy.siteId
+    const siteId = input.policy.siteId
     await assertSiteManagementScope(user, siteId, this.scope)
     if (!(await this.scope.siteScope.isActive(siteId))) {
       throw new ORPCError('CONFLICT', { status: 409 })
@@ -100,7 +100,7 @@ export class CollectionPolicyService {
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     try {
       await this.assertNoActiveLifecycleOperation()
-      const values = input.policy === null ? null : policyValues(input.policy)
+      const values = 'clear' in input.policy ? null : policyValues(input.policy)
       if (values !== null) assertPolicyIsValid(values)
       const committed = await this.repository.commitRevision({
         target: { scope: 'site', siteId },
@@ -128,10 +128,10 @@ export class CollectionPolicyService {
     const lease = await this.lock.acquire('collection_policy')
     if (lease === undefined) throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     try {
-      await this.assertAdmissionAvailable()
       if (!(await this.scope.siteScope.isActive(input.siteId))) {
         throw new ORPCError('NOT_FOUND')
       }
+      await this.assertAdmissionAvailable()
       const layers = await this.repository.loadLayers(input.siteId)
       return evaluateAdmission({
         resolution: resolvePolicy({ siteId: input.siteId, layers }),
@@ -157,6 +157,7 @@ export class CollectionPolicyService {
 }
 
 function policyValues(input: NonNullable<CollectionPolicyUpdateInput['policy']>): PolicyValues {
+  if ('clear' in input) throw new Error('Cannot read values from a clear request')
   if (!('siteId' in input)) return input
   return {
     anonymousCollection: input.anonymousCollection,

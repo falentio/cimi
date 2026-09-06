@@ -87,8 +87,7 @@ const SSiteOverridePolicyUpdate = v.strictObject({
 })
 const SSiteOverridePolicyClear = v.strictObject({
   scope: v.literal('site'),
-  siteId: SId,
-  policy: v.null(),
+  policy: v.strictObject({ siteId: SId, clear: v.literal(true) }),
 })
 
 export const SCollectionPolicySource = v.strictObject({

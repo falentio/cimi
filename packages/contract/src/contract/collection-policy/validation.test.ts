@@ -64,7 +64,7 @@ describe('collection policy schemas', () => {
       scope: 'site',
       policy: values,
     }).not.toEqual(expect.schemaMatching(SCollectionPolicyUpdateFields))
-    expect({ scope: 'site', siteId: 'ste-1', policy: null }).toEqual(
+    expect({ scope: 'site', policy: { siteId: 'ste-1', clear: true } }).toEqual(
       expect.schemaMatching(SCollectionPolicyUpdateFields),
     )
   })

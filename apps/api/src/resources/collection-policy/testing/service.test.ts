@@ -70,7 +70,7 @@ describe('CollectionPolicyService', () => {
     const { repository, service } = createCollectionPolicyFixture()
 
     await expect(
-      service.update({ scope: 'site', siteId: 'ste_1', policy: null }, owner),
+      service.update({ scope: 'site', policy: { siteId: 'ste_1', clear: true } }, owner),
     ).resolves.toEqual({ scope: 'site', siteId: 'ste_1', ...policy })
     expect(repository.commitRevision).toHaveBeenCalledWith(
       expect.objectContaining({ target: { scope: 'site', siteId: 'ste_1' }, values: null }),
