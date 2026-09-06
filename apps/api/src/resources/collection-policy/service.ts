@@ -61,15 +61,9 @@ export class CollectionPolicyService {
     input: CollectionPolicyGetInput,
     user: AuthUser | undefined,
   ): Promise<CollectionPolicyOutput> {
-    const lease = await this.lock.acquire('collection_policy')
-    if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
-    try {
-      await assertSiteScope(user, input.siteId, this.scope, { requiredRole: 'admin' })
-      const layers = await this.repository.loadLayers(input.siteId)
-      return toSafePolicy(resolvePolicy({ siteId: input.siteId, layers }))
-    } finally {
-      await lease.release()
-    }
+    await assertSiteScope(user, input.siteId, this.scope, { requiredRole: 'admin' })
+    const layers = await this.repository.loadLayers(input.siteId)
+    return toSafePolicy(resolvePolicy({ siteId: input.siteId, layers }))
   }
 
   async update(

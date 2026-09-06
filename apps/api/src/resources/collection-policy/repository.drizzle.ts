@@ -18,20 +18,35 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
   }
 
   async loadLayers(siteId: string): Promise<PolicyLayers> {
-    const installation = await this.db
-      .select({ id: schema.TInstallation.id })
-      .from(schema.TInstallation)
-      .where(eq(schema.TInstallation.singletonKey, 'default'))
-      .limit(1)
-    const installationRow = installation[0]
-    if (installationRow === undefined) throw new ORPCError('NOT_FOUND')
-    const installationRevision = await this.findCurrentInstallation(installationRow.id)
-    if (installationRevision === undefined) throw new ORPCError('NOT_FOUND')
-    const siteRevision = await this.findCurrentSite(installationRow.id, siteId)
-    return {
-      installation: toRevision(installationRevision),
-      site: siteRevision === undefined ? null : toRevision(siteRevision),
-    }
+    return this.db.transaction((tx) => {
+      const activeSite = tx
+        .select({ id: schema.TSite.id })
+        .from(schema.TSite)
+        .where(
+          and(
+            eq(schema.TSite.id, siteId),
+            eq(schema.TSite.status, 'active'),
+            notExists(
+              tx
+                .select({ tombstoneSiteId: schema.TSiteTombstone.siteId })
+                .from(schema.TSiteTombstone)
+                .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+            ),
+          ),
+        )
+        .limit(1)
+        .all()[0]
+      if (activeSite === undefined) throw new ORPCError('NOT_FOUND')
+
+      const installation = tx
+        .select({ id: schema.TInstallation.id })
+        .from(schema.TInstallation)
+        .where(eq(schema.TInstallation.singletonKey, 'default'))
+        .limit(1)
+        .all()[0]
+      if (installation === undefined) throw new ORPCError('NOT_FOUND')
+      return selectLayers(tx, installation.id, siteId)
+    })
   }
 
   async commitRevision(
@@ -115,37 +130,6 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
             : null,
       }
     })
-  }
-
-  private async findCurrentInstallation(installationId: string) {
-    const rows = await this.db
-      .select()
-      .from(schema.TCollectionPolicyRevision)
-      .where(
-        and(
-          eq(schema.TCollectionPolicyRevision.installationId, installationId),
-          eq(schema.TCollectionPolicyRevision.scope, 'installation'),
-          isNull(schema.TCollectionPolicyRevision.effectiveTo),
-        ),
-      )
-      .limit(1)
-    return rows[0]
-  }
-
-  private async findCurrentSite(installationId: string, siteId: string) {
-    const rows = await this.db
-      .select()
-      .from(schema.TCollectionPolicyRevision)
-      .where(
-        and(
-          eq(schema.TCollectionPolicyRevision.installationId, installationId),
-          eq(schema.TCollectionPolicyRevision.scope, 'site'),
-          eq(schema.TCollectionPolicyRevision.siteId, siteId),
-          isNull(schema.TCollectionPolicyRevision.effectiveTo),
-        ),
-      )
-      .limit(1)
-    return rows[0]
   }
 }
 

@@ -157,6 +157,16 @@ describe('CollectionPolicyRepositoryDrizzle', () => {
     ).rejects.toThrow()
   })
 
+  it('does not load policy for a tombstoned Site', async () => {
+    using fixture = createFixture()
+    await fixture.installation.insert(
+      createInstallationInsertInput({ createdAt, updatedAt: createdAt }),
+    )
+    fixture.db.insert(schema.TSiteTombstone).values(createSiteTombstoneRow()).run()
+
+    await expect(fixture.repository.loadLayers('ste_1')).rejects.toThrow()
+  })
+
   it('parses stored JSON at the repository boundary', async () => {
     using fixture = createFixture()
     await fixture.installation.insert(
