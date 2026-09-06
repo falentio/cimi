@@ -1,3 +1,5 @@
+import type { RetentionManifest } from './retention-manifest.ts'
+
 export type BackupOperationType = 'backup' | 'restore'
 export type BackupOperationStatus = 'creating' | 'available' | 'restoring' | 'failed'
 export type BackupOperationPhase =
@@ -43,6 +45,7 @@ export interface SourceManifest {
   readonly storageKey: string
   readonly schemaVersion: string
   readonly retentionBoundary: Date | null
+  readonly retentionManifest: RetentionManifest | null
   readonly acceptanceSequence: number | null
   readonly sizeBytes: number
   readonly checksumAlgorithm: 'sha256'

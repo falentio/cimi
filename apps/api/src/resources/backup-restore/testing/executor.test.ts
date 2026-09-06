@@ -149,6 +149,8 @@ describe('ConfiguredSqliteExecutor', () => {
         artifactId: 'bar_1',
         lastSafeSequence: 9,
       })
+      expect(source.retentionBoundary).toBeNull()
+      expect(source.retentionManifest).toEqual({ version: 1, boundaries: [] })
       await executor.validateManifest({ operationId: 'bop_1', source })
       db.$client.prepare('UPDATE backup_executor_marker SET value = ?').run('changed')
       db.$client

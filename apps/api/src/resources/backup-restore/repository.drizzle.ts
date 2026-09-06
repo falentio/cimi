@@ -11,6 +11,8 @@ import type {
   SafetyManifest,
   SourceManifest,
 } from './repository.ts'
+import { BackupIncompatibilityError } from './errors.ts'
+import { decodeRetentionManifest, encodeRetentionManifest } from './retention-manifest.ts'
 
 export interface BackupRestoreRepositoryDrizzleDependencies {
   readonly db: Db
@@ -229,7 +231,10 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
             sizeBytes: input.artifact.sizeBytes,
             checksumAlgorithm: input.artifact.checksumAlgorithm,
             checksumValue: input.artifact.checksumValue,
-            metadata: null,
+            metadata:
+              input.artifact.retentionManifest === null
+                ? null
+                : encodeRetentionManifest(input.artifact.retentionManifest),
             createdAt: input.artifact.createdAt,
           })
           .run()
@@ -713,19 +718,26 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
     operationId: string,
     artifactType: 'authoritative_sqlite' | 'pre_restore_sqlite',
   ): Promise<typeof schema.TBackupArtifact.$inferSelect | undefined> {
-    const rows = await this.db
-      .select()
-      .from(schema.TBackupArtifact)
-      .where(
-        and(
-          eq(schema.TBackupArtifact.operationId, operationId),
-          eq(schema.TBackupArtifact.artifactType, artifactType),
-        ),
-      )
-      .limit(1)
-    const artifact = rows[0]
-    if (artifact === undefined) return undefined
-    return artifact
+    try {
+      const rows = await this.db
+        .select()
+        .from(schema.TBackupArtifact)
+        .where(
+          and(
+            eq(schema.TBackupArtifact.operationId, operationId),
+            eq(schema.TBackupArtifact.artifactType, artifactType),
+          ),
+        )
+        .limit(1)
+      const artifact = rows[0]
+      if (artifact === undefined) return undefined
+      return artifact
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw new BackupIncompatibilityError('Backup metadata is malformed')
+      }
+      throw error
+    }
   }
 }
 
@@ -1180,6 +1192,9 @@ function toSourceManifest(row: typeof schema.TBackupArtifact.$inferSelect): Sour
   if (row.artifactType !== 'authoritative_sqlite' || row.checksumAlgorithm !== 'sha256') {
     throw new Error('Source artifact is invalid')
   }
+  if (row.schemaVersion !== '1') {
+    throw new BackupIncompatibilityError('Backup manifest is not compatible')
+  }
   return {
     kind: 'source',
     id: row.id,
@@ -1189,6 +1204,7 @@ function toSourceManifest(row: typeof schema.TBackupArtifact.$inferSelect): Sour
     storageKey: row.storageKey,
     schemaVersion: row.schemaVersion,
     retentionBoundary: row.retentionBoundary,
+    retentionManifest: decodeRetentionManifest(row.metadata),
     acceptanceSequence: row.acceptanceSequence,
     sizeBytes: row.sizeBytes,
     checksumAlgorithm: 'sha256',

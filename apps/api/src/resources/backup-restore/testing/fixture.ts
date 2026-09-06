@@ -78,6 +78,7 @@ export function createSourceManifest(overrides: Partial<SourceManifest> = {}): S
     storageKey: 'backups/bop_1.sqlite',
     schemaVersion: '1',
     retentionBoundary: null,
+    retentionManifest: null,
     acceptanceSequence: 42,
     sizeBytes: 8,
     checksumAlgorithm: 'sha256',

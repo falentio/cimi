@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve } from 'node:path'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import {
   ControlMigrationIncompatibilityError,
   closeDb,
@@ -14,8 +14,14 @@ import {
   schema,
 } from '@cimi/db'
 import type { SafetyManifest, SourceManifest } from './repository.ts'
+import { BackupIncompatibilityError } from './errors.ts'
+import {
+  encodeRetentionManifest,
+  type RetentionManifest,
+  type RetentionManifestBoundary,
+} from './retention-manifest.ts'
 
-export class BackupIncompatibilityError extends Error {}
+export { BackupIncompatibilityError } from './errors.ts'
 export class InsufficientStorageError extends Error {}
 export class SafetyArtifactUnavailableError extends Error {}
 export class SafetyArtifactChecksumMismatchError extends Error {}
@@ -132,7 +138,10 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     }
     const path = this.resolveStoragePath(input.source.storageKey, 'backups')
     await verifyArtifact(path, input.source.sizeBytes, input.source.checksumValue)
-    verifySqliteIntegrity(path)
+    verifySqliteIntegrity(path, input.source.retentionManifest === null)
+    if (input.source.retentionManifest !== null) {
+      encodeRetentionManifest(input.source.retentionManifest)
+    }
   }
 
   async restoreSqlite(input: {
@@ -168,6 +177,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
           }
           throw error
         }
+        this.restoreRetentionManifest(stagedDb, input.source)
         this.restoreTombstones(stagedDb, tombstones)
         this.restoreRedactions(stagedDb, redactions)
         if (lifecycle !== undefined) this.restoreLifecycle(stagedDb, lifecycle, input.source)
@@ -248,6 +258,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     )
     try {
       await mkdir(dirname(path), { recursive: true })
+      const retentionManifest = input.kind === 'source' ? this.captureRetentionManifest() : null
       await this.db.$client.backup(path)
       const artifactStats = await stat(path)
       if (!artifactStats.isFile() || artifactStats.size === 0) {
@@ -273,6 +284,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
           ...common,
           artifactType: 'authoritative_sqlite',
           retentionBoundary: null,
+          retentionManifest,
           acceptanceSequence: input.lastSafeSequence,
         }
       }
@@ -290,6 +302,81 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         throw new InsufficientStorageError('SQLite artifact storage failed')
       }
       throw error
+    }
+  }
+
+  private captureRetentionManifest(): RetentionManifest {
+    const rows = this.db
+      .select()
+      .from(schema.TRetentionEffectiveCutoff)
+      .orderBy(asc(schema.TRetentionEffectiveCutoff.siteId))
+      .all()
+    const boundaries: RetentionManifestBoundary[] = rows.map((row) => ({
+      siteId: row.siteId,
+      installationId: row.installationId,
+      policyId: row.policyId,
+      reportingTimezone: row.reportingTimezone,
+      localDay: row.localDay,
+      eventOccurrenceCutoffAt: row.eventOccurrenceCutoffAt,
+      rawReceiptCutoffAt: row.rawReceiptCutoffAt,
+      profileActivityCutoffAt: row.profileActivityCutoffAt,
+      replayReceiptCutoffAt: row.replayReceiptCutoffAt,
+      effectiveAt: row.effectiveAt,
+      updatedAt: row.updatedAt,
+    }))
+    return { version: 1, boundaries }
+  }
+
+  private restoreRetentionManifest(db: Db, source: SourceManifest): void {
+    if (source.retentionManifest === null) return
+    const manifest = source.retentionManifest
+    encodeRetentionManifest(manifest)
+    try {
+      db.transaction((tx) => {
+        const siteIds = uniqueIds(manifest.boundaries.map((row) => row.siteId))
+        const installationIds = uniqueIds(manifest.boundaries.map((row) => row.installationId))
+        const policyIds = uniqueIds(manifest.boundaries.map((row) => row.policyId))
+        const sites =
+          siteIds.length === 0
+            ? []
+            : tx
+                .select({ id: schema.TSite.id })
+                .from(schema.TSite)
+                .where(inArray(schema.TSite.id, siteIds))
+                .all()
+        const installations =
+          installationIds.length === 0
+            ? []
+            : tx
+                .select({ id: schema.TInstallation.id })
+                .from(schema.TInstallation)
+                .where(inArray(schema.TInstallation.id, installationIds))
+                .all()
+        const policies =
+          policyIds.length === 0
+            ? []
+            : tx
+                .select({ id: schema.TRetentionPolicy.id })
+                .from(schema.TRetentionPolicy)
+                .where(inArray(schema.TRetentionPolicy.id, policyIds))
+                .all()
+        if (
+          sites.length !== siteIds.length ||
+          installations.length !== installationIds.length ||
+          policies.length !== policyIds.length
+        ) {
+          throw new BackupIncompatibilityError('Retention manifest references missing rows')
+        }
+        tx.delete(schema.TRetentionEffectiveCutoff).run()
+        if (manifest.boundaries.length > 0) {
+          tx.insert(schema.TRetentionEffectiveCutoff)
+            .values(manifest.boundaries.map((boundary) => ({ ...boundary })))
+            .run()
+        }
+      })
+    } catch (error) {
+      if (error instanceof BackupIncompatibilityError) throw error
+      throw new BackupIncompatibilityError('Retention manifest could not be restored')
     }
   }
 
@@ -462,7 +549,10 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         sizeBytes: source.sizeBytes,
         checksumAlgorithm: source.checksumAlgorithm,
         checksumValue: source.checksumValue,
-        metadata: null,
+        metadata:
+          source.retentionManifest === null
+            ? null
+            : encodeRetentionManifest(source.retentionManifest),
         createdAt: source.createdAt,
       })
       .onConflictDoNothing()
@@ -551,7 +641,7 @@ async function verifyArtifact(
     throw new BackupIncompatibilityError('Backup artifact checksum is invalid')
 }
 
-function verifySqliteIntegrity(path: string): void {
+function verifySqliteIntegrity(path: string, requireRetentionTable = false): void {
   const database = createDb({ path })
   try {
     const rows = database.$client.prepare('PRAGMA integrity_check').all() as Array<{
@@ -560,9 +650,23 @@ function verifySqliteIntegrity(path: string): void {
     if (rows.length === 0 || rows.some((row) => row.integrity_check !== 'ok')) {
       throw new BackupIncompatibilityError('Backup SQLite integrity is invalid')
     }
+    if (
+      requireRetentionTable &&
+      database.$client
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'retention_effective_cutoff'",
+        )
+        .get() === undefined
+    ) {
+      throw new BackupIncompatibilityError('Backup SQLite retention table is missing')
+    }
   } finally {
     closeDb(database)
   }
+}
+
+function uniqueIds(ids: readonly string[]): string[] {
+  return [...new Set(ids)]
 }
 
 interface TombstoneRow {
