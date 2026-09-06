@@ -179,4 +179,88 @@ describe('ConfiguredSqliteExecutor', () => {
       await rm(directory, { recursive: true, force: true })
     }
   })
+
+  it('captures the effective retention manifest with the source generation', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-retention-manifest-test-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    migrateControlDb(db)
+    const analytics = await createTestAnalyticsDb()
+    try {
+      db.$client.pragma('foreign_keys = OFF')
+      db.$client
+        .prepare(
+          'INSERT INTO retention_effective_cutoff (site_id, installation_id, policy_id, reporting_timezone, local_day, event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at, replay_receipt_cutoff_at, effective_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('site_a', 'installation_1', 'policy_a', 'UTC', '2026-09-01', 1, 2, 3, null, 4, 5)
+      db.$client
+        .prepare(
+          'INSERT INTO retention_effective_cutoff (site_id, installation_id, policy_id, reporting_timezone, local_day, event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at, replay_receipt_cutoff_at, effective_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          'site_b',
+          'installation_1',
+          'policy_b',
+          'America/Los_Angeles',
+          '2026-09-02',
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+        )
+
+      const executor = new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+
+      const source = await executor.captureBackup({
+        operationId: 'bop_retention_manifest',
+        artifactId: 'bar_retention_manifest',
+        lastSafeSequence: 12,
+      })
+
+      expect(source).toMatchObject({
+        retentionManifest: {
+          version: 1,
+          boundaries: [
+            {
+              siteId: 'site_a',
+              installationId: 'installation_1',
+              policyId: 'policy_a',
+              reportingTimezone: 'UTC',
+              localDay: '2026-09-01',
+              eventOccurrenceCutoffAt: new Date(1),
+              rawReceiptCutoffAt: new Date(2),
+              profileActivityCutoffAt: new Date(3),
+              replayReceiptCutoffAt: null,
+              effectiveAt: new Date(4),
+              updatedAt: new Date(5),
+            },
+            {
+              siteId: 'site_b',
+              installationId: 'installation_1',
+              policyId: 'policy_b',
+              reportingTimezone: 'America/Los_Angeles',
+              localDay: '2026-09-02',
+              eventOccurrenceCutoffAt: new Date(6),
+              rawReceiptCutoffAt: new Date(7),
+              profileActivityCutoffAt: new Date(8),
+              replayReceiptCutoffAt: new Date(9),
+              effectiveAt: new Date(10),
+              updatedAt: new Date(11),
+            },
+          ],
+        },
+      })
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
 })
