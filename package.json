@@ -8,7 +8,12 @@
     "db:generate": "pnpm --filter @cimi/db run db:generate",
     "db:push": "pnpm --filter @cimi/db run db:push",
     "db:studio": "pnpm --filter @cimi/db run db:studio",
+    "opencode": "node --env-file-if-exists=.env scripts/opencode/cli.ts",
+    "opencode:typecheck": "tsc --project scripts/opencode/tsconfig.json",
     "prepare": "vp config --no-agent"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "1.18.29"
   },
   "devDependencies": {
     "@types/node": "catalog:",
