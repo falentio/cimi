@@ -283,6 +283,23 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ kind: 'rejected', reason: 'exclusion' })
   })
 
+  it('normalizes path exclusions without a leading slash', () => {
+    const resolution = resolvePolicy({
+      siteId: 'ste_1',
+      layers: createPolicyLayers(
+        policyWith({ exclusions: { ...defaults.exclusions, paths: ['private'] } }),
+      ),
+    })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: { siteId: 'ste_1', path: '/private/account' },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toEqual({ kind: 'rejected', reason: 'exclusion' })
+  })
+
   it('normalizes bot outcomes', () => {
     for (const [botPolicy, expected] of [
       ['exclude', { kind: 'rejected', reason: 'bot' }],
@@ -338,7 +355,7 @@ describe('collection policy admission evaluation', () => {
     })
     expect(
       sanitizeUrls({
-        url: 'https://example.com/path?campaign=spring&token=hidden',
+        url: 'https://example.com/path?campaign=spring&accessToken=hidden&authToken=hidden',
         referrer: 'https://ref.example/from?source=ad',
         policy,
       }),
@@ -356,7 +373,7 @@ describe('collection policy admission evaluation', () => {
 
     expect(
       sanitizeUrls({
-        url: 'javascript:alert(1)',
+        url: ' \njavascript:alert(1)',
         referrer: 'mailto:alice@example.com',
         policy,
       }),

@@ -227,9 +227,11 @@ function matchesExclusion(
 }
 
 function matchesPath(path: string, excluded: string): boolean {
-  if (excluded === '') return false
-  if (excluded === '/') return path.startsWith('/')
-  const normalized = excluded.endsWith('/') ? excluded.slice(0, -1) : excluded
+  const withLeadingSlash = excluded.startsWith('/') ? excluded : `/${excluded}`
+  if (withLeadingSlash === '/') return path.startsWith('/')
+  const normalized = withLeadingSlash.endsWith('/')
+    ? withLeadingSlash.slice(0, -1)
+    : withLeadingSlash
   return path === normalized || path.startsWith(`${normalized}/`)
 }
 
@@ -249,10 +251,14 @@ function sanitizeUrlValue(
   preserveOrigin: boolean,
 ): string | null {
   if (!capture || value === undefined) return null
-  if (/^[a-z][a-z\d+.-]*:/i.test(value) && !/^https?:\/\//i.test(value)) return null
+  const candidate = value.trim()
+  const schemeCandidate = candidate.replace(/\s/g, '')
+  if (/^[a-z][a-z\d+.-]*:/i.test(schemeCandidate) && !/^https?:\/\//i.test(schemeCandidate)) {
+    return null
+  }
   let parsed: URL
   try {
-    parsed = new URL(value, 'https://cimi.invalid')
+    parsed = new URL(candidate, 'https://cimi.invalid')
   } catch {
     return null
   }
@@ -260,7 +266,7 @@ function sanitizeUrlValue(
     policy.captureQueryStrings && !policy.urlPolicy.stripQueryStrings
       ? sanitizeQuery(parsed.searchParams, policy.urlPolicy.stripSensitiveValues)
       : ''
-  const prefix = preserveOrigin && /^https?:\/\//i.test(value) ? parsed.origin : ''
+  const prefix = preserveOrigin && /^https?:\/\//i.test(candidate) ? parsed.origin : ''
   return limitSanitizedUrl(`${prefix}${parsed.pathname || '/'}${query}`)
 }
 
@@ -283,7 +289,8 @@ function sanitizeQuery(params: URLSearchParams, stripSensitiveValues: boolean): 
 }
 
 function isSensitiveQueryKey(key: string): boolean {
-  return /(^|_|-)(token|secret|password|passwd|auth|api[_-]?key|email)(_|-|$)/i.test(key)
+  const normalized = key.replace(/([a-z\d])([A-Z])/g, '$1_$2')
+  return /(^|_|-)(token|secret|password|passwd|auth|api[_-]?key|email)(_|-|$)/i.test(normalized)
 }
 
 function toScalar(value: unknown): ScalarValue | undefined {

@@ -15,6 +15,12 @@ export const POLICY_FIELDS = [
 ] as const
 export type PolicyField = (typeof POLICY_FIELDS)[number]
 
+const SCollectionPath = v.pipe(
+  v.string(),
+  v.nonEmpty(),
+  v.transform((value) => (value.startsWith('/') ? value : `/${value}`)),
+)
+
 const policyValueEntries = {
   anonymousCollection: v.picklist(['enabled', 'disabled']),
   honorGpcDnt: v.boolean(),
@@ -36,7 +42,7 @@ const policyValueEntries = {
   profileFilterKeys: v.pipe(v.array(SScalarKey), v.maxLength(64)),
   exclusions: v.strictObject({
     hostnames: v.pipe(v.array(SHostname), v.maxLength(128)),
-    paths: v.pipe(v.array(v.pipe(v.string(), v.nonEmpty())), v.maxLength(128)),
+    paths: v.pipe(v.array(SCollectionPath), v.maxLength(128)),
     countries: v.pipe(v.array(v.string()), v.maxLength(128)),
     ipRanges: v.pipe(v.array(v.string()), v.maxLength(128)),
   }),
