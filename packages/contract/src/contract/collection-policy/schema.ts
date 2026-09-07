@@ -15,11 +15,16 @@ export const POLICY_FIELDS = [
 ] as const
 export type PolicyField = (typeof POLICY_FIELDS)[number]
 
-const SCollectionPath = v.pipe(
-  v.string(),
-  v.nonEmpty(),
-  v.transform((value) => (value.startsWith('/') ? value : `/${value}`)),
-)
+const SCollectionPath = v.pipe(v.string(), v.nonEmpty(), v.transform(normalizeCollectionPath))
+
+function normalizeCollectionPath(value: string): string {
+  const candidate = value.startsWith('/') ? value : `/${value}`
+  try {
+    return new URL(candidate, 'https://cimi.invalid').pathname || '/'
+  } catch {
+    return candidate
+  }
+}
 
 const policyValueEntries = {
   anonymousCollection: v.picklist(['enabled', 'disabled']),

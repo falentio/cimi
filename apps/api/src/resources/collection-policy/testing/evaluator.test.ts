@@ -300,6 +300,25 @@ describe('collection policy admission evaluation', () => {
     ).toEqual({ kind: 'rejected', reason: 'exclusion' })
   })
 
+  it('normalizes path exclusions before matching URL paths', () => {
+    const resolution = resolvePolicy({
+      siteId: 'ste_1',
+      layers: createPolicyLayers(
+        policyWith({
+          exclusions: { ...defaults.exclusions, paths: ['/private/../admin?view=full'] },
+        }),
+      ),
+    })
+
+    expect(
+      evaluateAdmission({
+        resolution,
+        input: { siteId: 'ste_1', path: '/admin/settings' },
+        evaluatedAt: new Date(),
+      }).outcome,
+    ).toEqual({ kind: 'rejected', reason: 'exclusion' })
+  })
+
   it('normalizes bot outcomes', () => {
     for (const [botPolicy, expected] of [
       ['exclude', { kind: 'rejected', reason: 'bot' }],

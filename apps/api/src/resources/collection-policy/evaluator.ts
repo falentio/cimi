@@ -227,11 +227,11 @@ function matchesExclusion(
 }
 
 function matchesPath(path: string, excluded: string): boolean {
+  if (excluded === '') return false
   const withLeadingSlash = excluded.startsWith('/') ? excluded : `/${excluded}`
-  if (withLeadingSlash === '/') return path.startsWith('/')
-  const normalized = withLeadingSlash.endsWith('/')
-    ? withLeadingSlash.slice(0, -1)
-    : withLeadingSlash
+  const normalizedPath = extractPath(withLeadingSlash) ?? withLeadingSlash
+  if (normalizedPath === '/') return path.startsWith('/')
+  const normalized = normalizedPath.endsWith('/') ? normalizedPath.slice(0, -1) : normalizedPath
   return path === normalized || path.startsWith(`${normalized}/`)
 }
 
