@@ -1,35 +1,35 @@
-import { z } from 'zod'
+import * as v from 'valibot'
 
 export type AuthMode = 'login' | 'signup'
-
-export interface AuthFormValues {
-  name: string
-  email: string
-  password: string
-}
 
 export type AuthFeedback =
   | { tone: 'error'; message: string }
   | { tone: 'success'; message: string }
   | null
 
-const emailSchema = z
-  .string()
-  .trim()
-  .min(1, 'Email is required.')
-  .email('Enter a valid email address.')
+const emailSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.minLength(1, 'Email is required.'),
+  v.email('Enter a valid email address.'),
+)
 
-const passwordSchema = z
-  .string()
-  .min(1, 'Password is required.')
-  .min(8, 'Password must be at least 8 characters.')
+const passwordSchema = v.pipe(
+  v.string(),
+  v.minLength(1, 'Password is required.'),
+  v.minLength(8, 'Password must be at least 8 characters.'),
+)
 
-export const loginSchema = z.object({
-  name: z.string(),
+export const loginSchema = v.object({
+  name: v.string(),
   email: emailSchema,
   password: passwordSchema,
-}) satisfies z.ZodType<AuthFormValues>
+})
 
-export const signupSchema = loginSchema.extend({
-  name: z.string().trim().min(1, 'Name is required.'),
-}) satisfies z.ZodType<AuthFormValues>
+export type AuthFormValues = v.InferOutput<typeof loginSchema>
+
+export const signupSchema = v.object({
+  name: v.pipe(v.string(), v.trim(), v.minLength(1, 'Name is required.')),
+  email: emailSchema,
+  password: passwordSchema,
+})

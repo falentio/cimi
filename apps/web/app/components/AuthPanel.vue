@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, shallowRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, watch } from 'vue'
+import { toTypedSchema } from '@vee-validate/valibot'
+import { useForm } from 'vee-validate'
 import type { AuthResult, SignInInput, SignUpInput } from '@/composables/useAuth'
 import {
   type AuthFeedback,
@@ -45,13 +47,10 @@ type AuthSubmission =
   | { readonly mode: 'signup'; readonly input: SignUpInput }
 
 type AuthFormField = keyof AuthFormValues
-type AuthFieldErrors = Partial<Record<AuthFormField, string>>
 
 const props = defineProps<AuthPanelProps>()
 const { pending, signIn, signUp } = useAuth()
 const feedback = shallowRef<AuthFeedback>(null)
-const form = reactive<AuthFormValues>({ name: '', email: '', password: '' })
-const fieldErrors = shallowRef<AuthFieldErrors>({})
 
 const copyByMode = {
   login: {
@@ -84,49 +83,49 @@ const fieldOrderByMode = {
 } satisfies Record<AuthMode, readonly (keyof AuthFormValues)[]>
 
 const copy = computed(() => copyByMode[props.mode])
+const validationSchema = computed(() =>
+  toTypedSchema(props.mode === 'signup' ? signupSchema : loginSchema),
+)
+const { defineField, errors, handleSubmit, resetForm } = useForm<AuthFormValues>({
+  initialValues: { name: '', email: '', password: '' },
+  validationSchema,
+})
+const fieldOptions = {
+  validateOnBlur: false,
+  validateOnChange: false,
+  validateOnInput: false,
+  validateOnModelUpdate: false,
+}
+const [name, nameAttrs] = defineField('name', fieldOptions)
+const [email, emailAttrs] = defineField('email', fieldOptions)
+const [password, passwordAttrs] = defineField('password', fieldOptions)
+
 watch(
   () => props.mode,
   () => {
-    form.name = ''
-    form.email = ''
-    form.password = ''
-    fieldErrors.value = {}
+    resetForm()
     feedback.value = null
   },
 )
 
-async function submit(): Promise<void> {
-  if (pending.value) return
+const submit = handleSubmit(
+  async (values) => {
+    if (pending.value) return
 
-  const schema = props.mode === 'signup' ? signupSchema : loginSchema
-  const parsed = schema.safeParse(form)
-  if (!parsed.success) {
-    const nextErrors: AuthFieldErrors = {}
-    for (const issue of parsed.error.issues) {
-      const field = issue.path[0]
-      if (
-        (field === 'name' || field === 'email' || field === 'password') &&
-        nextErrors[field] === undefined
-      ) {
-        nextErrors[field] = issue.message
-      }
-    }
-    fieldErrors.value = nextErrors
+    feedback.value = null
+    const submission = createSubmission(values)
+    const result =
+      submission.mode === 'signup' ? await signUp(submission.input) : await signIn(submission.input)
+
+    feedback.value = feedbackForResult(result, submission.mode)
+  },
+  ({ errors: invalidErrors }) => {
     const firstInvalidField = fieldOrderByMode[props.mode].find(
-      (field) => nextErrors[field] !== undefined,
+      (field) => invalidErrors[field] !== undefined,
     )
     if (firstInvalidField !== undefined) focusFirstInvalidField(firstInvalidField)
-    return
-  }
-
-  fieldErrors.value = {}
-  feedback.value = null
-  const submission = createSubmission(parsed.data)
-  const result =
-    submission.mode === 'signup' ? await signUp(submission.input) : await signIn(submission.input)
-
-  feedback.value = feedbackForResult(result, submission.mode)
-}
+  },
+)
 
 function createSubmission(values: AuthFormValues): AuthSubmission {
   if (props.mode === 'signup') {
@@ -211,16 +210,17 @@ function focusFirstInvalidField(field: AuthFormField): void {
             @submit.prevent="submit"
           >
             <FieldGroup class="gap-4">
-              <Field v-if="props.mode === 'signup'" :data-invalid="fieldErrors.name !== undefined">
+              <Field v-if="props.mode === 'signup'" :data-invalid="errors.name !== undefined">
                 <FieldLabel for="name">Name</FieldLabel>
                 <Input
                   id="name"
-                  v-model="form.name"
+                  v-model="name"
+                  v-bind="nameAttrs"
                   autocomplete="name"
                   :aria-describedby="
-                    fieldErrors.name ? 'name-description name-error' : 'name-description'
+                    errors.name ? 'name-description name-error' : 'name-description'
                   "
-                  :aria-invalid="fieldErrors.name !== undefined"
+                  :aria-invalid="errors.name !== undefined"
                   :disabled="pending"
                   name="name"
                   type="text"
@@ -228,21 +228,22 @@ function focusFirstInvalidField(field: AuthFormField): void {
                 <FieldDescription id="name-description">
                   Enter the name for your Cimi workspace.
                 </FieldDescription>
-                <FieldError v-if="fieldErrors.name" id="name-error">
-                  {{ fieldErrors.name }}
+                <FieldError v-if="errors.name" id="name-error">
+                  {{ errors.name }}
                 </FieldError>
               </Field>
 
-              <Field :data-invalid="fieldErrors.email !== undefined">
+              <Field :data-invalid="errors.email !== undefined">
                 <FieldLabel for="email">Email</FieldLabel>
                 <Input
                   id="email"
-                  v-model="form.email"
+                  v-model="email"
+                  v-bind="emailAttrs"
                   autocomplete="email"
                   :aria-describedby="
-                    fieldErrors.email ? 'email-description email-error' : 'email-description'
+                    errors.email ? 'email-description email-error' : 'email-description'
                   "
-                  :aria-invalid="fieldErrors.email !== undefined"
+                  :aria-invalid="errors.email !== undefined"
                   :disabled="pending"
                   inputmode="email"
                   name="email"
@@ -251,22 +252,21 @@ function focusFirstInvalidField(field: AuthFormField): void {
                 <FieldDescription id="email-description">
                   {{ copy.emailDescription }}
                 </FieldDescription>
-                <FieldError v-if="fieldErrors.email" id="email-error">
-                  {{ fieldErrors.email }}
+                <FieldError v-if="errors.email" id="email-error">
+                  {{ errors.email }}
                 </FieldError>
               </Field>
 
-              <Field :data-invalid="fieldErrors.password !== undefined">
+              <Field :data-invalid="errors.password !== undefined">
                 <FieldLabel for="password">Password</FieldLabel>
                 <Input
                   id="password"
-                  v-model="form.password"
+                  v-model="password"
+                  v-bind="passwordAttrs"
                   :aria-describedby="
-                    fieldErrors.password
-                      ? 'password-description password-error'
-                      : 'password-description'
+                    errors.password ? 'password-description password-error' : 'password-description'
                   "
-                  :aria-invalid="fieldErrors.password !== undefined"
+                  :aria-invalid="errors.password !== undefined"
                   :autocomplete="props.mode === 'signup' ? 'new-password' : 'current-password'"
                   :disabled="pending"
                   name="password"
@@ -275,8 +275,8 @@ function focusFirstInvalidField(field: AuthFormField): void {
                 <FieldDescription id="password-description">
                   {{ copy.passwordDescription }}
                 </FieldDescription>
-                <FieldError v-if="fieldErrors.password" id="password-error">
-                  {{ fieldErrors.password }}
+                <FieldError v-if="errors.password" id="password-error">
+                  {{ errors.password }}
                 </FieldError>
               </Field>
             </FieldGroup>
