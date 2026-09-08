@@ -6,3 +6,6 @@
 - If machine has active tailscale, then also listen to tailscale address
 - Wait dev server ready using curl and delay (3s,3s,3s,3s,5s,5s,5s)
 - Manage the tab to only has 1 dev server run-ed per worktree
+
+## Rules
+- Components placement "components/features/{feature-name}/*.vue"
