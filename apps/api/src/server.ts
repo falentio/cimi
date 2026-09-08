@@ -46,6 +46,7 @@ export async function createApiServerApp(
         schema: schema.betterAuthSchema,
         baseURL: cfg.baseUrl,
         secret: cfg.authSecret,
+        ...(cfg.isDev ? { trustedOrigins: ['http://localhost:*', 'http://*.localhost:*'] } : {}),
       })
       const app = createApiApp({
         db,
