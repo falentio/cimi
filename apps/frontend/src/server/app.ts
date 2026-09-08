@@ -1,86 +1,12 @@
-import { mkdirSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { loadConfig } from '@cimi/config'
+import { createApiServerApp, type ApiServerApp } from '@cimi/api/server'
 import { createSingleton } from '@cimi/utils'
-import {
-  createDb,
-  closeDb,
-  migrateControlDb,
-  resolveControlDbPath,
-  createAnalyticsDb,
-  schema,
-  ANALYTICS_DB_FILENAME,
-} from '@cimi/db'
-import { createAuth } from '@cimi/auth/server'
-import { createApiApp } from '@cimi/api'
 
-export type FrontendServerApp = ReturnType<typeof createApiApp> & {
-  close(): Promise<void>
-}
+export type FrontendServerApp = ApiServerApp
 
 export async function createFrontendServerApp(
   env: Record<string, string | undefined> = process.env,
 ): Promise<FrontendServerApp> {
-  const cfg = loadConfig(env)
-  const dataDirectoryReady = isDirectory(cfg.dataDir)
-  if (!dataDirectoryReady) throw new Error('Configured data directory is not ready')
-  const controlDbPath = resolveControlDbPath(env, process.cwd())
-  mkdirSync(dirname(controlDbPath), { recursive: true })
-  const db = createDb({ path: controlDbPath })
-  try {
-    migrateControlDb(db)
-    const analytics = await createAnalyticsDb({
-      path: join(cfg.dataDir, ANALYTICS_DB_FILENAME),
-    })
-
-    try {
-      const auth = createAuth({
-        db,
-        schema: schema.betterAuthSchema,
-        baseURL: cfg.baseUrl,
-        secret: cfg.authSecret,
-      })
-      const app = createApiApp({
-        db,
-        auth,
-        analytics,
-        baseUrl: cfg.baseUrl,
-        dataDirectoryReady: () => isDirectory(cfg.dataDir),
-        controlDatabasePath: controlDbPath,
-        dataDirectoryPath: cfg.dataDir,
-      })
-      const closeApiApp = app.close.bind(app)
-      return Object.assign(app, {
-        async close(): Promise<void> {
-          try {
-            await closeApiApp()
-          } finally {
-            try {
-              await analytics.close()
-            } finally {
-              closeDb(db)
-            }
-          }
-        },
-      })
-    } catch (error) {
-      try {
-        await analytics.close()
-      } catch {}
-      throw error
-    }
-  } catch (error) {
-    closeDb(db)
-    throw error
-  }
-}
-
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory()
-  } catch {
-    return false
-  }
+  return createApiServerApp({ env })
 }
 
 const getApp = createSingleton(() => createFrontendServerApp(process.env))

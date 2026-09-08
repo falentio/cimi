@@ -15,6 +15,7 @@ export {
   resolveControlDbPath,
   validateBaseSchema,
   validateControlMigrationHistory,
+  type ControlMigrationOptions,
 } from './migrate.ts'
 export {
   ANALYTICS_DB_FILENAME,

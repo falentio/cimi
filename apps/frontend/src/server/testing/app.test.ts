@@ -73,6 +73,6 @@ test('does not create a missing configured data directory', async () => {
 })
 
 afterAll(async () => {
-  await app.close()
+  await Promise.all([app.close(), app.close()])
   await rm(tempDir, { recursive: true, force: true })
 })

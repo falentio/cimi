@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -10,7 +11,16 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
   },
 
-  modules: ['shadcn-nuxt'],
+  modules: ['@pinia/nuxt', '@pinia/colada-nuxt', 'shadcn-nuxt'],
+  nitro: {
+    preset: 'node-server',
+    serverAssets: [
+      {
+        baseName: 'control-migrations',
+        dir: resolve(import.meta.dirname, '../../packages/db/src/migrations'),
+      },
+    ],
+  },
   shadcn: {
     /**
      * Prefix for all the imported component.
