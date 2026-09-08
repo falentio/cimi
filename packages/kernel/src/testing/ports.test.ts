@@ -38,6 +38,16 @@ describe('in-memory kernel ports', () => {
     expect(lock.isLocked()).toBe(false)
   })
 
+  it('keeps collection policy as a transient lock kind', () => {
+    const lock = new InMemoryLifecycleLock()
+
+    const lease = lock.acquire('collection_policy')
+
+    expect(lease?.kind).toBe('collection_policy')
+    expect(lock.kind).toBe('collection_policy')
+    lease?.release()
+  })
+
   it('normalizes the issue alias purge to the persisted site_purge kind', () => {
     expect(normalizeLifecycleOperationKind('purge')).toBe('site_purge')
     expect(normalizeLifecycleOperationKind('site_purge')).toBe('site_purge')
