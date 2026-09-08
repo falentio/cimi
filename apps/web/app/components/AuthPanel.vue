@@ -40,6 +40,7 @@ interface AuthCopy {
   readonly alternateRoute: AuthRoute
   readonly emailDescription: string
   readonly passwordDescription: string
+  readonly confirmPasswordDescription: string
 }
 
 type AuthSubmission =
@@ -63,6 +64,7 @@ const copyByMode = {
     alternateRoute: '/signup',
     emailDescription: 'Use the email address associated with your Cimi account.',
     passwordDescription: 'Use the password for your Cimi account.',
+    confirmPasswordDescription: '',
   },
   signup: {
     title: 'Create your account',
@@ -74,12 +76,13 @@ const copyByMode = {
     alternateRoute: '/login',
     emailDescription: 'We will use this address for account verification.',
     passwordDescription: 'Choose a password with at least 8 characters.',
+    confirmPasswordDescription: 'Re-enter your password to confirm.',
   },
 } satisfies Record<AuthMode, AuthCopy>
 
 const fieldOrderByMode = {
   login: ['email', 'password'],
-  signup: ['name', 'email', 'password'],
+  signup: ['name', 'email', 'password', 'passwordConfirmation'],
 } satisfies Record<AuthMode, readonly (keyof AuthFormValues)[]>
 
 const copy = computed(() => copyByMode[props.mode])
@@ -87,7 +90,7 @@ const validationSchema = computed(() =>
   toTypedSchema(props.mode === 'signup' ? signupSchema : loginSchema),
 )
 const { defineField, errors, handleSubmit, resetForm } = useForm<AuthFormValues>({
-  initialValues: { name: '', email: '', password: '' },
+  initialValues: { name: '', email: '', password: '', passwordConfirmation: '' },
   validationSchema,
 })
 const fieldOptions = {
@@ -99,6 +102,10 @@ const fieldOptions = {
 const [name, nameAttrs] = defineField('name', fieldOptions)
 const [email, emailAttrs] = defineField('email', fieldOptions)
 const [password, passwordAttrs] = defineField('password', fieldOptions)
+const [passwordConfirmation, passwordConfirmationAttrs] = defineField(
+  'passwordConfirmation',
+  fieldOptions,
+)
 
 watch(
   () => props.mode,
@@ -277,6 +284,34 @@ function focusFirstInvalidField(field: AuthFormField): void {
                 </FieldDescription>
                 <FieldError v-if="errors.password" id="password-error">
                   {{ errors.password }}
+                </FieldError>
+              </Field>
+
+              <Field
+                v-if="props.mode === 'signup'"
+                :data-invalid="errors.passwordConfirmation !== undefined"
+              >
+                <FieldLabel for="passwordConfirmation">Confirm password</FieldLabel>
+                <Input
+                  id="passwordConfirmation"
+                  v-model="passwordConfirmation"
+                  v-bind="passwordConfirmationAttrs"
+                  :aria-describedby="
+                    errors.passwordConfirmation
+                      ? 'passwordConfirmation-description passwordConfirmation-error'
+                      : 'passwordConfirmation-description'
+                  "
+                  :aria-invalid="errors.passwordConfirmation !== undefined"
+                  autocomplete="new-password"
+                  :disabled="pending"
+                  name="passwordConfirmation"
+                  type="password"
+                />
+                <FieldDescription id="passwordConfirmation-description">
+                  {{ copy.confirmPasswordDescription }}
+                </FieldDescription>
+                <FieldError v-if="errors.passwordConfirmation" id="passwordConfirmation-error">
+                  {{ errors.passwordConfirmation }}
                 </FieldError>
               </Field>
             </FieldGroup>
