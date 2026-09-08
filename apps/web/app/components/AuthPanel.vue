@@ -1,196 +1,305 @@
 <script setup lang="ts">
-const { session, pending, refreshSession, signUp, signIn, signOut } = useAuth()
-const mode = ref<'sign-in' | 'sign-up'>('sign-in')
-const name = ref('')
-const email = ref('')
-const password = ref('')
-const feedback = ref<string | null>(null)
+import { computed, nextTick, reactive, shallowRef, watch } from 'vue'
+import type { AuthResult, SignInInput, SignUpInput } from '@/composables/useAuth'
+import {
+  type AuthFeedback,
+  type AuthFormValues,
+  type AuthMode,
+  loginSchema,
+  signupSchema,
+} from '@/lib/auth-form'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
+
+interface AuthPanelProps {
+  readonly mode: AuthMode
+}
+
+type AuthRoute = '/login' | '/signup'
+
+interface AuthCopy {
+  readonly title: string
+  readonly description: string
+  readonly submitLabel: string
+  readonly pendingLabel: string
+  readonly alternatePrompt: string
+  readonly alternateLabel: string
+  readonly alternateRoute: AuthRoute
+  readonly emailDescription: string
+  readonly passwordDescription: string
+}
+
+type AuthSubmission =
+  | { readonly mode: 'login'; readonly input: SignInInput }
+  | { readonly mode: 'signup'; readonly input: SignUpInput }
+
+type AuthFormField = keyof AuthFormValues
+type AuthFieldErrors = Partial<Record<AuthFormField, string>>
+
+const props = defineProps<AuthPanelProps>()
+const { pending, signIn, signUp } = useAuth()
+const feedback = shallowRef<AuthFeedback>(null)
+const form = reactive<AuthFormValues>({ name: '', email: '', password: '' })
+const fieldErrors = shallowRef<AuthFieldErrors>({})
+
+const copyByMode = {
+  login: {
+    title: 'Welcome back',
+    description: 'Sign in to your Cimi workspace.',
+    submitLabel: 'Sign in',
+    pendingLabel: 'Signing in...',
+    alternatePrompt: 'Need an account?',
+    alternateLabel: 'Sign up',
+    alternateRoute: '/signup',
+    emailDescription: 'Use the email address associated with your Cimi account.',
+    passwordDescription: 'Use the password for your Cimi account.',
+  },
+  signup: {
+    title: 'Create your account',
+    description: 'Start with a secure Cimi workspace.',
+    submitLabel: 'Create account',
+    pendingLabel: 'Creating account...',
+    alternatePrompt: 'Already have an account?',
+    alternateLabel: 'Log in',
+    alternateRoute: '/login',
+    emailDescription: 'We will use this address for account verification.',
+    passwordDescription: 'Choose a password with at least 8 characters.',
+  },
+} satisfies Record<AuthMode, AuthCopy>
+
+const fieldOrderByMode = {
+  login: ['email', 'password'],
+  signup: ['name', 'email', 'password'],
+} satisfies Record<AuthMode, readonly (keyof AuthFormValues)[]>
+
+const copy = computed(() => copyByMode[props.mode])
+watch(
+  () => props.mode,
+  () => {
+    form.name = ''
+    form.email = ''
+    form.password = ''
+    fieldErrors.value = {}
+    feedback.value = null
+  },
+)
 
 async function submit(): Promise<void> {
+  if (pending.value) return
+
+  const schema = props.mode === 'signup' ? signupSchema : loginSchema
+  const parsed = schema.safeParse(form)
+  if (!parsed.success) {
+    const nextErrors: AuthFieldErrors = {}
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0]
+      if (
+        (field === 'name' || field === 'email' || field === 'password') &&
+        nextErrors[field] === undefined
+      ) {
+        nextErrors[field] = issue.message
+      }
+    }
+    fieldErrors.value = nextErrors
+    const firstInvalidField = fieldOrderByMode[props.mode].find(
+      (field) => nextErrors[field] !== undefined,
+    )
+    if (firstInvalidField !== undefined) focusFirstInvalidField(firstInvalidField)
+    return
+  }
+
+  fieldErrors.value = {}
   feedback.value = null
+  const submission = createSubmission(parsed.data)
   const result =
-    mode.value === 'sign-up'
-      ? await signUp({ name: name.value, email: email.value, password: password.value })
-      : await signIn({ email: email.value, password: password.value })
+    submission.mode === 'signup' ? await signUp(submission.input) : await signIn(submission.input)
 
-  feedback.value = result.ok
-    ? result.session === null
-      ? 'Account created. Check your email to continue.'
-      : `Welcome back, ${result.session.user.name}.`
-    : result.error.message
+  feedback.value = feedbackForResult(result, submission.mode)
 }
 
-async function refresh(): Promise<void> {
-  const result = await refreshSession()
-  feedback.value = result.ok
-    ? result.session === null
-      ? 'No active session found.'
-      : `Signed in as ${result.session.user.email}.`
-    : result.error.message
+function createSubmission(values: AuthFormValues): AuthSubmission {
+  if (props.mode === 'signup') {
+    return {
+      mode: 'signup',
+      input: {
+        name: values.name,
+        email: values.email,
+        password: values.password,
+      },
+    }
+  }
+
+  return {
+    mode: 'login',
+    input: {
+      email: values.email,
+      password: values.password,
+    },
+  }
 }
 
-async function handleSignOut(): Promise<void> {
-  const result = await signOut()
-  feedback.value = result.ok ? 'You are signed out.' : result.error.message
+function feedbackForResult(result: AuthResult, mode: AuthMode): AuthFeedback {
+  if (!result.ok) {
+    return { tone: 'error', message: result.error.message }
+  }
+
+  if (result.session === null) {
+    return mode === 'signup'
+      ? { tone: 'success', message: 'Account created. Check your email to continue.' }
+      : { tone: 'error', message: 'Sign-in succeeded, but no active session was returned.' }
+  }
+
+  return {
+    tone: 'success',
+    message:
+      mode === 'signup'
+        ? `Welcome to Cimi, ${result.session.user.name}.`
+        : `Welcome back, ${result.session.user.name}.`,
+  }
 }
 
-function toggleMode(): void {
-  mode.value = mode.value === 'sign-in' ? 'sign-up' : 'sign-in'
-  feedback.value = null
+function focusFirstInvalidField(field: AuthFormField): void {
+  void nextTick(() => {
+    document.getElementById(field)?.focus()
+  })
 }
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 px-6 py-12 text-slate-100 sm:px-10 lg:px-16">
-    <div class="mx-auto grid max-w-5xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-      <section class="space-y-8">
-        <div
-          class="flex items-center gap-3 text-sm font-semibold tracking-[0.24em] text-cyan-300 uppercase"
+  <main class="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+    <div class="flex w-full max-w-sm flex-col gap-6">
+      <div class="flex items-center gap-2 self-center font-medium">
+        <span
+          aria-hidden="true"
+          class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-xs font-semibold"
         >
-          <span
-            class="grid size-10 place-items-center rounded-xl bg-cyan-300 font-bold tracking-normal text-slate-950"
+          C
+        </span>
+        Cimi workspace
+      </div>
+
+      <Card>
+        <CardHeader class="text-center">
+          <CardTitle>
+            <h1 class="text-2xl leading-tight font-semibold tracking-tight text-balance">
+              {{ copy.title }}
+            </h1>
+          </CardTitle>
+          <CardDescription>{{ copy.description }}</CardDescription>
+        </CardHeader>
+
+        <CardContent class="flex flex-col gap-6">
+          <Alert v-if="feedback" :variant="feedback.tone === 'error' ? 'destructive' : 'default'">
+            <AlertDescription>{{ feedback.message }}</AlertDescription>
+          </Alert>
+
+          <form
+            class="flex flex-col gap-6"
+            novalidate
+            :aria-busy="pending"
+            @submit.prevent="submit"
           >
-            C
-          </span>
-          Cimi workspace
-        </div>
-        <div class="space-y-5">
-          <p class="text-sm font-medium tracking-[0.2em] text-slate-400 uppercase">
-            Private analytics, clearly scoped
-          </p>
-          <h1
-            class="max-w-xl text-4xl leading-tight font-semibold tracking-tight text-white sm:text-6xl"
-          >
-            Your workspace starts with a secure session.
-          </h1>
-          <p class="max-w-lg text-lg leading-8 text-slate-400">
-            Sign in to continue to your Cimi workspace. This screen is wired to the shared
-            authentication service and keeps the session in an http-only cookie.
-          </p>
-        </div>
-        <div
-          class="grid max-w-lg grid-cols-2 gap-4 border-t border-slate-800 pt-6 text-sm text-slate-400"
-        >
-          <div>
-            <p class="text-2xl font-semibold text-white">1</p>
-            <p>session authority</p>
-          </div>
-          <div>
-            <p class="text-2xl font-semibold text-white">0</p>
-            <p>tokens stored in the browser</p>
-          </div>
-        </div>
-      </section>
+            <FieldGroup class="gap-4">
+              <Field v-if="props.mode === 'signup'" :data-invalid="fieldErrors.name !== undefined">
+                <FieldLabel for="name">Name</FieldLabel>
+                <Input
+                  id="name"
+                  v-model="form.name"
+                  autocomplete="name"
+                  :aria-describedby="
+                    fieldErrors.name ? 'name-description name-error' : 'name-description'
+                  "
+                  :aria-invalid="fieldErrors.name !== undefined"
+                  :disabled="pending"
+                  name="name"
+                  type="text"
+                />
+                <FieldDescription id="name-description">
+                  Enter the name for your Cimi workspace.
+                </FieldDescription>
+                <FieldError v-if="fieldErrors.name" id="name-error">
+                  {{ fieldErrors.name }}
+                </FieldError>
+              </Field>
 
-      <section
-        class="rounded-3xl border border-slate-800 bg-white p-6 text-slate-950 shadow-2xl shadow-cyan-950/30 sm:p-8"
-      >
-        <div class="mb-8 space-y-2">
-          <p class="text-sm font-medium text-cyan-700">Welcome</p>
-          <h2 class="text-2xl font-semibold tracking-tight">
-            {{ mode === 'sign-up' ? 'Create your account' : 'Sign in to Cimi' }}
-          </h2>
-          <p class="text-sm text-slate-500">
-            {{
-              mode === 'sign-up'
-                ? 'Set up your workspace identity.'
-                : 'Use your Cimi account credentials.'
-            }}
-          </p>
-        </div>
+              <Field :data-invalid="fieldErrors.email !== undefined">
+                <FieldLabel for="email">Email</FieldLabel>
+                <Input
+                  id="email"
+                  v-model="form.email"
+                  autocomplete="email"
+                  :aria-describedby="
+                    fieldErrors.email ? 'email-description email-error' : 'email-description'
+                  "
+                  :aria-invalid="fieldErrors.email !== undefined"
+                  :disabled="pending"
+                  inputmode="email"
+                  name="email"
+                  type="email"
+                />
+                <FieldDescription id="email-description">
+                  {{ copy.emailDescription }}
+                </FieldDescription>
+                <FieldError v-if="fieldErrors.email" id="email-error">
+                  {{ fieldErrors.email }}
+                </FieldError>
+              </Field>
 
-        <div class="mb-6 rounded-2xl bg-slate-100 px-4 py-3 text-sm" aria-live="polite">
-          <template v-if="session.status === 'idle' || session.status === 'loading'">
-            <span class="text-slate-500">Checking your session...</span>
-          </template>
-          <template v-else-if="session.status === 'authenticated'">
-            <span class="text-emerald-700">Signed in as {{ session.session.user.email }}.</span>
-          </template>
-          <template v-else-if="session.status === 'unauthenticated'">
-            <span class="text-slate-600">No active session.</span>
-          </template>
-          <template v-else-if="session.status === 'error'">
-            <span class="text-rose-700">{{ session.error.message }}</span>
-          </template>
-        </div>
+              <Field :data-invalid="fieldErrors.password !== undefined">
+                <FieldLabel for="password">Password</FieldLabel>
+                <Input
+                  id="password"
+                  v-model="form.password"
+                  :aria-describedby="
+                    fieldErrors.password
+                      ? 'password-description password-error'
+                      : 'password-description'
+                  "
+                  :aria-invalid="fieldErrors.password !== undefined"
+                  :autocomplete="props.mode === 'signup' ? 'new-password' : 'current-password'"
+                  :disabled="pending"
+                  name="password"
+                  type="password"
+                />
+                <FieldDescription id="password-description">
+                  {{ copy.passwordDescription }}
+                </FieldDescription>
+                <FieldError v-if="fieldErrors.password" id="password-error">
+                  {{ fieldErrors.password }}
+                </FieldError>
+              </Field>
+            </FieldGroup>
 
-        <form class="space-y-5" @submit.prevent="submit">
-          <div v-if="mode === 'sign-up'" class="space-y-2">
-            <label class="text-sm font-medium" for="name">Name</label>
-            <input
-              id="name"
-              v-model="name"
-              class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none transition focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
-              autocomplete="name"
-              required
-              type="text"
-            />
-          </div>
-          <div class="space-y-2">
-            <label class="text-sm font-medium" for="email">Email</label>
-            <input
-              id="email"
-              v-model="email"
-              class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none transition focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
-              autocomplete="email"
-              required
-              type="email"
-            />
-          </div>
-          <div class="space-y-2">
-            <label class="text-sm font-medium" for="password">Password</label>
-            <input
-              id="password"
-              v-model="password"
-              class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none transition focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
-              autocomplete="current-password"
-              minlength="8"
-              required
-              type="password"
-            />
-          </div>
-          <button
-            class="h-11 w-full rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-cyan-950 disabled:cursor-not-allowed disabled:opacity-50"
-            :disabled="pending"
-            type="submit"
-          >
-            {{ pending ? 'Working...' : mode === 'sign-up' ? 'Create account' : 'Sign in' }}
-          </button>
-        </form>
+            <Button class="w-full" :disabled="pending" size="lg" type="submit">
+              <Spinner v-if="pending" data-icon="inline-start" />
+              {{ pending ? copy.pendingLabel : copy.submitLabel }}
+            </Button>
+          </form>
+        </CardContent>
 
-        <p v-if="feedback" class="mt-4 text-sm text-slate-600" aria-live="polite">{{ feedback }}</p>
-
-        <div
-          class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5 text-sm"
-        >
-          <button
-            class="font-medium text-cyan-700 hover:text-cyan-950"
-            type="button"
-            @click="toggleMode"
-          >
-            {{ mode === 'sign-up' ? 'Already have an account?' : 'Need an account?' }}
-          </button>
-          <div class="flex gap-3">
-            <button
-              class="text-slate-500 hover:text-slate-950"
-              :disabled="pending"
-              type="button"
-              @click="refresh"
+        <CardFooter class="justify-center">
+          <p class="text-muted-foreground text-center text-sm">
+            {{ copy.alternatePrompt }}
+            <NuxtLink
+              class="text-primary font-medium underline-offset-4 hover:underline"
+              :to="copy.alternateRoute"
             >
-              Refresh
-            </button>
-            <button
-              v-if="session.status === 'authenticated'"
-              class="text-slate-500 hover:text-slate-950"
-              :disabled="pending"
-              type="button"
-              @click="handleSignOut"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </section>
+              {{ copy.alternateLabel }}
+            </NuxtLink>
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   </main>
 </template>

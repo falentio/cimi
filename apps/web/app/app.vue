@@ -1,7 +1,4 @@
 <template>
-  <div>
-    <NuxtRouteAnnouncer />
-    <ApiHealth />
-    <AuthPanel />
-  </div>
+  <NuxtRouteAnnouncer />
+  <NuxtPage />
 </template>

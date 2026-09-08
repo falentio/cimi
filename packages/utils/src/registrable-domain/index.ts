@@ -1,5 +1,4 @@
-import { isIP } from 'node:net'
-import { domainToASCII } from 'node:url'
+import { Address4, Address6 } from 'ip-address'
 import * as psl from 'psl'
 
 // TODO: Consume from apps/api origin normalization and apps/frontend domain grouping once their contracts settle.
@@ -10,7 +9,7 @@ export function getRegistrableDomain(input: string): string | null {
   const normalizedHostname = normalizeHostname(hostname)
   if (!normalizedHostname) return null
 
-  if (isIP(normalizedHostname)) return normalizedHostname
+  if (isIp(normalizedHostname)) return normalizedHostname
   if (normalizedHostname === 'localhost') return normalizedHostname
 
   const parsed = psl.parse(normalizedHostname)
@@ -33,7 +32,7 @@ function extractHostname(input: string): string | null {
   }
 
   if (value.startsWith('//') || /[/?#]/.test(value)) return null
-  if (isIP(value) || isBracketedIpv6(value)) return value
+  if (isIp(value) || isBracketedIpv6(value)) return value
   if (value.includes(':')) return null
 
   return value
@@ -41,18 +40,32 @@ function extractHostname(input: string): string | null {
 
 function normalizeHostname(hostname: string): string | null {
   const unbracketed = isBracketedIpv6(hostname) ? hostname.slice(1, -1) : hostname
-  if (isIP(unbracketed)) return unbracketed.toLowerCase()
+  if (isIp(unbracketed)) return unbracketed.toLowerCase()
 
   const withoutTrailingDot = unbracketed.endsWith('.') ? unbracketed.slice(0, -1) : unbracketed
   if (withoutTrailingDot === '' || withoutTrailingDot.endsWith('.')) return null
   if (isNumericHostAlias(withoutTrailingDot)) return null
 
-  const ascii = domainToASCII(withoutTrailingDot).toLowerCase()
-  return ascii === '' || isIP(ascii) ? null : ascii
+  const ascii = toAsciiHostname(withoutTrailingDot).toLowerCase()
+  return ascii === '' || isIp(ascii) ? null : ascii
 }
 
 function isBracketedIpv6(value: string): boolean {
-  return value.startsWith('[') && value.endsWith(']') && isIP(value.slice(1, -1)) === 6
+  return value.startsWith('[') && value.endsWith(']') && isIp(value.slice(1, -1)) === 6
+}
+
+function isIp(value: string): 0 | 4 | 6 {
+  if (Address4.isValid(value)) return 4
+  if (Address6.isValid(value)) return 6
+  return 0
+}
+
+function toAsciiHostname(value: string): string {
+  try {
+    return new URL(`http://${value}`).hostname
+  } catch {
+    return ''
+  }
 }
 
 function isNumericHostAlias(value: string): boolean {
