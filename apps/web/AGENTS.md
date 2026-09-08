@@ -1,6 +1,6 @@
 ## Running dev server
 
-- If inside herdr, then always make dev server running at tab named "web dev"
+- If inside herdr worktree, then always make dev server running at tab named "web dev" and inside worktree of workspace
 - If not in main or not working with frontend related work, then dont spawn dev server unless requested
 - If not in main, assign random port to dev server, append it to tab name to "web dev (8080)"
 - If machine has active tailscale, then also listen to tailscale address
