@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@cimi/auth": "workspace:*",
     "@hugeicons/core-free-icons": "^4.3.0",
     "@hugeicons/vue": "^1.0.8",
     "@unovis/vue": "^1.6.7",
