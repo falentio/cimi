@@ -3,6 +3,9 @@ import type { InferOutput } from 'valibot'
 
 export interface SiteRepository {
   findById(siteId: string): Promise<SiteRepository.SiteRecord | undefined>
+  findByIngestionIdentifier(
+    ingestionIdentifier: string,
+  ): Promise<SiteRepository.SiteRecord | undefined>
   findMany(
     organizationId: string,
     options: SiteRepository.FindManyOptions,

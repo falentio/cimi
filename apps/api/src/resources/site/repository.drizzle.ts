@@ -35,6 +35,29 @@ export class SiteRepositoryDrizzle implements SiteRepository {
     return row === undefined ? undefined : toSiteRecord(row)
   }
 
+  async findByIngestionIdentifier(
+    ingestionIdentifier: string,
+  ): Promise<SiteRepository.SiteRecord | undefined> {
+    const rows = await this.db
+      .select()
+      .from(schema.TSite)
+      .where(
+        and(
+          eq(schema.TSite.ingestionIdentifier, ingestionIdentifier),
+          eq(schema.TSite.status, 'active'),
+          notExists(
+            this.db
+              .select({ siteId: schema.TSiteTombstone.siteId })
+              .from(schema.TSiteTombstone)
+              .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+          ),
+        ),
+      )
+      .limit(1)
+    const row = rows[0]
+    return row === undefined ? undefined : toSiteRecord(row)
+  }
+
   async findMany(
     organizationId: string,
     options: SiteRepository.FindManyOptions,

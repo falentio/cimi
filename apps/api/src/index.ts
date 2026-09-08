@@ -31,6 +31,16 @@ import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts
 import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
 import {
+  combineAcceptanceQuiescence,
+  createEventIngestion,
+  type IdentitySessionResolver,
+  type IngestionProtection,
+} from './resources/event-ingestion/index.ts'
+import {
+  COLLECT_EVENT_MAX_RAW_REQUEST_BYTES,
+  COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES,
+} from '@cimi/contract'
+import {
   createBackupRestore,
   type BackupRestoreCleanupPort,
   type BackupRestoreHealthSnapshot,
@@ -59,6 +69,8 @@ export interface CreateApiAppDependencies {
   controlDatabasePath: string
   dataDirectoryPath: string
   upgradeExecutor?: UpgradeExecutor | undefined
+  eventIngestionProtection?: IngestionProtection | undefined
+  eventIdentitySession?: IdentitySessionResolver | undefined
 }
 
 export type ApiApp = Hono & { close(): Promise<void> }
@@ -105,12 +117,23 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lock,
     lifecycle: installation.service,
   })
+  const eventIngestion = createEventIngestion({
+    db: deps.db,
+    collectionPolicy: collectionPolicy.service,
+    retention: retentionPolicy.repository,
+    lifecycleLock: lock,
+    protection: deps.eventIngestionProtection,
+    identitySession: deps.eventIdentitySession,
+  })
   retentionPolicy.worker.start()
   const backupRestore = createBackupRestore({
     db: deps.db,
     analytics: deps.analytics,
     lock,
-    ...(deps.acceptance === undefined ? {} : { acceptance: deps.acceptance }),
+    acceptance:
+      deps.acceptance === undefined
+        ? eventIngestion.coalescer
+        : combineAcceptanceQuiescence(eventIngestion.coalescer, deps.acceptance),
     ...(deps.reads === undefined ? {} : { reads: deps.reads }),
     ...(deps.cleanup === undefined ? {} : { cleanup: deps.cleanup }),
     dataDirectoryReady: deps.dataDirectoryReady,
@@ -154,6 +177,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     site: site.router,
     invitation: invitation.router,
     backupRestore: backupRestore.router,
+    eventIngestion: eventIngestion.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
@@ -231,9 +255,15 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/*', async (c) => {
+    const rawLimit = eventRawRequestLimit(c.req.raw)
+    const request =
+      rawLimit === undefined ? c.req.raw : await readRequestWithinLimit(c.req.raw, rawLimit)
+    if (request instanceof Response) return request
+    if (rawLimit === COLLECT_EVENT_MAX_RAW_REQUEST_BYTES && (await parsedPayloadTooLarge(request)))
+      return payloadTooLargeResponse()
     let user: AuthUser | undefined
     try {
-      user = await getUser(deps.auth, c.req.raw)
+      user = await getUser(deps.auth, request)
     } catch {
       return c.json(
         {
@@ -246,9 +276,9 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       )
     }
 
-    const { matched, response } = await openAPIHandler.handle(c.req.raw, {
+    const { matched, response } = await openAPIHandler.handle(request, {
       prefix: '/api',
-      context: { user, headers: c.req.raw.headers },
+      context: { user, headers: request.headers },
     })
     if (matched && response) return response
     return new Response('Not Found', { status: 404 })
@@ -260,6 +290,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       if (closed) return
       closed = true
       await retentionPolicy.worker.stop()
+      await eventIngestion.service.stop()
       await siteLifecycleWorker.stop()
       await backupRestoreStartup
       await backupRestore.worker.stop()
@@ -267,6 +298,94 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       await installation.service.stop()
     },
   })
+}
+
+async function readRequestWithinLimit(
+  request: Request,
+  limit: number,
+): Promise<Request | Response> {
+  const contentLength = request.headers.get('content-length')
+  if (contentLength !== null && Number(contentLength) > limit) return payloadTooLargeResponse()
+  if (request.body === null) return request
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  while (true) {
+    const next = await reader.read()
+    if (next.done) break
+    size += next.value.byteLength
+    if (size > limit) {
+      await reader.cancel()
+      return payloadTooLargeResponse()
+    }
+    chunks.push(next.value)
+  }
+
+  const body = new Uint8Array(size)
+  let offset = 0
+  for (const chunk of chunks) {
+    body.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new Request(request, { method: request.method, body: new Blob([body.buffer]) })
+}
+
+async function parsedPayloadTooLarge(request: Request): Promise<boolean> {
+  try {
+    const value: unknown = JSON.parse(await request.clone().text())
+    return hasParsedPayloadSizeViolation(value)
+  } catch {
+    return false
+  }
+}
+
+function hasParsedPayloadSizeViolation(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === 'properties' && isRecord(entry)) {
+      if (Object.keys(entry).length > 64) return true
+      if (Object.keys(entry).some((propertyKey) => propertyKey.length > 64)) return true
+      if (
+        Object.values(entry).some(
+          (propertyValue) => typeof propertyValue === 'string' && propertyValue.length > 512,
+        )
+      )
+        return true
+      continue
+    }
+    if (
+      typeof entry === 'string' &&
+      (key === 'pagePath' || key === 'referrer' ? entry.length > 2048 : entry.length > 512)
+    )
+      return true
+  }
+  return false
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function eventRawRequestLimit(request: Request): number | undefined {
+  const path = new URL(request.url).pathname.replace(/^\/api/, '').replace(/\/+$/, '')
+  if (request.method !== 'POST') return undefined
+  if (path === '/event-ingestion/collectEvent') return COLLECT_EVENT_MAX_RAW_REQUEST_BYTES
+  if (path === '/event-ingestion/collectEvents') return COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES
+  return undefined
+}
+
+function payloadTooLargeResponse(): Response {
+  const definition = ERROR_CATALOG.PAYLOAD_TOO_LARGE
+  return Response.json(
+    {
+      defined: false,
+      code: definition.code,
+      status: definition.status,
+      message: definition.message,
+    },
+    { status: definition.status },
+  )
 }
 
 function getLifecycleLock(db: Db): LifecycleLock {
