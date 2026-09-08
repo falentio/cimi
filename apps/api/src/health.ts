@@ -3,6 +3,7 @@ import { schema } from '@cimi/contract'
 import { validateBaseSchema } from '@cimi/db'
 import type { LifecycleAdmissionMode } from '@cimi/kernel'
 import type { CreateApiAppDependencies } from './index.ts'
+import type { AcceptanceDiagnosticsSnapshot } from './resources/event-ingestion/index.ts'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'recovering' | 'maintenance' | 'unavailable'
 export type StoreHealth = 'ready' | 'degraded' | 'rebuilding' | 'unavailable'
@@ -20,6 +21,7 @@ export interface HealthSnapshot {
   analyticsStore?: StoreHealth
   cleanupPending?: boolean
   admissionMode?: LifecycleAdmissionMode
+  ingestion?: AcceptanceDiagnosticsSnapshot | undefined
 }
 
 export interface HealthLifecycle {

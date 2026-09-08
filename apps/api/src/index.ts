@@ -33,9 +33,11 @@ import { normalizeApiError } from './errors.ts'
 import {
   combineAcceptanceQuiescence,
   createEventIngestion,
+  AcceptanceRetentionCleanup,
   type IdentitySessionResolver,
   type IngestionProtection,
 } from './resources/event-ingestion/index.ts'
+import { hasParsedPayloadSizeViolation } from './resources/event-ingestion/payload-size.ts'
 import {
   COLLECT_EVENT_MAX_RAW_REQUEST_BYTES,
   COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES,
@@ -125,15 +127,20 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     protection: deps.eventIngestionProtection,
     identitySession: deps.eventIdentitySession,
   })
+  const upgradeAcceptance =
+    deps.acceptance === undefined
+      ? eventIngestion.coalescer
+      : combineAcceptanceQuiescence(eventIngestion.coalescer, deps.acceptance)
+  installation.service.setAcceptanceQuiescence(upgradeAcceptance)
+  retentionPolicy.worker.setCleanupPort(
+    new AcceptanceRetentionCleanup({ acceptance: eventIngestion.acceptanceRepository }),
+  )
   retentionPolicy.worker.start()
   const backupRestore = createBackupRestore({
     db: deps.db,
     analytics: deps.analytics,
     lock,
-    acceptance:
-      deps.acceptance === undefined
-        ? eventIngestion.coalescer
-        : combineAcceptanceQuiescence(eventIngestion.coalescer, deps.acceptance),
+    acceptance: upgradeAcceptance,
     ...(deps.reads === undefined ? {} : { reads: deps.reads }),
     ...(deps.cleanup === undefined ? {} : { cleanup: deps.cleanup }),
     dataDirectoryReady: deps.dataDirectoryReady,
@@ -161,6 +168,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       return {
         ...installationSnapshot,
         ...(admissionMode === undefined ? {} : { admissionMode }),
+        ingestion: eventIngestion.service.diagnostics,
       }
     },
   }
@@ -338,33 +346,6 @@ async function parsedPayloadTooLarge(request: Request): Promise<boolean> {
   } catch {
     return false
   }
-}
-
-function hasParsedPayloadSizeViolation(value: unknown): boolean {
-  if (!isRecord(value)) return false
-  for (const [key, entry] of Object.entries(value)) {
-    if (key === 'properties' && isRecord(entry)) {
-      if (Object.keys(entry).length > 64) return true
-      if (Object.keys(entry).some((propertyKey) => propertyKey.length > 64)) return true
-      if (
-        Object.values(entry).some(
-          (propertyValue) => typeof propertyValue === 'string' && propertyValue.length > 512,
-        )
-      )
-        return true
-      continue
-    }
-    if (
-      typeof entry === 'string' &&
-      (key === 'pagePath' || key === 'referrer' ? entry.length > 2048 : entry.length > 512)
-    )
-      return true
-  }
-  return false
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function eventRawRequestLimit(request: Request): number | undefined {

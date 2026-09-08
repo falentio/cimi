@@ -37,11 +37,19 @@ const SEventProperties = v.pipe(
           'unit',
           'code',
           'message',
+          'utmSource',
+          'utmMedium',
+          'utmCampaign',
+          'deviceType',
+          'browser',
+          'os',
+          'country',
         ].includes(key),
       ),
     'Event properties must not use reserved envelope names.',
   ),
 )
+const SUtmField = v.pipe(v.string(), v.minLength(1), v.maxLength(128))
 const SEventCommonFields = {
   eventId: SId,
   ingestionIdentifier: SId,
@@ -49,6 +57,9 @@ const SEventCommonFields = {
   pagePath: v.optional(v.pipe(v.string(), v.maxLength(2048))),
   referrer: v.optional(v.pipe(v.string(), v.maxLength(2048))),
   identifiedUserId: v.optional(SId),
+  utmSource: v.optional(SUtmField),
+  utmMedium: v.optional(SUtmField),
+  utmCampaign: v.optional(SUtmField),
   properties: v.optional(SEventProperties),
   collectionContext: v.optional(SCollectionContext),
 }

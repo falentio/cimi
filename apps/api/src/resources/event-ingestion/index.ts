@@ -2,15 +2,18 @@ import type { Db } from '@cimi/db'
 import type { AcceptanceQuiescencePort, LifecycleLock, RetentionResolver } from '@cimi/kernel'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
-import { eventIngestionRouter } from './router.ts'
+import { eventIngestionRouter, type EventIngestionRouterOptions } from './router.ts'
 import { AcceptanceCoalescer } from './coalescer.ts'
 import { AcceptanceRepositoryDrizzle } from './repository.drizzle.ts'
 import { EventIngestionService } from './service.ts'
 import type { IdentitySessionResolver, IngestionProtection } from './service.ts'
+import { InMemoryIngestionProtection } from './protection.ts'
+import { DefaultIdentitySessionResolver } from './identity-session.ts'
 import type { SiteRepository } from '../site/repository.ts'
 import { SiteRepositoryDrizzle } from '../site/repository.drizzle.ts'
 
 export { eventIngestionRouter }
+export type { EventIngestionRouterOptions } from './router.ts'
 export {
   AcceptanceCoalescer,
   AcceptanceAdmissionStoppedError,
@@ -26,6 +29,20 @@ export {
   AcceptanceRepositoryDrizzle,
   type AcceptanceRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+export {
+  InMemoryIngestionProtection,
+  type InMemoryIngestionProtectionDependencies,
+} from './protection.ts'
+export {
+  DefaultIdentitySessionResolver,
+  type DefaultIdentitySessionResolverDependencies,
+} from './identity-session.ts'
+export { isParsedPayloadOversized, isOversizedEvent } from './payload-size.ts'
+export { deriveAttribution, type DerivedAttribution } from './attribution.ts'
+export {
+  AcceptanceRetentionCleanup,
+  type AcceptanceRetentionCleanupDependencies,
+} from './retention-cleanup.ts'
 export type {
   AcceptanceCandidate,
   AcceptanceRepository,
@@ -72,6 +89,7 @@ export interface CreateEventIngestionDependencies {
   readonly lifecycleLock?: LifecycleLock | undefined
   readonly protection?: IngestionProtection | undefined
   readonly identitySession?: IdentitySessionResolver | undefined
+  readonly router?: EventIngestionRouterOptions | undefined
 }
 
 export function createEventIngestion({
@@ -82,6 +100,7 @@ export function createEventIngestion({
   lifecycleLock,
   protection,
   identitySession,
+  router,
 }: CreateEventIngestionDependencies) {
   const acceptanceRepository = new AcceptanceRepositoryDrizzle({ db })
   const coalescer = new AcceptanceCoalescer({ repository: acceptanceRepository })
@@ -91,11 +110,16 @@ export function createEventIngestion({
     retention,
     acceptance: acceptanceRepository,
     lifecycleLock,
-    protection,
-    identitySession,
+    protection: protection ?? new InMemoryIngestionProtection(),
+    identitySession: identitySession ?? new DefaultIdentitySessionResolver(),
     coalescer,
   })
-  return { acceptanceRepository, coalescer, service, router: eventIngestionRouter(service) }
+  return {
+    acceptanceRepository,
+    coalescer,
+    service,
+    router: eventIngestionRouter(service, router),
+  }
 }
 
 export type EventIngestionModule = ReturnType<typeof createEventIngestion>

@@ -1,4 +1,4 @@
-import { and, eq, max } from 'drizzle-orm'
+import { and, eq, lt, max } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import type { AcceptanceCandidate, AcceptanceRepository } from './repository.ts'
 
@@ -55,6 +55,23 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
     this.db.transaction((tx) => {
       for (const candidate of candidates) appendCandidate(tx, candidate)
     })
+  }
+
+  async deleteExpired(input: {
+    readonly siteId: string
+    readonly receiptCutoff: Date
+  }): Promise<number> {
+    const rows = this.db
+      .delete(schema.TAcceptedEvent)
+      .where(
+        and(
+          eq(schema.TAcceptedEvent.siteId, input.siteId),
+          lt(schema.TAcceptedEvent.receiptTime, input.receiptCutoff),
+        ),
+      )
+      .returning({ eventPk: schema.TAcceptedEvent.eventPk })
+      .all()
+    return rows.length
   }
 }
 

@@ -22,6 +22,9 @@ import {
   type ReservableCandidate,
   type Reservation,
 } from './coalescer.ts'
+import { isOversizedEvent } from './payload-size.ts'
+import { InMemoryIngestionProtection } from './protection.ts'
+import { deriveAttribution } from './attribution.ts'
 import type { AcceptanceRepository, EventInput, NormalizedEvent } from './repository.ts'
 
 export type CollectEventInput = InferOutput<typeof SCollectEventInput>
@@ -44,6 +47,7 @@ export interface EventIngestionServiceDependencies {
 export interface IngestionRequestContext {
   readonly sourceIp?: string | undefined
   readonly isBot?: boolean | undefined
+  readonly userAgent?: string | undefined
 }
 
 export interface IngestionProtection {
@@ -95,9 +99,12 @@ export class EventIngestionService {
   private readonly acceptance: AcceptanceRepository
   private readonly lifecycleLock: LifecycleLock | undefined
   private readonly clock: () => Date
-  private readonly protection: IngestionProtection | undefined
+  private readonly protection: IngestionProtection
   private readonly identitySession: IdentitySessionResolver | undefined
-  private admissionTail: Promise<void> = Promise.resolve()
+
+  get diagnostics() {
+    return this.coalescer.diagnostics
+  }
 
   constructor({
     siteRepository,
@@ -116,7 +123,7 @@ export class EventIngestionService {
     this.acceptance = acceptance
     this.lifecycleLock = lifecycleLock
     this.clock = clock ?? (() => new Date())
-    this.protection = protection
+    this.protection = protection ?? new InMemoryIngestionProtection()
     this.identitySession = identitySession
     this.coalescer =
       coalescer ??
@@ -343,6 +350,7 @@ export class EventIngestionService {
     site: SiteRepository.SiteRecord,
     request: IngestionRequestContext = {},
   ): Promise<PreparedEvent> {
+    const receipt = this.clock()
     const retention = await this.retentionPolicy(site.id)
     const decision = await this.collectionPolicy.admit({
       siteId: site.id,
@@ -358,15 +366,13 @@ export class EventIngestionService {
     })
     if (decision.outcome.kind === 'rejected') throw new PolicyRejectionError()
 
-    const validationTime = this.clock()
-    const occurrence =
-      input.occurrenceTime === undefined ? validationTime : new Date(input.occurrenceTime)
+    const occurrence = input.occurrenceTime === undefined ? receipt : new Date(input.occurrenceTime)
     if (!Number.isFinite(occurrence.getTime())) throw new ORPCError('BAD_REQUEST')
-    if (occurrence.getTime() > validationTime.getTime() + 5 * 60 * 1000) {
+    if (occurrence.getTime() > receipt.getTime() + 5 * 60 * 1000) {
       throw new ORPCError('BAD_REQUEST')
     }
     const cutoff = resolveSiteLocalCutoff({
-      now: validationTime,
+      now: receipt,
       timeZone: site.reportingTimezone,
       retentionMonths: retention.eventMonths,
     })
@@ -384,39 +390,30 @@ export class EventIngestionService {
       occurrence.toISOString(),
       destination,
       decision.outcome.identifiedUserId,
+      deriveAttribution(input, request.userAgent),
     )
     const identity = await this.resolveIdentity({
       siteId: site.id,
       event: normalizedDraft,
-      receiptTime: validationTime,
+      receiptTime: receipt,
       collectionContext: input.collectionContext,
       identifiedUserId: decision.outcome.identifiedUserId,
     })
-    const receipt = this.clock()
-    const normalizedOccurrence = input.occurrenceTime === undefined ? receipt : occurrence
-    const normalizedCutoff = resolveSiteLocalCutoff({
-      now: receipt,
-      timeZone: site.reportingTimezone,
-      retentionMonths: retention.eventMonths,
-    })
-    if (
-      normalizedOccurrence.getTime() > receipt.getTime() + 5 * 60 * 1000 ||
-      normalizedOccurrence < normalizedCutoff
-    )
-      throw new ORPCError('BAD_REQUEST')
 
     const event = normalizeEvent(
       input,
       decision.outcome,
-      normalizedOccurrence.toISOString(),
+      occurrence.toISOString(),
       destination,
       identity.identifiedUserId,
+      deriveAttribution(input, request.userAgent),
     )
     return {
       candidate: {
         siteId: site.id,
         event,
-        late: receipt.getTime() - normalizedOccurrence.getTime() > 15 * 60 * 1000,
+        receiptTime: receipt.toISOString(),
+        late: receipt.getTime() - occurrence.getTime() > 15 * 60 * 1000,
         policyRevisionId: decision.revision.id,
         payloadFingerprint: fingerprintEvent(input),
         visitorId: identity.visitorId,
@@ -444,7 +441,6 @@ export class EventIngestionService {
     sourceIp: string | undefined,
     units: number,
   ): Promise<void> {
-    if (this.protection === undefined) return
     try {
       await this.protection.consume({ siteId, sourceIp, units, now: this.clock() })
     } catch (error) {
@@ -473,27 +469,12 @@ export class EventIngestionService {
     operation: () => Promise<T>,
   ): Promise<T> {
     if (this.lifecycleLock === undefined) return operation()
-    const previous = this.admissionTail
-    let release!: () => void
-    this.admissionTail = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    await previous
-    try {
-      const lease = await this.lifecycleLock.acquire('site_deletion')
-      if (lease === undefined) {
-        const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
-        if (site === undefined) throw new ORPCError('NOT_FOUND')
-        throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
-      }
-      try {
-        return await operation()
-      } finally {
-        await lease.release()
-      }
-    } finally {
-      release()
+    if (await this.lifecycleLock.isLocked()) {
+      const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
+      if (site === undefined) throw new ORPCError('NOT_FOUND')
+      throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     }
+    return operation()
   }
 
   private existingResult(
@@ -543,12 +524,28 @@ function normalizeEvent(
   occurrenceTime: string,
   destination: string | null | undefined,
   identifiedUserId: string | null,
+  attribution: {
+    readonly utmSource: string | null
+    readonly utmMedium: string | null
+    readonly utmCampaign: string | null
+    readonly deviceType: string | null
+    readonly browser: string | null
+    readonly os: string | null
+    readonly country: string | null
+  },
 ): NormalizedEvent {
   const common = {
     eventId: input.eventId,
     occurrenceTime,
     identifiedUserId,
     properties: outcome.properties,
+    utmSource: attribution.utmSource,
+    utmMedium: attribution.utmMedium,
+    utmCampaign: attribution.utmCampaign,
+    deviceType: attribution.deviceType,
+    browser: attribution.browser,
+    os: attribution.os,
+    country: attribution.country,
   }
   switch (input.kind) {
     case 'page_view':
@@ -621,29 +618,6 @@ function validEventId(value: unknown): string | null {
   if (!isRecord(value)) return null
   const parsed = safeParse(schema.SId, value['eventId'])
   return parsed.success ? parsed.output : null
-}
-
-function isOversizedEvent(value: unknown): boolean {
-  if (!isRecord(value)) return false
-  for (const [key, entry] of Object.entries(value)) {
-    if (
-      typeof entry === 'string' &&
-      (((key === 'pagePath' || key === 'referrer') && entry.length > 2048) ||
-        (key !== 'eventId' && key !== 'ingestionIdentifier' && entry.length > 512))
-    )
-      return true
-    if (key === 'properties' && isRecord(entry)) {
-      if (Object.keys(entry).length > 64) return true
-      if (Object.keys(entry).some((propertyKey) => propertyKey.length > 64)) return true
-      if (
-        Object.values(entry).some(
-          (propertyValue) => typeof propertyValue === 'string' && propertyValue.length > 512,
-        )
-      )
-        return true
-    }
-  }
-  return false
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

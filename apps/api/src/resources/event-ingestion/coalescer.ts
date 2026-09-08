@@ -1,6 +1,7 @@
 import {
   EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS,
   EVENT_ACCEPTANCE_PENDING_MAX_EVENTS,
+  EVENT_ACCEPTANCE_WINDOW_MS,
 } from '@cimi/contract'
 import type { AcceptanceQuiescencePort } from '@cimi/kernel'
 import type { AcceptanceCandidate, AcceptanceRepository } from './repository.ts'
@@ -66,6 +67,8 @@ export interface AcceptanceDiagnosticsSnapshot {
   readonly committedCandidates: number
   readonly queueWaitMsTotal: number
   readonly commitLatencyMsTotal: number
+  readonly responseLatencyMsTotal: number
+  readonly responseCount: number
   readonly saturationCount: number
   readonly failureCount: number
   readonly lastSafeSequence: number
@@ -96,13 +99,15 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   private committedCandidates = 0
   private queueWaitMsTotal = 0
   private commitLatencyMsTotal = 0
+  private responseLatencyMsTotal = 0
+  private responseCount = 0
   private saturationCount = 0
   private failureCount = 0
   private draining = false
 
   constructor({
     repository,
-    windowMs = 1_000,
+    windowMs = EVENT_ACCEPTANCE_WINDOW_MS,
     flushMaxEvents = EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS,
     pendingMaxEvents = EVENT_ACCEPTANCE_PENDING_MAX_EVENTS,
     schedule = (callback, delayMs) => setTimeout(callback, delayMs),
@@ -249,6 +254,8 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       committedCandidates: this.committedCandidates,
       queueWaitMsTotal: this.queueWaitMsTotal,
       commitLatencyMsTotal: this.commitLatencyMsTotal,
+      responseLatencyMsTotal: this.responseLatencyMsTotal,
+      responseCount: this.responseCount,
       saturationCount: this.saturationCount,
       failureCount: this.failureCount,
       lastSafeSequence: this.lastSafeSequence,
@@ -318,8 +325,14 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       .append(batch.map(({ candidate }) => candidate))
       .then(() => {
         succeeded = true
-        this.commitLatencyMsTotal += Date.now() - startedAt
+        const committedAt = Date.now()
+        this.commitLatencyMsTotal += committedAt - startedAt
         this.committedCandidates += batch.length
+        this.responseLatencyMsTotal += batch.reduce(
+          (total, state) => total + committedAt - state.reservedAt,
+          0,
+        )
+        this.responseCount += batch.length
         this.lastSafeSequence =
           batch[batch.length - 1]?.candidate.replaySequence ?? this.lastSafeSequence
         for (const state of batch) state.deferred.resolve()
