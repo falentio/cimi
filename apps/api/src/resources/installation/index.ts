@@ -1,6 +1,6 @@
 import type { AnalyticsDb, Db } from '@cimi/db'
 import { InMemoryAcceptanceJournalPort } from '@cimi/kernel'
-import type { AcceptanceJournalPort, LifecycleLock } from '@cimi/kernel'
+import type { AcceptanceJournalPort, AcceptanceQuiescencePort, LifecycleLock } from '@cimi/kernel'
 import { InstallationRepositoryDrizzle } from './repository.drizzle.ts'
 import { installationRouter } from './router.ts'
 import { InstallationService } from './service.ts'
@@ -28,6 +28,7 @@ export interface CreateInstallationDependencies {
   analytics: AnalyticsDb
   lock: LifecycleLock
   journal?: AcceptanceJournalPort | undefined
+  acceptance?: AcceptanceQuiescencePort | undefined
   dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
@@ -41,6 +42,7 @@ export function createInstallation({
   analytics,
   lock,
   journal,
+  acceptance,
   dataDirectoryReady,
   controlDatabasePath,
   dataDirectoryPath,
@@ -61,6 +63,7 @@ export function createInstallation({
     repository,
     lock,
     journal: journal ?? new InMemoryAcceptanceJournalPort(),
+    ...(acceptance === undefined ? {} : { acceptance }),
     dataDirectoryReady,
     ...(clock === undefined ? {} : { clock }),
     ...(ids === undefined ? {} : { ids }),

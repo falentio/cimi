@@ -137,7 +137,13 @@ export class BackupRestoreService {
       })
       return toPublicBackup(prepared)
     } catch (error) {
-      if (admissionStopped) await this.resumeAdmission(false)
+      if (admissionStopped) {
+        try {
+          await this.resumeAdmission(false)
+        } catch (resumeError) {
+          this.onError(resumeError)
+        }
+      }
       await this.failAfterAdmissionError(operationId, ownerToken, error)
       throw toCommandError(error)
     } finally {
@@ -190,8 +196,12 @@ export class BackupRestoreService {
       })
       return toPublicBackup(prepared)
     } catch (error) {
-      if (readsStopped) await this.resumeAdmission(true)
-      else if (admissionStopped) await this.resumeAdmission(false)
+      try {
+        if (readsStopped) await this.resumeAdmission(true)
+        else if (admissionStopped) await this.resumeAdmission(false)
+      } catch (resumeError) {
+        this.onError(resumeError)
+      }
       await this.failAfterAdmissionError(operationId, ownerToken, error)
       throw toCommandError(error)
     } finally {
@@ -301,8 +311,8 @@ export class BackupRestoreService {
     readonly onAdmissionStopped: () => void
     readonly onReadsStopped?: (() => void) | undefined
   }): Promise<BackupOperation> {
-    await this.acceptance.stopAdmission()
     input.onAdmissionStopped()
+    await this.acceptance.stopAdmission()
     const safeSequence = await this.acceptance.drain()
     let operation = await this.repository.advance({
       operationId: input.operation.id,
@@ -315,8 +325,8 @@ export class BackupRestoreService {
     })
     if (operation === undefined) throw new OwnershipLostError('Backup operation ownership was lost')
     if (input.restore) {
-      await this.reads.stopReads()
       input.onReadsStopped?.()
+      await this.reads.stopReads()
       await this.reads.drain()
     }
     return operation
@@ -334,9 +344,21 @@ export class BackupRestoreService {
       .catch((error) => this.onError(error))
       .finally(async () => {
         this.tasks.delete(task)
-        if (input.readsStopped) await this.reads.resumeReads()
-        if (input.admissionStopped) await this.acceptance.resumeAdmission()
-        await input.lease.release()
+        try {
+          if (input.readsStopped) await this.reads.resumeReads()
+        } catch (error) {
+          this.onError(error)
+        }
+        try {
+          if (input.admissionStopped) await this.acceptance.resumeAdmission()
+        } catch (error) {
+          this.onError(error)
+        }
+        try {
+          await input.lease.release()
+        } catch (error) {
+          this.onError(error)
+        }
       })
     this.tasks.add(task)
     void task.catch(() => undefined)

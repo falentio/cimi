@@ -262,4 +262,69 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
       repo.completeRecover({ siteId: 'ste_1', operationId: 'sop_other', completedAt }),
     ).resolves.toMatchObject({ status: 'conflict' })
   })
+
+  it('admits ingestion lookups only for an active site', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({ id: 'ste_1', status: 'active' })
+    await expect(repo.findByIngestionIdentifier('ing_1')).resolves.toMatchObject({
+      id: 'ste_1',
+      status: 'active',
+    })
+
+    await expect(
+      repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt }),
+    ).resolves.toEqual({ status: 'accepted', operationId: 'sop_1' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({
+      status: 'deleting',
+      currentOperationId: 'sop_1',
+    })
+    await expect(repo.findPendingLifecycleOperations()).resolves.toEqual([
+      { siteId: 'ste_1', operationId: 'sop_1', operationType: 'delete', status: 'pending' },
+    ])
+    await expect(repo.findByIngestionIdentifier('ing_1')).resolves.toBeUndefined()
+
+    await expect(
+      repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt }),
+    ).resolves.toEqual({ status: 'completed' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({
+      status: 'deleted',
+      recoveryDeadline: expect.any(String),
+      purgeAt: expect.any(String),
+    })
+    await expect(repo.findByIngestionIdentifier('ing_1')).resolves.toBeUndefined()
+
+    await expect(
+      repo.beginRecover({ siteId: 'ste_1', operationId: 'sop_2', requestedAt }),
+    ).resolves.toEqual({ status: 'accepted', operationId: 'sop_2' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({ status: 'recovering' })
+    await expect(repo.findByIngestionIdentifier('ing_1')).resolves.toBeUndefined()
+
+    await expect(
+      repo.completeRecover({ siteId: 'ste_1', operationId: 'sop_2', completedAt }),
+    ).resolves.toEqual({ status: 'completed' })
+    await expect(repo.findById('ste_1')).resolves.toMatchObject({ status: 'active' })
+    await expect(repo.findByIngestionIdentifier('ing_1')).resolves.toMatchObject({
+      id: 'ste_1',
+      status: 'active',
+    })
+  })
+
+  it('hides a purged site behind its tombstone from every lookup', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
+    await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
+    const deleted = await repo.findById('ste_1')
+    const purgeAt = new Date(deleted?.purgeAt as string)
+
+    await expect(
+      repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt }),
+    ).resolves.toEqual({ status: 'completed' })
+    expect(fixture.db.select().from(schema.TSiteTombstone).all()).toEqual([
+      expect.objectContaining({ siteId: 'ste_1', purgeOperationId: 'sop_purge_1' }),
+    ])
+    await expect(repo.findById('ste_1')).resolves.toBeUndefined()
+    await expect(repo.findByIngestionIdentifier('ing_1')).resolves.toBeUndefined()
+  })
 })

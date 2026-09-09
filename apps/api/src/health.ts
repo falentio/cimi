@@ -3,6 +3,7 @@ import { schema } from '@cimi/contract'
 import { validateBaseSchema } from '@cimi/db'
 import type { LifecycleAdmissionMode } from '@cimi/kernel'
 import type { CreateApiAppDependencies } from './index.ts'
+import type { AcceptanceDiagnosticsSnapshot } from './resources/event-ingestion/index.ts'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'recovering' | 'maintenance' | 'unavailable'
 export type StoreHealth = 'ready' | 'degraded' | 'rebuilding' | 'unavailable'
@@ -20,6 +21,7 @@ export interface HealthSnapshot {
   analyticsStore?: StoreHealth
   cleanupPending?: boolean
   admissionMode?: LifecycleAdmissionMode
+  ingestion?: AcceptanceDiagnosticsSnapshot | undefined
 }
 
 export interface HealthLifecycle {
@@ -126,6 +128,7 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   cleanupPending: boolean
   version: string
   checkedAt: string
+  ingestion?: AcceptanceDiagnosticsSnapshot | undefined
 }> {
   let controlDatabase = false
   try {
@@ -158,7 +161,7 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   const analyticsStore = analyticsDatabase ? (lifecycle.analyticsStore ?? 'ready') : 'unavailable'
   const cleanupPending = lifecycle.cleanupPending ?? false
 
-  return v.parse(schema.SHealth, {
+  const response = {
     status: resolveInstallationHealth({
       installationStatus:
         lifecycle.installationStatus ?? toInstallationStatus(lifecycle.status) ?? 'uninitialized',
@@ -171,7 +174,9 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
     cleanupPending,
     version: '0.0.1',
     checkedAt: new Date().toISOString(),
-  })
+    ...(lifecycle.ingestion === undefined ? {} : { ingestion: lifecycle.ingestion }),
+  }
+  return v.parse(schema.SHealth, response)
 }
 
 async function getLifecycleSnapshot(

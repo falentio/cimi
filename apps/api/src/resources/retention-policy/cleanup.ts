@@ -13,12 +13,14 @@ export interface RetentionCleanupPort {
   runDerived(input: {
     runId: string
     siteId: string
+    now: Date
     boundary: RetentionPolicyRepository.SiteRetentionBoundary
     checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult>
   runBackup(input: {
     runId: string
     siteId: string
+    now: Date
     boundary: RetentionPolicyRepository.SiteRetentionBoundary
     checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult>
@@ -35,7 +37,7 @@ export interface RetentionCleanupWorkerDependencies {
 export class RetentionCleanupWorker {
   private readonly repository: RetentionPolicyRepository
   private readonly lock: LifecycleLock
-  private readonly cleanup: RetentionCleanupPort | undefined
+  private cleanup: RetentionCleanupPort | undefined
   private readonly intervalMs: number
   private readonly onError: (error: unknown) => void
   private timer: ReturnType<typeof setInterval> | undefined
@@ -53,6 +55,10 @@ export class RetentionCleanupWorker {
     this.cleanup = cleanup
     this.intervalMs = intervalMs
     this.onError = onError ?? ((error) => console.error('Retention cleanup worker failed', error))
+  }
+
+  setCleanupPort(cleanup: RetentionCleanupPort | undefined): void {
+    this.cleanup = cleanup
   }
 
   runOnce(now = new Date()): Promise<void> {
@@ -94,8 +100,8 @@ export class RetentionCleanupWorker {
       try {
         const result =
           work.kind === 'derived'
-            ? await this.cleanup.runDerived(work)
-            : await this.cleanup.runBackup(work)
+            ? await this.cleanup.runDerived({ ...work, now })
+            : await this.cleanup.runBackup({ ...work, now })
         if (result.completed) {
           await this.repository.succeed({ runId: work.runId, kind: work.kind, now })
         } else {

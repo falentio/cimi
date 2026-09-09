@@ -27,6 +27,10 @@ export interface AdmissionInput {
   readonly collectionContext?: CollectionContext | undefined
 }
 
+type UrlSanitizationPolicy = Readonly<Pick<PolicyValues, 'captureQueryStrings'>> & {
+  readonly urlPolicy: Readonly<PolicyValues['urlPolicy']>
+}
+
 export interface SanitizedUrls {
   readonly path: string | null
   readonly referrer: string | null
@@ -119,16 +123,28 @@ export function sanitizeUrls({
   url,
   referrer,
   policy,
+  sameSiteHostname,
 }: {
   readonly path?: string | undefined
   readonly url: string | undefined
   readonly referrer: string | undefined
   readonly policy: PolicyValues
+  readonly sameSiteHostname?: string | undefined
 }): SanitizedUrls {
   return {
     path: sanitizeUrlValue(path ?? url, policy.urlPolicy.capturePath, policy, false),
-    referrer: sanitizeUrlValue(referrer, policy.urlPolicy.captureReferrer, policy, true),
+    referrer: sanitizeUrlValue(
+      referrer,
+      policy.urlPolicy.captureReferrer,
+      policy,
+      true,
+      sameSiteHostname,
+    ),
   }
+}
+
+export function sanitizeDestination(value: string, policy: UrlSanitizationPolicy): string | null {
+  return sanitizeUrlValue(value, true, policy, true)
 }
 
 export function sanitizeProperties(
@@ -203,7 +219,13 @@ function evaluateOutcome(policy: PolicyValues, input: AdmissionInput): Normalize
     identity: identified ? 'identified' : 'anonymous',
     bot: bot ? 'recorded_excluded' : 'included',
     identifiedUserId: identified ? (input.identifiedUserId ?? null) : null,
-    urls: sanitizeUrls({ path: input.path, url: input.url, referrer: input.referrer, policy }),
+    urls: sanitizeUrls({
+      path: input.path,
+      url: input.url,
+      referrer: input.referrer,
+      policy,
+      sameSiteHostname: input.hostname,
+    }),
     properties: sanitizeProperties(input.properties, policy),
   }
 }
@@ -247,8 +269,9 @@ function extractPath(value: string | undefined): string | undefined {
 function sanitizeUrlValue(
   value: string | undefined,
   capture: boolean,
-  policy: PolicyValues,
+  policy: UrlSanitizationPolicy,
   preserveOrigin: boolean,
+  sameSiteHostname?: string,
 ): string | null {
   if (!capture || value === undefined) return null
   const candidate = value.trim()
@@ -266,7 +289,10 @@ function sanitizeUrlValue(
     policy.captureQueryStrings && !policy.urlPolicy.stripQueryStrings
       ? sanitizeQuery(parsed.searchParams, policy.urlPolicy.stripSensitiveValues)
       : ''
-  const prefix = preserveOrigin && /^https?:\/\//i.test(candidate) ? parsed.origin : ''
+  const sameSite =
+    sameSiteHostname !== undefined &&
+    canonicalizeHostname(parsed.hostname) === canonicalizeHostname(sameSiteHostname)
+  const prefix = preserveOrigin && /^https?:\/\//i.test(candidate) && !sameSite ? parsed.origin : ''
   return limitSanitizedUrl(`${prefix}${parsed.pathname || '/'}${query}`)
 }
 

@@ -64,7 +64,7 @@ export function createRetentionPolicy({
     ...(cleanup === undefined ? {} : { cleanup }),
   }
   const worker = new RetentionCleanupWorker(workerDependencies)
-  return { service, router, worker }
+  return { repository, service, router, worker }
 }
 
 export type RetentionPolicyModule = ReturnType<typeof createRetentionPolicy>
