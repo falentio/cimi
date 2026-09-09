@@ -13,7 +13,7 @@ export const ANALYTICS_REQUIRED_TABLES = [
   'projection_gaps',
 ] as const
 
-export const ANALYTICS_PROJECTION_VERSION = 'v3'
+export const ANALYTICS_PROJECTION_VERSION = 'v1'
 
 export const ANALYTICS_MIGRATIONS: AnalyticsMigration[] = [
   {
@@ -126,27 +126,6 @@ export const ANALYTICS_MIGRATIONS: AnalyticsMigration[] = [
         ON event_properties (site_id, property_key);
       CREATE INDEX IF NOT EXISTS projection_gaps_site_status_idx
         ON projection_gaps (site_id, status, occurrence_from);
-    `,
-  },
-  {
-    version: 2,
-    name: 'event-identity-and-attribution',
-    sql: `
-      ALTER TABLE events ADD COLUMN anonymous_identity_id VARCHAR;
-      ALTER TABLE events ADD COLUMN bot_policy_outcome VARCHAR DEFAULT 'included';
-    `,
-  },
-  {
-    version: 3,
-    name: 'event-attribution',
-    sql: `
-      ALTER TABLE events ADD COLUMN utm_source VARCHAR;
-      ALTER TABLE events ADD COLUMN utm_medium VARCHAR;
-      ALTER TABLE events ADD COLUMN utm_campaign VARCHAR;
-      ALTER TABLE events ADD COLUMN device VARCHAR;
-      ALTER TABLE events ADD COLUMN browser VARCHAR;
-      ALTER TABLE events ADD COLUMN operating_system VARCHAR;
-      ALTER TABLE events ADD COLUMN country VARCHAR;
     `,
   },
 ]

@@ -9,27 +9,11 @@ export const SHealthStatus = v.picklist([
   'unavailable',
 ])
 export const SStoreHealth = v.picklist(['ready', 'degraded', 'rebuilding', 'unavailable'])
-export const SIngestionDiagnostics = v.strictObject({
-  queueDepth: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  activeBatchSize: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  pendingQueueSize: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  flushCount: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  committedCandidates: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  queueWaitMsTotal: v.pipe(v.number(), v.minValue(0)),
-  commitLatencyMsTotal: v.pipe(v.number(), v.minValue(0)),
-  responseLatencyMsTotal: v.pipe(v.number(), v.minValue(0)),
-  responseCount: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  saturationCount: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  failureCount: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  lastSafeSequence: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  walBytes: v.nullable(v.pipe(v.number(), v.minValue(0))),
-})
 const SSystemHealthFields = v.strictObject({
   status: SHealthStatus,
   controlStore: SStoreHealth,
   analyticsStore: SStoreHealth,
   cleanupPending: v.boolean(),
-  ingestion: v.optional(SIngestionDiagnostics),
   version: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
   checkedAt: SDateTime,
 })

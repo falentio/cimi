@@ -1,13 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api'
-import {
-  getNestedMapValue,
-  mergeEventAttribution,
-  nestedMapValues,
-  parseEventAttribution,
-  setNestedMapValue,
-} from '@cimi/utils'
 import type { Db } from '../client.ts'
 import {
   ANALYTICS_PROJECTION_VERSION,
@@ -27,7 +20,6 @@ export const ANALYTICS_DB_FILENAME = 'analytics.duckdb'
 export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
-  deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number>
   close(): Promise<void>
 }
 
@@ -121,13 +113,14 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           const projectedEvents = events
             .filter((event) => event.projectionState !== 'failed')
             .map((event) => projectEventIdentity(event, identities))
-          const sessions = new Map<string, Map<string, SessionRow>>()
-          const visitors = new Map<string, Map<string, VisitorRow>>()
+          const sessions = new Map<string, SessionRow>()
+          const visitors = new Map<string, VisitorRow>()
           for (const event of projectedEvents) {
             if (event.visitorId !== null) {
-              const visitor = getNestedMapValue(visitors, event.siteId, event.visitorId)
+              const visitorKey = `${event.siteId}\u0000${event.visitorId}`
+              const visitor = visitors.get(visitorKey)
               if (visitor === undefined) {
-                setNestedMapValue(visitors, event.siteId, event.visitorId, {
+                visitors.set(visitorKey, {
                   siteId: event.siteId,
                   visitorId: event.visitorId,
                   identityKind: event.identifiedUserId === null ? 'anonymous' : 'identified',
@@ -147,9 +140,10 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
             }
 
             if (event.analyticsSessionId !== null) {
-              const session = getNestedMapValue(sessions, event.siteId, event.analyticsSessionId)
+              const sessionKey = `${event.siteId}\u0000${event.analyticsSessionId}`
+              const session = sessions.get(sessionKey)
               if (session === undefined) {
-                setNestedMapValue(sessions, event.siteId, event.analyticsSessionId, {
+                sessions.set(sessionKey, {
                   siteId: event.siteId,
                   sessionId: event.analyticsSessionId,
                   visitorId: event.visitorId,
@@ -158,31 +152,15 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
                   endedAt: event.occurrenceTime,
                   entryPage: event.pagePath,
                   referrer: event.referrer,
-                  utmSource: event.utmSource,
-                  utmMedium: event.utmMedium,
-                  utmCampaign: event.utmCampaign,
-                  device: event.deviceType,
-                  browser: event.browserType,
-                  operatingSystem: event.operatingSystem,
-                  country: event.country,
                 })
               } else {
-                const earlier = event.occurrenceTime < session.startedAt
                 session.startedAt = Math.min(session.startedAt, event.occurrenceTime)
                 session.endedAt = Math.max(session.endedAt, event.occurrenceTime)
                 if (session.visitorId === null) session.visitorId = event.visitorId
                 if (session.identifiedUserId === null)
                   session.identifiedUserId = event.identifiedUserId
-                if (earlier || session.entryPage === null) session.entryPage = event.pagePath
-                if (earlier || session.referrer === null) session.referrer = event.referrer
-                if (earlier || session.utmSource === null) session.utmSource = event.utmSource
-                if (earlier || session.utmMedium === null) session.utmMedium = event.utmMedium
-                if (earlier || session.utmCampaign === null) session.utmCampaign = event.utmCampaign
-                if (earlier || session.device === null) session.device = event.deviceType
-                if (earlier || session.browser === null) session.browser = event.browserType
-                if (earlier || session.operatingSystem === null)
-                  session.operatingSystem = event.operatingSystem
-                if (earlier || session.country === null) session.country = event.country
+                if (session.entryPage === null) session.entryPage = event.pagePath
+                if (session.referrer === null) session.referrer = event.referrer
               }
             }
           }
@@ -201,12 +179,10 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               await connection.run(
                 `INSERT INTO events (
                event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, late,
-                 visitor_id, anonymous_identity_id, identified_user_id, analytics_session_id,
-                 bot_policy_outcome, utm_source, utm_medium, utm_campaign, device, browser,
-                 operating_system, country, page_path, referrer, name, destination, value, unit,
-                 code, message, properties_json, policy_revision_id,
-                 replay_sequence, payload_fingerprint, projected_at
-              ) VALUES (?, ?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, CAST(? AS TIMESTAMP))`,
+               visitor_id, identified_user_id, analytics_session_id, page_path, referrer, name,
+               destination, value, unit, code, message, properties_json, policy_revision_id,
+               replay_sequence, payload_fingerprint, projected_at
+             ) VALUES (?, ?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, CAST(? AS TIMESTAMP))`,
                 [
                   event.eventPk,
                   event.siteId,
@@ -216,17 +192,8 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
                   timestamp(event.receiptTime),
                   Boolean(event.late),
                   event.visitorId,
-                  event.anonymousIdentityId,
                   event.identifiedUserId,
                   event.analyticsSessionId,
-                  event.botPolicyOutcome,
-                  event.utmSource,
-                  event.utmMedium,
-                  event.utmCampaign,
-                  event.deviceType,
-                  event.browserType,
-                  event.operatingSystem,
-                  event.country,
                   event.pagePath,
                   event.referrer,
                   event.name,
@@ -244,7 +211,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               )
             }
 
-            for (const visitor of nestedMapValues(visitors)) {
+            for (const visitor of visitors.values()) {
               await connection.run(
                 `INSERT INTO visitors (site_id, visitor_id, identity_kind, first_seen_at, last_seen_at, profile_id)
              VALUES (?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?)`,
@@ -259,7 +226,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               )
             }
 
-            for (const session of nestedMapValues(sessions)) {
+            for (const session of sessions.values()) {
               await connection.run(
                 `INSERT INTO analytics_sessions (
                site_id, session_id, visitor_id, identified_user_id, started_at, ended_at,
@@ -275,13 +242,13 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
                   timestamp(session.endedAt),
                   session.entryPage,
                   session.referrer,
-                  session.utmSource,
-                  session.utmMedium,
-                  session.utmCampaign,
-                  session.device,
-                  session.browser,
-                  session.operatingSystem,
-                  session.country,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
                   null,
                   null,
                 ],
@@ -358,189 +325,6 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
         }
       })
     },
-    async deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number> {
-      if (closed || closing) throw new Error('Analytics database is closed')
-      if (unavailable) throw new Error('Analytics database is unavailable')
-      if (rebuilding) throw new Error('Analytics database rebuild is already running')
-      return enqueue(async () => {
-        const cutoff = timestamp(input.occurrenceCutoff.getTime())
-        const countReader = await connection.runAndReadAll(
-          `SELECT count(*) AS count FROM events
-           WHERE site_id = ? AND occurrence_time < CAST(? AS TIMESTAMP)`,
-          [input.siteId, cutoff],
-        )
-        const count = Number(countReader.getRowObjects()[0]?.['count'] ?? 0)
-        await connection.run('BEGIN TRANSACTION')
-        try {
-          await connection.run(
-            `DELETE FROM event_properties
-             WHERE site_id = ? AND event_id IN (
-               SELECT event_id FROM events
-               WHERE site_id = ? AND occurrence_time < CAST(? AS TIMESTAMP)
-             )`,
-            [input.siteId, input.siteId, cutoff],
-          )
-          await connection.run(
-            `DELETE FROM events
-             WHERE site_id = ? AND occurrence_time < CAST(? AS TIMESTAMP)`,
-            [input.siteId, cutoff],
-          )
-          await connection.run(
-            `UPDATE analytics_sessions AS session
-             SET visitor_id = (
-                   SELECT event.visitor_id FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 identified_user_id = (
-                   SELECT event.identified_user_id FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 started_at = (
-                   SELECT min(event.occurrence_time) FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                 ),
-                 ended_at = (
-                   SELECT max(event.occurrence_time) FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                 ),
-                 entry_page = (
-                   SELECT event.page_path FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 referrer = (
-                   SELECT event.referrer FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 utm_source = (
-                   SELECT event.utm_source FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 utm_medium = (
-                   SELECT event.utm_medium FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 utm_campaign = (
-                   SELECT event.utm_campaign FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 device = (
-                   SELECT event.device FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 browser = (
-                   SELECT event.browser FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 operating_system = (
-                   SELECT event.operating_system FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 ),
-                 country = (
-                   SELECT event.country FROM events event
-                   WHERE event.site_id = session.site_id
-                     AND event.analytics_session_id = session.session_id
-                   ORDER BY event.occurrence_time, event.event_id LIMIT 1
-                 )
-             WHERE session.site_id = ?
-               AND EXISTS (
-                 SELECT 1 FROM events event
-                 WHERE event.site_id = session.site_id
-                   AND event.analytics_session_id = session.session_id
-               )`,
-            [input.siteId],
-          )
-          await connection.run(
-            `UPDATE visitors AS visitor
-             SET first_seen_at = (
-                   SELECT min(event.occurrence_time) FROM events event
-                   WHERE event.site_id = visitor.site_id AND event.visitor_id = visitor.visitor_id
-                 ),
-                 last_seen_at = (
-                   SELECT max(event.occurrence_time) FROM events event
-                   WHERE event.site_id = visitor.site_id AND event.visitor_id = visitor.visitor_id
-                 ),
-                 identity_kind = CASE WHEN EXISTS (
-                   SELECT 1 FROM events event
-                   WHERE event.site_id = visitor.site_id
-                     AND event.visitor_id = visitor.visitor_id
-                     AND event.identified_user_id IS NOT NULL
-                 ) THEN 'identified' ELSE 'anonymous' END
-             WHERE visitor.site_id = ?
-               AND EXISTS (
-                 SELECT 1 FROM events event
-                 WHERE event.site_id = visitor.site_id AND event.visitor_id = visitor.visitor_id
-               )`,
-            [input.siteId],
-          )
-          await connection.run(
-            `DELETE FROM analytics_sessions
-             WHERE site_id = ? AND NOT EXISTS (
-               SELECT 1 FROM events
-               WHERE events.site_id = analytics_sessions.site_id
-                 AND events.analytics_session_id = analytics_sessions.session_id
-             )`,
-            [input.siteId],
-          )
-          await connection.run(
-            `DELETE FROM visitors
-             WHERE site_id = ? AND NOT EXISTS (
-               SELECT 1 FROM events
-               WHERE events.site_id = visitors.site_id
-                 AND events.visitor_id = visitors.visitor_id
-             )`,
-            [input.siteId],
-          )
-          await connection.run(
-            `UPDATE projection_checkpoints AS checkpoint
-             SET occurrence_covered_from = (
-                   SELECT min(event.occurrence_time) FROM events event
-                   WHERE event.site_id = checkpoint.site_id
-                 ),
-                 occurrence_covered_through = (
-                   SELECT max(event.occurrence_time) FROM events event
-                   WHERE event.site_id = checkpoint.site_id
-                 ),
-                 effective_retention_from = CAST(? AS TIMESTAMP),
-                 statistics_refreshed_at = current_timestamp,
-                 updated_at = current_timestamp
-             WHERE checkpoint.site_id = ?`,
-            [cutoff, input.siteId],
-          )
-          await connection.run(
-            `DELETE FROM projection_gaps
-             WHERE site_id = ? AND occurrence_to IS NOT NULL AND occurrence_to < CAST(? AS TIMESTAMP)`,
-            [input.siteId, cutoff],
-          )
-          await connection.run('COMMIT')
-        } catch (error) {
-          await connection.run('ROLLBACK')
-          throw error
-        }
-        return count
-      })
-    },
     async close(): Promise<void> {
       if (closed || closing) return
       closing = true
@@ -567,10 +351,8 @@ interface EventRow {
   receiptTime: number
   late: number
   visitorId: string | null
-  anonymousIdentityId: string | null
   identifiedUserId: string | null
   analyticsSessionId: string | null
-  botPolicyOutcome: string
   policyRevisionId: string
   replaySequence: number
   payloadFingerprint: string
@@ -584,14 +366,6 @@ interface EventRow {
   unit: string | null
   code: string | null
   message: string | null
-  utmSource: string | null
-  utmMedium: string | null
-  utmCampaign: string | null
-  deviceType: string | null
-  browserType: string | null
-  operatingSystem: string | null
-  country: string | null
-  canonicalPayloadJson: string | null
 }
 
 interface PropertyRow {
@@ -679,41 +453,26 @@ interface SessionRow {
   endedAt: number
   entryPage: string | null
   referrer: string | null
-  utmSource: string | null
-  utmMedium: string | null
-  utmCampaign: string | null
-  device: string | null
-  browser: string | null
-  operatingSystem: string | null
-  country: string | null
 }
 
 function readEvents(db: Db): EventRow[] {
-  const rows = db.$client
+  return db.$client
     .prepare(
       `SELECT
          ae.event_pk AS eventPk, ae.site_id AS siteId, ae.event_id AS eventId,
-          ae.event_kind AS eventKind, ae.occurrence_time AS occurrenceTime,
-          ae.receipt_time AS receiptTime, ae.late AS late, ae.visitor_id AS visitorId,
-          ae.anonymous_identity_id AS anonymousIdentityId,
-           ae.identified_user_id AS identifiedUserId, ae.analytics_session_id AS analyticsSessionId,
-           ae.bot_policy_outcome AS botPolicyOutcome,
-           ae.utm_source AS utmSource, ae.utm_medium AS utmMedium,
-           ae.utm_campaign AS utmCampaign, ae.device_type AS deviceType,
-           ae.browser AS browserType, ae.operating_system AS operatingSystem,
-           ae.country AS country,
-          ae.policy_revision_id AS policyRevisionId, ae.replay_sequence AS replaySequence,
+         ae.event_kind AS eventKind, ae.occurrence_time AS occurrenceTime,
+         ae.receipt_time AS receiptTime, ae.late AS late, ae.visitor_id AS visitorId,
+         ae.identified_user_id AS identifiedUserId, ae.analytics_session_id AS analyticsSessionId,
+         ae.policy_revision_id AS policyRevisionId, ae.replay_sequence AS replaySequence,
          ae.payload_fingerprint AS payloadFingerprint, ae.projection_state AS projectionState,
          ae.projected_at AS projectedAt,
          epv.page_path AS pagePath, epv.referrer AS referrer,
          COALESCE(ec.name, eo.name, ep.name, ee.name) AS name,
          eo.destination AS destination, ep.value AS value, ep.unit AS unit,
-          ee.code AS code, ee.message AS message,
-          payload.canonical_payload_json AS canonicalPayloadJson
+         ee.code AS code, ee.message AS message
         FROM accepted_event ae
         JOIN site s ON s.id = ae.site_id AND s.status = 'active'
-         LEFT JOIN event_page_view epv ON epv.event_pk = ae.event_pk
-         LEFT JOIN event_payload payload ON payload.event_pk = ae.event_pk
+        LEFT JOIN event_page_view epv ON epv.event_pk = ae.event_pk
        LEFT JOIN event_custom ec ON ec.event_pk = ae.event_pk
        LEFT JOIN event_outbound eo ON eo.event_pk = ae.event_pk
          LEFT JOIN event_performance ep ON ep.event_pk = ae.event_pk
@@ -724,30 +483,6 @@ function readEvents(db: Db): EventRow[] {
         ORDER BY ae.replay_sequence`,
     )
     .all() as EventRow[]
-  return rows.map((row) => {
-    const attribution = mergeEventAttribution(
-      {
-        utmSource: row.utmSource,
-        utmMedium: row.utmMedium,
-        utmCampaign: row.utmCampaign,
-        deviceType: row.deviceType,
-        browser: row.browserType,
-        os: row.operatingSystem,
-        country: row.country,
-      },
-      parseEventAttribution(row.canonicalPayloadJson),
-    )
-    return {
-      ...row,
-      utmSource: attribution.utmSource,
-      utmMedium: attribution.utmMedium,
-      utmCampaign: attribution.utmCampaign,
-      deviceType: attribution.deviceType,
-      browserType: attribution.browser,
-      operatingSystem: attribution.os,
-      country: attribution.country,
-    }
-  })
 }
 
 function readProperties(db: Db): PropertyRow[] {
@@ -842,7 +577,7 @@ function projectEventIdentity(
   const links = identities.links.filter(
     (link) =>
       link.siteId === event.siteId &&
-      link.anonymousIdentityId === event.anonymousIdentityId &&
+      link.anonymousIdentityId === event.visitorId &&
       (link.analyticsSessionId === null || link.analyticsSessionId === event.analyticsSessionId) &&
       link.effectiveFrom <= event.occurrenceTime &&
       (link.unlinkedAt === null || event.occurrenceTime < link.unlinkedAt),

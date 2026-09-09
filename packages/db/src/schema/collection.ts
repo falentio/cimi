@@ -72,24 +72,12 @@ export const TAcceptedEvent = sqliteTable(
     eventKind: text('event_kind', {
       enum: ['page_view', 'custom_event', 'outbound', 'performance', 'error'],
     }).notNull(),
-    anonymousIdentityId: text('anonymous_identity_id'),
-    pageViewId: text('page_view_id'),
     occurrenceTime: integer('occurrence_time', { mode: 'timestamp_ms' }).notNull(),
     receiptTime: integer('receipt_time', { mode: 'timestamp_ms' }).notNull(),
     late: integer('late', { mode: 'boolean' }).notNull().default(false),
     visitorId: text('visitor_id'),
     identifiedUserId: text('identified_user_id'),
     analyticsSessionId: text('analytics_session_id'),
-    botPolicyOutcome: text('bot_policy_outcome', { enum: ['included', 'recorded_excluded'] })
-      .notNull()
-      .default('included'),
-    utmSource: text('utm_source'),
-    utmMedium: text('utm_medium'),
-    utmCampaign: text('utm_campaign'),
-    deviceType: text('device_type'),
-    browser: text('browser'),
-    operatingSystem: text('operating_system'),
-    country: text('country'),
     policyRevisionId: text('policy_revision_id')
       .notNull()
       .references(() => TCollectionPolicyRevision.id, { onDelete: 'restrict' }),
@@ -103,10 +91,6 @@ export const TAcceptedEvent = sqliteTable(
   },
   (table) => [
     uniqueIndex('accepted_event_site_event_unique').on(table.siteId, table.eventId),
-    index('accepted_event_anonymous_identity_idx').on(table.siteId, table.anonymousIdentityId),
-    uniqueIndex('accepted_event_page_view_unique')
-      .on(table.siteId, table.pageViewId)
-      .where(sql`${table.pageViewId} IS NOT NULL`),
     index('accepted_event_site_occurrence_idx').on(table.siteId, table.occurrenceTime),
     index('accepted_event_site_receipt_idx').on(table.siteId, table.receiptTime),
     index('accepted_event_identity_idx').on(table.siteId, table.visitorId, table.identifiedUserId),

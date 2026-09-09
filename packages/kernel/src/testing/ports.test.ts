@@ -48,22 +48,6 @@ describe('in-memory kernel ports', () => {
     lease?.release()
   })
 
-  it('shares ingestion leases while excluding lifecycle operations', () => {
-    const lock = new InMemoryLifecycleLock()
-
-    const first = lock.acquire('ingestion')
-    const second = lock.acquire('ingestion')
-
-    expect(first).toBeDefined()
-    expect(second).toBeDefined()
-    expect(lock.acquire('backup')).toBeUndefined()
-
-    first?.release()
-    expect(lock.isLocked()).toBe(true)
-    second?.release()
-    expect(lock.isLocked()).toBe(false)
-  })
-
   it('normalizes the issue alias purge to the persisted site_purge kind', () => {
     expect(normalizeLifecycleOperationKind('purge')).toBe('site_purge')
     expect(normalizeLifecycleOperationKind('site_purge')).toBe('site_purge')
