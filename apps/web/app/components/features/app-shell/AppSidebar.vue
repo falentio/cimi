@@ -12,16 +12,15 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import NavMain from './NavMain.vue'
 import NavProjects from './NavProjects.vue'
 import NavSecondary from './NavSecondary.vue'
 import NavUser from './NavUser.vue'
+import OrganizationSwitcher from './OrganizationSwitcher.vue'
 
 const props = withDefaults(defineProps<SidebarProps>(), {
+  collapsible: 'icon',
   variant: 'inset',
 })
 
@@ -104,23 +103,7 @@ const data = {
 <template>
   <Sidebar v-bind="props">
     <SidebarHeader>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg" as-child>
-            <NuxtLink to="/app">
-              <span
-                class="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg"
-              >
-                <span class="text-sm font-semibold">C</span>
-              </span>
-              <span class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-medium">Cimi</span>
-                <span class="truncate text-xs">Workspace</span>
-              </span>
-            </NuxtLink>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      <OrganizationSwitcher />
     </SidebarHeader>
     <SidebarContent>
       <NavMain :items="data.navMain" />
