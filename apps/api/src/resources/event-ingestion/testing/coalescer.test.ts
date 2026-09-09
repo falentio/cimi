@@ -168,6 +168,7 @@ describe('AcceptanceCoalescer', () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
     const appendResolvers: Array<(outcomes: readonly AppendOutcome[]) => void> = []
+    let now = new Date('2026-09-05T00:00:00.000Z')
     acceptance.append.mockImplementation(
       (candidates) =>
         new Promise<readonly AppendOutcome[]>((resolve) => {
@@ -187,6 +188,7 @@ describe('AcceptanceCoalescer', () => {
         schedules.push({ callback, delayMs })
         return token
       },
+      clock: () => now,
     })
 
     await coalescer.reserveMany([candidate('event-1')])
@@ -195,8 +197,8 @@ describe('AcceptanceCoalescer', () => {
     await coalescer.reserveMany([candidate('event-3')])
     expect(schedules).toHaveLength(2)
     expect(appendResolvers).toHaveLength(1)
+    now = new Date(now.getTime() + 1)
     appendResolvers[0]?.([])
-    await new Promise((resolve) => setTimeout(resolve, 10))
     await flushing
     expect(schedules).toHaveLength(3)
     const resumed = schedules[2]
