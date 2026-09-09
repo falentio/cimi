@@ -19,13 +19,14 @@ import {
   AcceptanceCoalescer,
   AcceptanceQueueSaturatedError,
   AcceptanceReservationConflictError,
+  acceptanceReservationKey,
   type ReservableCandidate,
   type Reservation,
 } from './coalescer.ts'
 import { isParsedPayloadOversized } from './payload-size.ts'
 import { InMemoryIngestionProtection } from './protection.ts'
 import { deriveAttribution, type DerivedAttribution } from './attribution.ts'
-import { fingerprintEvent } from './fingerprint.ts'
+import { fingerprintAcceptedEvent } from './fingerprint.ts'
 import type {
   AcceptanceRepository,
   AcceptedEventRecord,
@@ -54,6 +55,7 @@ export interface IngestionRequestContext {
   readonly sourceIp?: string | undefined
   readonly isBot?: boolean | undefined
   readonly userAgent?: string | undefined
+  readonly country?: string | undefined
 }
 
 export interface IngestionProtection {
@@ -72,7 +74,20 @@ export interface IdentitySessionResolver {
     readonly receiptTime: Date
     readonly collectionContext: EventInput['collectionContext']
     readonly identifiedUserId: string | null
+    readonly anonymousIdentityId: string | null
   }): Promise<IdentitySessionAssignment>
+  commit?(input: {
+    readonly siteId: string
+    readonly event: NormalizedEvent
+    readonly receiptTime: Date
+    readonly assignment: IdentitySessionAssignment
+  }): Promise<void> | void
+  rollback?(input: {
+    readonly siteId: string
+    readonly event: NormalizedEvent
+    readonly receiptTime: Date
+    readonly assignment: IdentitySessionAssignment
+  }): Promise<void> | void
 }
 
 export interface IdentitySessionAssignment {
@@ -80,6 +95,7 @@ export interface IdentitySessionAssignment {
   readonly identifiedUserId: string | null
   readonly analyticsSessionId: string | null
   readonly attribution?: DerivedAttribution | undefined
+  readonly sessionStartedAt?: string | undefined
 }
 
 interface PreparedEvent {
@@ -89,6 +105,11 @@ interface PreparedEvent {
 interface PendingBatchResult {
   readonly index: number
   readonly candidate: ReservableCandidate
+}
+
+interface AdmittedReservation {
+  readonly reservation: SuccessfulReservation
+  readonly candidate?: ReservableCandidate | undefined
 }
 
 interface BatchAdmission {
@@ -151,7 +172,16 @@ export class EventIngestionService {
     try {
       await admission.reservation.completion
     } catch (error) {
+      if (admission.candidate !== undefined) await this.rollbackIdentity(admission.candidate)
       throw acceptanceError(error)
+    }
+    if (admission.candidate !== undefined) {
+      try {
+        await this.commitIdentity(admission.candidate)
+      } catch (error) {
+        await this.rollbackIdentity(admission.candidate)
+        throw acceptanceError(error)
+      }
     }
     return {
       status: admission.reservation.status,
@@ -163,17 +193,25 @@ export class EventIngestionService {
   private async collectEventAdmitted(
     input: CollectEventInput,
     request: IngestionRequestContext,
-  ): Promise<
-    { readonly output: CollectEventOutput } | { readonly reservation: SuccessfulReservation }
-  > {
+  ): Promise<{ readonly output: CollectEventOutput } | AdmittedReservation> {
     const site = await this.resolveSite(input.ingestionIdentifier)
     await this.consumeProtection(site.id, request.sourceIp, 1)
     const durable = await this.acceptanceRecord(site.id, input.eventId)
-    const fingerprint = fingerprintEvent(input)
+    const fingerprint = fingerprintAcceptedEvent(input)
     if (durable !== undefined) {
-      return { output: this.existingResult(input.eventId, durable, fingerprint) }
+      return { output: this.existingResult(input.eventId, durable, fingerprint, false) }
     }
-    const pending = this.coalescer.pendingReservation(site.id, input.eventId, fingerprint)
+    if (input.kind === 'page_view') {
+      const pageView = await this.pageViewRecord(site.id, input.pageViewId ?? input.eventId)
+      if (pageView !== undefined) {
+        return { output: this.existingResult(input.eventId, pageView, fingerprint, false) }
+      }
+    }
+    const pending = this.coalescer.pendingReservation(
+      site.id,
+      acceptanceReservationKey(input),
+      fingerprint,
+    )
     if (pending !== undefined) {
       if (pending.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
       return { reservation: pending }
@@ -190,10 +228,20 @@ export class EventIngestionService {
       if (isPolicyRejection(error)) throw new ORPCError('FORBIDDEN', { status: 403 })
       throw error
     }
-    const [reservation] = await this.reserve([prepared.candidate])
+    let reservationList: readonly Reservation[]
+    try {
+      reservationList = await this.reserve([prepared.candidate])
+    } catch (error) {
+      await this.rollbackIdentity(prepared.candidate)
+      throw error
+    }
+    const [reservation] = reservationList
     if (reservation === undefined) throw new Error('Acceptance reservation disappeared')
-    if (reservation.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
-    return { reservation }
+    if (reservation.status === 'conflict') {
+      await this.rollbackIdentity(prepared.candidate)
+      throw new ORPCError('CONFLICT', { status: 409 })
+    }
+    return { reservation, candidate: prepared.candidate }
   }
 
   async collectEvents(
@@ -232,84 +280,107 @@ export class EventIngestionService {
       { readonly fingerprint: string; readonly candidate: ReservableCandidate }
     >()
 
-    for (const [index, rawEvent] of input.events.entries()) {
-      const eventInput = withBatchContext(rawEvent, input)
-      const parsed = safeParse(SEvent, eventInput)
-      if (!parsed.success) {
-        results[index] = {
-          status: 'itemError',
-          eventId: validEventId(rawEvent),
-          code: isParsedPayloadOversized(rawEvent) ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST',
-        }
-        continue
-      }
-
-      const event = parsed.output
-      if (event.ingestionIdentifier !== input.ingestionIdentifier) {
-        throw new ORPCError('BAD_REQUEST')
-      }
-      const fingerprint = fingerprintEvent(event)
-      const prepared = preparedByEventId.get(event.eventId)
-      if (prepared !== undefined) {
-        if (prepared.fingerprint !== fingerprint) {
-          results[index] = { status: 'itemError', eventId: event.eventId, code: 'CONFLICT' }
-        } else {
-          candidates.push({ index, candidate: prepared.candidate })
-        }
-        continue
-      }
-      const durable = await this.acceptanceRecord(site.id, event.eventId)
-      if (durable !== undefined) {
-        results[index] = this.existingBatchResult(event.eventId, durable, fingerprint)
-        continue
-      }
-      const pending = this.coalescer.pendingReservation(site.id, event.eventId, fingerprint)
-      if (pending !== undefined) {
-        if (pending.status === 'conflict') {
-          results[index] = { status: 'itemError', eventId: event.eventId, code: 'CONFLICT' }
-        } else {
-          waits.push(
-            pending.completion.then(() => {
-              results[index] = {
-                status: 'duplicate',
-                eventId: event.eventId,
-                receiptTime: pending.receiptTime,
-              }
-            }),
-          )
-        }
-        continue
-      }
-
-      try {
-        const prepared = await this.prepare(event, site, request)
-        candidates.push({ index, candidate: prepared.candidate })
-        preparedByEventId.set(event.eventId, {
-          fingerprint,
-          candidate: prepared.candidate,
-        })
-      } catch (error) {
-        if (isPolicyRejection(error)) {
-          results[index] = { status: 'rejected', eventId: event.eventId, reason: 'policy' }
-          continue
-        }
-        if (error instanceof ORPCError && error.code === 'BAD_REQUEST') {
+    try {
+      for (const [index, rawEvent] of input.events.entries()) {
+        const eventInput = withBatchContext(rawEvent, input)
+        const parsed = safeParse(SEvent, eventInput)
+        if (!parsed.success) {
           results[index] = {
             status: 'itemError',
-            eventId: event.eventId,
-            code: 'BAD_REQUEST',
+            eventId: validEventId(rawEvent),
+            code: isParsedPayloadOversized(rawEvent) ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST',
           }
           continue
         }
-        throw error
+
+        const event = parsed.output
+        if (event.ingestionIdentifier !== input.ingestionIdentifier) {
+          throw new ORPCError('BAD_REQUEST')
+        }
+        const fingerprint = fingerprintAcceptedEvent(event)
+        const prepared = preparedByEventId.get(event.eventId)
+        if (prepared !== undefined) {
+          if (prepared.fingerprint !== fingerprint) {
+            results[index] = { status: 'itemError', eventId: event.eventId, code: 'CONFLICT' }
+          } else {
+            candidates.push({ index, candidate: prepared.candidate })
+          }
+          continue
+        }
+        const durable = await this.acceptanceRecord(site.id, event.eventId)
+        if (durable !== undefined) {
+          results[index] = this.existingResult(event.eventId, durable, fingerprint, true)
+          continue
+        }
+        if (event.kind === 'page_view') {
+          const pageView = await this.pageViewRecord(site.id, event.pageViewId ?? event.eventId)
+          if (pageView !== undefined) {
+            results[index] = this.existingResult(event.eventId, pageView, fingerprint, true)
+            continue
+          }
+        }
+        const pending = this.coalescer.pendingReservation(
+          site.id,
+          acceptanceReservationKey(event),
+          fingerprint,
+        )
+        if (pending !== undefined) {
+          if (pending.status === 'conflict') {
+            results[index] = { status: 'itemError', eventId: event.eventId, code: 'CONFLICT' }
+          } else {
+            waits.push(
+              pending.completion.then(() => {
+                results[index] = {
+                  status: 'duplicate',
+                  eventId: event.eventId,
+                  receiptTime: pending.receiptTime,
+                }
+              }),
+            )
+          }
+          continue
+        }
+
+        try {
+          const prepared = await this.prepare(event, site, request)
+          candidates.push({ index, candidate: prepared.candidate })
+          preparedByEventId.set(event.eventId, {
+            fingerprint,
+            candidate: prepared.candidate,
+          })
+        } catch (error) {
+          if (isPolicyRejection(error)) {
+            results[index] = { status: 'rejected', eventId: event.eventId, reason: 'policy' }
+            continue
+          }
+          if (error instanceof ORPCError && error.code === 'BAD_REQUEST') {
+            results[index] = {
+              status: 'itemError',
+              eventId: event.eventId,
+              code: 'BAD_REQUEST',
+            }
+            continue
+          }
+          throw error
+        }
       }
+    } catch (error) {
+      await this.rollbackBatchCandidates(candidates)
+      throw error
     }
 
-    const reservations = await this.reserve(candidates.map(({ candidate }) => candidate))
+    let reservations: readonly Reservation[]
+    try {
+      reservations = await this.reserve(candidates.map(({ candidate }) => candidate))
+    } catch (error) {
+      await this.rollbackBatchCandidates(candidates)
+      throw error
+    }
     for (const [offset, reservation] of reservations.entries()) {
       const pending = candidates[offset]
       if (pending === undefined) throw new Error('Acceptance result count mismatch')
       if (reservation.status === 'conflict') {
+        await this.rollbackIdentity(pending.candidate)
         results[pending.index] = {
           status: 'itemError',
           eventId: pending.candidate.event.eventId,
@@ -318,13 +389,25 @@ export class EventIngestionService {
         continue
       }
       waits.push(
-        reservation.completion.then(() => {
-          results[pending.index] = {
-            status: reservation.status,
-            eventId: pending.candidate.event.eventId,
-            receiptTime: reservation.receiptTime,
-          }
-        }),
+        reservation.completion.then(
+          async () => {
+            try {
+              await this.commitIdentity(pending.candidate)
+              results[pending.index] = {
+                status: reservation.status,
+                eventId: pending.candidate.event.eventId,
+                receiptTime: reservation.receiptTime,
+              }
+            } catch (error) {
+              await this.rollbackIdentity(pending.candidate)
+              throw error
+            }
+          },
+          async (error: unknown) => {
+            await this.rollbackIdentity(pending.candidate)
+            throw error
+          },
+        ),
       )
     }
     return { results, waits }
@@ -344,9 +427,21 @@ export class EventIngestionService {
     return site
   }
 
+  private async rollbackBatchCandidates(candidates: readonly PendingBatchResult[]): Promise<void> {
+    await Promise.all(candidates.map(({ candidate }) => this.rollbackIdentity(candidate)))
+  }
+
   private async acceptanceRecord(siteId: string, eventId: string) {
     try {
       return await this.acceptance.findByEventId(siteId, eventId)
+    } catch (error) {
+      throw acceptanceError(error)
+    }
+  }
+
+  private async pageViewRecord(siteId: string, pageViewId: string) {
+    try {
+      return await this.acceptance.findByPageViewId(siteId, pageViewId)
     } catch (error) {
       throw acceptanceError(error)
     }
@@ -363,6 +458,7 @@ export class EventIngestionService {
       siteId: site.id,
       hostname: site.hostname,
       path: input.pagePath,
+      country: request.country,
       ip: request.sourceIp,
       isBot: request.isBot,
       referrer: input.referrer,
@@ -391,22 +487,27 @@ export class EventIngestionService {
         : undefined
     if (input.kind === 'outbound' && destination === null) throw new ORPCError('BAD_REQUEST')
 
-    const perEventAttribution = deriveAttribution(input, request.userAgent)
+    const perEventAttribution = deriveAttribution(input, request.userAgent, request.country)
     const normalizedDraft = normalizeEvent(
       input,
       decision.outcome,
       occurrence.toISOString(),
       destination,
       decision.outcome.identifiedUserId,
+      decision.outcome.bot === 'recorded_excluded' ? null : (input.anonymousIdentityId ?? null),
       perEventAttribution,
     )
-    const identity = await this.resolveIdentity({
-      siteId: site.id,
-      event: normalizedDraft,
-      receiptTime: receipt,
-      collectionContext: input.collectionContext,
-      identifiedUserId: decision.outcome.identifiedUserId,
-    })
+    const identity =
+      decision.outcome.bot === 'recorded_excluded'
+        ? { visitorId: null, identifiedUserId: null, analyticsSessionId: null }
+        : await this.resolveIdentity({
+            siteId: site.id,
+            event: normalizedDraft,
+            receiptTime: receipt,
+            collectionContext: input.collectionContext,
+            identifiedUserId: decision.outcome.identifiedUserId,
+            anonymousIdentityId: normalizedDraft.anonymousIdentityId,
+          })
 
     const eventAttribution = identity.attribution ?? perEventAttribution
     const event =
@@ -425,9 +526,12 @@ export class EventIngestionService {
         receiptTime: receipt.toISOString(),
         late: receipt.getTime() - occurrence.getTime() > 15 * 60 * 1000,
         policyRevisionId: decision.revision.id,
-        payloadFingerprint: fingerprintEvent(input),
+        payloadFingerprint: fingerprintAcceptedEvent(input),
         visitorId: identity.visitorId,
         analyticsSessionId: identity.analyticsSessionId,
+        ...(identity.sessionStartedAt === undefined
+          ? {}
+          : { sessionStartedAt: identity.sessionStartedAt }),
       },
     }
   }
@@ -438,12 +542,47 @@ export class EventIngestionService {
     readonly receiptTime: Date
     readonly collectionContext: EventInput['collectionContext']
     readonly identifiedUserId: string | null
+    readonly anonymousIdentityId: string | null
   }): Promise<IdentitySessionAssignment> {
     if (this.identitySession !== undefined) return this.identitySession.resolve(input)
     if (input.identifiedUserId !== null) {
       throw new ORPCError('BAD_REQUEST')
     }
     return { visitorId: null, identifiedUserId: null, analyticsSessionId: null }
+  }
+
+  private async commitIdentity(candidate: ReservableCandidate): Promise<void> {
+    await this.identitySession?.commit?.({
+      siteId: candidate.siteId,
+      event: candidate.event,
+      receiptTime: new Date(candidate.receiptTime ?? this.clock().toISOString()),
+      assignment: {
+        visitorId: candidate.visitorId,
+        identifiedUserId: candidate.event.identifiedUserId,
+        analyticsSessionId: candidate.analyticsSessionId,
+        attribution: normalizedAttribution(candidate.event),
+        ...(candidate.sessionStartedAt === undefined
+          ? {}
+          : { sessionStartedAt: candidate.sessionStartedAt }),
+      },
+    })
+  }
+
+  private async rollbackIdentity(candidate: ReservableCandidate): Promise<void> {
+    await this.identitySession?.rollback?.({
+      siteId: candidate.siteId,
+      event: candidate.event,
+      receiptTime: new Date(candidate.receiptTime ?? this.clock().toISOString()),
+      assignment: {
+        visitorId: candidate.visitorId,
+        identifiedUserId: candidate.event.identifiedUserId,
+        analyticsSessionId: candidate.analyticsSessionId,
+        attribution: normalizedAttribution(candidate.event),
+        ...(candidate.sessionStartedAt === undefined
+          ? {}
+          : { sessionStartedAt: candidate.sessionStartedAt }),
+      },
+    })
   }
 
   private async consumeProtection(
@@ -480,49 +619,42 @@ export class EventIngestionService {
   ): Promise<T> {
     if (this.lifecycleLock === undefined) return operation()
     const lease = await this.lifecycleLock.acquire('ingestion')
-    if (lease !== undefined) {
-      try {
-        return await operation()
-      } finally {
-        await lease.release()
-      }
-    }
-    const holder = (await this.lifecycleLock.heldKind?.()) ?? null
-    if (holder !== null && holder !== 'ingestion') {
+    if (lease === undefined) {
       const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
       if (site === undefined) throw new ORPCError('NOT_FOUND')
       throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     }
-    return operation()
+    try {
+      return await operation()
+    } finally {
+      await lease.release()
+    }
   }
 
   private existingResult(
     eventId: string,
     record: AcceptedEventRecord,
     fingerprint: string,
-  ): CollectEventOutput {
-    const outcome = resolvedExistingOutcome(record, fingerprint)
-    if (outcome === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
-    return { status: 'duplicate', eventId, receiptTime: record.receiptTime }
-  }
-
-  private existingBatchResult(
+    batch: false,
+  ): CollectEventOutput
+  private existingResult(
     eventId: string,
     record: AcceptedEventRecord,
     fingerprint: string,
-  ): CollectEventsOutput['results'][number] {
-    if (resolvedExistingOutcome(record, fingerprint) === 'conflict') {
-      return { status: 'itemError', eventId, code: 'CONFLICT' }
+    batch: true,
+  ): CollectEventsOutput['results'][number]
+  private existingResult(
+    eventId: string,
+    record: AcceptedEventRecord,
+    fingerprint: string,
+    batch: boolean,
+  ): CollectEventOutput | CollectEventsOutput['results'][number] {
+    if (record.payloadFingerprint !== fingerprint) {
+      if (batch) return { status: 'itemError', eventId, code: 'CONFLICT' }
+      throw new ORPCError('CONFLICT', { status: 409 })
     }
     return { status: 'duplicate', eventId, receiptTime: record.receiptTime }
   }
-}
-
-function resolvedExistingOutcome(
-  record: AcceptedEventRecord,
-  fingerprint: string,
-): 'conflict' | 'duplicate' {
-  return record.payloadFingerprint === fingerprint ? 'duplicate' : 'conflict'
 }
 
 class PolicyRejectionError extends Error {}
@@ -554,6 +686,7 @@ function normalizeEvent(
   occurrenceTime: string,
   destination: string | null | undefined,
   identifiedUserId: string | null,
+  anonymousIdentityId: string | null,
   attribution: {
     readonly utmSource: string | null
     readonly utmMedium: string | null
@@ -568,6 +701,7 @@ function normalizeEvent(
     eventId: input.eventId,
     occurrenceTime,
     identifiedUserId,
+    anonymousIdentityId,
     properties: outcome.properties,
     utmSource: attribution.utmSource,
     utmMedium: attribution.utmMedium,
@@ -576,12 +710,14 @@ function normalizeEvent(
     browser: attribution.browser,
     os: attribution.os,
     country: attribution.country,
+    botPolicyOutcome: outcome.bot,
   }
   switch (input.kind) {
     case 'page_view':
       return {
         ...common,
         kind: input.kind,
+        pageViewId: input.pageViewId ?? input.eventId,
         pagePath: outcome.urls.path,
         referrer: outcome.urls.referrer,
       }
@@ -631,4 +767,16 @@ function validEventId(value: unknown): string | null {
   if (!isRecord(value)) return null
   const parsed = safeParse(schema.SId, value['eventId'])
   return parsed.success ? parsed.output : null
+}
+
+function normalizedAttribution(event: NormalizedEvent): DerivedAttribution {
+  return {
+    utmSource: event.utmSource,
+    utmMedium: event.utmMedium,
+    utmCampaign: event.utmCampaign,
+    deviceType: event.deviceType,
+    browser: event.browser,
+    os: event.os,
+    country: event.country,
+  }
 }

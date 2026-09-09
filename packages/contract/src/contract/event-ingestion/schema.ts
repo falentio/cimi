@@ -22,6 +22,8 @@ const SEventProperties = v.pipe(
           'pagePath',
           'referrer',
           'identifiedUserId',
+          'anonymousIdentityId',
+          'pageViewId',
           'visitorId',
           'analyticsSessionId',
           'late',
@@ -57,6 +59,7 @@ const SEventCommonFields = {
   pagePath: v.optional(v.pipe(v.string(), v.maxLength(2048))),
   referrer: v.optional(v.pipe(v.string(), v.maxLength(2048))),
   identifiedUserId: v.optional(SId),
+  anonymousIdentityId: v.optional(SId),
   utmSource: v.optional(SUtmField),
   utmMedium: v.optional(SUtmField),
   utmCampaign: v.optional(SUtmField),
@@ -68,6 +71,7 @@ export const SEvent = v.variant('kind', [
   v.strictObject({
     ...SEventCommonFields,
     kind: v.literal('page_view'),
+    pageViewId: v.optional(SId),
     pagePath: v.pipe(v.string(), v.maxLength(2048)),
   }),
   v.strictObject({

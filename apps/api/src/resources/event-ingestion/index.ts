@@ -1,5 +1,6 @@
-import type { Db } from '@cimi/db'
-import type { AcceptanceQuiescencePort, LifecycleLock, RetentionResolver } from '@cimi/kernel'
+import { schema, type Db } from '@cimi/db'
+import { and, eq } from 'drizzle-orm'
+import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
 import { eventIngestionRouter, type EventIngestionRouterOptions } from './router.ts'
@@ -40,7 +41,9 @@ export {
 export { isParsedPayloadOversized } from './payload-size.ts'
 export { deriveAttribution, type DerivedAttribution } from './attribution.ts'
 export {
+  AcceptanceBackupRestoreCleanup,
   AcceptanceRetentionCleanup,
+  type AcceptanceBackupRestoreCleanupDependencies,
   type AcceptanceRetentionCleanupDependencies,
 } from './retention-cleanup.ts'
 export type {
@@ -62,24 +65,6 @@ export {
   type IngestionProtection,
   type IngestionRequestContext,
 } from './service.ts'
-
-export function combineAcceptanceQuiescence(
-  primary: AcceptanceQuiescencePort,
-  secondary: AcceptanceQuiescencePort,
-): AcceptanceQuiescencePort {
-  return {
-    async stopAdmission() {
-      await Promise.all([primary.stopAdmission(), secondary.stopAdmission()])
-    },
-    async drain() {
-      const [first, second] = await Promise.all([primary.drain(), secondary.drain()])
-      return { lastSafeSequence: Math.max(first.lastSafeSequence, second.lastSafeSequence) }
-    },
-    async resumeAdmission() {
-      await Promise.all([primary.resumeAdmission(), secondary.resumeAdmission()])
-    },
-  }
-}
 
 export interface CreateEventIngestionDependencies {
   readonly db: Db
@@ -111,7 +96,27 @@ export function createEventIngestion({
     acceptance: acceptanceRepository,
     lifecycleLock,
     protection: protection ?? new InMemoryIngestionProtection(),
-    identitySession: identitySession ?? new DefaultIdentitySessionResolver(),
+    identitySession:
+      identitySession ??
+      new DefaultIdentitySessionResolver({
+        history: acceptanceRepository,
+        references: {
+          async exists(siteId, identifiedUserId) {
+            const row = await db
+              .select({ profileId: schema.TIdentityProfile.profileId })
+              .from(schema.TIdentityProfile)
+              .where(
+                and(
+                  eq(schema.TIdentityProfile.siteId, siteId),
+                  eq(schema.TIdentityProfile.identifiedUserId, identifiedUserId),
+                  eq(schema.TIdentityProfile.status, 'active'),
+                ),
+              )
+              .limit(1)
+            return row[0] !== undefined
+          },
+        },
+      }),
     coalescer,
   })
   return {

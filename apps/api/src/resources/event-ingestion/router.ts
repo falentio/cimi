@@ -4,6 +4,7 @@ import type { EventIngestionService } from './service.ts'
 
 export interface EventIngestionRouterOptions {
   readonly trustProxyHeaders?: boolean | undefined
+  readonly countryResolver?: ((headers: Headers) => string | undefined) | undefined
 }
 
 export function eventIngestionRouter(
@@ -11,12 +12,19 @@ export function eventIngestionRouter(
   options: EventIngestionRouterOptions = {},
 ) {
   const trustProxyHeaders = options.trustProxyHeaders ?? false
+  const countryResolver = options.countryResolver
   return api.eventIngestion.router({
     collectEvent: api.eventIngestion.collectEvent.handler(({ input, context }) =>
-      service.collectEvent(input, requestContext(context.headers, trustProxyHeaders)),
+      service.collectEvent(
+        input,
+        requestContext(context.headers, trustProxyHeaders, countryResolver),
+      ),
     ),
     collectEvents: api.eventIngestion.collectEvents.handler(({ input, context }) =>
-      service.collectEvents(input, requestContext(context.headers, trustProxyHeaders)),
+      service.collectEvents(
+        input,
+        requestContext(context.headers, trustProxyHeaders, countryResolver),
+      ),
     ),
   })
 }
@@ -24,14 +32,17 @@ export function eventIngestionRouter(
 function requestContext(
   headers: Headers,
   trustProxyHeaders: boolean,
-): { sourceIp?: string; isBot?: boolean; userAgent?: string } {
+  countryResolver: EventIngestionRouterOptions['countryResolver'],
+): { sourceIp?: string; isBot?: boolean; userAgent?: string; country?: string } {
   const sourceIp = trustProxyHeaders ? trustedSourceIp(headers) : undefined
   const userAgent = headers.get('user-agent') ?? undefined
   const isBot = userAgent === undefined ? undefined : isBotUA(userAgent)
+  const country = countryResolver?.(headers)
   return {
     ...(sourceIp === undefined ? {} : { sourceIp }),
     ...(isBot === undefined ? {} : { isBot }),
     ...(userAgent === undefined ? {} : { userAgent }),
+    ...(country === undefined ? {} : { country }),
   }
 }
 

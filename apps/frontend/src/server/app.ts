@@ -50,6 +50,9 @@ export async function createFrontendServerApp(
         dataDirectoryPath: cfg.dataDir,
         eventIngestionProtectionThresholds: cfg.eventIngestion,
         eventIngestionTrustProxyHeaders: cfg.eventIngestion.trustProxyHeaders,
+        eventIngestionCountryResolver: cfg.eventIngestion.trustProxyHeaders
+          ? proxyCountry
+          : undefined,
       })
       const closeApiApp = app.close.bind(app)
       return Object.assign(app, {
@@ -83,6 +86,10 @@ function isDirectory(path: string): boolean {
   } catch {
     return false
   }
+}
+
+function proxyCountry(headers: Headers): string | undefined {
+  return headers.get('cf-ipcountry') ?? headers.get('x-country') ?? undefined
 }
 
 const getApp = createSingleton(() => createFrontendServerApp(process.env))

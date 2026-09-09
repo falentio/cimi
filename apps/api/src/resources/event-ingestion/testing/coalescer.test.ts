@@ -14,6 +14,7 @@ function candidate(eventId: string) {
       eventId,
       occurrenceTime: '2026-09-05T00:00:00.000Z',
       identifiedUserId: null,
+      anonymousIdentityId: null,
       properties: {},
       kind: 'custom_event' as const,
       name: 'checkout',
@@ -24,6 +25,7 @@ function candidate(eventId: string) {
       browser: null,
       os: null,
       country: null,
+      botPolicyOutcome: 'included' as const,
     },
     receiptTime: '2026-09-05T00:00:00.000Z',
     late: false,
@@ -31,6 +33,20 @@ function candidate(eventId: string) {
     payloadFingerprint: eventId,
     visitorId: null,
     analyticsSessionId: null,
+  }
+}
+
+function pageViewCandidate(eventId: string, pageViewId: string) {
+  const base = candidate(eventId)
+  return {
+    ...base,
+    event: {
+      ...base.event,
+      kind: 'page_view' as const,
+      pageViewId,
+      pagePath: '/',
+      referrer: null,
+    },
   }
 }
 
@@ -224,5 +240,28 @@ describe('AcceptanceCoalescer', () => {
     expect(second).toHaveLength(1500)
     expect(coalescer.diagnostics.saturationCount).toBe(1)
     coalescer.stopAdmission()
+  })
+
+  it('releases pageview reservations by pageview ID after a failed flush', async () => {
+    const acceptance = mock<AcceptanceRepository>()
+    acceptance.lastReplaySequence.mockResolvedValue(0)
+    acceptance.append
+      .mockRejectedValueOnce(new Error('sqlite unavailable'))
+      .mockImplementation(async (candidates) =>
+        candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
+      )
+    const coalescer = new AcceptanceCoalescer({ repository: acceptance })
+
+    const failed = await coalescer.reserveMany([pageViewCandidate('event-1', 'page-1')])
+    const failedCompletion = failed[0]
+    if (failedCompletion !== undefined && 'completion' in failedCompletion)
+      failedCompletion.completion.catch(() => undefined)
+    await expect(coalescer.flush()).rejects.toThrow('sqlite unavailable')
+
+    const retry = await coalescer.reserveMany([pageViewCandidate('event-2', 'page-1')])
+    expect(retry[0]).toMatchObject({ status: 'accepted' })
+    await coalescer.flush()
+    if (retry[0] !== undefined && 'completion' in retry[0]) await retry[0].completion
+    await coalescer.stop()
   })
 })

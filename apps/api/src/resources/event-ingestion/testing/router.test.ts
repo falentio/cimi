@@ -1,11 +1,9 @@
 import { expect, test } from 'vitest'
 import { SOrganizationCreateOutput, schema } from '@cimi/contract'
-import { ORPCError } from '@orpc/server'
 import { parse } from 'valibot'
-import { mock } from 'vitest-mock-extended'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from '../../../testing/fixture.ts'
 import type { ApiApp } from '../../../index.ts'
-import type { IngestionProtection } from '../service.ts'
+import { InMemoryIngestionProtection } from '../protection.ts'
 
 async function createIngestionSite(app: ApiApp) {
   const owner = await signUpTestUser(app, 'event-owner@example.com', 'Event Owner')
@@ -141,10 +139,21 @@ test('collectEvent maps a changed payload for a committed Event ID to conflict',
 })
 
 test('collectEvent maps ingestion protection exhaustion to too many requests', async () => {
-  const protection = mock<IngestionProtection>()
-  protection.consume.mockRejectedValue(new ORPCError('TOO_MANY_REQUESTS', { status: 429 }))
+  const bucket = new InMemoryIngestionProtection({ siteBurst: 1, sourceIpBurst: 1 })
+  const calls: string[] = []
+  const protection = {
+    async consume(input: Parameters<InMemoryIngestionProtection['consume']>[0]) {
+      calls.push(input.siteId)
+      return bucket.consume(input)
+    },
+  }
   await using fixture = await createApiTestFixture({ eventIngestionProtection: protection })
   const site = await createIngestionSite(fixture.app)
+  await bucket.consume({
+    siteId: site.id,
+    units: 1,
+    now: new Date(Date.now() + 60_000_000),
+  })
 
   const response = await apiTestRequest(fixture.app, '/event-ingestion/collectEvent', '', {
     eventId: 'event_rate_limited',
@@ -153,5 +162,6 @@ test('collectEvent maps ingestion protection exhaustion to too many requests', a
     name: 'checkout_completed',
   })
 
+  expect(calls).toEqual([site.id])
   expect(response.status, await response.clone().text()).toBe(429)
 })

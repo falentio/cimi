@@ -13,12 +13,14 @@ export interface RetentionCleanupPort {
   runDerived(input: {
     runId: string
     siteId: string
+    now: Date
     boundary: RetentionPolicyRepository.SiteRetentionBoundary
     checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult>
   runBackup(input: {
     runId: string
     siteId: string
+    now: Date
     boundary: RetentionPolicyRepository.SiteRetentionBoundary
     checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult>
@@ -98,8 +100,8 @@ export class RetentionCleanupWorker {
       try {
         const result =
           work.kind === 'derived'
-            ? await this.cleanup.runDerived(work)
-            : await this.cleanup.runBackup(work)
+            ? await this.cleanup.runDerived({ ...work, now })
+            : await this.cleanup.runBackup({ ...work, now })
         if (result.completed) {
           await this.repository.succeed({ runId: work.runId, kind: work.kind, now })
         } else {

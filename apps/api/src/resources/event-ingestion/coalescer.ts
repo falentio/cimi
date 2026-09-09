@@ -4,6 +4,7 @@ import {
   EVENT_ACCEPTANCE_WINDOW_MS,
 } from '@cimi/contract'
 import type { AcceptanceQuiescencePort } from '@cimi/kernel'
+import { getNestedMapValue, setNestedMapValue } from '@cimi/utils'
 import type { AcceptanceCandidate, AcceptanceRepository } from './repository.ts'
 
 export type ReservableCandidate = Omit<AcceptanceCandidate, 'replaySequence' | 'receiptTime'> & {
@@ -95,7 +96,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   ) => ReturnType<typeof setTimeout>
   private readonly cancel: (timer: ReturnType<typeof setTimeout>) => void
   private readonly clock: () => Date
-  private readonly reservations = new Map<string, ReservationState>()
+  private readonly reservations = new Map<string, Map<string, ReservationState>>()
   private active: ReservationState[] = []
   private pending: ReservationState[] = []
   private flushPromise: Promise<void> | undefined
@@ -137,23 +138,38 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     await this.ensureSequence()
     if (this.admissionStopped) throw new AcceptanceAdmissionStoppedError()
 
-    const existing = new Map<string, ReservationState>()
-    const planned = new Set<string>()
-    const firstPlannedIndex = new Map<string, number>()
-    const newCandidates: Array<{ candidate: ReservableCandidate; key: string }> = []
+    const existing = new Map<string, Map<string, ReservationState>>()
+    const planned = new Map<string, Set<string>>()
+    const firstPlannedIndex = new Map<string, Map<string, number>>()
+    const newCandidates: ReservableCandidate[] = []
     for (const [index, candidate] of candidates.entries()) {
-      const key = reservationKey(candidate.siteId, candidate.event.eventId)
-      const reservation = this.reservations.get(key)
+      const reservation = this.getReservation(
+        candidate.siteId,
+        acceptanceReservationKey(candidate.event),
+      )
       if (reservation !== undefined) {
-        existing.set(key, reservation)
+        setNestedMapValue(
+          existing,
+          candidate.siteId,
+          acceptanceReservationKey(candidate.event),
+          reservation,
+        )
         continue
       }
-      if (planned.has(key)) {
+      const sitePlanned = planned.get(candidate.siteId)
+      if (sitePlanned?.has(acceptanceReservationKey(candidate.event))) {
         continue
       }
-      firstPlannedIndex.set(key, index)
-      planned.add(key)
-      newCandidates.push({ candidate, key })
+      if (sitePlanned === undefined)
+        planned.set(candidate.siteId, new Set([acceptanceReservationKey(candidate.event)]))
+      else sitePlanned.add(acceptanceReservationKey(candidate.event))
+      setNestedMapValue(
+        firstPlannedIndex,
+        candidate.siteId,
+        acceptanceReservationKey(candidate.event),
+        index,
+      )
+      newCandidates.push(candidate)
     }
 
     const available =
@@ -165,17 +181,18 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       throw new AcceptanceQueueSaturatedError()
     }
 
-    const added = new Map<string, ReservationState>()
-    for (const { candidate, key } of newCandidates) {
+    const added = new Map<string, Map<string, ReservationState>>()
+    for (const candidate of newCandidates) {
+      const key = acceptanceReservationKey(candidate.event)
       const deferred = createDeferred()
       const acceptanceCandidate: AcceptanceCandidate = {
         ...candidate,
         receiptTime: candidate.receiptTime ?? this.clock().toISOString(),
         replaySequence: ++this.sequence,
       }
-      const state = { candidate: acceptanceCandidate, deferred, reservedAt: Date.now() }
-      this.reservations.set(key, state)
-      added.set(key, state)
+      const state = { candidate: acceptanceCandidate, deferred, reservedAt: this.clock().getTime() }
+      this.setReservation(candidate.siteId, key, state)
+      setNestedMapValue(added, candidate.siteId, key, state)
       if (this.flushPromise === undefined && this.active.length < this.flushMaxEvents) {
         this.active.push(state)
       } else {
@@ -187,14 +204,17 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
 
     const results: Reservation[] = []
     for (const [index, candidate] of candidates.entries()) {
-      const key = reservationKey(candidate.siteId, candidate.event.eventId)
-      const existingReservation = existing.get(key)
-      const state = existingReservation ?? added.get(key)
+      const key = acceptanceReservationKey(candidate.event)
+      const existingReservation = getNestedMapValue(existing, candidate.siteId, key)
+      const state = existingReservation ?? getNestedMapValue(added, candidate.siteId, key)
       if (state !== undefined) {
         results.push(
           state.candidate.payloadFingerprint === candidate.payloadFingerprint
             ? {
-                status: firstPlannedIndex.get(key) === index ? 'accepted' : 'duplicate',
+                status:
+                  getNestedMapValue(firstPlannedIndex, candidate.siteId, key) === index
+                    ? 'accepted'
+                    : 'duplicate',
                 receiptTime: state.candidate.receiptTime,
                 completion: state.deferred.promise,
               }
@@ -275,10 +295,10 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
 
   pendingReservation(
     siteId: string,
-    eventId: string,
+    reservationId: string,
     payloadFingerprint: string,
   ): Reservation | undefined {
-    const state = this.reservations.get(reservationKey(siteId, eventId))
+    const state = this.getReservation(siteId, reservationId)
     if (state === undefined) return undefined
     if (state.candidate.payloadFingerprint !== payloadFingerprint) return { status: 'conflict' }
     return {
@@ -307,7 +327,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   private startTimer(firstQueued?: ReservationState): void {
     this.clearTimer()
     if (firstQueued === undefined) return
-    const elapsed = Date.now() - firstQueued.reservedAt
+    const elapsed = this.clock().getTime() - firstQueued.reservedAt
     this.timer = this.schedule(
       () => {
         this.timer = undefined
@@ -332,7 +352,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     }
     this.clearTimer()
     const batch = this.active.splice(0, this.flushMaxEvents)
-    const startedAt = Date.now()
+    const startedAt = this.clock().getTime()
     this.flushCount += 1
     this.queueWaitMsTotal += batch.reduce((total, state) => total + startedAt - state.reservedAt, 0)
     let succeeded = false
@@ -340,7 +360,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       .append(batch.map(({ candidate }) => candidate))
       .then((outcomes) => {
         succeeded = true
-        const committedAt = Date.now()
+        const committedAt = this.clock().getTime()
         this.commitLatencyMsTotal += committedAt - startedAt
         let acceptedCount = 0
         let lastAcceptedSequence = this.lastSafeSequence
@@ -374,8 +394,9 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       })
       .finally(() => {
         for (const state of batch)
-          this.reservations.delete(
-            reservationKey(state.candidate.siteId, state.candidate.event.eventId),
+          this.deleteReservation(
+            state.candidate.siteId,
+            acceptanceReservationKey(state.candidate.event),
           )
         this.flushPromise = undefined
         if (succeeded || !this.draining) this.activatePending()
@@ -397,17 +418,39 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   private rejectQueued(error: unknown): void {
     for (const state of [...this.active, ...this.pending]) {
       state.deferred.reject(error)
-      this.reservations.delete(
-        reservationKey(state.candidate.siteId, state.candidate.event.eventId),
+      this.deleteReservation(
+        state.candidate.siteId,
+        acceptanceReservationKey(state.candidate.event),
       )
     }
     this.active = []
     this.pending = []
   }
+
+  private getReservation(siteId: string, eventId: string): ReservationState | undefined {
+    return getNestedMapValue(this.reservations, siteId, eventId)
+  }
+
+  private setReservation(siteId: string, eventId: string, state: ReservationState): void {
+    setNestedMapValue(this.reservations, siteId, eventId, state)
+  }
+
+  private deleteReservation(siteId: string, eventId: string): void {
+    const siteReservations = this.reservations.get(siteId)
+    if (siteReservations === undefined) return
+    siteReservations.delete(eventId)
+    if (siteReservations.size === 0) this.reservations.delete(siteId)
+  }
 }
 
-function reservationKey(siteId: string, eventId: string): string {
-  return `${siteId}\u0000${eventId}`
+export function acceptanceReservationKey(event: {
+  readonly kind: string
+  readonly eventId: string
+  readonly pageViewId?: string | undefined
+}): string {
+  return event.kind === 'page_view'
+    ? `page-view:${event.pageViewId ?? event.eventId}`
+    : `event:${event.eventId}`
 }
 
 function createDeferred(): Deferred {

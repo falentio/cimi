@@ -32,6 +32,7 @@ export async function createApiTestFixture(
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
+        startRetentionCleanupWorker: false,
         ...(options.eventIngestionProtection === undefined
           ? {}
           : { eventIngestionProtection: options.eventIngestionProtection }),

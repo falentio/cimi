@@ -127,14 +127,25 @@ describe('createAnalyticsDb', () => {
         .prepare(
           'INSERT INTO retention_effective_cutoff (site_id, installation_id, policy_id, reporting_timezone, local_day, event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at, effective_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
-        .run('ste-1', 'ins-1', 'rtn-1', 'UTC', '2026-09-05', cutoff, cutoff, cutoff, now, now)
+        .run(
+          'ste-1',
+          'ins-1',
+          'rtn-1',
+          'UTC',
+          '2026-09-05',
+          cutoff - 2,
+          cutoff - 2,
+          cutoff - 2,
+          now,
+          now,
+        )
       for (const [eventPk, eventId, occurrenceTime] of [
         [1, 'expired', cutoff - 1] as const,
         [2, 'retained', cutoff + 1] as const,
       ]) {
         controlDb.$client
           .prepare(
-            'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           )
           .run(
             eventPk,
@@ -143,6 +154,8 @@ describe('createAnalyticsDb', () => {
             'custom_event',
             occurrenceTime,
             occurrenceTime,
+            'vis-1',
+            'ses-1',
             'pol-1',
             eventPk,
             `fingerprint-${eventPk}`,
@@ -152,6 +165,9 @@ describe('createAnalyticsDb', () => {
       }
 
       await analytics.rebuild({ controlDb })
+      await expect(
+        analytics.deleteExpired({ siteId: 'ste-1', occurrenceCutoff: new Date(cutoff) }),
+      ).resolves.toBe(1)
       await analytics.close()
 
       const inspectionInstance = await DuckDBInstance.create(analyticsPath)
@@ -161,6 +177,16 @@ describe('createAnalyticsDb', () => {
           'SELECT event_id FROM events ORDER BY event_id',
         )
         expect(events.getRowObjects()).toEqual([{ event_id: 'retained' }])
+        const session = await inspectionConnection.runAndReadAll(
+          "SELECT started_at, ended_at FROM analytics_sessions WHERE session_id = 'ses-1'",
+        )
+        expect(String(session.getRowObjects()[0]?.['started_at'])).toContain('2026-09-04')
+        expect(String(session.getRowObjects()[0]?.['ended_at'])).toContain('2026-09-04')
+        const visitor = await inspectionConnection.runAndReadAll(
+          "SELECT first_seen_at, last_seen_at FROM visitors WHERE visitor_id = 'vis-1'",
+        )
+        expect(String(visitor.getRowObjects()[0]?.['first_seen_at'])).toContain('2026-09-04')
+        expect(String(visitor.getRowObjects()[0]?.['last_seen_at'])).toContain('2026-09-04')
         const checkpoint = await inspectionConnection.runAndReadAll(
           "SELECT effective_retention_from FROM projection_checkpoints WHERE site_id = 'ste-1'",
         )
@@ -268,7 +294,7 @@ describe('createAnalyticsDb', () => {
         .run('link-2', 'ste-1', 'profile-2', 1, 'vis-2', 'ses-2', now - 1_000, now - 1_000)
       controlDb.$client
         .prepare(
-          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, identified_user_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, anonymous_identity_id, visitor_id, identified_user_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           1,
@@ -277,6 +303,7 @@ describe('createAnalyticsDb', () => {
           'custom_event',
           now,
           now,
+          'vis-1',
           'vis-1',
           'identified-1',
           'ses-1',
@@ -308,7 +335,7 @@ describe('createAnalyticsDb', () => {
       await analytics.rebuild({ controlDb })
       controlDb.$client
         .prepare(
-          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, anonymous_identity_id, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           2,
@@ -317,6 +344,7 @@ describe('createAnalyticsDb', () => {
           'page_view',
           now + 1_000,
           now + 1_000,
+          'vis-1',
           'vis-1',
           'ses-1',
           'pol-1',
@@ -327,7 +355,7 @@ describe('createAnalyticsDb', () => {
         )
       controlDb.$client
         .prepare(
-          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, anonymous_identity_id, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           3,
@@ -336,6 +364,7 @@ describe('createAnalyticsDb', () => {
           'page_view',
           now + 2_000,
           now + 2_000,
+          'vis-1',
           'vis-1',
           'ses-1',
           'pol-1',
@@ -346,7 +375,7 @@ describe('createAnalyticsDb', () => {
         )
       controlDb.$client
         .prepare(
-          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, anonymous_identity_id, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           4,
@@ -355,6 +384,7 @@ describe('createAnalyticsDb', () => {
           'custom_event',
           now + 3_000,
           now + 3_000,
+          'vis-2',
           'vis-2',
           'ses-2',
           'pol-1',
@@ -418,7 +448,7 @@ describe('createAnalyticsDb', () => {
         expect(emptySiteCheckpoint.getRowObjects()[0]).toMatchObject({
           projected_replay_sequence: 0n,
           readiness: 'ready',
-          projection_version: 'v1',
+          projection_version: 'v3',
         })
       } finally {
         inspectionConnection.closeSync()

@@ -14,6 +14,8 @@ import type {
 import { BackupIncompatibilityError } from './errors.ts'
 import { decodeRetentionManifest, encodeRetentionManifest } from './retention-manifest.ts'
 
+const CLEANUP_LEASE_TIMEOUT_MS = 15 * 60 * 1000
+
 export interface BackupRestoreRepositoryDrizzleDependencies {
   readonly db: Db
 }
@@ -556,7 +558,43 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           .all()[0]
         if (derived?.status !== 'completed') return undefined
       }
-      if (operation.ownerToken !== null) return undefined
+      let ownerToken = operation.ownerToken
+      let expectedStageStatus = stage.status
+      let expectedStageStartedAt = stage.startedAt
+      if (
+        stage.status === 'running' &&
+        ownerToken !== null &&
+        stage.startedAt !== null &&
+        input.now.getTime() - stage.startedAt.getTime() >= CLEANUP_LEASE_TIMEOUT_MS
+      ) {
+        const releasedStage = tx
+          .update(schema.TBackupCleanupStage)
+          .set({ status: 'pending', startedAt: null, completedAt: null, errorCode: null })
+          .where(
+            and(
+              eq(schema.TBackupCleanupStage.operationId, input.operationId),
+              eq(schema.TBackupCleanupStage.stage, input.stage),
+              eq(schema.TBackupCleanupStage.status, 'running'),
+            ),
+          )
+          .run()
+        if (releasedStage.changes !== 1) return undefined
+        const releasedOperation = tx
+          .update(schema.TBackupOperation)
+          .set({ ownerToken: null, updatedAt: input.now })
+          .where(
+            and(
+              eq(schema.TBackupOperation.id, input.operationId),
+              eq(schema.TBackupOperation.ownerToken, ownerToken),
+            ),
+          )
+          .run()
+        if (releasedOperation.changes !== 1) return undefined
+        ownerToken = null
+        expectedStageStatus = 'pending'
+        expectedStageStartedAt = null
+      }
+      if (ownerToken !== null) return undefined
       const operationUpdated = tx
         .update(schema.TBackupOperation)
         .set({ ownerToken: input.ownerToken, updatedAt: input.now })
@@ -572,7 +610,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         .update(schema.TBackupCleanupStage)
         .set({
           status: 'running',
-          startedAt: stage.startedAt ?? input.now,
+          startedAt: expectedStageStartedAt ?? input.now,
           completedAt: null,
           errorCode: null,
         })
@@ -580,7 +618,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           and(
             eq(schema.TBackupCleanupStage.operationId, input.operationId),
             eq(schema.TBackupCleanupStage.stage, input.stage),
-            eq(schema.TBackupCleanupStage.status, stage.status),
+            eq(schema.TBackupCleanupStage.status, expectedStageStatus),
           ),
         )
         .run()

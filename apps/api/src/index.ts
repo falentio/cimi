@@ -31,9 +31,9 @@ import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts
 import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
 import {
-  combineAcceptanceQuiescence,
   createEventIngestion,
   InMemoryIngestionProtection,
+  AcceptanceBackupRestoreCleanup,
   AcceptanceRetentionCleanup,
   type IdentitySessionResolver,
   type IngestionProtection,
@@ -79,12 +79,32 @@ export interface CreateApiAppDependencies {
       }
     | undefined
   eventIngestionTrustProxyHeaders?: boolean | undefined
+  eventIngestionCountryResolver?: ((headers: Headers) => string | undefined) | undefined
   eventIdentitySession?: IdentitySessionResolver | undefined
+  startRetentionCleanupWorker?: boolean | undefined
 }
 
 export type ApiApp = Hono & { close(): Promise<void> }
 
 const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
+
+function combineAcceptanceQuiescence(
+  primary: AcceptanceQuiescencePort,
+  secondary: AcceptanceQuiescencePort,
+): AcceptanceQuiescencePort {
+  return {
+    async stopAdmission() {
+      await Promise.all([primary.stopAdmission(), secondary.stopAdmission()])
+    },
+    async drain() {
+      const [first, second] = await Promise.all([primary.drain(), secondary.drain()])
+      return { lastSafeSequence: Math.max(first.lastSafeSequence, second.lastSafeSequence) }
+    },
+    async resumeAdmission() {
+      await Promise.all([primary.resumeAdmission(), secondary.resumeAdmission()])
+    },
+  }
+}
 
 export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   const hello = createHello({ db: deps.db })
@@ -137,7 +157,10 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
         ? undefined
         : new InMemoryIngestionProtection(deps.eventIngestionProtectionThresholds)),
     identitySession: deps.eventIdentitySession,
-    router: { trustProxyHeaders: deps.eventIngestionTrustProxyHeaders },
+    router: {
+      trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
+      countryResolver: deps.eventIngestionCountryResolver,
+    },
   })
   const upgradeAcceptance =
     deps.acceptance === undefined
@@ -145,16 +168,28 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       : combineAcceptanceQuiescence(eventIngestion.coalescer, deps.acceptance)
   installation.service.setAcceptanceQuiescence(upgradeAcceptance)
   retentionPolicy.worker.setCleanupPort(
-    new AcceptanceRetentionCleanup({ acceptance: eventIngestion.acceptanceRepository }),
+    new AcceptanceRetentionCleanup({
+      acceptance: eventIngestion.acceptanceRepository,
+      analytics: deps.analytics,
+      db: deps.db,
+      dataDirectoryPath: deps.dataDirectoryPath,
+    }),
   )
-  retentionPolicy.worker.start()
+  if (deps.startRetentionCleanupWorker !== false) retentionPolicy.worker.start()
   const backupRestore = createBackupRestore({
     db: deps.db,
     analytics: deps.analytics,
     lock,
     acceptance: upgradeAcceptance,
     ...(deps.reads === undefined ? {} : { reads: deps.reads }),
-    ...(deps.cleanup === undefined ? {} : { cleanup: deps.cleanup }),
+    cleanup:
+      deps.cleanup ??
+      new AcceptanceBackupRestoreCleanup({
+        acceptance: eventIngestion.acceptanceRepository,
+        analytics: deps.analytics,
+        db: deps.db,
+        dataDirectoryPath: deps.dataDirectoryPath,
+      }),
     dataDirectoryReady: deps.dataDirectoryReady,
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,

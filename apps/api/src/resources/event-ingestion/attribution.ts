@@ -1,19 +1,12 @@
-import { parseUserAgent } from '@cimi/utils'
+import { parseUserAgent, type EventAttribution } from '@cimi/utils'
 import type { EventInput } from './repository.ts'
 
-export interface DerivedAttribution {
-  readonly utmSource: string | null
-  readonly utmMedium: string | null
-  readonly utmCampaign: string | null
-  readonly deviceType: string | null
-  readonly browser: string | null
-  readonly os: string | null
-  readonly country: string | null
-}
+export type DerivedAttribution = EventAttribution
 
 export function deriveAttribution(
   input: EventInput,
   userAgent: string | undefined,
+  country?: string,
 ): DerivedAttribution {
   const device = userAgent === undefined ? null : parseUserAgent(userAgent)
   return {
@@ -23,7 +16,7 @@ export function deriveAttribution(
     deviceType: bound(device?.device.type, 64),
     browser: bound(device?.browser.name, 64),
     os: bound(device?.os.name, 64),
-    country: null,
+    country: bound(country, 64),
   }
 }
 
