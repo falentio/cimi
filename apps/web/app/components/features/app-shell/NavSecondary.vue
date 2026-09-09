@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { HelpCircleIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import {
   SidebarGroup,
@@ -8,26 +7,25 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { isNavItemActive, type NavGroup } from './nav-config'
 
 defineProps<{
-  items: {
-    title: string
-    url: string
-    icon: typeof HelpCircleIcon
-  }[]
+  group: NavGroup
 }>()
+
+const route = useRoute()
 </script>
 
 <template>
   <SidebarGroup>
     <SidebarGroupContent>
       <SidebarMenu>
-        <SidebarMenuItem v-for="item in items" :key="item.title">
-          <SidebarMenuButton as-child size="sm">
-            <a :href="item.url">
+        <SidebarMenuItem v-for="item in group.items" :key="item.to">
+          <SidebarMenuButton as-child size="sm" :is-active="isNavItemActive(route.path, item.to)">
+            <NuxtLink :to="item.to">
               <HugeiconsIcon :icon="item.icon" :size="16" aria-hidden="true" />
               <span>{{ item.title }}</span>
-            </a>
+            </NuxtLink>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
