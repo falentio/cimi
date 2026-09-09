@@ -48,6 +48,9 @@ function pageFileExists(to: string): boolean {
 }
 
 function matchesPage(dir: string, segments: string[]): boolean {
+  if (segments.length === 0) {
+    return existsSync(join(dir, 'index.vue'))
+  }
   const [head, ...rest] = segments
   const entries = readdirSync(dir)
   const fileHit =
