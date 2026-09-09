@@ -6,7 +6,7 @@ import { DashboardSquare01Icon } from '@hugeicons/core-free-icons'
 </script>
 
 <template>
-  <main class="flex flex-col gap-8">
+  <div class="flex flex-col gap-8">
     <section class="flex flex-col gap-2">
       <p class="text-primary text-sm font-medium">Cimi workspace</p>
       <h1 class="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
@@ -70,5 +70,5 @@ import { DashboardSquare01Icon } from '@hugeicons/core-free-icons'
         </CardContent>
       </Card>
     </section>
-  </main>
+  </div>
 </template>
