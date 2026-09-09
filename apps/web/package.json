@@ -7,6 +7,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
@@ -15,6 +17,7 @@
     "@cimi/client": "workspace:*",
     "@hugeicons/core-free-icons": "^4.3.0",
     "@hugeicons/vue": "^1.0.8",
+    "@internationalized/date": "^3.12.4",
     "@orpc/vue-colada": "^1.15.0",
     "@pinia/colada": "^1.4.4",
     "@pinia/colada-nuxt": "^1.1.0",
@@ -43,6 +46,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
     "tailwindcss": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "vue-tsc": "^3.3.11"
   }
 }
