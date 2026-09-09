@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 
-import { Tick02Icon } from '@hugeicons/vue'
+import { Tick02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { cn } from '@/lib/utils'
 import { getAnswerKeyShortcuts, injectQuestionnaireItemContext } from './useQuestionnaire'
@@ -200,7 +201,8 @@ onBeforeUnmount(() => {
         data-slot="questionnaire-choice-indicator-dot"
         class="bg-primary-foreground size-2 hidden rounded-full group-data-[type=checkbox]/questionnaire-choice:hidden group-data-checked/questionnaire-choice:block"
       />
-      <Tick02Icon
+      <HugeiconsIcon
+        :icon="Tick02Icon"
         data-slot="questionnaire-choice-indicator-check"
         class="size-3.5 hidden group-data-[type=radio]/questionnaire-choice:hidden group-data-checked/questionnaire-choice:block"
       />

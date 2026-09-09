@@ -2,7 +2,8 @@
 import type { HTMLAttributes } from 'vue'
 import type { MessageScrollerButtonDirection } from './useMessageScroller'
 import type { ButtonVariants } from '@/components/ui/button'
-import { ArrowDown01Icon } from '@hugeicons/vue'
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -59,7 +60,7 @@ function onClick(event: MouseEvent) {
     @click="onClick"
   >
     <slot>
-      <ArrowDown01Icon />
+      <HugeiconsIcon :icon="ArrowDown01Icon" />
       <span class="sr-only">{{ direction === 'end' ? 'Scroll to end' : 'Scroll to start' }}</span>
     </slot>
   </Button>

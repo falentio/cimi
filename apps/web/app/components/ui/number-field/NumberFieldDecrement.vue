@@ -2,7 +2,8 @@
 import type { NumberFieldDecrementProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { MinusSignIcon } from '@hugeicons/vue'
+import { MinusSignIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { NumberFieldDecrement, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -26,7 +27,7 @@ const forwarded = useForwardProps(delegatedProps)
     "
   >
     <slot>
-      <MinusSignIcon class="h-4 w-4" />
+      <HugeiconsIcon :icon="MinusSignIcon" class="h-4 w-4" />
     </slot>
   </NumberFieldDecrement>
 </template>

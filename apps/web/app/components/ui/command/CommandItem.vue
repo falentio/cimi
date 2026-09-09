@@ -2,7 +2,8 @@
 import type { ListboxItemEmits, ListboxItemProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { Tick02Icon } from '@hugeicons/vue'
+import { Tick02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit, useCurrentElement } from '@vueuse/core'
 import { ListboxItem, useForwardPropsEmits, useId } from 'reka-ui'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
@@ -78,7 +79,8 @@ onUnmounted(() => {
     "
   >
     <slot />
-    <Tick02Icon
+    <HugeiconsIcon
+      :icon="Tick02Icon"
       class="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100"
     />
   </ListboxItem>

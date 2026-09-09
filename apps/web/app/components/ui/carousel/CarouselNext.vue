@@ -2,7 +2,8 @@
 import type { WithClassAsProps } from './interface'
 
 import type { ButtonVariants } from '@/components/ui/button'
-import { ArrowRight01Icon } from '@hugeicons/vue'
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useCarousel } from './useCarousel'
@@ -41,7 +42,7 @@ const { orientation, canScrollNext, scrollNext } = useCarousel()
     @click="scrollNext"
   >
     <slot>
-      <ArrowRight01Icon class="cn-rtl-flip" />
+      <HugeiconsIcon :icon="ArrowRight01Icon" class="cn-rtl-flip" />
       <span class="sr-only">Next slide</span>
     </slot>
   </Button>

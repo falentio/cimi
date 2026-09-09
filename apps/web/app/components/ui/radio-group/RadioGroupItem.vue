@@ -2,7 +2,8 @@
 import type { RadioGroupItemProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { CircleIcon } from '@hugeicons/vue'
+import { CircleIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { RadioGroupIndicator, RadioGroupItem, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -30,7 +31,8 @@ const forwardedProps = useForwardProps(delegatedProps)
       class="flex size-4 items-center justify-center"
     >
       <slot>
-        <CircleIcon
+        <HugeiconsIcon
+          :icon="CircleIcon"
           class="bg-primary-foreground absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
         />
       </slot>

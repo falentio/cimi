@@ -2,7 +2,8 @@
 import type { MenubarCheckboxItemEmits, MenubarCheckboxItemProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { Tick02Icon } from '@hugeicons/vue'
+import { Tick02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { MenubarCheckboxItem, MenubarItemIndicator, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -31,7 +32,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     >
       <MenubarItemIndicator>
         <slot name="indicator-icon">
-          <Tick02Icon />
+          <HugeiconsIcon :icon="Tick02Icon" />
         </slot>
       </MenubarItemIndicator>
     </span>

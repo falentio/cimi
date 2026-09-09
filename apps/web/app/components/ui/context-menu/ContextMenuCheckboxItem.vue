@@ -2,7 +2,8 @@
 import type { ContextMenuCheckboxItemEmits, ContextMenuCheckboxItemProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { Tick02Icon } from '@hugeicons/vue'
+import { Tick02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { ContextMenuCheckboxItem, ContextMenuItemIndicator, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -29,7 +30,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     <span class="absolute right-2 pointer-events-none">
       <ContextMenuItemIndicator>
         <slot name="indicator-icon">
-          <Tick02Icon />
+          <HugeiconsIcon :icon="Tick02Icon" />
         </slot>
       </ContextMenuItemIndicator>
     </span>

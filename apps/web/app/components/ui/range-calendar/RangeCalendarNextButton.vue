@@ -2,7 +2,8 @@
 import type { RangeCalendarNextProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { ArrowRight01Icon } from '@hugeicons/vue'
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { RangeCalendarNext, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -29,7 +30,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     v-bind="forwardedProps"
   >
     <slot>
-      <ArrowRight01Icon class="size-4" />
+      <HugeiconsIcon :icon="ArrowRight01Icon" class="size-4" />
     </slot>
   </RangeCalendarNext>
 </template>

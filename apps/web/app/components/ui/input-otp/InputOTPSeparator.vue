@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 
-import { MinusSignIcon } from '@hugeicons/vue'
+import { MinusSignIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -20,7 +21,7 @@ const forwarded = useForwardProps(delegatedProps)
     :class="cn('[&_svg:not([class*=size-])]:size-4 flex items-center', props.class)"
   >
     <slot>
-      <MinusSignIcon />
+      <HugeiconsIcon :icon="MinusSignIcon" />
     </slot>
   </div>
 </template>

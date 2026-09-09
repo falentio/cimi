@@ -2,7 +2,8 @@
 import type { TagsInputItemDeleteProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { Cancel01Icon } from '@hugeicons/vue'
+import { Cancel01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { TagsInputItemDelete, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -20,7 +21,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     :class="cn('flex rounded bg-transparent mr-1', props.class)"
   >
     <slot>
-      <Cancel01Icon class="w-4 h-4" />
+      <HugeiconsIcon :icon="Cancel01Icon" class="w-4 h-4" />
     </slot>
   </TagsInputItemDelete>
 </template>

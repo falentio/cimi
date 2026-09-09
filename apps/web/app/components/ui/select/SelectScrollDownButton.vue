@@ -2,7 +2,8 @@
 import type { SelectScrollDownButtonProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { ArrowDown01Icon } from '@hugeicons/vue'
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { SelectScrollDownButton, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -26,7 +27,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     "
   >
     <slot>
-      <ArrowDown01Icon />
+      <HugeiconsIcon :icon="ArrowDown01Icon" />
     </slot>
   </SelectScrollDownButton>
 </template>

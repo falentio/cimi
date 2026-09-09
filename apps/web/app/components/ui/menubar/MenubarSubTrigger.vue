@@ -2,7 +2,8 @@
 import type { MenubarSubTriggerProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { ArrowRight01Icon } from '@hugeicons/vue'
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { MenubarSubTrigger, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -28,6 +29,6 @@ const forwardedProps = useForwardProps(delegatedProps)
     "
   >
     <slot />
-    <ArrowRight01Icon class="cn-rtl-flip ml-auto size-4" />
+    <HugeiconsIcon :icon="ArrowRight01Icon" class="cn-rtl-flip ml-auto size-4" />
   </MenubarSubTrigger>
 </template>

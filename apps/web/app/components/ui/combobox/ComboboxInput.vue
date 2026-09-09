@@ -2,7 +2,8 @@
 import type { ComboboxInputEmits, ComboboxInputProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { SearchIcon } from '@hugeicons/vue'
+import { SearchIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { ComboboxInput, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -28,7 +29,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 <template>
   <InputGroup>
     <InputGroupAddon>
-      <SearchIcon class="size-4 shrink-0 opacity-50" />
+      <HugeiconsIcon :icon="SearchIcon" class="size-4 shrink-0 opacity-50" />
     </InputGroupAddon>
     <ComboboxInput
       data-slot="combobox-input"

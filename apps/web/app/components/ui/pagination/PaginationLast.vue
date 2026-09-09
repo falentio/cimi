@@ -3,7 +3,8 @@ import type { PaginationLastProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
 import type { ButtonVariants } from '@/components/ui/button'
-import { ArrowRightDoubleIcon } from '@hugeicons/vue'
+import { ArrowRightDoubleIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { PaginationLast, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -33,7 +34,7 @@ const forwarded = useForwardProps(delegatedProps)
   >
     <slot>
       <span class="hidden sm:block">Last</span>
-      <ArrowRightDoubleIcon data-icon="inline-end" />
+      <HugeiconsIcon :icon="ArrowRightDoubleIcon" data-icon="inline-end" />
     </slot>
   </PaginationLast>
 </template>

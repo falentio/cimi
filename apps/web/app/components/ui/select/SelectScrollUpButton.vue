@@ -2,7 +2,8 @@
 import type { SelectScrollUpButtonProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { ArrowUp01Icon } from '@hugeicons/vue'
+import { ArrowUp01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { SelectScrollUpButton, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -26,7 +27,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     "
   >
     <slot>
-      <ArrowUp01Icon />
+      <HugeiconsIcon :icon="ArrowUp01Icon" />
     </slot>
   </SelectScrollUpButton>
 </template>

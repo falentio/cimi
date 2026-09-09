@@ -2,7 +2,8 @@
 import type { AccordionTriggerProps } from 'reka-ui'
 
 import type { HTMLAttributes } from 'vue'
-import { ArrowDown01Icon, ArrowUp01Icon } from '@hugeicons/vue'
+import { ArrowDown01Icon, ArrowUp01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/vue'
 import { reactiveOmit } from '@vueuse/core'
 import { AccordionHeader, AccordionTrigger } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -26,11 +27,13 @@ const delegatedProps = reactiveOmit(props, 'class')
     >
       <slot />
       <slot name="icon">
-        <ArrowDown01Icon
+        <HugeiconsIcon
+          :icon="ArrowDown01Icon"
           data-slot="accordion-trigger-icon"
           class="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden"
         />
-        <ArrowUp01Icon
+        <HugeiconsIcon
+          :icon="ArrowUp01Icon"
           data-slot="accordion-trigger-icon"
           class="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline"
         />
