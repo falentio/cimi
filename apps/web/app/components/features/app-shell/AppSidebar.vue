@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { HugeiconsIcon } from '@hugeicons/vue'
 import {
   DashboardSquare01Icon,
   Folder01Icon,
@@ -7,35 +6,103 @@ import {
   Home01Icon,
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
+import type { SidebarProps } from '@/components/ui/sidebar'
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from '@/components/ui/sidebar'
+import NavMain from './NavMain.vue'
+import NavProjects from './NavProjects.vue'
+import NavSecondary from './NavSecondary.vue'
 import NavUser from './NavUser.vue'
 
-const mainNavigation = [
-  { label: 'Overview', href: '/app', icon: Home01Icon },
-  { label: 'Dashboard', href: '#', icon: DashboardSquare01Icon },
-  { label: 'Resources', href: '#', icon: Folder01Icon },
-]
+const props = withDefaults(defineProps<SidebarProps>(), {
+  variant: 'inset',
+})
 
-const secondaryNavigation = [
-  { label: 'Settings', href: '#', icon: Settings01Icon },
-  { label: 'Help & support', href: '#', icon: HelpCircleIcon },
-]
+const { session } = useAuth()
+
+const user = computed(() => {
+  if (session.value.status !== 'authenticated') {
+    return {
+      name: 'Cimi user',
+      email: 'Authenticated',
+      avatar: '',
+    }
+  }
+
+  return {
+    name: session.value.session.user.name,
+    email: session.value.session.user.email,
+    avatar: session.value.session.user.image ?? '',
+  }
+})
+
+const data = {
+  navMain: [
+    {
+      title: 'Playground',
+      url: '/app',
+      icon: Home01Icon,
+      isActive: true,
+      items: [
+        { title: 'History', url: '#' },
+        { title: 'Starred', url: '#' },
+        { title: 'Settings', url: '#' },
+      ],
+    },
+    {
+      title: 'Models',
+      url: '#',
+      icon: DashboardSquare01Icon,
+      items: [
+        { title: 'Genesis', url: '#' },
+        { title: 'Explorer', url: '#' },
+        { title: 'Quantum', url: '#' },
+      ],
+    },
+    {
+      title: 'Documentation',
+      url: '#',
+      icon: Folder01Icon,
+      items: [
+        { title: 'Introduction', url: '#' },
+        { title: 'Get Started', url: '#' },
+        { title: 'Tutorials', url: '#' },
+        { title: 'Changelog', url: '#' },
+      ],
+    },
+    {
+      title: 'Settings',
+      url: '#',
+      icon: Settings01Icon,
+      items: [
+        { title: 'General', url: '#' },
+        { title: 'Team', url: '#' },
+        { title: 'Billing', url: '#' },
+        { title: 'Limits', url: '#' },
+      ],
+    },
+  ],
+  navSecondary: [
+    { title: 'Support', url: '#', icon: HelpCircleIcon },
+    { title: 'Feedback', url: '#', icon: HelpCircleIcon },
+  ],
+  projects: [
+    { name: 'Design Engineering', url: '#', icon: Folder01Icon },
+    { name: 'Sales & Marketing', url: '#', icon: Folder01Icon },
+    { name: 'Travel', url: '#', icon: Folder01Icon },
+  ],
+}
 </script>
 
 <template>
-  <Sidebar variant="inset" collapsible="icon">
+  <Sidebar v-bind="props">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
@@ -47,52 +114,21 @@ const secondaryNavigation = [
                 <span class="text-sm font-semibold">C</span>
               </span>
               <span class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-semibold">Cimi</span>
-                <span class="text-muted-foreground truncate text-xs">Workspace</span>
+                <span class="truncate font-medium">Cimi</span>
+                <span class="truncate text-xs">Workspace</span>
               </span>
             </NuxtLink>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarHeader>
-
     <SidebarContent>
-      <SidebarGroup>
-        <SidebarGroupLabel>Platform</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem v-for="item in mainNavigation" :key="item.label">
-              <SidebarMenuButton as-child :is-active="item.href === '/app'">
-                <NuxtLink :to="item.href">
-                  <HugeiconsIcon :icon="item.icon" :size="16" aria-hidden="true" />
-                  <span>{{ item.label }}</span>
-                </NuxtLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      <SidebarGroup>
-        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem v-for="item in secondaryNavigation" :key="item.label">
-              <SidebarMenuButton as-child>
-                <a :href="item.href">
-                  <HugeiconsIcon :icon="item.icon" :size="16" aria-hidden="true" />
-                  <span>{{ item.label }}</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <NavMain :items="data.navMain" />
+      <NavProjects :projects="data.projects" />
+      <NavSecondary :items="data.navSecondary" class="mt-auto" />
     </SidebarContent>
-
     <SidebarFooter>
-      <NavUser />
+      <NavUser :user="user" />
     </SidebarFooter>
-    <SidebarRail />
   </Sidebar>
 </template>
