@@ -70,7 +70,7 @@ function easeOutElastic(n) {
     ? 0
     : n === 1
       ? 1
-      : (2 ** (-10 * n)) * Math.sin((n * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1
+      : 2 ** (-10 * n) * Math.sin((n * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1
 }
 
 useTransition(source, {
@@ -88,7 +88,7 @@ import { Quaternion } from 'three'
 const source = ref(new Quaternion())
 
 const output = useTransition(source, {
-  interpolation: (q1, q2, t) => new Quaternion().slerpQuaternions(q1, q2, t)
+  interpolation: (q1, q2, t) => new Quaternion().slerpQuaternions(q1, q2, t),
 })
 ```
 
@@ -117,9 +117,8 @@ import { transition } from '@vueuse/core'
 
 await transition(source, from, to, {
   abort() {
-    if (shouldAbort)
-      return true
-  }
+    if (shouldAbort) return true
+  },
 })
 ```
 

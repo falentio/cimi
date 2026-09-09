@@ -24,14 +24,10 @@ isShallow(deepData) // false
 ## Type Declarations
 
 ```ts
-export type CreateRefReturn<
-  T = any,
-  D extends boolean = false,
-> = ShallowOrDeepRef<T, D>
-export type ShallowOrDeepRef<
-  T = any,
-  D extends boolean = false,
-> = D extends true ? Ref<T> : ShallowRef<T>
+export type CreateRefReturn<T = any, D extends boolean = false> = ShallowOrDeepRef<T, D>
+export type ShallowOrDeepRef<T = any, D extends boolean = false> = D extends true
+  ? Ref<T>
+  : ShallowRef<T>
 /**
  * Returns a `deepRef` or `shallowRef` depending on the `deep` param.
  *

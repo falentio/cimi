@@ -24,21 +24,19 @@ export default defineNuxtConfig({
 
 In Nuxt 4 the default `srcDir` is `app/`, so the path aliases changed:
 
-| Alias | Resolves to |
-|-------|-------------|
-| `~` / `@` | `<rootDir>/app` |
+| Alias       | Resolves to                |
+| ----------- | -------------------------- |
+| `~` / `@`   | `<rootDir>/app`            |
 | `~~` / `@@` | `<rootDir>` (project root) |
-| `#shared` | `<rootDir>/shared` |
-| `#server` | `<rootDir>/server` |
+| `#shared`   | `<rootDir>/shared`         |
+| `#server`   | `<rootDir>/server`         |
 
 Reference root-level paths (modules, server handlers) with `~~` or `#server`:
 
 ```ts
 export default defineNuxtConfig({
   modules: ['~~/custom-modules/awesome.js'], // relative to rootDir
-  serverHandlers: [
-    { route: '/foo/**', handler: '#server/foohandler.ts' },
-  ],
+  serverHandlers: [{ route: '/foo/**', handler: '#server/foohandler.ts' }],
 })
 ```
 
@@ -141,13 +139,13 @@ const appConfig = useAppConfig()
 
 ## runtimeConfig vs app.config
 
-| Feature | runtimeConfig | app.config |
-|---------|--------------|------------|
-| Client-side | Hydrated | Bundled |
-| Environment variables | Yes | No |
-| Reactive | Yes | Yes |
-| Hot module replacement | No | Yes |
-| Non-primitive JS types | No | Yes |
+| Feature                | runtimeConfig | app.config |
+| ---------------------- | ------------- | ---------- |
+| Client-side            | Hydrated      | Bundled    |
+| Environment variables  | Yes           | No         |
+| Reactive               | Yes           | Yes        |
+| Hot module replacement | No            | Yes        |
+| Non-primitive JS types | No            | Yes        |
 
 **Use runtimeConfig** for secrets and values that change per environment.
 **Use app.config** for public tokens, theme settings, and non-sensitive config.
@@ -230,7 +228,7 @@ export default defineNuxtConfig({
 })
 ```
 
-<!-- 
+<!--
 Source references:
 - https://nuxt.com/docs/4.x/getting-started/configuration
 - https://nuxt.com/docs/4.x/guide/going-further/runtime-config

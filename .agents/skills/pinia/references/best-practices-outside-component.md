@@ -34,13 +34,15 @@ const userStore = useUserStore()
 
 ```ts
 import { createRouter } from 'vue-router'
-const router = createRouter({ /* ... */ })
+const router = createRouter({/* ... */})
 
 // ❌ May fail depending on import order
 const store = useUserStore()
 
 router.beforeEach((to) => {
-  if (store.isLoggedIn) { /* ... */ }
+  if (store.isLoggedIn) {
+    /* ... */
+  }
 })
 ```
 

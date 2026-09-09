@@ -27,10 +27,7 @@ import { nextTick, shallowRef } from 'vue'
 
 const source = shallowRef('foo')
 
-const { stop, pause, resume } = watchPausable(
-  source,
-  v => console.log(`Changed to ${v}!`),
-)
+const { stop, pause, resume } = watchPausable(source, (v) => console.log(`Changed to ${v}!`))
 
 source.value = 'bar'
 await nextTick() // Changed to bar!
@@ -52,13 +49,10 @@ await nextTick() // Changed to hello!
 export interface WatchPausableReturn extends Pausable {
   stop: WatchStopHandle
 }
-export type WatchPausableOptions<Immediate> =
-  WatchWithFilterOptions<Immediate> & PausableFilterOptions
+export type WatchPausableOptions<Immediate> = WatchWithFilterOptions<Immediate> &
+  PausableFilterOptions
 /** @deprecated Use Vue's built-in `watch` instead. This function will be removed in future version. */
-export declare function watchPausable<
-  T,
-  Immediate extends Readonly<boolean> = false,
->(
+export declare function watchPausable<T, Immediate extends Readonly<boolean> = false>(
   source: WatchSource<T>,
   cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
   options?: WatchPausableOptions<Immediate>,

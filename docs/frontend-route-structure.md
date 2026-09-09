@@ -64,11 +64,11 @@ The Public Dashboard URL is `/public/:identifier`, where the parameter is the ra
 
 `apps/web/app/app.vue` currently sniffs `route.path` for `/app` to pick a layout (`apps/web/app/app.vue:3`); that goes away and becomes a plain `NuxtLayout` around `NuxtPage`. Each page declares its layout with `definePageMeta({ layout: ... })`. Pages that omit the meta get the authenticated shell, which is loud enough to notice in review.
 
-| Layout    | File                                | Provides                                                                         | Routes                                        |
-| --------- | ----------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------- |
-| `default` | `app/layouts/default.vue` (renamed from `layouts/app.vue`) | SidebarProvider, AppSidebar, SidebarInset, breadcrumb header | `/`, `/sites/**`, `/settings/**`, `/admin/**` |
-| `bare`    | `app/layouts/bare.vue` (new)        | Centered panel, no navigation, no session requirement                            | `/login`, `/signup`, `/setup`, `/invite/:token` |
-| `public`  | `app/layouts/public.vue` (new)      | Thin header with Site name, `noindex,nofollow` head tags, no links into the app  | `/public/:identifier`                          |
+| Layout    | File                                                       | Provides                                                                        | Routes                                          |
+| --------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `default` | `app/layouts/default.vue` (renamed from `layouts/app.vue`) | SidebarProvider, AppSidebar, SidebarInset, breadcrumb header                    | `/`, `/sites/**`, `/settings/**`, `/admin/**`   |
+| `bare`    | `app/layouts/bare.vue` (new)                               | Centered panel, no navigation, no session requirement                           | `/login`, `/signup`, `/setup`, `/invite/:token` |
+| `public`  | `app/layouts/public.vue` (new)                             | Thin header with Site name, `noindex,nofollow` head tags, no links into the app | `/public/:identifier`                           |
 
 Settings and admin do not get their own layouts. One installation has one operator; dedicated chrome would imply a product split that does not exist. The `public` layout exists so the meta hardening required by the Public Dashboard spec cannot be forgotten per page; the 90-day window cap and rate limits are server-side.
 
@@ -117,29 +117,29 @@ All sidebar entries render `NuxtLink` instead of raw `<a>`, so active states and
 
 ## Coverage: served resources to routes
 
-| Served resource | UI homes |
-| --------------- | -------- |
-| `health` | `/admin` probe |
-| `installation` | `/setup`, `/admin` |
-| `organization` | `/`, `/settings/general`, `/settings/danger` |
-| `membership` | `/settings/members`, `/settings/danger` |
-| `invitation` | `/invite/:token`, `/settings/members` |
-| `site` | `/`, `/sites/:siteId/**` |
+| Served resource   | UI homes                                                |
+| ----------------- | ------------------------------------------------------- |
+| `health`          | `/admin` probe                                          |
+| `installation`    | `/setup`, `/admin`                                      |
+| `organization`    | `/`, `/settings/general`, `/settings/danger`            |
+| `membership`      | `/settings/members`, `/settings/danger`                 |
+| `invitation`      | `/invite/:token`, `/settings/members`                   |
+| `site`            | `/`, `/sites/:siteId/**`                                |
 | `retentionPolicy` | `/admin/retention`, `/sites/:siteId/settings/retention` |
-| `backupRestore` | `/admin/backup-restore` |
+| `backupRestore`   | `/admin/backup-restore`                                 |
 
 Reserved: `trafficReport` fills the Overview tab; `eventReport`, `goal`, `funnel`, `cohortRetention` own their named tabs; `collectionPolicy` and `eventIngestion` own `settings/collection`; `publicDashboard` owns `/public/:identifier` and the Site settings public-access page; `identityProfile` is a filter dimension, not a page.
 
 ## Trade-offs
 
-| Decision | Alternative | Why this wins |
-| -------- | ----------- | ------------- |
-| Flat URLs, no `/app` prefix | Keep the prefix | The prefix does no routing work on a single-product origin; deep links get shorter; the `Workspace` vocabulary conflict disappears. A future co-tenant app on the origin would need a prefix added back, which is additive. |
-| Organization in a cookie, not the URL | Org segment in every URL | Active Organization is navigation context, not authorization (`CONTEXT.md`). Site URLs stay stable across switches, and the Personal Organization stays invisible. Org-scoped links are context-relative. |
-| `/` is the Site list | Separate overview page and `/sites` index | One less page; matches the 20-Site envelope; a cross-Site aggregate home can be added later without URL churn. |
-| Report tabs inside the Site shell | Sidebar context switch per route | One stable sidebar; deep-linkable reports; the familiar analytics convention. |
-| Reserved route files for contract-only resources | Omit routes until served | No URL churn at ship time; stale links degrade to an explicit state instead of a 404. |
-| Client-only guard for now | Server-side session resolution during SSR | The auth state machine lives in client `useState`. The server's 401 is the real boundary. Server-side resolution is deferred, not cancelled. |
+| Decision                                         | Alternative                               | Why this wins                                                                                                                                                                                                               |
+| ------------------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flat URLs, no `/app` prefix                      | Keep the prefix                           | The prefix does no routing work on a single-product origin; deep links get shorter; the `Workspace` vocabulary conflict disappears. A future co-tenant app on the origin would need a prefix added back, which is additive. |
+| Organization in a cookie, not the URL            | Org segment in every URL                  | Active Organization is navigation context, not authorization (`CONTEXT.md`). Site URLs stay stable across switches, and the Personal Organization stays invisible. Org-scoped links are context-relative.                   |
+| `/` is the Site list                             | Separate overview page and `/sites` index | One less page; matches the 20-Site envelope; a cross-Site aggregate home can be added later without URL churn.                                                                                                              |
+| Report tabs inside the Site shell                | Sidebar context switch per route          | One stable sidebar; deep-linkable reports; the familiar analytics convention.                                                                                                                                               |
+| Reserved route files for contract-only resources | Omit routes until served                  | No URL churn at ship time; stale links degrade to an explicit state instead of a 404.                                                                                                                                       |
+| Client-only guard for now                        | Server-side session resolution during SSR | The auth state machine lives in client `useState`. The server's 401 is the real boundary. Server-side resolution is deferred, not cancelled.                                                                                |
 
 ## Conflicts surfaced
 

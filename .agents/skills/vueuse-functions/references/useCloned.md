@@ -46,7 +46,7 @@ console.log(cloned.value.key) // 'value'
 
 sync()
 
-console.log(cloned.value.key)// 'manual'
+console.log(cloned.value.key) // 'manual'
 ```
 
 ## Custom Clone Function

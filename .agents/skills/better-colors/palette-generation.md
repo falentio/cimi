@@ -58,7 +58,7 @@ The output format is the project's choice. For a ramp the interpolation space is
 With an accent plus status ramps, the ramps must agree step for step. `danger-500` and `brand-500` should read as equally bright and vivid, or a red button looks heavier than a blue one at the same step.
 
 - **Match perceived lightness exactly.** Same step, same brightness, across every hue.
-- **Match vividness relatively, not absolutely.** Hues do not share a maximum vividness. A saturated yellow and a saturated blue are not equally far from gray, and no format makes them so. Set each ramp to the same *proportion* of what its own hue reaches. Copying a saturation number across hues leaves one washed out.
+- **Match vividness relatively, not absolutely.** Hues do not share a maximum vividness. A saturated yellow and a saturated blue are not equally far from gray, and no format makes them so. Set each ramp to the same _proportion_ of what its own hue reaches. Copying a saturation number across hues leaves one washed out.
 
 Yellows and cyans are the usual casualties, peaking much lower than reds and blues. Copy the numbers across and the warning color looks weak beside the danger one.
 

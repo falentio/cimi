@@ -30,7 +30,5 @@ const averageValue = useAverage(a, b) // Ref<2>
 export declare function useAverage(
   array: MaybeRefOrGetter<MaybeRefOrGetter<number>[]>,
 ): ComputedRef<number>
-export declare function useAverage(
-  ...args: MaybeRefOrGetter<number>[]
-): ComputedRef<number>
+export declare function useAverage(...args: MaybeRefOrGetter<number>[]): ComputedRef<number>
 ```

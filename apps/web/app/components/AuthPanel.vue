@@ -195,7 +195,7 @@ function focusFirstInvalidField(field: AuthFormField): void {
         Cimi workspace
       </div>
 
-      <Card >
+      <Card>
         <CardHeader class="text-center">
           <CardTitle>
             <h1 class="text-2xl leading-tight font-semibold tracking-tight text-balance">

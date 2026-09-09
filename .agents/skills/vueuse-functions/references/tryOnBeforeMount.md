@@ -11,9 +11,7 @@ Safe `onBeforeMount`. Call `onBeforeMount()` if it's inside a component lifecycl
 ```ts
 import { tryOnBeforeMount } from '@vueuse/core'
 
-tryOnBeforeMount(() => {
-
-})
+tryOnBeforeMount(() => {})
 ```
 
 ## Type Declarations

@@ -73,9 +73,7 @@ export declare function useCounter(
   options?: UseCounterOptions,
 ): {
   count: Readonly<
-    | Ref<number, number>
-    | ShallowRef<number, number>
-    | WritableComputedRef<number, number>
+    Ref<number, number> | ShallowRef<number, number> | WritableComputedRef<number, number>
   >
   inc: (delta?: number) => number
   dec: (delta?: number) => number

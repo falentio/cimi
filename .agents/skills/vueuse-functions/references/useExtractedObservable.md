@@ -24,7 +24,10 @@ import { makeSocket, useUser } from '../some/lib/func'
 
 // setup()
 const user = useUser()
-const lastMessage = useExtractedObservable(user, u => ObservableSocket.create(makeSocket(u.id)).down)
+const lastMessage = useExtractedObservable(
+  user,
+  (u) => ObservableSocket.create(makeSocket(u.id)).down,
+)
 ```
 
 If you want to add custom error handling to an `Observable` that might error, you can supply an optional `onError`
@@ -48,16 +51,15 @@ const count = useExtractedObservable(
       startWith(start),
       scan((total, next) => next + total),
       tap((n) => {
-        if (n === 10)
-          throw new Error('oops')
-      })
+        if (n === 10) throw new Error('oops')
+      }),
     )
   },
   {
     onError: (err) => {
       console.log(err.message) // "oops"
     },
-  }
+  },
 )
 ```
 
@@ -80,14 +82,14 @@ const count = useExtractedObservable(
       mapTo(1),
       startWith(start),
       scan((total, next) => next + total),
-      takeWhile(num => num < 10)
+      takeWhile((num) => num < 10),
     )
   },
   {
     onComplete: () => {
       console.log('Done!')
     },
-  }
+  },
 )
 ```
 
@@ -109,13 +111,13 @@ const count = useExtractedObservable(
       mapTo(1),
       startWith(start),
       scan((total, next) => next + total),
-      takeWhile(num => num < 10)
+      takeWhile((num) => num < 10),
     )
   },
   {},
   {
-    immediate: false
-  }
+    immediate: false,
+  },
 )
 ```
 
@@ -134,9 +136,7 @@ Returns a readonly `ShallowRef` containing the latest value emitted by the extra
 ## Type Declarations
 
 ```ts
-export interface UseExtractedObservableOptions<
-  E,
-> extends UseObservableOptions<E> {
+export interface UseExtractedObservableOptions<E> extends UseObservableOptions<E> {
   onComplete?: () => void
 }
 export declare function useExtractedObservable<
@@ -145,11 +145,7 @@ export declare function useExtractedObservable<
   Immediate extends Readonly<boolean> = false,
 >(
   sources: [...T],
-  extractor: WatchExtractedObservableCallback<
-    MapSources<T>,
-    MapOldSources<T, Immediate>,
-    E
-  >,
+  extractor: WatchExtractedObservableCallback<MapSources<T>, MapOldSources<T, Immediate>, E>,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
 ): DeepReadonly<ShallowRef<E>>
@@ -159,25 +155,13 @@ export declare function useExtractedObservable<
   Immediate extends Readonly<boolean> = false,
 >(
   sources: T,
-  extractor: WatchExtractedObservableCallback<
-    MapSources<T>,
-    MapOldSources<T, Immediate>,
-    E
-  >,
+  extractor: WatchExtractedObservableCallback<MapSources<T>, MapOldSources<T, Immediate>, E>,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
 ): DeepReadonly<ShallowRef<E>>
-export declare function useExtractedObservable<
-  T,
-  E,
-  Immediate extends Readonly<boolean> = false,
->(
+export declare function useExtractedObservable<T, E, Immediate extends Readonly<boolean> = false>(
   sources: WatchSource<T>,
-  extractor: WatchExtractedObservableCallback<
-    T,
-    Immediate extends true ? T | undefined : T,
-    E
-  >,
+  extractor: WatchExtractedObservableCallback<T, Immediate extends true ? T | undefined : T, E>,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
 ): DeepReadonly<ShallowRef<E>>
@@ -187,11 +171,7 @@ export declare function useExtractedObservable<
   Immediate extends Readonly<boolean> = false,
 >(
   sources: T,
-  extractor: WatchExtractedObservableCallback<
-    T,
-    Immediate extends true ? T | undefined : T,
-    E
-  >,
+  extractor: WatchExtractedObservableCallback<T, Immediate extends true ? T | undefined : T, E>,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
 ): DeepReadonly<ShallowRef<E>>

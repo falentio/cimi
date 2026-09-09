@@ -13,9 +13,7 @@ import { useAsyncState } from '@vueuse/core'
 import axios from 'axios'
 
 const { state, isReady, isLoading, error } = useAsyncState(
-  axios
-    .get('https://jsonplaceholder.typicode.com/todos/1')
-    .then(t => t.data),
+  axios.get('https://jsonplaceholder.typicode.com/todos/1').then((t) => t.data),
   { id: null },
 )
 ```
@@ -51,7 +49,7 @@ import { useAsyncState } from '@vueuse/core'
 const { state, execute, executeImmediate } = useAsyncState(action, '', { immediate: false })
 
 async function action(event) {
-  await new Promise(resolve => setTimeout(resolve, 500))
+  await new Promise((resolve) => setTimeout(resolve, 500))
   return `${event.target.textContent} clicked!`
 }
 </script>
@@ -59,13 +57,9 @@ async function action(event) {
 <template>
   <p>State: {{ state }}</p>
 
-  <button class="button" @click="executeImmediate">
-    Execute now
-  </button>
+  <button class="button" @click="executeImmediate">Execute now</button>
 
-  <button class="ml-2 button" @click="event => execute(500, event)">
-    Execute with delay
-  </button>
+  <button class="ml-2 button" @click="(event) => execute(500, event)">Execute with delay</button>
 </template>
 ```
 
@@ -97,11 +91,7 @@ const { state } = useAsyncState(promise, initialState, {
 ## Type Declarations
 
 ```ts
-export interface UseAsyncStateReturnBase<
-  Data,
-  Params extends any[],
-  Shallow extends boolean,
-> {
+export interface UseAsyncStateReturnBase<Data, Params extends any[], Shallow extends boolean> {
   state: Shallow extends true ? Ref<Data> : Ref<UnwrapRef<Data>>
   isReady: Ref<boolean>
   isLoading: Ref<boolean>

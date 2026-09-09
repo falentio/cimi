@@ -38,8 +38,12 @@ Set `benchmark: { enabled: true }` to run them alongside regular tests in a sepa
 ```ts
 test('compare parsers', async ({ bench }) => {
   const result = await bench.compare(
-    bench('JSON.parse', () => { JSON.parse(input) }),
-    bench('custom', { beforeEach: () => reset() }, () => { customParse(input) }),
+    bench('JSON.parse', () => {
+      JSON.parse(input)
+    }),
+    bench('custom', { beforeEach: () => reset() }, () => {
+      customParse(input)
+    }),
     { iterations: 100, time: 1000 }, // shared Tinybench options (last arg)
   )
 
@@ -57,8 +61,8 @@ test('compare parsers', async ({ bench }) => {
 test('compare against baseline', async ({ bench }) => {
   await bench.compare(
     bench('current', { writeResult: './benchmarks/parse.json' }, () => parse(input)),
-    bench.from('previous', './benchmarks/parse.json'),       // reads a stored result, no run
-    bench.from('remote', () => fetch(url).then(r => r.json())),
+    bench.from('previous', './benchmarks/parse.json'), // reads a stored result, no run
+    bench.from('remote', () => fetch(url).then((r) => r.json())),
   )
 })
 ```

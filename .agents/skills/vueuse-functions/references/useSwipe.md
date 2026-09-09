@@ -18,16 +18,14 @@ const { isSwiping, direction } = useSwipe(el)
 </script>
 
 <template>
-  <div ref="el">
-    Swipe here
-  </div>
+  <div ref="el">Swipe here</div>
 </template>
 ```
 
 ## Type Declarations
 
 ```ts
-export type UseSwipeDirection = "up" | "down" | "left" | "right" | "none"
+export type UseSwipeDirection = 'up' | 'down' | 'left' | 'right' | 'none'
 export interface UseSwipeOptions extends ConfigurableWindow {
   /**
    * Register events as passive

@@ -83,12 +83,12 @@ Match partial structure:
 
 ```ts
 test('shape snapshot', () => {
-  const data = { 
-    id: Math.random(), 
+  const data = {
+    id: Math.random(),
     created: new Date(),
-    name: 'test' 
+    name: 'test',
   }
-  
+
   expect(data).toMatchSnapshot({
     id: expect.any(Number),
     created: expect.any(Date),
@@ -198,7 +198,7 @@ defineConfig({
     snapshotFormat: {
       printBasicPrototype: false, // Don't print Array/Object prototypes (Vitest default)
       escapeString: false,
-      printShadowRoot: true,      // v4 default: custom elements print their shadow root
+      printShadowRoot: true, // v4 default: custom elements print their shadow root
     },
   },
 })
@@ -245,7 +245,7 @@ defineConfig({
 - CI fails on obsolete snapshots; clean them with `--update`
 - v4 prints custom-element shadow roots; disable via `snapshotFormat.printShadowRoot: false`
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/guide/snapshot.html
 - https://vitest.dev/api/expect.html#tomatchsnapshot

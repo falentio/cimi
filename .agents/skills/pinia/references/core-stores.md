@@ -317,20 +317,18 @@ async orderCart() {
 ### Subscribing to Actions
 
 ```ts
-const unsubscribe = someStore.$onAction(
-  ({ name, store, args, after, onError }) => {
-    const startTime = Date.now()
-    console.log(`Start "${name}" with params [${args.join(', ')}]`)
+const unsubscribe = someStore.$onAction(({ name, store, args, after, onError }) => {
+  const startTime = Date.now()
+  console.log(`Start "${name}" with params [${args.join(', ')}]`)
 
-    after((result) => {
-      console.log(`Finished "${name}" after ${Date.now() - startTime}ms`)
-    })
+  after((result) => {
+    console.log(`Finished "${name}" after ${Date.now() - startTime}ms`)
+  })
 
-    onError((error) => {
-      console.warn(`Failed "${name}": ${error}`)
-    })
-  }
-)
+  onError((error) => {
+    console.warn(`Failed "${name}": ${error}`)
+  })
+})
 
 unsubscribe() // Cleanup
 ```
@@ -376,7 +374,7 @@ export const useSearchFilters = defineStore('search-filters', () => {
   const appProvided = inject('appProvided')
 
   // Don't return these - access them directly in components
-  return { /* ... */ }
+  return {/* ... */}
 })
 ```
 

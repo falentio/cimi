@@ -27,13 +27,10 @@ onMounted(() => {
 ## Type Declarations
 
 ```ts
-export declare function watchDeep<
-  T,
-  Immediate extends Readonly<boolean> = false,
->(
+export declare function watchDeep<T, Immediate extends Readonly<boolean> = false>(
   source: WatchSource<T>,
   cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
-  options?: Omit<WatchOptions<Immediate>, "deep">,
+  options?: Omit<WatchOptions<Immediate>, 'deep'>,
 ): WatchHandle
 export declare function watchDeep<
   T extends Readonly<MultiWatchSources>,
@@ -41,14 +38,11 @@ export declare function watchDeep<
 >(
   source: [...T],
   cb: WatchCallback<MapSources<T>, MapOldSources<T, Immediate>>,
-  options?: Omit<WatchOptions<Immediate>, "deep">,
+  options?: Omit<WatchOptions<Immediate>, 'deep'>,
 ): WatchHandle
-export declare function watchDeep<
-  T extends object,
-  Immediate extends Readonly<boolean> = false,
->(
+export declare function watchDeep<T extends object, Immediate extends Readonly<boolean> = false>(
   source: T,
   cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
-  options?: Omit<WatchOptions<Immediate>, "deep">,
+  options?: Omit<WatchOptions<Immediate>, 'deep'>,
 ): WatchHandle
 ```

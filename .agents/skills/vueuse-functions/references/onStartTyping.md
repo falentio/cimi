@@ -16,13 +16,12 @@ import { useTemplateRef } from 'vue'
 const input = useTemplateRef('input')
 
 onStartTyping(() => {
-  if (!input.value.active)
-    input.value.focus()
+  if (!input.value.active) input.value.focus()
 })
 </script>
 
 <template>
-  <input ref="input" type="text" placeholder="Start typing to focus">
+  <input ref="input" type="text" placeholder="Start typing to focus" />
 </template>
 ```
 

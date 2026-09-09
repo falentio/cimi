@@ -51,18 +51,18 @@ const capsLockState2 = useKeyModifier('CapsLock', { initial: false }) // Ref<boo
 
 ```ts
 export type KeyModifier =
-  | "Alt"
-  | "AltGraph"
-  | "CapsLock"
-  | "Control"
-  | "Fn"
-  | "FnLock"
-  | "Meta"
-  | "NumLock"
-  | "ScrollLock"
-  | "Shift"
-  | "Symbol"
-  | "SymbolLock"
+  | 'Alt'
+  | 'AltGraph'
+  | 'CapsLock'
+  | 'Control'
+  | 'Fn'
+  | 'FnLock'
+  | 'Meta'
+  | 'NumLock'
+  | 'ScrollLock'
+  | 'Shift'
+  | 'Symbol'
+  | 'SymbolLock'
 export interface UseModifierOptions<Initial> extends ConfigurableDocument {
   /**
    * Event names that will prompt update to modifier states

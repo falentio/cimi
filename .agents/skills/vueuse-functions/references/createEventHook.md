@@ -18,8 +18,8 @@ export function useMyFetch(url) {
   const fetchError = createEventHook<any>()
 
   fetch(url)
-    .then(result => fetchResult.trigger(result))
-    .catch(error => fetchError.trigger(error.message))
+    .then((result) => fetchResult.trigger(result))
+    .catch((error) => fetchError.trigger(error.message))
 
   return {
     onResult: fetchResult.on,
@@ -65,9 +65,7 @@ export type EventHookOn<T = any> = (fn: Callback<T>) => {
   off: () => void
 }
 export type EventHookOff<T = any> = (fn: Callback<T>) => void
-export type EventHookTrigger<T = any> = (
-  ...param: Parameters<Callback<T>>
-) => Promise<unknown[]>
+export type EventHookTrigger<T = any> = (...param: Parameters<Callback<T>>) => Promise<unknown[]>
 export interface EventHook<T = any> {
   on: EventHookOn<T>
   off: EventHookOff<T>

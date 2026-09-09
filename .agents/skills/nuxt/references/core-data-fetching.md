@@ -47,7 +47,7 @@ const { data } = await useFetch('/api/posts', {
   // Only pick specific fields
   pick: ['id', 'title'],
   // Transform response
-  transform: (posts) => posts.map(p => ({ ...p, slug: slugify(p.title) })),
+  transform: (posts) => posts.map((p) => ({ ...p, slug: slugify(p.title) })),
   // Custom key for caching
   key: 'posts-list',
   // Don't fetch on server
@@ -99,10 +99,7 @@ const { data, error } = await useAsyncData('user', () => {
 ```vue
 <script setup lang="ts">
 const { data } = await useAsyncData('cart', async () => {
-  const [coupons, offers] = await Promise.all([
-    $fetch('/api/coupons'),
-    $fetch('/api/offers'),
-  ])
+  const [coupons, offers] = await Promise.all([$fetch('/api/coupons'), $fetch('/api/offers')])
   return { coupons, offers }
 })
 </script>
@@ -139,7 +136,7 @@ const { data: other } = await useAPI('/modules', { baseURL: 'https://other.com' 
 export const useAPI = createUseFetch({ baseURL: '/api', lazy: true })
 
 // Function → options OVERRIDE caller's (enforce auth/baseURL)
-export const useAPI = createUseFetch(callerOptions => ({
+export const useAPI = createUseFetch((callerOptions) => ({
   baseURL: 'https://api.nuxt.com', // always enforced
 }))
 ```
@@ -148,7 +145,7 @@ Use the **function form** when you need `useNuxtApp()` (called in setup context,
 
 ```ts
 // app/composables/useAPI.ts
-export const useAPI = createUseFetch(callerOptions => ({
+export const useAPI = createUseFetch((callerOptions) => ({
   $fetch: useNuxtApp().$api as typeof $fetch,
   ...callerOptions,
 }))
@@ -188,15 +185,15 @@ async function submitForm() {
 
 All composables return:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `data` | `Ref<T>` | Fetched data (`undefined` until resolved) |
-| `error` | `Ref<Error>` | Error if request failed |
-| `status` | `Ref<'idle' \| 'pending' \| 'success' \| 'error'>` | Request status |
-| `pending` | `Ref<boolean>` | Whether a request is in progress |
-| `refresh` | `() => Promise` | Refetch data |
-| `execute` | `() => Promise` | Alias for refresh |
-| `clear` | `() => void` | Reset to default/idle and cancel pending requests |
+| Property  | Type                                               | Description                                       |
+| --------- | -------------------------------------------------- | ------------------------------------------------- |
+| `data`    | `Ref<T>`                                           | Fetched data (`undefined` until resolved)         |
+| `error`   | `Ref<Error>`                                       | Error if request failed                           |
+| `status`  | `Ref<'idle' \| 'pending' \| 'success' \| 'error'>` | Request status                                    |
+| `pending` | `Ref<boolean>`                                     | Whether a request is in progress                  |
+| `refresh` | `() => Promise`                                    | Refetch data                                      |
+| `execute` | `() => Promise`                                    | Alias for refresh                                 |
+| `clear`   | `() => void`                                       | Reset to default/idle and cancel pending requests |
 
 > Prefer `status` over `pending` for fine-grained state. `useFetch` no longer accepts a top-level `timeout` option (still available on `useAsyncData`); use a `cache` option (`'default'`, `'no-store'`, `false`, etc.) for Fetch cache control.
 
@@ -291,7 +288,7 @@ const data = await $fetch('/api/user', { headers })
 </script>
 ```
 
-<!-- 
+<!--
 Source references:
 - https://nuxt.com/docs/4.x/getting-started/data-fetching
 - https://nuxt.com/docs/4.x/api/composables/use-fetch

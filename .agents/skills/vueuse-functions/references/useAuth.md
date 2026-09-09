@@ -15,7 +15,7 @@ import { useAuth } from '@vueuse/firebase/useAuth'
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 
-const app = initializeApp({ /* config */ })
+const app = initializeApp({/* config */})
 const auth = getAuth(app)
 const { isAuthenticated, user } = useAuth(auth)
 
@@ -25,9 +25,7 @@ const signIn = () => signInWithPopup(auth, new GoogleAuthProvider())
 <template>
   <pre v-if="isAuthenticated">{{ user }}</pre>
   <div v-else>
-    <button @click="signIn">
-      Sign In with Google
-    </button>
+    <button @click="signIn">Sign In with Google</button>
   </div>
 </template>
 ```

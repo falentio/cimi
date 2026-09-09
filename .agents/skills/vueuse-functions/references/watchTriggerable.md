@@ -16,10 +16,7 @@ import { nextTick, shallowRef } from 'vue'
 
 const source = shallowRef(0)
 
-const { trigger, ignoreUpdates } = watchTriggerable(
-  source,
-  v => console.log(`Changed to ${v}!`),
-)
+const { trigger, ignoreUpdates } = watchTriggerable(source, (v) => console.log(`Changed to ${v}!`))
 
 source.value = 'bar'
 await nextTick() // logs: Changed to bar!
@@ -40,19 +37,15 @@ import { shallowRef } from 'vue'
 
 const source = shallowRef(0)
 
-const { trigger } = watchTriggerable(
-  source,
-  async (v, _, onCleanup) => {
-    let canceled = false
-    onCleanup(() => canceled = true)
+const { trigger } = watchTriggerable(source, async (v, _, onCleanup) => {
+  let canceled = false
+  onCleanup(() => (canceled = true))
 
-    await new Promise(resolve => setTimeout(resolve, 500))
-    if (canceled)
-      return
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  if (canceled) return
 
-    console.log(`The value is "${v}"\n`)
-  },
-)
+  console.log(`The value is "${v}"\n`)
+})
 
 source.value = 1 // no log
 await trigger() // logs (after 500 ms): The value is "1"
@@ -61,9 +54,7 @@ await trigger() // logs (after 500 ms): The value is "1"
 ## Type Declarations
 
 ```ts
-export interface WatchTriggerableReturn<
-  FnReturnT = void,
-> extends WatchIgnorableReturn {
+export interface WatchTriggerableReturn<FnReturnT = void> extends WatchIgnorableReturn {
   /** Execute `WatchCallback` immediately */
   trigger: () => FnReturnT
 }
@@ -78,16 +69,9 @@ export declare function watchTriggerable<T, FnReturnT>(
   cb: WatchTriggerableCallback<T, T | undefined, FnReturnT>,
   options?: WatchWithFilterOptions<boolean>,
 ): WatchTriggerableReturn<FnReturnT>
-export declare function watchTriggerable<
-  T extends Readonly<MultiWatchSources>,
-  FnReturnT,
->(
+export declare function watchTriggerable<T extends Readonly<MultiWatchSources>, FnReturnT>(
   sources: [...T],
-  cb: WatchTriggerableCallback<
-    MapSources<T>,
-    MapOldSources<T, true>,
-    FnReturnT
-  >,
+  cb: WatchTriggerableCallback<MapSources<T>, MapOldSources<T, true>, FnReturnT>,
   options?: WatchWithFilterOptions<boolean>,
 ): WatchTriggerableReturn<FnReturnT>
 export declare function watchTriggerable<T extends object, FnReturnT>(

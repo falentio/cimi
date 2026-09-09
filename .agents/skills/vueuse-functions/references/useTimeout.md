@@ -70,9 +70,7 @@ duration.value = 2000
 ## Type Declarations
 
 ```ts
-export interface UseTimeoutOptions<
-  Controls extends boolean,
-> extends UseTimeoutFnOptions {
+export interface UseTimeoutOptions<Controls extends boolean> extends UseTimeoutFnOptions {
   /**
    * Expose more controls
    *

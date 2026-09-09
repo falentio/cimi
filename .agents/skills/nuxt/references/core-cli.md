@@ -29,13 +29,14 @@ npx nuxi@latest init my-app --no-modules
 ```
 
 **Options:**
-| Option | Description |
-|--------|-------------|
-| `-t, --template` | Template name |
-| `--packageManager` | npm, pnpm, yarn, or bun |
-| `-M, --modules` | Modules to install (comma-separated) |
-| `--gitInit` | Initialize git repository |
-| `--no-install` | Skip installing dependencies |
+
+| Option             | Description                          |
+| ------------------ | ------------------------------------ |
+| `-t, --template`   | Template name                        |
+| `--packageManager` | npm, pnpm, yarn, or bun              |
+| `-M, --modules`    | Modules to install (comma-separated) |
+| `--gitInit`        | Initialize git repository            |
+| `--no-install`     | Skip installing dependencies         |
 
 ## Development
 
@@ -65,17 +66,19 @@ npx nuxt dev --tunnel
 ```
 
 **Options:**
-| Option | Description |
-|--------|-------------|
-| `-p, --port` | Port to listen on |
-| `-h, --host` | Host to listen on |
-| `-o, --open` | Open in browser |
-| `--https` | Enable HTTPS |
-| `--tunnel` | Create public tunnel (via untun) |
-| `--qr` | Show QR code for mobile |
-| `--clear` | Clear console on restart |
+
+| Option       | Description                      |
+| ------------ | -------------------------------- |
+| `-p, --port` | Port to listen on                |
+| `-h, --host` | Host to listen on                |
+| `-o, --open` | Open in browser                  |
+| `--https`    | Enable HTTPS                     |
+| `--tunnel`   | Create public tunnel (via untun) |
+| `--qr`       | Show QR code for mobile          |
+| `--clear`    | Clear console on restart         |
 
 **Environment Variables:**
+
 - `NUXT_PORT` or `PORT` - Default port
 - `NUXT_HOST` or `HOST` - Default host
 
@@ -254,7 +257,7 @@ npx nuxt dev --extends ./base-layer
 npx nuxt build --extends ./base-layer
 ```
 
-<!-- 
+<!--
 Source references:
 - https://nuxt.com/docs/api/commands/dev
 - https://nuxt.com/docs/api/commands/build

@@ -30,14 +30,10 @@ const cookies = useCookies(['locale'])
 <template>
   <div>
     <strong>locale</strong>: {{ cookies.get('locale') }}
-    <hr>
+    <hr />
     <pre>{{ cookies.getAll() }}</pre>
-    <button @click="cookies.set('locale', 'ru-RU')">
-      Russian
-    </button>
-    <button @click="cookies.set('locale', 'en-US')">
-      English
-    </button>
+    <button @click="cookies.set('locale', 'ru-RU')">Russian</button>
+    <button @click="cookies.set('locale', 'en-US')">English</button>
   </div>
 </template>
 ```
@@ -51,17 +47,13 @@ Access and modify cookies using vue composition-api.
 ```ts
 import { useCookies } from '@vueuse/integrations/useCookies'
 // ---cut---
-const {
-  get,
-  getAll,
-  set,
-  remove,
-  addChangeListener,
-  removeChangeListener
-} = useCookies(['cookie-name'], {
-  doNotParse: false,
-  autoUpdateDependencies: false
-})
+const { get, getAll, set, remove, addChangeListener, removeChangeListener } = useCookies(
+  ['cookie-name'],
+  {
+    doNotParse: false,
+    autoUpdateDependencies: false,
+  },
+)
 ```
 
 ### `dependencies` (optional)
@@ -112,11 +104,7 @@ export declare function createCookies(req?: IncomingMessage): (
    * Reactive get all cookies
    */
   getAll: <T = any>(options?: CookieGetOptions | undefined) => T
-  set: (
-    name: string,
-    value: any,
-    options?: CookieSetOptions | undefined,
-  ) => void
+  set: (name: string, value: any, options?: CookieSetOptions | undefined) => void
   remove: (name: string, options?: CookieSetOptions | undefined) => void
   addChangeListener: (callback: CookieChangeListener) => void
   removeChangeListener: (callback: CookieChangeListener) => void
@@ -150,11 +138,7 @@ export declare function useCookies(
    * Reactive get all cookies
    */
   getAll: <T = any>(options?: CookieGetOptions | undefined) => T
-  set: (
-    name: string,
-    value: any,
-    options?: CookieSetOptions | undefined,
-  ) => void
+  set: (name: string, value: any, options?: CookieSetOptions | undefined) => void
   remove: (name: string, options?: CookieSetOptions | undefined) => void
   addChangeListener: (callback: CookieChangeListener) => void
   removeChangeListener: (callback: CookieChangeListener) => void

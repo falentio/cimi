@@ -28,7 +28,7 @@ const { data, post, terminate, worker } = useWebWorker('/path/to/worker.js')
 ## Type Declarations
 
 ```ts
-type PostMessage = (typeof Worker.prototype)["postMessage"]
+type PostMessage = (typeof Worker.prototype)['postMessage']
 export interface UseWebWorkerReturn<Data = any> {
   data: ShallowRef<Data>
   post: PostMessage
@@ -54,7 +54,5 @@ export declare function useWebWorker<T = any>(
  *
  * @see https://vueuse.org/useWebWorker
  */
-export declare function useWebWorker<T = any>(
-  worker: Worker | WorkerFn,
-): UseWebWorkerReturn<T>
+export declare function useWebWorker<T = any>(worker: Worker | WorkerFn): UseWebWorkerReturn<T>
 ```

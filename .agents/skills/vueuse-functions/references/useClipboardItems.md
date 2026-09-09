@@ -22,7 +22,7 @@ const mime = 'text/plain'
 const source = ref([
   new ClipboardItem({
     [mime]: new Blob(['plain text'], { type: mime }),
-  })
+  }),
 ])
 
 const { content, copy, copied, isSupported } = useClipboardItems({ source })
@@ -39,18 +39,14 @@ const { content, copy, copied, isSupported } = useClipboardItems({ source })
       Current copied: <code>{{ content || 'none' }}</code>
     </p>
   </div>
-  <p v-else>
-    Your browser does not support Clipboard API
-  </p>
+  <p v-else>Your browser does not support Clipboard API</p>
 </template>
 ```
 
 ## Type Declarations
 
 ```ts
-export interface UseClipboardItemsOptions<
-  Source,
-> extends ConfigurableNavigator {
+export interface UseClipboardItemsOptions<Source> extends ConfigurableNavigator {
   /**
    * Enabled reading for clipboard
    *

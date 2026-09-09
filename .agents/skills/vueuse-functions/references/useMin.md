@@ -30,7 +30,5 @@ const min = useMin(a, b, 2) // Ref<1>
 export declare function useMin(
   array: MaybeRefOrGetter<MaybeRefOrGetter<number>[]>,
 ): ComputedRef<number>
-export declare function useMin(
-  ...args: MaybeRefOrGetter<number>[]
-): ComputedRef<number>
+export declare function useMin(...args: MaybeRefOrGetter<number>[]): ComputedRef<number>
 ```

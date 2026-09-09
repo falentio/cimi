@@ -10,4 +10,5 @@
 - Only create dev server tab/pane at the herder worktree for that branch
 
 ## Rules
+
 - Components placement "components/features/{feature-name}/*.vue"

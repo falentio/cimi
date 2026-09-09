@@ -60,10 +60,7 @@ bus.on((e) => {
 ## Type Declarations
 
 ```ts
-export type EventBusListener<T = unknown, P = any> = (
-  event: T,
-  payload?: P,
-) => void
+export type EventBusListener<T = unknown, P = any> = (event: T, payload?: P) => void
 export type EventBusEvents<T, P = any> = Set<EventBusListener<T, P>>
 export interface EventBusKey<T> extends Symbol {}
 export type EventBusIdentifier<T = unknown> = EventBusKey<T> | string | number

@@ -118,9 +118,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        warning: "oklch(var(--warning) / <alpha-value>)",
-        "warning-foreground":
-          "oklch(var(--warning-foreground) / <alpha-value>)",
+        warning: 'oklch(var(--warning) / <alpha-value>)',
+        'warning-foreground': 'oklch(var(--warning-foreground) / <alpha-value>)',
       },
     },
   },
@@ -149,9 +148,7 @@ Prefer these approaches in order:
 ### 1. Built-in variants
 
 ```html
-<Button variant="outline" size="sm">
-  Click
-</Button>
+<button variant="outline" size="sm">Click</button>
 ```
 
 ### 2. Tailwind classes via `class`

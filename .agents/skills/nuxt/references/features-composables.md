@@ -61,7 +61,7 @@ useSeoMeta({ description: 'Page description' })
 
 // Accessibility — announce content to screen readers
 const { polite, assertive } = useAnnouncer() // needs <NuxtAnnouncer> (Nuxt 4.4+)
-const { set } = useRouteAnnouncer()           // automatic on navigation
+const { set } = useRouteAnnouncer() // automatic on navigation
 
 // Request helpers (SSR)
 const headers = useRequestHeaders()
@@ -83,9 +83,9 @@ const { polite, assertive } = useAnnouncer()
 async function submit() {
   try {
     await $fetch('/api/contact', { method: 'POST', body: form })
-    polite('Message sent successfully')   // waits for screen reader silence
+    polite('Message sent successfully') // waits for screen reader silence
   } catch {
-    assertive('Error: failed to send')    // interrupts immediately
+    assertive('Error: failed to send') // interrupts immediately
   }
 }
 </script>
@@ -292,6 +292,7 @@ export function useMyComposable() {
 ```
 
 **Valid contexts:**
+
 - `<script setup>` block
 - `setup()` function
 - `defineNuxtPlugin()` callback
@@ -314,7 +315,7 @@ export default defineNuxtConfig({
 })
 ```
 
-<!-- 
+<!--
 Source references:
 - https://nuxt.com/docs/4.x/guide/concepts/auto-imports
 - https://nuxt.com/docs/4.x/directory-structure/app/composables

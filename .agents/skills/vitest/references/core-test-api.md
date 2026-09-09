@@ -32,7 +32,7 @@ test('async test', async () => {
 
 // Promises are automatically awaited
 test('returns promise', () => {
-  return fetchData().then(result => {
+  return fetchData().then((result) => {
     expect(result).toBeDefined()
   })
 })
@@ -171,9 +171,9 @@ First argument provides context utilities:
 
 ```ts
 test('with context', ({ expect, skip, task, signal, annotate }) => {
-  console.log(task.name)        // Test metadata
+  console.log(task.name) // Test metadata
   skip(someCondition, 'reason') // Skip dynamically
-  expect(1).toBe(1)             // Context-bound expect
+  expect(1).toBe(1) // Context-bound expect
 })
 
 // signal (3.2+): AbortSignal aborted on timeout/cancel/bail
@@ -194,12 +194,11 @@ Prefer the **builder pattern** (4.1+) for automatic type inference:
 ```ts
 import { test as base } from 'vitest'
 
-const test = base
-  .extend('db', async ({}, { onCleanup }) => {
-    const db = await createDb()
-    onCleanup(() => db.close()) // runs after the test/scope
-    return db
-  })
+const test = base.extend('db', async ({}, { onCleanup }) => {
+  const db = await createDb()
+  onCleanup(() => db.close()) // runs after the test/scope
+  return db
+})
 
 test('query', async ({ db }) => {
   const users = await db.query('SELECT * FROM users')
@@ -217,13 +216,17 @@ test('flaky test', { retry: 3 }, async () => {
 })
 
 // Advanced retry options
-test('with delay', {
-  retry: {
-    count: 3,
-    delay: 1000,
-    condition: /timeout/i, // Only retry on timeout errors
+test(
+  'with delay',
+  {
+    retry: {
+      count: 3,
+      delay: 1000,
+      condition: /timeout/i, // Only retry on timeout errors
+    },
   },
-}, async () => {})
+  async () => {},
+)
 ```
 
 ## Tags
@@ -259,7 +262,7 @@ test('sort', async ({ bench }) => {
 - Function name is used as test name if passed as first arg
 - `test.sequential` was removed in v5 — use `{ concurrent: false }`
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/api/test.html
 -->

@@ -18,12 +18,7 @@ const { textarea, input } = useTextareaAutosize()
 </script>
 
 <template>
-  <textarea
-    ref="textarea"
-    v-model="input"
-    class="resize-none"
-    placeholder="What's on your mind?"
-  />
+  <textarea ref="textarea" v-model="input" class="resize-none" placeholder="What's on your mind?" />
 </template>
 ```
 
@@ -108,7 +103,7 @@ export interface UseTextareaAutosizeOptions extends ConfigurableWindow {
   /** Specify style target to apply the height based on textarea content. If not provided it will use textarea it self.  */
   styleTarget?: MaybeRef<HTMLElement | undefined>
   /** Specify the style property that will be used to manipulate height. Can be `height | minHeight`. Default value is `height`. */
-  styleProp?: "height" | "minHeight"
+  styleProp?: 'height' | 'minHeight'
 }
 export interface UseTextareaAutosizeReturn {
   textarea: Ref<HTMLTextAreaElement | undefined | null>

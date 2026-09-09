@@ -25,11 +25,11 @@ const { text, copy, copied, isSupported } = useClipboard({ source })
       <span v-if="!copied">Copy</span>
       <span v-else>Copied!</span>
     </button>
-    <p>Current copied: <code>{{ text || 'none' }}</code></p>
+    <p>
+      Current copied: <code>{{ text || 'none' }}</code>
+    </p>
   </div>
-  <p v-else>
-    Your browser does not support Clipboard API
-  </p>
+  <p v-else>Your browser does not support Clipboard API</p>
 </template>
 ```
 

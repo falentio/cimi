@@ -16,7 +16,7 @@ defineConfig({
     projects: [
       // Glob patterns for config files
       'packages/*',
-      
+
       // Inline config
       {
         test: {
@@ -260,7 +260,7 @@ defineConfig({
       {
         test: {
           name: 'unit',
-          isolate: false,                 // fast, non-isolated unit tests
+          isolate: false, // fast, non-isolated unit tests
           exclude: ['**/*.integration.test.ts'],
         },
       },
@@ -268,7 +268,7 @@ defineConfig({
         test: {
           name: 'sequential',
           include: ['**/*.sequential.test.ts'],
-          fileParallelism: false,         // run these files one at a time
+          fileParallelism: false, // run these files one at a time
         },
       },
       {
@@ -308,7 +308,7 @@ defineConfig({
 - Use `provide` to inject config values into tests
 - Projects inherit from root config unless overridden
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/guide/projects.html
 -->

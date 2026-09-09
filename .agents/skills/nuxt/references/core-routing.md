@@ -218,7 +218,7 @@ definePageMeta({
 ```vue
 <!-- app/layouts/panel.vue -->
 <script setup lang="ts">
-const props = defineProps<{ sidebar?: boolean, title?: string }>()
+const props = defineProps<{ sidebar?: boolean; title?: string }>()
 </script>
 ```
 
@@ -262,7 +262,7 @@ onBeforeRouteUpdate((to, from) => {
 </script>
 ```
 
-<!-- 
+<!--
 Source references:
 - https://nuxt.com/docs/4.x/getting-started/routing
 - https://nuxt.com/docs/4.x/directory-structure/app/pages

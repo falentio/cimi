@@ -34,11 +34,13 @@ export { useProvideCounterStore }
 export { useCounterStore }
 
 export function useCounterStoreWithDefaultValue() {
-  return useCounterStore() ?? {
-    count: shallowRef(0),
-    double: shallowRef(0),
-    increment: () => {},
-  }
+  return (
+    useCounterStore() ?? {
+      count: shallowRef(0),
+      double: shallowRef(0),
+      increment: () => {},
+    }
+  )
 }
 
 export function useCounterStoreOrThrow() {
@@ -87,12 +89,8 @@ const { count, double } = useCounterStore()!
 
 <template>
   <ul>
-    <li>
-      count: {{ count }}
-    </li>
-    <li>
-      double: {{ double }}
-    </li>
+    <li>count: {{ count }}</li>
+    <li>double: {{ double }}</li>
   </ul>
 </template>
 ```
@@ -110,9 +108,7 @@ const { increment } = useCounterStore()!
 </script>
 
 <template>
-  <button @click="increment">
-    +
-  </button>
+  <button @click="increment">+</button>
 </template>
 ```
 
@@ -126,20 +122,23 @@ import { computed, shallowRef } from 'vue'
 // custom injectionKey
 const CounterStoreKey = 'counter-store'
 
-const [useProvideCounterStore, useCounterStore] = createInjectionState((initialValue: number) => {
-  // state
-  const count = shallowRef(initialValue)
+const [useProvideCounterStore, useCounterStore] = createInjectionState(
+  (initialValue: number) => {
+    // state
+    const count = shallowRef(initialValue)
 
-  // getters
-  const double = computed(() => count.value * 2)
+    // getters
+    const double = computed(() => count.value * 2)
 
-  // actions
-  function increment() {
-    count.value++
-  }
+    // actions
+    function increment() {
+      count.value++
+    }
 
-  return { count, double, increment }
-}, { injectionKey: CounterStoreKey })
+    return { count, double, increment }
+  },
+  { injectionKey: CounterStoreKey },
+)
 ```
 
 ## Provide a custom default value
@@ -150,20 +149,23 @@ import { createInjectionState } from '@vueuse/core'
 import { computed, shallowRef } from 'vue'
 
 // useCounterStore does not return undefined when defaultValue is specified
-const [useProvideCounterStore, useCounterStore] = createInjectionState((initialValue: number) => {
-  // state
-  const count = shallowRef(initialValue)
+const [useProvideCounterStore, useCounterStore] = createInjectionState(
+  (initialValue: number) => {
+    // state
+    const count = shallowRef(initialValue)
 
-  // getters
-  const double = computed(() => count.value * 2)
+    // getters
+    const double = computed(() => count.value * 2)
 
-  // actions
-  function increment() {
-    count.value++
-  }
+    // actions
+    function increment() {
+      count.value++
+    }
 
-  return { count, double, increment }
-}, { defaultValue: 0 })
+    return { count, double, increment }
+  },
+  { defaultValue: 0 },
+)
 ```
 
 ## Type Declarations
@@ -207,19 +209,13 @@ export interface CreateInjectionStateOptions<Return> {
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function createInjectionState<
-  Arguments extends Array<any>,
-  Return,
->(
+export declare function createInjectionState<Arguments extends Array<any>, Return>(
   composable: (...args: Arguments) => Return,
   options: {
     defaultValue: Return
   } & CreateInjectionStateOptions<Return>,
 ): CreateInjectionStateReturn<Arguments, Return, Return>
-export declare function createInjectionState<
-  Arguments extends Array<any>,
-  Return,
->(
+export declare function createInjectionState<Arguments extends Array<any>, Return>(
   composable: (...args: Arguments) => Return,
   options?: CreateInjectionStateOptions<Return>,
 ): CreateInjectionStateReturn<Arguments, Return, Return | undefined>

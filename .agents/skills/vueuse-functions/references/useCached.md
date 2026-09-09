@@ -21,7 +21,10 @@ interface Data {
 }
 
 const source = shallowRef<Data>({ value: 42, extra: 0 })
-const cached = useCached(source, (newSourceValue, cachedValue) => newSourceValue.value === cachedValue.value)
+const cached = useCached(
+  source,
+  (newSourceValue, cachedValue) => newSourceValue.value === cachedValue.value,
+)
 
 source.value = {
   value: 42,
@@ -48,8 +51,5 @@ export declare function useCached<T, D extends boolean = true>(
   comparator?: (newSourceValue: T, cachedValue: T) => boolean,
   options?: UseCachedOptions<D>,
 ): UseCachedReturn<T, D>
-export type UseCachedReturn<
-  T = any,
-  D extends boolean = true,
-> = ShallowOrDeepRef<T, D>
+export type UseCachedReturn<T = any, D extends boolean = true> = ShallowOrDeepRef<T, D>
 ```

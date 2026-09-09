@@ -11,13 +11,14 @@ Every test receives context as its first argument:
 
 ```ts
 test('context', ({ task, expect, skip, signal, annotate }) => {
-  console.log(task.name)        // Test metadata (readonly)
-  expect(1).toBe(1)             // Expect bound to this test
-  skip(condition, 'reason')     // Skip dynamically
+  console.log(task.name) // Test metadata (readonly)
+  expect(1).toBe(1) // Expect bound to this test
+  skip(condition, 'reason') // Skip dynamically
 })
 ```
 
 Properties:
+
 - `task` — test metadata (name, file, etc.)
 - `expect` — expect bound to this test (required for concurrent snapshot tests)
 - `skip(condition?, message?)` — skip the test
@@ -54,8 +55,8 @@ test('uses server', ({ config, server }) => {
 
 ```ts
 const test = baseTest
-  .extend('metrics', { auto: true }, () => new Metrics())       // runs for every test
-  .extend('config', { scope: 'worker' }, () => loadConfig())    // once per worker
+  .extend('metrics', { auto: true }, () => new Metrics()) // runs for every test
+  .extend('config', { scope: 'worker' }, () => loadConfig()) // once per worker
   .extend('db', { scope: 'file' }, async ({ config }, { onCleanup }) => {
     const db = await createDatabase(config)
     onCleanup(() => db.close())
@@ -72,8 +73,8 @@ Uses the `use()` callback; types must be declared manually:
 const test = baseTest.extend<{ page: Page; baseUrl: string }>({
   page: async ({}, use) => {
     const page = await browser.newPage()
-    await use(page)        // test runs here
-    await page.close()     // cleanup after
+    await use(page) // test runs here
+    await page.close() // cleanup after
   },
   baseUrl: 'http://localhost:3000',
 })
@@ -83,11 +84,11 @@ Tuple form sets options: `fixture: [async ({}, use) => {…}, { scope: 'file' }]
 
 ## Fixture Scopes (3.2+)
 
-| Scope | Lifetime | Can access |
-|-------|----------|------------|
-| `test` (default) | each test | worker + file + test fixtures + built-in context |
-| `file` | once per file | worker + file fixtures |
-| `worker` | once per worker process | only worker fixtures |
+| Scope            | Lifetime                | Can access                                       |
+| ---------------- | ----------------------- | ------------------------------------------------ |
+| `test` (default) | each test               | worker + file + test fixtures + built-in context |
+| `file`           | once per file           | worker + file fixtures                           |
+| `worker`         | once per worker process | only worker fixtures                             |
 
 Only `test`-scoped fixtures can access the built-in context (`task`, `expect`, …). In file/worker fixtures use `expect.getState().testPath` for the file path. By default every file is its own worker, so `file` and `worker` behave the same unless [isolation is disabled](features-concurrency.md).
 
@@ -100,9 +101,7 @@ const test = baseTest.extend('url', { injected: true }, '/default')
 // vitest.config.ts — provide per project
 defineConfig({
   test: {
-    projects: [
-      { test: { name: 'prod', provide: { url: 'https://prod' } } },
-    ],
+    projects: [{ test: { name: 'prod', provide: { url: 'https://prod' } } }],
   },
 })
 ```
@@ -115,9 +114,7 @@ Read raw provided values without fixtures via `import { inject } from 'vitest'`.
 
 ```ts
 describe('production', () => {
-  test
-    .override('config', { port: 8080, host: 'api.example.com' })
-    .override('debug', false)        // chainable
+  test.override('config', { port: 8080, host: 'api.example.com' }).override('debug', false) // chainable
 
   test('uses prod config', ({ server }) => {
     expect(server.url).toBe('http://api.example.com:8080')
@@ -143,8 +140,8 @@ import { test as dbTest } from './db-test'
 
 export const test = dbTest.extend('user', ({ db }) => db.createUser())
 
-test.beforeEach(({ db }) => db.seed())            // sees fixtures
-test.beforeAll(({ db }) => db.migrate())          // file/worker fixtures only (4.1+)
+test.beforeEach(({ db }) => db.seed()) // sees fixtures
+test.beforeAll(({ db }) => db.migrate()) // file/worker fixtures only (4.1+)
 test.aroundAll(async (run, { db }) => db.tx(run))
 ```
 
@@ -157,7 +154,7 @@ test.aroundAll(async (run, { db }) => db.tx(run))
 - Use `test.override` (not `test.scoped`) to vary fixture values per suite
 - Use `{ injected: true }` + project `provide` for per-project values
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/guide/test-context.html
 -->

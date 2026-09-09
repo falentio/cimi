@@ -41,14 +41,14 @@ export default {
     refs.a.value = 'a' // emit('update:data', { ...props.data, a: 'a' })
 
     return { ...refs }
-  }
+  },
 }
 </script>
 
 <template>
   <div>
-    <input v-model="a" type="text">
-    <input v-model="b" type="text">
+    <input v-model="a" type="text" />
+    <input v-model="b" type="text" />
   </div>
 </template>
 ```

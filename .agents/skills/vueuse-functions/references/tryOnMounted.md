@@ -11,9 +11,7 @@ Safe `onMounted`. Call `onMounted()` if it's inside a component lifecycle, if no
 ```ts
 import { tryOnMounted } from '@vueuse/core'
 
-tryOnMounted(() => {
-
-})
+tryOnMounted(() => {})
 ```
 
 ## Type Declarations

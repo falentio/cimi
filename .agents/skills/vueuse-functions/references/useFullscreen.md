@@ -36,9 +36,7 @@ const { isFullscreen, enter, exit, toggle } = useFullscreen(el)
 <template>
   <UseFullscreen v-slot="{ toggle }">
     <video />
-    <button @click="toggle">
-      Go Fullscreen
-    </button>
+    <button @click="toggle">Go Fullscreen</button>
   </UseFullscreen>
 </template>
 ```

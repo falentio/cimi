@@ -24,10 +24,12 @@ useSubscription(
     .pipe(
       mapTo(1),
       takeUntil(fromEvent(button, 'click')),
-      withLatestFrom(from(count, {
-        immediate: true,
-        deep: false,
-      })),
+      withLatestFrom(
+        from(count, {
+          immediate: true,
+          deep: false,
+        }),
+      ),
       map(([curr, total]) => curr + total),
     )
     .subscribe(toObserver(count)), // same as ).subscribe(val => (count.value = val))
@@ -62,7 +64,7 @@ const button = useTemplateRef('buttonRef')
 useSubscription(
   fromEvent(button, 'click').subscribe(() => {
     console.log('clicked!')
-  })
+  }),
 )
 ```
 

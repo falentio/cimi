@@ -12,11 +12,14 @@ Observe performance metrics.
 import { usePerformanceObserver } from '@vueuse/core'
 
 const entrys = ref<PerformanceEntry[]>([])
-usePerformanceObserver({
-  entryTypes: ['paint'],
-}, (list) => {
-  entrys.value = list.getEntries()
-})
+usePerformanceObserver(
+  {
+    entryTypes: ['paint'],
+  },
+  (list) => {
+    entrys.value = list.getEntries()
+  },
+)
 ```
 
 ## Type Declarations
