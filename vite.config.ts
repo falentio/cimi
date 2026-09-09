@@ -22,6 +22,7 @@ export default defineConfig({
     semi: false,
   },
   lint: {
+    plugins: ['unicorn', 'typescript', 'oxc', 'vue'],
     ignorePatterns: [
       'docs/vendor/**',
       'node_modules/**',
