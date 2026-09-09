@@ -1,7 +1,7 @@
 import { Address4, Address6 } from 'ip-address'
 import * as psl from 'psl'
 
-// TODO: Consume from apps/api origin normalization and apps/frontend domain grouping once their contracts settle.
+// TODO: Consume from apps/api origin normalization and apps/web domain grouping once their contracts settle.
 export function getRegistrableDomain(input: string): string | null {
   const hostname = extractHostname(input)
   if (!hostname) return null

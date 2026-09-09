@@ -22,9 +22,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Sync Astro types
-        run: pnpm --filter @cimi/frontend exec astro sync
-
-      - name: Sync Astro types (web)
         run: pnpm --filter @cimi/web exec astro sync
 
       - name: Check (format, lint, typecheck)
