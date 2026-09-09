@@ -6,7 +6,10 @@ type SessionResponse = Awaited<ReturnType<AuthClient['getSession']>>
 type RawAuthSession = NonNullable<SessionResponse['data']>
 type RawAuthUser = RawAuthSession['user']
 
-export type AuthUser = Pick<RawAuthUser, 'id' | 'name' | 'email' | 'emailVerified' | 'image'>
+export type AuthUser = Pick<
+  RawAuthUser,
+  'id' | 'name' | 'email' | 'emailVerified' | 'image' | 'role'
+>
 
 export interface AuthSession {
   readonly user: AuthUser
@@ -161,12 +164,14 @@ function toAuthSession(value: unknown): AuthSession {
 
 function isAuthUser(value: unknown): value is AuthUser {
   if (!isRecord(value)) return false
+  const role = value.role
   return (
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     typeof value.email === 'string' &&
     typeof value.emailVerified === 'boolean' &&
-    (value.image === null || typeof value.image === 'string')
+    (value.image === null || typeof value.image === 'string') &&
+    (role === undefined || role === null || typeof role === 'string')
   )
 }
 
