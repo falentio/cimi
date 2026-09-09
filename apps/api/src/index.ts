@@ -33,15 +33,13 @@ import { normalizeApiError } from './errors.ts'
 import {
   combineAcceptanceQuiescence,
   createEventIngestion,
+  InMemoryIngestionProtection,
   AcceptanceRetentionCleanup,
   type IdentitySessionResolver,
   type IngestionProtection,
 } from './resources/event-ingestion/index.ts'
-import { hasParsedPayloadSizeViolation } from './resources/event-ingestion/payload-size.ts'
-import {
-  COLLECT_EVENT_MAX_RAW_REQUEST_BYTES,
-  COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES,
-} from '@cimi/contract'
+import { isParsedPayloadOversized } from './resources/event-ingestion/payload-size.ts'
+import { COLLECT_EVENT_MAX_RAW_REQUEST_BYTES, EVENT_RAW_REQUEST_LIMITS } from '@cimi/contract'
 import {
   createBackupRestore,
   type BackupRestoreCleanupPort,
@@ -72,6 +70,15 @@ export interface CreateApiAppDependencies {
   dataDirectoryPath: string
   upgradeExecutor?: UpgradeExecutor | undefined
   eventIngestionProtection?: IngestionProtection | undefined
+  eventIngestionProtectionThresholds?:
+    | {
+        siteRatePerSecond?: number
+        siteBurst?: number
+        sourceIpRatePerSecond?: number
+        sourceIpBurst?: number
+      }
+    | undefined
+  eventIngestionTrustProxyHeaders?: boolean | undefined
   eventIdentitySession?: IdentitySessionResolver | undefined
 }
 
@@ -124,8 +131,13 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     collectionPolicy: collectionPolicy.service,
     retention: retentionPolicy.repository,
     lifecycleLock: lock,
-    protection: deps.eventIngestionProtection,
+    protection:
+      deps.eventIngestionProtection ??
+      (deps.eventIngestionProtectionThresholds === undefined
+        ? undefined
+        : new InMemoryIngestionProtection(deps.eventIngestionProtectionThresholds)),
     identitySession: deps.eventIdentitySession,
+    router: { trustProxyHeaders: deps.eventIngestionTrustProxyHeaders },
   })
   const upgradeAcceptance =
     deps.acceptance === undefined
@@ -342,7 +354,7 @@ async function readRequestWithinLimit(
 async function parsedPayloadTooLarge(request: Request): Promise<boolean> {
   try {
     const value: unknown = JSON.parse(await request.clone().text())
-    return hasParsedPayloadSizeViolation(value)
+    return isParsedPayloadOversized(value)
   } catch {
     return false
   }
@@ -351,9 +363,7 @@ async function parsedPayloadTooLarge(request: Request): Promise<boolean> {
 function eventRawRequestLimit(request: Request): number | undefined {
   const path = new URL(request.url).pathname.replace(/^\/api/, '').replace(/\/+$/, '')
   if (request.method !== 'POST') return undefined
-  if (path === '/event-ingestion/collectEvent') return COLLECT_EVENT_MAX_RAW_REQUEST_BYTES
-  if (path === '/event-ingestion/collectEvents') return COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES
-  return undefined
+  return EVENT_RAW_REQUEST_LIMITS[path]
 }
 
 function payloadTooLargeResponse(): Response {

@@ -1,9 +1,7 @@
+import { isRecord } from '@cimi/utils'
+
 const LONG_TEXT_KEYS = new Set(['pagePath', 'referrer', 'destination'])
 const IDE_KEYS = new Set(['eventId', 'ingestionIdentifier'])
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 export function isParsedPayloadOversized(value: unknown): boolean {
   if (!isRecord(value)) return false
@@ -28,12 +26,4 @@ export function isParsedPayloadOversized(value: unknown): boolean {
     if (entry.length > 512) return true
   }
   return false
-}
-
-export function isOversizedEvent(value: unknown): boolean {
-  return isParsedPayloadOversized(value)
-}
-
-export function hasParsedPayloadSizeViolation(value: unknown): boolean {
-  return isParsedPayloadOversized(value)
 }

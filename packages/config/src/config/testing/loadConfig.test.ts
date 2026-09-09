@@ -56,4 +56,48 @@ describe('loadConfig', () => {
       }),
     ).toThrowError(ConfigError)
   })
+
+  it('omits event ingestion fields when their env vars are absent', () => {
+    const config = loadConfig({ BETTER_AUTH_SECRET: 's3cret' })
+    expect(config.eventIngestion).toEqual({})
+  })
+
+  it('parses event ingestion overrides into typed fields', () => {
+    const config = loadConfig({
+      BETTER_AUTH_SECRET: 's3cret',
+      CIMI_EVENT_SITE_RATE_PER_SECOND: '120',
+      CIMI_EVENT_SITE_BURST: '600',
+      CIMI_EVENT_SOURCE_IP_RATE_PER_SECOND: '30',
+      CIMI_EVENT_SOURCE_IP_BURST: '150',
+      CIMI_EVENT_TRUST_PROXY_HEADERS: 'true',
+    })
+    expect(config.eventIngestion).toEqual({
+      siteRatePerSecond: 120,
+      siteBurst: 600,
+      sourceIpRatePerSecond: 30,
+      sourceIpBurst: 150,
+      trustProxyHeaders: true,
+    })
+  })
+
+  it('rejects invalid event ingestion env values', () => {
+    expect(() =>
+      loadConfig({
+        BETTER_AUTH_SECRET: 's3cret',
+        CIMI_EVENT_SITE_RATE_PER_SECOND: 'not-a-number',
+      }),
+    ).toThrowError(ConfigError)
+    expect(() =>
+      loadConfig({
+        BETTER_AUTH_SECRET: 's3cret',
+        CIMI_EVENT_SOURCE_IP_BURST: '0',
+      }),
+    ).toThrowError(ConfigError)
+    expect(() =>
+      loadConfig({
+        BETTER_AUTH_SECRET: 's3cret',
+        CIMI_EVENT_TRUST_PROXY_HEADERS: 'yes',
+      }),
+    ).toThrowError(ConfigError)
+  })
 })

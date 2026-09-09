@@ -48,6 +48,8 @@ export async function createFrontendServerApp(
         dataDirectoryReady: () => isDirectory(cfg.dataDir),
         controlDatabasePath: controlDbPath,
         dataDirectoryPath: cfg.dataDir,
+        eventIngestionProtectionThresholds: cfg.eventIngestion,
+        eventIngestionTrustProxyHeaders: cfg.eventIngestion.trustProxyHeaders,
       })
       const closeApiApp = app.close.bind(app)
       return Object.assign(app, {

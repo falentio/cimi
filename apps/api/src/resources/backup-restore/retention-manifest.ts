@@ -1,3 +1,4 @@
+import { isRecord } from '@cimi/utils'
 import { BackupIncompatibilityError } from './errors.ts'
 
 export interface RetentionManifestBoundary {
@@ -186,10 +187,6 @@ function assertValidTimezone(value: string): void {
   } catch {
     throw incompatible('Retention boundary reporting timezone is invalid')
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isUnknownArray(value: unknown): value is unknown[] {

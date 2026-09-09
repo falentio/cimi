@@ -60,10 +60,15 @@ export interface AcceptedEventRecord {
   readonly payloadFingerprint: string
 }
 
+export type AppendOutcome =
+  | { readonly status: 'accepted' }
+  | { readonly status: 'duplicate'; readonly receiptTime: string }
+  | { readonly status: 'conflict' }
+
 export interface AcceptanceRepository {
   findByEventId(siteId: string, eventId: string): Promise<AcceptedEventRecord | undefined>
   lastReplaySequence(): Promise<number>
-  append(candidates: readonly AcceptanceCandidate[]): Promise<void>
+  append(candidates: readonly AcceptanceCandidate[]): Promise<readonly AppendOutcome[]>
   deleteExpired(input: { readonly siteId: string; readonly receiptCutoff: Date }): Promise<number>
   walBytes?(): number
 }

@@ -1,7 +1,6 @@
-import { createHash } from 'node:crypto'
 import { schema } from '@cimi/contract'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
-import { resolveSiteLocalCutoff } from '@cimi/utils'
+import { isRecord, resolveSiteLocalCutoff } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import { safeParse, type InferOutput } from 'valibot'
 import { sanitizeDestination } from '../collection-policy/evaluator.ts'
@@ -19,13 +18,20 @@ import {
   AcceptanceAdmissionStoppedError,
   AcceptanceCoalescer,
   AcceptanceQueueSaturatedError,
+  AcceptanceReservationConflictError,
   type ReservableCandidate,
   type Reservation,
 } from './coalescer.ts'
-import { isOversizedEvent } from './payload-size.ts'
+import { isParsedPayloadOversized } from './payload-size.ts'
 import { InMemoryIngestionProtection } from './protection.ts'
-import { deriveAttribution } from './attribution.ts'
-import type { AcceptanceRepository, EventInput, NormalizedEvent } from './repository.ts'
+import { deriveAttribution, type DerivedAttribution } from './attribution.ts'
+import { fingerprintEvent } from './fingerprint.ts'
+import type {
+  AcceptanceRepository,
+  AcceptedEventRecord,
+  EventInput,
+  NormalizedEvent,
+} from './repository.ts'
 
 export type CollectEventInput = InferOutput<typeof SCollectEventInput>
 export type CollectEventOutput = InferOutput<typeof SCollectEventOutput>
@@ -73,6 +79,7 @@ export interface IdentitySessionAssignment {
   readonly visitorId: string | null
   readonly identifiedUserId: string | null
   readonly analyticsSessionId: string | null
+  readonly attribution?: DerivedAttribution | undefined
 }
 
 interface PreparedEvent {
@@ -232,7 +239,7 @@ export class EventIngestionService {
         results[index] = {
           status: 'itemError',
           eventId: validEventId(rawEvent),
-          code: isOversizedEvent(rawEvent) ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST',
+          code: isParsedPayloadOversized(rawEvent) ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST',
         }
         continue
       }
@@ -384,13 +391,14 @@ export class EventIngestionService {
         : undefined
     if (input.kind === 'outbound' && destination === null) throw new ORPCError('BAD_REQUEST')
 
+    const perEventAttribution = deriveAttribution(input, request.userAgent)
     const normalizedDraft = normalizeEvent(
       input,
       decision.outcome,
       occurrence.toISOString(),
       destination,
       decision.outcome.identifiedUserId,
-      deriveAttribution(input, request.userAgent),
+      perEventAttribution,
     )
     const identity = await this.resolveIdentity({
       siteId: site.id,
@@ -400,14 +408,16 @@ export class EventIngestionService {
       identifiedUserId: decision.outcome.identifiedUserId,
     })
 
-    const event = normalizeEvent(
-      input,
-      decision.outcome,
-      occurrence.toISOString(),
-      destination,
-      identity.identifiedUserId,
-      deriveAttribution(input, request.userAgent),
-    )
+    const eventAttribution = identity.attribution ?? perEventAttribution
+    const event =
+      identity.identifiedUserId === normalizedDraft.identifiedUserId &&
+      eventAttribution === perEventAttribution
+        ? normalizedDraft
+        : {
+            ...normalizedDraft,
+            identifiedUserId: identity.identifiedUserId,
+            ...eventAttribution,
+          }
     return {
       candidate: {
         siteId: site.id,
@@ -469,7 +479,16 @@ export class EventIngestionService {
     operation: () => Promise<T>,
   ): Promise<T> {
     if (this.lifecycleLock === undefined) return operation()
-    if (await this.lifecycleLock.isLocked()) {
+    const lease = await this.lifecycleLock.acquire('ingestion')
+    if (lease !== undefined) {
+      try {
+        return await operation()
+      } finally {
+        await lease.release()
+      }
+    }
+    const holder = (await this.lifecycleLock.heldKind?.()) ?? null
+    if (holder !== null && holder !== 'ingestion') {
       const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
       if (site === undefined) throw new ORPCError('NOT_FOUND')
       throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
@@ -479,23 +498,31 @@ export class EventIngestionService {
 
   private existingResult(
     eventId: string,
-    record: { readonly receiptTime: string; readonly payloadFingerprint: string },
+    record: AcceptedEventRecord,
     fingerprint: string,
   ): CollectEventOutput {
-    if (record.payloadFingerprint !== fingerprint) throw new ORPCError('CONFLICT', { status: 409 })
+    const outcome = resolvedExistingOutcome(record, fingerprint)
+    if (outcome === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
     return { status: 'duplicate', eventId, receiptTime: record.receiptTime }
   }
 
   private existingBatchResult(
     eventId: string,
-    record: { readonly receiptTime: string; readonly payloadFingerprint: string },
+    record: AcceptedEventRecord,
     fingerprint: string,
   ): CollectEventsOutput['results'][number] {
-    if (record.payloadFingerprint !== fingerprint) {
+    if (resolvedExistingOutcome(record, fingerprint) === 'conflict') {
       return { status: 'itemError', eventId, code: 'CONFLICT' }
     }
     return { status: 'duplicate', eventId, receiptTime: record.receiptTime }
   }
+}
+
+function resolvedExistingOutcome(
+  record: AcceptedEventRecord,
+  fingerprint: string,
+): 'conflict' | 'duplicate' {
+  return record.payloadFingerprint === fingerprint ? 'duplicate' : 'conflict'
 }
 
 class PolicyRejectionError extends Error {}
@@ -506,6 +533,9 @@ function isPolicyRejection(error: unknown): error is PolicyRejectionError {
 
 function acceptanceError(error: unknown): ORPCError<string, unknown> {
   if (error instanceof ORPCError) return error
+  if (error instanceof AcceptanceReservationConflictError) {
+    return new ORPCError('CONFLICT', { status: 409 })
+  }
   if (
     error instanceof AcceptanceQueueSaturatedError ||
     error instanceof AcceptanceAdmissionStoppedError
@@ -587,23 +617,6 @@ function normalizeEvent(
   }
 }
 
-function fingerprintEvent(event: EventInput): string {
-  return createHash('sha256')
-    .update(JSON.stringify(sortRecord(event)))
-    .digest('hex')
-}
-
-function sortRecord(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortRecord)
-  if (!isRecord(value)) return value
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => key !== 'ingestionIdentifier')
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => [key, sortRecord(entry)]),
-  )
-}
-
 function withBatchContext(rawEvent: unknown, input: CollectEventsInput): unknown {
   if (!isRecord(rawEvent)) return rawEvent
   const event = { ...rawEvent }
@@ -618,8 +631,4 @@ function validEventId(value: unknown): string | null {
   if (!isRecord(value)) return null
   const parsed = safeParse(schema.SId, value['eventId'])
   return parsed.success ? parsed.output : null
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

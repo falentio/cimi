@@ -22,11 +22,20 @@ export type Reservation =
       readonly completion: Promise<void>
     }
   | { readonly status: 'conflict' }
-
 export class AcceptanceQueueSaturatedError extends Error {
   constructor() {
     super('Event acceptance queue is full')
     this.name = 'AcceptanceQueueSaturatedError'
+  }
+}
+
+export class AcceptanceReservationConflictError extends Error {
+  constructor(
+    readonly siteId: string,
+    readonly eventId: string,
+  ) {
+    super(`Acceptance reservation for ${eventId} conflicts with a durable record`)
+    this.name = 'AcceptanceReservationConflictError'
   }
 }
 
@@ -171,7 +180,8 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
         this.active.push(state)
       } else {
         this.pending.push(state)
-        if (this.pending.length === 1 && this.flushPromise !== undefined) this.startTimer()
+        if (this.pending.length === 1 && this.flushPromise !== undefined)
+          this.startTimer(this.pending[0])
       }
     }
 
@@ -196,7 +206,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     }
 
     if (this.active.length > 0 && this.flushPromise === undefined && this.timer === undefined) {
-      this.startTimer()
+      this.startTimer(this.active[0])
     }
     if (this.active.length >= this.flushMaxEvents) void this.flushActive().catch(() => undefined)
     return results
@@ -294,12 +304,17 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     await this.sequencePromise
   }
 
-  private startTimer(): void {
+  private startTimer(firstQueued?: ReservationState): void {
     this.clearTimer()
-    this.timer = this.schedule(() => {
-      this.timer = undefined
-      void this.flushActive().catch(() => undefined)
-    }, this.windowMs)
+    if (firstQueued === undefined) return
+    const elapsed = Date.now() - firstQueued.reservedAt
+    this.timer = this.schedule(
+      () => {
+        this.timer = undefined
+        void this.flushActive().catch(() => undefined)
+      },
+      Math.max(0, this.windowMs - elapsed),
+    )
     this.timer.unref?.()
   }
 
@@ -323,19 +338,34 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     let succeeded = false
     const flush = this.repository
       .append(batch.map(({ candidate }) => candidate))
-      .then(() => {
+      .then((outcomes) => {
         succeeded = true
         const committedAt = Date.now()
         this.commitLatencyMsTotal += committedAt - startedAt
-        this.committedCandidates += batch.length
-        this.responseLatencyMsTotal += batch.reduce(
-          (total, state) => total + committedAt - state.reservedAt,
-          0,
-        )
-        this.responseCount += batch.length
-        this.lastSafeSequence =
-          batch[batch.length - 1]?.candidate.replaySequence ?? this.lastSafeSequence
-        for (const state of batch) state.deferred.resolve()
+        let acceptedCount = 0
+        let lastAcceptedSequence = this.lastSafeSequence
+        for (const [index, state] of batch.entries()) {
+          const outcome = outcomes[index]
+          if (outcome === undefined) throw new Error('Acceptance outcome count mismatch')
+          if (outcome.status === 'conflict') {
+            state.deferred.reject(
+              new AcceptanceReservationConflictError(
+                state.candidate.siteId,
+                state.candidate.event.eventId,
+              ),
+            )
+            continue
+          }
+          if (outcome.status === 'accepted') {
+            acceptedCount += 1
+            lastAcceptedSequence = state.candidate.replaySequence
+          }
+          this.responseLatencyMsTotal += committedAt - state.reservedAt
+          this.responseCount += 1
+          state.deferred.resolve()
+        }
+        this.committedCandidates += acceptedCount
+        this.lastSafeSequence = lastAcceptedSequence
       })
       .catch((error: unknown) => {
         this.failureCount += 1
@@ -352,7 +382,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
         if (!this.draining && this.active.length > 0) {
           if (this.active.length >= this.flushMaxEvents)
             void this.flushActive().catch(() => undefined)
-          else this.startTimer()
+          else this.startTimer(this.active[0])
         }
       })
     this.flushPromise = flush

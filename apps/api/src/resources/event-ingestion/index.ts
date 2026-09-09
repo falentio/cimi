@@ -37,7 +37,7 @@ export {
   DefaultIdentitySessionResolver,
   type DefaultIdentitySessionResolverDependencies,
 } from './identity-session.ts'
-export { isParsedPayloadOversized, isOversizedEvent } from './payload-size.ts'
+export { isParsedPayloadOversized } from './payload-size.ts'
 export { deriveAttribution, type DerivedAttribution } from './attribution.ts'
 export {
   AcceptanceRetentionCleanup,

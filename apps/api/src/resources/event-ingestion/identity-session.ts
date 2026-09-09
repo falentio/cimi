@@ -1,4 +1,6 @@
 import { generateId } from '@cimi/utils'
+import { ORPCError } from '@orpc/server'
+import type { DerivedAttribution } from './attribution.ts'
 import type { IdentitySessionAssignment, IdentitySessionResolver } from './service.ts'
 import type { EventInput, NormalizedEvent } from './repository.ts'
 
@@ -10,22 +12,40 @@ interface SessionState {
   sessionId: string
   lastSeenMs: number
   sessionStartMs: number
+  attribution: DerivedAttribution
 }
 
 export interface DefaultIdentitySessionResolverDependencies {
   readonly clock?: (() => Date) | undefined
+  readonly references?:
+    | { exists(siteId: string, identifiedUserId: string): Promise<boolean> }
+    | undefined
 }
 
 function sessionKey(siteId: string, identifiedUserId: string): string {
-  return `${siteId} ${identifiedUserId}`
+  return `${siteId}\u0000${identifiedUserId}`
+}
+
+function draftAttribution(event: NormalizedEvent): DerivedAttribution {
+  return {
+    utmSource: event.utmSource,
+    utmMedium: event.utmMedium,
+    utmCampaign: event.utmCampaign,
+    deviceType: event.deviceType,
+    browser: event.browser,
+    os: event.os,
+    country: event.country,
+  }
 }
 
 export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
   private readonly clock: () => Date
+  private readonly references: DefaultIdentitySessionResolverDependencies['references']
   private readonly sessions = new Map<string, SessionState>()
 
-  constructor({ clock }: DefaultIdentitySessionResolverDependencies = {}) {
+  constructor({ clock, references }: DefaultIdentitySessionResolverDependencies = {}) {
     this.clock = clock ?? (() => new Date())
+    this.references = references
   }
 
   async resolve(input: {
@@ -41,11 +61,13 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
       : nowMs
     const identifiedUserId = input.identifiedUserId
     if (identifiedUserId === null) {
-      return {
-        visitorId: generateId('vis'),
-        identifiedUserId: null,
-        analyticsSessionId: generateId('ses'),
-      }
+      return { visitorId: null, identifiedUserId: null, analyticsSessionId: null }
+    }
+    if (
+      this.references !== undefined &&
+      !(await this.references.exists(input.siteId, identifiedUserId))
+    ) {
+      throw new ORPCError('BAD_REQUEST')
     }
     const key = sessionKey(input.siteId, identifiedUserId)
     const existing = this.sessions.get(key)
@@ -58,20 +80,22 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
           visitorId: existing.visitorId,
           identifiedUserId,
           analyticsSessionId: existing.sessionId,
+          attribution: existing.attribution,
         }
       }
-      const sessionId = generateId('ses')
       const next: SessionState = {
         visitorId: existing.visitorId,
-        sessionId,
+        sessionId: generateId('ses'),
         lastSeenMs: receiptMs,
         sessionStartMs: receiptMs,
+        attribution: draftAttribution(input.event),
       }
       this.sessions.set(key, next)
       return {
         visitorId: next.visitorId,
         identifiedUserId,
         analyticsSessionId: next.sessionId,
+        attribution: next.attribution,
       }
     }
     const state: SessionState = {
@@ -79,12 +103,14 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
       sessionId: generateId('ses'),
       lastSeenMs: receiptMs,
       sessionStartMs: receiptMs,
+      attribution: draftAttribution(input.event),
     }
     this.sessions.set(key, state)
     return {
       visitorId: state.visitorId,
       identifiedUserId,
       analyticsSessionId: state.sessionId,
+      attribution: state.attribution,
     }
   }
 }

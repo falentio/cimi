@@ -54,6 +54,7 @@ export {
 } from './contract/event-ingestion/acceptance.ts'
 export { COLLECT_EVENT_MAX_RAW_REQUEST_BYTES } from './contract/event-ingestion/command/collect-event.ts'
 export { COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES } from './contract/event-ingestion/command/collect-events.ts'
+export { EVENT_RAW_REQUEST_LIMITS } from './contract/event-ingestion/index.ts'
 export {
   SCollectEventInput,
   SCollectEventOutput,

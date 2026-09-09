@@ -38,6 +38,7 @@ export type LifecycleLockKind =
   | PersistedLifecycleOperationKind
   | 'initialization'
   | 'collection_policy'
+  | 'ingestion'
 
 export const LIFECYCLE_OPERATION_PHASES = [
   'pre_upgrade_safety',
@@ -78,9 +79,10 @@ export interface LifecycleLease {
 
 export interface LifecycleLock {
   acquire(
-    kind: LifecycleOperationKind | 'initialization' | 'collection_policy',
+    kind: LifecycleOperationKind | 'initialization' | 'collection_policy' | 'ingestion',
   ): PortResult<LifecycleLease | undefined>
   isLocked(): PortResult<boolean>
+  heldKind?(): PortResult<LifecycleLockKind | null>
 }
 
 export interface LifecycleOperationStatusReader {
@@ -156,13 +158,13 @@ export class InMemoryLifecycleLock implements LifecycleLock {
   #lease: { readonly token: symbol; readonly kind: LifecycleLockKind } | undefined
 
   acquire(
-    kind: LifecycleOperationKind | 'initialization' | 'collection_policy',
+    kind: LifecycleOperationKind | 'initialization' | 'collection_policy' | 'ingestion',
   ): LifecycleLease | undefined {
     if (this.#lease !== undefined) return undefined
     const lease = {
       token: Symbol('lifecycle-lease'),
       kind:
-        kind === 'initialization' || kind === 'collection_policy'
+        kind === 'initialization' || kind === 'collection_policy' || kind === 'ingestion'
           ? kind
           : normalizeLifecycleOperationKind(kind),
     }
@@ -177,6 +179,10 @@ export class InMemoryLifecycleLock implements LifecycleLock {
 
   isLocked(): boolean {
     return this.#lease !== undefined
+  }
+
+  heldKind(): LifecycleLockKind | null {
+    return this.#lease?.kind ?? null
   }
 
   get kind(): LifecycleLockKind | undefined {

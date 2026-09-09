@@ -1,11 +1,13 @@
 import { expect, test } from 'vitest'
 import { SOrganizationCreateOutput, schema } from '@cimi/contract'
+import { ORPCError } from '@orpc/server'
 import { parse } from 'valibot'
+import { mock } from 'vitest-mock-extended'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from '../../../testing/fixture.ts'
+import type { ApiApp } from '../../../index.ts'
+import type { IngestionProtection } from '../service.ts'
 
-test('collectEvent durably accepts and deduplicates a Site event', async () => {
-  await using fixture = await createApiTestFixture()
-  const { app, db } = fixture
+async function createIngestionSite(app: ApiApp) {
   const owner = await signUpTestUser(app, 'event-owner@example.com', 'Event Owner')
 
   const initialized = await apiTestRequest(
@@ -31,7 +33,13 @@ test('collectEvent durably accepts and deduplicates a Site event', async () => {
     hostname: 'events.example.com',
   })
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
-  const site = parse(schema.SSiteCreateOutput, await siteResponse.json())
+  return parse(schema.SSiteCreateOutput, await siteResponse.json())
+}
+
+test('collectEvent durably accepts and deduplicates a Site event', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app, db } = fixture
+  const site = await createIngestionSite(app)
 
   const event = {
     eventId: 'event_1',
@@ -109,4 +117,41 @@ test('collectEvent maps parsed size violations to payload too large', async () =
   })
 
   expect(response.status, await response.clone().text()).toBe(413)
+})
+
+test('collectEvent maps a changed payload for a committed Event ID to conflict', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app } = fixture
+  const site = await createIngestionSite(app)
+
+  const event = {
+    eventId: 'event_conflict',
+    ingestionIdentifier: site.ingestionIdentifier,
+    kind: 'custom_event',
+    name: 'checkout_completed',
+  }
+  const accepted = await apiTestRequest(app, '/event-ingestion/collectEvent', '', event)
+  expect(accepted.status, await accepted.clone().text()).toBe(200)
+
+  const conflicting = await apiTestRequest(app, '/event-ingestion/collectEvent', '', {
+    ...event,
+    name: 'different_meaning',
+  })
+  expect(conflicting.status, await conflicting.clone().text()).toBe(409)
+})
+
+test('collectEvent maps ingestion protection exhaustion to too many requests', async () => {
+  const protection = mock<IngestionProtection>()
+  protection.consume.mockRejectedValue(new ORPCError('TOO_MANY_REQUESTS', { status: 429 }))
+  await using fixture = await createApiTestFixture({ eventIngestionProtection: protection })
+  const site = await createIngestionSite(fixture.app)
+
+  const response = await apiTestRequest(fixture.app, '/event-ingestion/collectEvent', '', {
+    eventId: 'event_rate_limited',
+    ingestionIdentifier: site.ingestionIdentifier,
+    kind: 'custom_event',
+    name: 'checkout_completed',
+  })
+
+  expect(response.status, await response.clone().text()).toBe(429)
 })

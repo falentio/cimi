@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { schema } from '@cimi/contract'
 import { InMemorySiteScopePort } from '@cimi/guard'
-import { InMemoryLifecycleLock, InMemoryLifecycleOperationStatusReader } from '@cimi/kernel'
+import {
+  InMemoryLifecycleLock,
+  InMemoryLifecycleOperationStatusReader,
+  type LifecycleLock,
+} from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
+import type { MockProxy } from 'vitest-mock-extended'
 import { CollectionPolicyService } from '../../collection-policy/service.ts'
 import { createPolicyLayers } from '../../collection-policy/fixture.ts'
 import type { CollectionPolicyRepository } from '../../collection-policy/repository.ts'
@@ -11,7 +16,7 @@ import type { SiteRepository } from '../../site/repository.ts'
 import { EventIngestionService } from '../service.ts'
 import type { AcceptanceRepository } from '../repository.ts'
 import type { IdentitySessionResolver, IngestionProtection } from '../service.ts'
-import { AcceptanceCoalescer } from '../coalescer.ts'
+import { AcceptanceCoalescer, AcceptanceReservationConflictError } from '../coalescer.ts'
 import { ORPCError } from '@orpc/server'
 
 const now = new Date('2026-09-05T00:00:00.000Z')
@@ -21,6 +26,8 @@ function createFixture(
     protection?: IngestionProtection
     identitySession?: IdentitySessionResolver
     coalescer?: AcceptanceCoalescer
+    lifecycleLock?: LifecycleLock
+    acceptance?: MockProxy<AcceptanceRepository> & AcceptanceRepository
   } = {},
 ) {
   const siteRepository = mock<SiteRepository>()
@@ -53,10 +60,17 @@ function createFixture(
     updatedAt: now.toISOString(),
   })
 
-  const acceptanceRepository = mock<AcceptanceRepository>()
-  acceptanceRepository.findByEventId.mockResolvedValue(undefined)
-  acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
-  acceptanceRepository.append.mockResolvedValue()
+  const acceptanceRepository: MockProxy<AcceptanceRepository> =
+    options.acceptance ??
+    (() => {
+      const repository = mock<AcceptanceRepository>()
+      repository.findByEventId.mockResolvedValue(undefined)
+      repository.lastReplaySequence.mockResolvedValue(0)
+      repository.append.mockImplementation(async (candidates) =>
+        candidates.map(() => ({ status: 'accepted' }) as const),
+      )
+      return repository
+    })()
 
   const service = new EventIngestionService({
     siteRepository,
@@ -67,6 +81,7 @@ function createFixture(
     ...(options.protection === undefined ? {} : { protection: options.protection }),
     ...(options.identitySession === undefined ? {} : { identitySession: options.identitySession }),
     ...(options.coalescer === undefined ? {} : { coalescer: options.coalescer }),
+    ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
   })
 
   return { service, siteRepository, policyRepository, acceptanceRepository }
@@ -135,6 +150,7 @@ describe('EventIngestionService', () => {
           payloadFingerprint: candidate.payloadFingerprint,
         })
       }
+      return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
     const first = service.collectEvent(event())
@@ -261,6 +277,7 @@ describe('EventIngestionService', () => {
         kind: 'outbound',
         destination: 'https://example.com/checkout',
       })
+      return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
     const resultPromise = service.collectEvent(
@@ -311,6 +328,7 @@ describe('EventIngestionService', () => {
         analyticsSessionId: 'session-1',
         event: { identifiedUserId: 'user-1' },
       })
+      return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
     const resultPromise = service.collectEvent(event({ identifiedUserId: 'user-1' }))
@@ -336,7 +354,9 @@ describe('EventIngestionService', () => {
     const acceptanceRepository = mock<AcceptanceRepository>()
     acceptanceRepository.findByEventId.mockResolvedValue(undefined)
     acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
-    acceptanceRepository.append.mockResolvedValue()
+    acceptanceRepository.append.mockImplementation(async (candidates) =>
+      candidates.map(() => ({ status: 'accepted' }) as const),
+    )
     const coalescer = new AcceptanceCoalescer({
       repository: acceptanceRepository,
       windowMs: 1,
@@ -354,6 +374,197 @@ describe('EventIngestionService', () => {
       { status: 'accepted', eventId: 'event-2', receiptTime: now.toISOString() },
     ])
     expect(acceptanceRepository.append).toHaveBeenCalledTimes(1)
+    await service.stop()
+  })
+
+  it('admits under an ingestion lease and releases it after resolution', async () => {
+    const lifecycleLock = mock<LifecycleLock>()
+    const release = vi.fn()
+    lifecycleLock.acquire.mockResolvedValue({ kind: 'ingestion', release } as never)
+    const { service } = createFixture({ lifecycleLock })
+
+    const resultPromise = service.collectEvent(event())
+    await service.flush()
+
+    await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    expect(release).toHaveBeenCalledTimes(1)
+    await service.stop()
+  })
+
+  it('returns service unavailable while a lifecycle operation holds the lock', async () => {
+    const lifecycleLock = mock<LifecycleLock>()
+    lifecycleLock.acquire.mockResolvedValue(undefined)
+    lifecycleLock.heldKind = () => 'site_deletion'
+    const { service } = createFixture({ lifecycleLock })
+
+    await expect(service.collectEvent(event())).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+    })
+    await service.stop()
+  })
+
+  it('returns not found for an unknown site while a lifecycle operation holds the lock', async () => {
+    const lifecycleLock = mock<LifecycleLock>()
+    lifecycleLock.acquire.mockResolvedValue(undefined)
+    lifecycleLock.heldKind = () => 'site_deletion'
+    const { service, siteRepository } = createFixture({ lifecycleLock })
+    siteRepository.findByIngestionIdentifier.mockResolvedValue(undefined)
+
+    await expect(service.collectEvent(event())).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await service.stop()
+  })
+
+  it('admits without a lease while another ingestion request holds the lock', async () => {
+    const lifecycleLock = mock<LifecycleLock>()
+    lifecycleLock.acquire.mockResolvedValue(undefined)
+    lifecycleLock.heldKind = () => 'ingestion'
+    const { service, acceptanceRepository } = createFixture({ lifecycleLock })
+
+    const resultPromise = service.collectEvent(event())
+    await service.flush()
+
+    await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    expect(acceptanceRepository.append).toHaveBeenCalledTimes(1)
+    await service.stop()
+  })
+
+  it('grandfathers a candidate admitted before the site flips to deleting', async () => {
+    const { service, siteRepository, acceptanceRepository } = createFixture()
+    acceptanceRepository.append.mockImplementation(async (candidates) => {
+      siteRepository.findByIngestionIdentifier.mockResolvedValue({
+        ...site(),
+        status: 'deleting',
+      })
+      expect(candidates[0]?.event.eventId).toBe('event-1')
+      return candidates.map(() => ({ status: 'accepted' }) as const)
+    })
+
+    const resultPromise = service.collectEvent(event())
+    await service.flush()
+
+    await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    await service.stop()
+  })
+
+  it('reports cross-request pending duplicates with the original receipt time', async () => {
+    const { service } = createFixture()
+
+    const first = service.collectEvent(event())
+    const second = service.collectEvent(event())
+    await service.flush()
+
+    await expect(first).resolves.toEqual({
+      status: 'accepted',
+      eventId: 'event-1',
+      receiptTime: now.toISOString(),
+    })
+    await expect(second).resolves.toEqual({
+      status: 'duplicate',
+      eventId: 'event-1',
+      receiptTime: now.toISOString(),
+    })
+    await service.stop()
+  })
+
+  it('surfaces a split-flush failure as service unavailable and supports retry by Event ID', async () => {
+    const acceptanceRepository = mock<AcceptanceRepository>()
+    acceptanceRepository.findByEventId.mockResolvedValue(undefined)
+    acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
+    acceptanceRepository.append.mockResolvedValue([])
+    const stored = new Map<string, { receiptTime: string; payloadFingerprint: string }>()
+    let appendCalls = 0
+    acceptanceRepository.append.mockImplementation(async (candidates) => {
+      appendCalls += 1
+      if (appendCalls === 2) throw new Error('sqlite unavailable')
+      for (const candidate of candidates) {
+        stored.set(candidate.event.eventId, {
+          receiptTime: candidate.receiptTime,
+          payloadFingerprint: candidate.payloadFingerprint,
+        })
+      }
+      return candidates.map(() => ({ status: 'accepted' }) as const)
+    })
+    acceptanceRepository.findByEventId.mockImplementation(async (_siteId, eventId) =>
+      stored.get(eventId),
+    )
+    const { service } = createFixture({
+      acceptance: acceptanceRepository,
+      coalescer: new AcceptanceCoalescer({
+        repository: acceptanceRepository,
+        windowMs: 60_000,
+        flushMaxEvents: 2,
+        pendingMaxEvents: 10,
+        clock: () => now,
+      }),
+    })
+
+    const batch = () => ({
+      ingestionIdentifier: 'ing-1',
+      events: [
+        event({ eventId: 'event-1' }),
+        event({ eventId: 'event-2' }),
+        event({ eventId: 'event-3' }),
+        event({ eventId: 'event-4' }),
+      ],
+    })
+    const failed = service.collectEvents(batch())
+    await expect(failed).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
+    expect(appendCalls).toBe(2)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const retry = service.collectEvents(batch())
+    await service.flush()
+
+    await expect(retry).resolves.toEqual({
+      results: [
+        { status: 'duplicate', eventId: 'event-1', receiptTime: now.toISOString() },
+        { status: 'duplicate', eventId: 'event-2', receiptTime: now.toISOString() },
+        { status: 'accepted', eventId: 'event-3', receiptTime: now.toISOString() },
+        { status: 'accepted', eventId: 'event-4', receiptTime: now.toISOString() },
+      ],
+    })
+    await service.stop()
+  })
+
+  it('returns service unavailable when the acceptance queue is saturated', async () => {
+    const acceptanceRepository = mock<AcceptanceRepository>()
+    acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
+    let releaseAppend: (() => void) | undefined
+    acceptanceRepository.append.mockImplementation(
+      (candidates) =>
+        new Promise<readonly { status: 'accepted' }[]>((resolve) => {
+          releaseAppend = () => resolve(candidates.map(() => ({ status: 'accepted' }) as const))
+        }),
+    )
+    const { service } = createFixture({
+      acceptance: acceptanceRepository,
+      coalescer: new AcceptanceCoalescer({
+        repository: acceptanceRepository,
+        flushMaxEvents: 1,
+        pendingMaxEvents: 0,
+        windowMs: 60_000,
+        clock: () => now,
+      }),
+    })
+
+    const first = service.collectEvent(event())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await expect(service.collectEvent(event({ eventId: 'event-2' }))).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+    })
+
+    releaseAppend?.()
+    await expect(first).resolves.toMatchObject({ status: 'accepted' })
+    await service.stop()
+  })
+
+  it('maps a coalescer reservation conflict to a request-level conflict', async () => {
+    const { service, acceptanceRepository } = createFixture()
+    acceptanceRepository.append.mockRejectedValue(
+      new AcceptanceReservationConflictError('ste_1', 'event-1'),
+    )
+
+    await expect(service.collectEvent(event())).rejects.toMatchObject({ code: 'CONFLICT' })
     await service.stop()
   })
 })

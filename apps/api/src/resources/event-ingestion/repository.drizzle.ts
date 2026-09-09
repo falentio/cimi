@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto'
+import { statSync } from 'node:fs'
 import { and, eq, lt, max } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
-import type { AcceptanceCandidate, AcceptanceRepository } from './repository.ts'
+import type { AcceptanceCandidate, AcceptanceRepository, AppendOutcome } from './repository.ts'
 
 export interface AcceptanceRepositoryDrizzleDependencies {
   readonly db: Db
@@ -44,17 +46,20 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
   }
 
   walBytes(): number {
-    const pageSize = this.db.$client.pragma('page_size', { simple: true })
-    const checkpoint = this.db.$client.pragma('wal_checkpoint(PASSIVE)')
-    const logPages = walCheckpointLogPages(checkpoint)
-    if (logPages === undefined || typeof pageSize !== 'number') return 0
-    return logPages * pageSize
+    try {
+      return statSync(`${this.db.$client.name}-wal`).size
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      return 0
+    }
   }
 
-  async append(candidates: readonly AcceptanceCandidate[]): Promise<void> {
-    this.db.transaction((tx) => {
-      for (const candidate of candidates) appendCandidate(tx, candidate)
-    })
+  async append(candidates: readonly AcceptanceCandidate[]): Promise<readonly AppendOutcome[]> {
+    const flushId = randomUUID()
+    const outcomes = this.db.transaction((tx) =>
+      candidates.map((candidate) => appendCandidate(tx, candidate, flushId)),
+    )
+    return outcomes
   }
 
   async deleteExpired(input: {
@@ -75,25 +80,36 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
   }
 }
 
-function walCheckpointLogPages(value: unknown): number | undefined {
-  const row = Array.isArray(value) ? value[0] : value
-  if (
-    typeof row !== 'object' ||
-    row === null ||
-    !('log' in row) ||
-    typeof row.log !== 'number' ||
-    !Number.isFinite(row.log)
-  )
-    return undefined
-  return row.log
-}
-
 type SqliteTransaction = Parameters<Parameters<Db['transaction']>[0]>[0]
 
-function appendCandidate(tx: SqliteTransaction, candidate: AcceptanceCandidate): void {
+function appendCandidate(
+  tx: SqliteTransaction,
+  candidate: AcceptanceCandidate,
+  flushId: string,
+): AppendOutcome {
   const event = candidate.event
   const receiptTime = new Date(candidate.receiptTime)
   const occurrenceTime = new Date(event.occurrenceTime)
+  const existing = tx
+    .select({
+      receiptTime: schema.TAcceptedEvent.receiptTime,
+      payloadFingerprint: schema.TAcceptedEvent.payloadFingerprint,
+    })
+    .from(schema.TAcceptedEvent)
+    .where(
+      and(
+        eq(schema.TAcceptedEvent.siteId, candidate.siteId),
+        eq(schema.TAcceptedEvent.eventId, event.eventId),
+      ),
+    )
+    .limit(1)
+    .all()[0]
+  if (existing !== undefined) {
+    return existing.payloadFingerprint === candidate.payloadFingerprint
+      ? { status: 'duplicate', receiptTime: existing.receiptTime.toISOString() }
+      : { status: 'conflict' }
+  }
+
   const inserted = tx
     .insert(schema.TAcceptedEvent)
     .values({
@@ -132,9 +148,10 @@ function appendCandidate(tx: SqliteTransaction, candidate: AcceptanceCandidate):
       acceptanceState: 'accepted',
       projectionState: 'pending',
       committedAt: receiptTime,
-      flushId: null,
+      flushId,
     })
     .run()
+  return { status: 'accepted' }
 }
 
 function appendKind(

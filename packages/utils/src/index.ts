@@ -60,3 +60,4 @@ export {
   type EventName,
   type UnlistenFn,
 } from './event/index.ts'
+export { canonicalJsonString, isRecord, sortedRecord } from './canonical-json/index.ts'

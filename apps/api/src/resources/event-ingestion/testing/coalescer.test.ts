@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
-import type { AcceptanceRepository } from '../repository.ts'
-import { AcceptanceAdmissionStoppedError, AcceptanceCoalescer } from '../coalescer.ts'
+import type { AcceptanceRepository, AppendOutcome } from '../repository.ts'
+import {
+  AcceptanceAdmissionStoppedError,
+  AcceptanceCoalescer,
+  AcceptanceQueueSaturatedError,
+} from '../coalescer.ts'
 
 function candidate(eventId: string) {
   return {
@@ -52,7 +56,9 @@ describe('AcceptanceCoalescer', () => {
   it('reports queue, flush, failure, and saturation diagnostics', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
-    acceptance.append.mockResolvedValue()
+    acceptance.append.mockImplementation(async (candidates) =>
+      candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
+    )
     const coalescer = new AcceptanceCoalescer({
       repository: acceptance,
       flushMaxEvents: 1,
@@ -77,7 +83,9 @@ describe('AcceptanceCoalescer', () => {
   it('flushes a multi-event active queue when its window expires', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
-    acceptance.append.mockResolvedValue()
+    acceptance.append.mockImplementation(async (candidates) =>
+      candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
+    )
     const coalescer = new AcceptanceCoalescer({ repository: acceptance, windowMs: 1 })
 
     const reservations = await coalescer.reserveMany([candidate('event-1'), candidate('event-2')])
@@ -101,7 +109,9 @@ describe('AcceptanceCoalescer', () => {
     acceptance.lastReplaySequence
       .mockRejectedValueOnce(new Error('sqlite unavailable'))
       .mockResolvedValueOnce(4)
-    acceptance.append.mockResolvedValue()
+    acceptance.append.mockImplementation(async (candidates) =>
+      candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
+    )
     const coalescer = new AcceptanceCoalescer({ repository: acceptance })
 
     await expect(coalescer.reserveMany([candidate('event-1')])).rejects.toThrow(
@@ -136,5 +146,83 @@ describe('AcceptanceCoalescer', () => {
       'completion' in reservations[1]! ? reservations[1].completion : Promise.resolve(),
     ).rejects.toThrow('sqlite unavailable')
     expect(acceptance.append).toHaveBeenCalledTimes(1)
+  })
+
+  it('continues the next queue window from its first candidate arrival after a flush', async () => {
+    const acceptance = mock<AcceptanceRepository>()
+    acceptance.lastReplaySequence.mockResolvedValue(0)
+    const appendResolvers: Array<(outcomes: readonly AppendOutcome[]) => void> = []
+    acceptance.append.mockImplementation(
+      (candidates) =>
+        new Promise<readonly AppendOutcome[]>((resolve) => {
+          appendResolvers.push(() =>
+            resolve(candidates.map(() => ({ status: 'accepted' }) as const)),
+          )
+        }),
+    )
+    const schedules: Array<{ callback: () => void; delayMs: number }> = []
+    const coalescer = new AcceptanceCoalescer({
+      repository: acceptance,
+      flushMaxEvents: 3,
+      pendingMaxEvents: 2,
+      windowMs: 1000,
+      schedule: (callback, delayMs) => {
+        const token = setTimeout(() => undefined, 60_000)
+        schedules.push({ callback, delayMs })
+        return token
+      },
+    })
+
+    await coalescer.reserveMany([candidate('event-1')])
+    const flushing = coalescer.flush()
+    await coalescer.reserveMany([candidate('event-2')])
+    await coalescer.reserveMany([candidate('event-3')])
+    expect(schedules).toHaveLength(2)
+    expect(appendResolvers).toHaveLength(1)
+    appendResolvers[0]?.([])
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    await flushing
+    expect(schedules).toHaveLength(3)
+    const resumed = schedules[2]
+    expect(resumed?.delayMs).toBeGreaterThan(0)
+    expect(resumed?.delayMs).toBeLessThan(1000)
+
+    resumed?.callback()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(acceptance.append).toHaveBeenCalledTimes(2)
+    expect(acceptance.append).toHaveBeenLastCalledWith([
+      expect.objectContaining({ event: expect.objectContaining({ eventId: 'event-2' }) }),
+      expect.objectContaining({ event: expect.objectContaining({ eventId: 'event-3' }) }),
+    ])
+    expect(schedules).toHaveLength(3)
+    appendResolvers[1]?.([])
+    await coalescer.stop()
+  })
+
+  it('rejects admission beyond the 500 active and 1500 pending queue limits', async () => {
+    const acceptance = mock<AcceptanceRepository>()
+    acceptance.lastReplaySequence.mockResolvedValue(0)
+    acceptance.append.mockImplementation(
+      () => new Promise<readonly AppendOutcome[]>(() => undefined),
+    )
+    const coalescer = new AcceptanceCoalescer({
+      repository: acceptance,
+      flushMaxEvents: 500,
+      pendingMaxEvents: 1500,
+      windowMs: 60_000,
+      schedule: () => setTimeout(() => undefined, 3_600_000),
+    })
+    const batch = (offset: number, size: number) =>
+      Array.from({ length: size }, (_, index) => candidate(`event-${offset + index}`))
+
+    const first = await coalescer.reserveMany(batch(0, 500))
+    const second = await coalescer.reserveMany(batch(500, 1500))
+    await expect(coalescer.reserveMany(batch(2000, 1))).rejects.toBeInstanceOf(
+      AcceptanceQueueSaturatedError,
+    )
+    expect(first).toHaveLength(500)
+    expect(second).toHaveLength(1500)
+    expect(coalescer.diagnostics.saturationCount).toBe(1)
+    coalescer.stopAdmission()
   })
 })
