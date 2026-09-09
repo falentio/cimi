@@ -35,8 +35,8 @@ function requestContext(
   }
 }
 
-function trustedSourceIp(headers: Headers): string | undefined {
-  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+export function trustedSourceIp(headers: Headers): string | undefined {
+  const forwarded = headers.get('x-forwarded-for')?.split(',').at(-1)?.trim()
   if (forwarded !== undefined && forwarded !== '') return forwarded
   return headers.get('x-real-ip') ?? undefined
 }
