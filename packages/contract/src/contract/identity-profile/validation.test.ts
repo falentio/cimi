@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { PROFILE_TRAITS_MAX_SERIALIZED_BYTES, SIdentifyFields, SProfile } from './schema.ts'
+import { safeParse } from 'valibot'
+import {
+  PROFILE_TRAITS_MAX_SERIALIZED_BYTES,
+  SIdentifyFields,
+  SProfile,
+  SProfileTraits,
+} from './schema.ts'
 
 const timestamps = {
   firstSeenAt: '2026-08-23T00:00:00Z',
@@ -79,5 +85,25 @@ describe('identity profile schemas', () => {
       identifiedUserId: 'user-1',
       traits: oversizedTraits,
     }).not.toEqual(expect.schemaMatching(SIdentifyFields))
+  })
+
+  it('rejects prohibited and reserved Trait keys while allowing removal markers', () => {
+    for (const key of [
+      'password',
+      'access_token',
+      'creditCardNumber',
+      'ethnicity',
+      'medicalHistory',
+      'profileEpoch',
+      'religiousBelief',
+      'tradeUnionMembership',
+      'identified-user-id',
+    ]) {
+      expect(safeParse(SProfileTraits, { [key]: 'value' }).success, key).toBe(false)
+      expect(safeParse(SProfileTraits, { [key]: null }).success, key).toBe(true)
+    }
+    expect(safeParse(SProfileTraits, { email: 'person@example.com', name: 'Person' }).success).toBe(
+      true,
+    )
   })
 })

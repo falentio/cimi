@@ -603,7 +603,7 @@ describe('AcceptanceRetentionCleanup', () => {
           receiptTime: new Date('2026-08-01T00:00:00.000Z'),
           late: false,
           visitorId: 'visitor_1',
-          identifiedUserId: 'user_1',
+          identifiedUserId: null,
           analyticsSessionId: 'session_1',
           botPolicyOutcome: 'included',
           policyRevisionId: backupRevision.id,
@@ -618,7 +618,14 @@ describe('AcceptanceRetentionCleanup', () => {
       if (acceptedEvent === undefined) throw new Error('Accepted Event insert returned no row')
       backupDb
         .insert(schema.TEventPayload)
-        .values({ eventPk: acceptedEvent.eventPk, canonicalPayloadJson: '{}' })
+        .values({
+          eventPk: acceptedEvent.eventPk,
+          canonicalPayloadJson: JSON.stringify({
+            eventId: 'event_1',
+            kind: 'custom_event',
+            identifiedUserId: 'user_1',
+          }),
+        })
         .run()
       const currentEvent = backupDb
         .insert(schema.TAcceptedEvent)
@@ -647,7 +654,14 @@ describe('AcceptanceRetentionCleanup', () => {
       if (currentEvent === undefined) throw new Error('Accepted Event insert returned no row')
       backupDb
         .insert(schema.TEventPayload)
-        .values({ eventPk: currentEvent.eventPk, canonicalPayloadJson: '{}' })
+        .values({
+          eventPk: currentEvent.eventPk,
+          canonicalPayloadJson: JSON.stringify({
+            eventId: 'event_2',
+            kind: 'custom_event',
+            identifiedUserId: 'user_2',
+          }),
+        })
         .run()
     } finally {
       closeDb(backupDb)
@@ -682,7 +696,7 @@ describe('AcceptanceRetentionCleanup', () => {
         runId: 'run_1',
         siteId: 'ste_1',
         now,
-        boundary: { ...boundary(), replayReceiptCutoffAt: new Date('2026-08-05T00:00:00.000Z') },
+        boundary: { ...boundary(), replayReceiptCutoffAt: new Date('2026-07-01T00:00:00.000Z') },
         checkpoints: [],
       })
       const cleanedBackup = createDb({ path: backupPath })
@@ -692,9 +706,13 @@ describe('AcceptanceRetentionCleanup', () => {
             .prepare('SELECT identified_user_id AS identifiedUserId FROM accepted_event')
             .all(),
         ).toEqual([{ identifiedUserId: null }, { identifiedUserId: 'user_2' }])
-        expect(cleanedBackup.$client.prepare('SELECT event_pk FROM event_payload').all()).toEqual(
-          [],
-        )
+        const payloads = cleanedBackup.$client
+          .prepare('SELECT canonical_payload_json AS payload FROM event_payload ORDER BY event_pk')
+          .all() as Array<{ readonly payload: string }>
+        expect(payloads.map(({ payload }) => JSON.parse(payload))).toEqual([
+          { eventId: 'event_1', kind: 'custom_event', identifiedUserId: null },
+          { eventId: 'event_2', kind: 'custom_event', identifiedUserId: 'user_2' },
+        ])
         expect(
           cleanedBackup.$client
             .prepare('SELECT profile_id FROM identity_profile ORDER BY profile_id')

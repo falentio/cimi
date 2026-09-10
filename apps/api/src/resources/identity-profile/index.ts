@@ -40,7 +40,7 @@ export interface CreateIdentityProfileDependencies {
   readonly scope?: SiteScopeGuardDependencies | undefined
   readonly membership?: OrganizationMembershipReconciler | undefined
   readonly protection?: IdentityProfileProtection | undefined
-  readonly lifecycleLock?: LifecycleLock | undefined
+  readonly lifecycleLock: LifecycleLock
   readonly clock?: (() => Date) | undefined
   readonly ids?: IdentityProfileIdFactory | undefined
   readonly router?: IdentityProfileRouterOptions | undefined
@@ -69,7 +69,7 @@ export function createIdentityProfile({
     scope: scope ?? createSiteScopeDependencies({ db }),
     ...(membership === undefined ? {} : { membership }),
     ...(protection === undefined ? {} : { protection }),
-    ...(lifecycleLock === undefined ? {} : { lifecycleLock }),
+    lifecycleLock,
     ...(clock === undefined ? {} : { clock }),
   })
   return { repository, service, router: identityProfileRouter(service, router) }

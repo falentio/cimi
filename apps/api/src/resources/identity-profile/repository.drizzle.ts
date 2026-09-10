@@ -1,7 +1,13 @@
 import { and, asc, count, desc, eq, isNull, max } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import { parse, safeParse } from 'valibot'
-import { isProfileTraitsPayloadOversized, SProfileTraits } from '@cimi/contract'
+import {
+  PROFILE_EPOCH_HISTORY_MAX,
+  PROFILE_EPOCH_NUMBER_MAX,
+  hasAllowedProfileTraitKeys,
+  isProfileTraitsPayloadOversized,
+  SProfileTraits,
+} from '@cimi/contract'
 import { generateId } from '@cimi/utils'
 import type {
   ActiveIdentityProfile,
@@ -17,8 +23,6 @@ export interface IdentityProfileRepositoryDrizzleDependencies {
   readonly db: Db
   readonly ids?: IdentityProfileIdFactory | undefined
 }
-
-const MAX_PROFILE_EPOCHS = 32
 
 export class IdentityProfileRepositoryDrizzle implements IdentityProfileRepository {
   private readonly db: Db
@@ -252,7 +256,7 @@ function identifyInTransaction(
         .where(eq(schema.TIdentityProfileEpoch.profileId, profile.profileId))
         .all()[0]?.epoch ?? profile.profileEpoch
     const nextEpoch = maxEpoch + 1
-    if (nextEpoch > MAX_PROFILE_EPOCHS) return { kind: 'conflict' }
+    if (nextEpoch > PROFILE_EPOCH_NUMBER_MAX) return { kind: 'conflict' }
     const mergedTraits = mergeTraits(null, input.traits)
     if (mergedTraits.kind !== 'valid') return mergedTraits
     const traits = mergedTraits.value
@@ -357,7 +361,7 @@ function linkAlias(
       .where(eq(schema.TIdentityLink.id, current.id))
       .run()
   }
-  const sessionStart = resolveSessionStart(tx, input)
+  const sessionStart = current === undefined ? resolveSessionStart(tx, input) : input.now
   tx.insert(schema.TIdentityLink)
     .values({
       id: input.ids.identityLinkId(),
@@ -382,7 +386,7 @@ function resolveSessionStart(
     .select({
       eventPk: schema.TAcceptedEvent.eventPk,
       analyticsSessionId: schema.TAcceptedEvent.analyticsSessionId,
-      occurrenceTime: schema.TAcceptedEvent.occurrenceTime,
+      receiptTime: schema.TAcceptedEvent.receiptTime,
     })
     .from(schema.TAcceptedEvent)
     .where(
@@ -395,22 +399,37 @@ function resolveSessionStart(
     .limit(1)
     .all()[0]
   if (latest === undefined) return input.now
-  if (latest.analyticsSessionId === null) return latest.occurrenceTime
-  return (
+  const sessionStart =
+    latest.analyticsSessionId === null
+      ? latest.receiptTime
+      : (tx
+          .select({ receiptTime: schema.TAcceptedEvent.receiptTime })
+          .from(schema.TAcceptedEvent)
+          .where(
+            and(
+              eq(schema.TAcceptedEvent.siteId, input.siteId),
+              eq(schema.TAcceptedEvent.anonymousIdentityId, input.anonymousIdentityId),
+              eq(schema.TAcceptedEvent.analyticsSessionId, latest.analyticsSessionId),
+            ),
+          )
+          .orderBy(asc(schema.TAcceptedEvent.receiptTime), asc(schema.TAcceptedEvent.eventPk))
+          .limit(1)
+          .all()[0]?.receiptTime ?? latest.receiptTime)
+  const redactedThrough =
     tx
-      .select({ occurrenceTime: schema.TAcceptedEvent.occurrenceTime })
-      .from(schema.TAcceptedEvent)
+      .select({ endedAt: schema.TIdentityProfileEpoch.endedAt })
+      .from(schema.TIdentityProfileEpoch)
       .where(
         and(
-          eq(schema.TAcceptedEvent.siteId, input.siteId),
-          eq(schema.TAcceptedEvent.anonymousIdentityId, input.anonymousIdentityId),
-          eq(schema.TAcceptedEvent.analyticsSessionId, latest.analyticsSessionId),
+          eq(schema.TIdentityProfileEpoch.siteId, input.siteId),
+          eq(schema.TIdentityProfileEpoch.identifiedUserId, input.identifiedUserId),
+          eq(schema.TIdentityProfileEpoch.status, 'redacted'),
         ),
       )
-      .orderBy(asc(schema.TAcceptedEvent.occurrenceTime), asc(schema.TAcceptedEvent.eventPk))
+      .orderBy(desc(schema.TIdentityProfileEpoch.endedAt))
       .limit(1)
-      .all()[0]?.occurrenceTime ?? latest.occurrenceTime
-  )
+      .all()[0]?.endedAt ?? null
+  return redactedThrough !== null && redactedThrough > sessionStart ? redactedThrough : sessionStart
 }
 
 function selectProfile(
@@ -479,7 +498,7 @@ function toProfile(db: Db | SqliteTransaction, row: ProfileRow): IdentityProfile
         .where(eq(schema.TIdentityProfileEpoch.profileId, row.profileId))
         .orderBy(asc(schema.TIdentityProfileEpoch.epoch))
         .all()
-        .slice(-MAX_PROFILE_EPOCHS)
+        .slice(-PROFILE_EPOCH_HISTORY_MAX)
         .map(toEpoch)
       if (history.length === 0) throw new Error('Active identity profile has no epoch history')
       const aliases = db
@@ -555,6 +574,7 @@ function mergeTraits(
     else next[key] = value
   }
   if (Object.keys(next).length === 0) return { kind: 'valid', value: null }
+  if (!hasAllowedProfileTraitKeys(next)) return { kind: 'invalid' }
   const parsed = safeParse(SProfileTraits, next)
   if (parsed.success) return { kind: 'valid', value: parsed.output }
   return isProfileTraitsPayloadOversized(next) ? { kind: 'payload-too-large' } : { kind: 'invalid' }

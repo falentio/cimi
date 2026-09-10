@@ -72,6 +72,28 @@ describe('createAnalyticsDb', () => {
     await second.close()
   })
 
+  it('reports stale projection versions as unavailable', async () => {
+    const path = join(dir, 'stale-analytics.duckdb')
+    const tempDirectory = join(dir, 'stale-analytics-tmp')
+    const analytics = await createAnalyticsDb({ path, tempDirectory })
+    await analytics.close()
+
+    const instance = await DuckDBInstance.create(path, {
+      temp_directory: tempDirectory,
+    })
+    const connection = await instance.connect()
+    await connection.run(
+      `INSERT INTO projection_checkpoints (site_id, projection_version, updated_at)
+       VALUES ('ste-stale', 'v3', current_timestamp)`,
+    )
+    connection.closeSync()
+    instance.closeSync()
+
+    const stale = await createAnalyticsDb({ path, tempDirectory })
+    await expect(stale.ready()).resolves.toBe(false)
+    await stale.close()
+  })
+
   it('creates a fresh migrated in-memory database and closes it idempotently', async () => {
     const analytics = await createTestAnalyticsDb()
 
@@ -323,6 +345,26 @@ describe('createAnalyticsDb', () => {
         .run(1, 'plan', 'string', 'pro')
       controlDb.$client
         .prepare(
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, anonymous_identity_id, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          5,
+          'ste-1',
+          'evt-5',
+          'custom_event',
+          now + 500,
+          now - 2_000,
+          'vis-2',
+          'vis-2',
+          'ses-2',
+          'pol-1',
+          5,
+          'fingerprint-5',
+          'pending',
+          now - 2_000,
+        )
+      controlDb.$client
+        .prepare(
           'INSERT INTO projection_checkpoint (site_id, projected_replay_sequence, occurrence_covered_from, occurrence_covered_through, effective_retention_from, statistics_refreshed_at, readiness, projection_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run('ste-1', 9, now - 10_000, now, now - 100_000, now, 'rebuilding', 'v2', now)
@@ -417,7 +459,7 @@ describe('createAnalyticsDb', () => {
         expect(Object.fromEntries(counts)).toEqual({
           visitors: 2,
           analytics_sessions: 2,
-          events: 3,
+          events: 4,
           event_properties: 1,
           projection_checkpoints: 2,
           projection_gaps: 1,
@@ -434,13 +476,17 @@ describe('createAnalyticsDb', () => {
           "SELECT identified_user_id FROM events WHERE event_id = 'evt-4'",
         )
         expect(relinkedEvent.getRowObjects()[0]?.['identified_user_id']).toBe('identified-2')
+        const receiptBoundEvent = await inspectionConnection.runAndReadAll(
+          "SELECT identified_user_id FROM events WHERE event_id = 'evt-5'",
+        )
+        expect(receiptBoundEvent.getRowObjects()[0]?.['identified_user_id']).toBeNull()
         const checkpoint = await inspectionConnection.runAndReadAll(
           "SELECT projected_replay_sequence, readiness, projection_version FROM projection_checkpoints WHERE site_id = 'ste-1'",
         )
         expect(checkpoint.getRowObjects()[0]).toMatchObject({
           projected_replay_sequence: 9n,
           readiness: 'rebuilding',
-          projection_version: 'v2',
+          projection_version: 'v4',
         })
         const emptySiteCheckpoint = await inspectionConnection.runAndReadAll(
           "SELECT projected_replay_sequence, readiness, projection_version, updated_at FROM projection_checkpoints WHERE site_id = 'ste-2'",
@@ -448,7 +494,7 @@ describe('createAnalyticsDb', () => {
         expect(emptySiteCheckpoint.getRowObjects()[0]).toMatchObject({
           projected_replay_sequence: 0n,
           readiness: 'ready',
-          projection_version: 'v3',
+          projection_version: 'v4',
         })
       } finally {
         inspectionConnection.closeSync()

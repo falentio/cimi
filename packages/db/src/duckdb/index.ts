@@ -90,7 +90,14 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
              AND table_name IN (${ANALYTICS_REQUIRED_TABLES.map((table) => `'${table}'`).join(', ')})`,
         )
         const row = reader.getRowObjects()[0]
-        return Number(row?.['table_count']) === ANALYTICS_REQUIRED_TABLES.length
+        if (Number(row?.['table_count']) !== ANALYTICS_REQUIRED_TABLES.length) return false
+        const versionReader = await connection.runAndReadAll(
+          `SELECT count(*) AS stale_count
+           FROM projection_checkpoints
+           WHERE projection_version <> '${ANALYTICS_PROJECTION_VERSION}'`,
+        )
+        const versionRow = versionReader.getRowObjects()[0]
+        return Number(versionRow?.['stale_count']) === 0
       } catch {
         return false
       }
@@ -808,7 +815,7 @@ function readProjectionCheckpoints(db: Db): ProjectionCheckpointRow[] {
           COALESCE(rc.event_occurrence_cutoff_at, pc.effective_retention_from) AS effectiveRetentionFrom,
          statistics_refreshed_at AS statisticsRefreshedAt,
          COALESCE(pc.readiness, 'ready') AS readiness,
-         COALESCE(pc.projection_version, '${ANALYTICS_PROJECTION_VERSION}') AS projectionVersion,
+          '${ANALYTICS_PROJECTION_VERSION}' AS projectionVersion,
          COALESCE(pc.updated_at, s.updated_at) AS updatedAt
          FROM site s
          LEFT JOIN projection_checkpoint pc ON pc.site_id = s.id
@@ -844,8 +851,8 @@ function projectEventIdentity(
       link.siteId === event.siteId &&
       link.anonymousIdentityId === event.anonymousIdentityId &&
       (link.analyticsSessionId === null || link.analyticsSessionId === event.analyticsSessionId) &&
-      link.effectiveFrom <= event.occurrenceTime &&
-      (link.unlinkedAt === null || event.occurrenceTime < link.unlinkedAt),
+      link.effectiveFrom <= event.receiptTime &&
+      (link.unlinkedAt === null || event.receiptTime < link.unlinkedAt),
   )
   const linkedEpochs = identities.epochs.filter(
     (epoch) =>

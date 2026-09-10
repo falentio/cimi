@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { schema } from '@cimi/contract'
 import { InMemorySiteScopePort } from '@cimi/guard'
 import {
@@ -498,6 +498,47 @@ describe('EventIngestionService', () => {
     await service.flush()
 
     await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    await service.stop()
+  })
+
+  it('holds the ingestion lease until the acceptance commit completes', async () => {
+    const lifecycleLock = new InMemoryLifecycleLock()
+    const acceptanceRepository = mock<AcceptanceRepository>()
+    acceptanceRepository.findByEventId.mockResolvedValue(undefined)
+    acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
+    let releaseAppend!: () => void
+    const appendReleased = new Promise<void>((resolve) => {
+      releaseAppend = resolve
+    })
+    let appendStarted = false
+    acceptanceRepository.append.mockImplementation(async (candidates) => {
+      appendStarted = true
+      await appendReleased
+      return candidates.map(() => ({ status: 'accepted' }) as const)
+    })
+    const coalescer = new AcceptanceCoalescer({
+      repository: acceptanceRepository,
+      windowMs: 60_000,
+      clock: () => now,
+    })
+    const { service } = createFixture({
+      acceptance: acceptanceRepository,
+      coalescer,
+      lifecycleLock,
+    })
+
+    const resultPromise = service.collectEvent(event())
+    await vi.waitFor(() => expect(coalescer.queueDepth).toBe(1))
+    const flushPromise = service.flush()
+    await vi.waitFor(() => expect(appendStarted).toBe(true))
+
+    expect(lifecycleLock.acquire('retention')).toBeUndefined()
+    releaseAppend()
+    await flushPromise
+    await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    const retentionLease = lifecycleLock.acquire('retention')
+    expect(retentionLease).toBeDefined()
+    await retentionLease?.release()
     await service.stop()
   })
 

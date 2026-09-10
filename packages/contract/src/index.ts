@@ -72,12 +72,15 @@ export {
 export {
   SProfileStatus,
   PROFILE_TRAITS_MAX_SERIALIZED_BYTES,
+  PROFILE_EPOCH_HISTORY_MAX,
+  PROFILE_EPOCH_NUMBER_MAX,
   SDeletionCleanupStatus,
   SProfileTraits,
   SProfileEpoch,
   SProfile,
   SProfileIdentityFields,
   SIdentifyFields,
+  hasAllowedProfileTraitKeys,
   isProfileTraitsPayloadOversized,
 } from './contract/identity-profile/schema.ts'
 export { SIdentifyInput, SIdentifyOutput } from './contract/identity-profile/command/identify.ts'

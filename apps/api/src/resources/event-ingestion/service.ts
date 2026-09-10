@@ -165,29 +165,29 @@ export class EventIngestionService {
     input: CollectEventInput,
     request: IngestionRequestContext = {},
   ): Promise<CollectEventOutput> {
-    const admission = await this.withAdmissionLease(input.ingestionIdentifier, () =>
-      this.collectEventAdmitted(input, request),
-    )
-    if ('output' in admission) return admission.output
-    try {
-      await admission.reservation.completion
-    } catch (error) {
-      if (admission.candidate !== undefined) await this.rollbackIdentity(admission.candidate)
-      throw acceptanceError(error)
-    }
-    if (admission.candidate !== undefined) {
+    return this.withAdmissionLease(input.ingestionIdentifier, async () => {
+      const admission = await this.collectEventAdmitted(input, request)
+      if ('output' in admission) return admission.output
       try {
-        await this.commitIdentity(admission.candidate)
+        await admission.reservation.completion
       } catch (error) {
-        await this.rollbackIdentity(admission.candidate)
+        if (admission.candidate !== undefined) await this.rollbackIdentity(admission.candidate)
         throw acceptanceError(error)
       }
-    }
-    return {
-      status: admission.reservation.status,
-      eventId: input.eventId,
-      receiptTime: admission.reservation.receiptTime,
-    }
+      if (admission.candidate !== undefined) {
+        try {
+          await this.commitIdentity(admission.candidate)
+        } catch (error) {
+          await this.rollbackIdentity(admission.candidate)
+          throw acceptanceError(error)
+        }
+      }
+      return {
+        status: admission.reservation.status,
+        eventId: input.eventId,
+        receiptTime: admission.reservation.receiptTime,
+      }
+    })
   }
 
   private async collectEventAdmitted(
@@ -248,20 +248,20 @@ export class EventIngestionService {
     input: CollectEventsInput,
     request: IngestionRequestContext = {},
   ): Promise<CollectEventsOutput> {
-    const admission = await this.withAdmissionLease(input.ingestionIdentifier, () =>
-      this.collectEventsAdmitted(input, request),
-    )
-    try {
-      await Promise.all(admission.waits)
-    } catch (error) {
-      throw acceptanceError(error)
-    }
-    return {
-      results: admission.results.map((result) => {
-        if (result === undefined) throw new Error('Batch result count mismatch')
-        return result
-      }),
-    }
+    return this.withAdmissionLease(input.ingestionIdentifier, async () => {
+      const admission = await this.collectEventsAdmitted(input, request)
+      try {
+        await Promise.all(admission.waits)
+      } catch (error) {
+        throw acceptanceError(error)
+      }
+      return {
+        results: admission.results.map((result) => {
+          if (result === undefined) throw new Error('Batch result count mismatch')
+          return result
+        }),
+      }
+    })
   }
 
   private async collectEventsAdmitted(

@@ -154,6 +154,7 @@ const expectedErrors: Record<string, ErrorMap> = {
     'FORBIDDEN',
     'NOT_FOUND',
     'CONFLICT',
+    'SERVICE_UNAVAILABLE',
   ),
   'installation.getInstallationStatus': catalog(
     'UNAUTHORIZED',

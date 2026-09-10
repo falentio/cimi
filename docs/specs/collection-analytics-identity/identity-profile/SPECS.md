@@ -105,7 +105,7 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 **Events Emitted:** None in MVP.
 
-**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409 if already `deletion-requested`, `deleting`, or `deleted`, or while the ID remains reserved for cleanup).
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409 if already `deletion-requested`, `deleting`, or `deleted`, or while the ID remains reserved for cleanup), `SERVICE_UNAVAILABLE` (503 while the shared lifecycle boundary is unavailable).
 
 ## 6. Business Rules
 

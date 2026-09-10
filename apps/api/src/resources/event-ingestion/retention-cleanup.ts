@@ -14,6 +14,10 @@ import {
   decodeRetentionManifest,
   encodeRetentionManifest,
 } from '../backup-restore/retention-manifest.ts'
+import {
+  scrubAcceptedEventIdentity,
+  scrubCanonicalEventPayloads,
+} from '../backup-restore/identity-redaction.ts'
 
 export interface AcceptanceRetentionCleanupDependencies {
   readonly acceptance: AcceptanceRepository
@@ -467,22 +471,18 @@ async function cleanBackupArtifacts(input: {
           readonly epochEndedAt: number | null
         }>
         for (const profile of expiredProfiles) {
-          backupDb.$client
-            .prepare(
-              `UPDATE accepted_event
-               SET identified_user_id = NULL
-               WHERE site_id = ? AND identified_user_id = ?
-                 AND (? IS NULL OR occurrence_time >= ?)
-                 AND (? IS NULL OR occurrence_time < ?)`,
-            )
-            .run(
-              input.boundary.siteId,
-              profile.identifiedUserId,
-              profile.epochStartedAt,
-              profile.epochStartedAt,
-              profile.epochEndedAt,
-              profile.epochEndedAt,
-            )
+          scrubCanonicalEventPayloads(backupDb, {
+            siteId: input.boundary.siteId,
+            identifiedUserId: profile.identifiedUserId,
+            epochStartedAt: profile.epochStartedAt,
+            epochEndedAt: profile.epochEndedAt,
+          })
+          scrubAcceptedEventIdentity(backupDb, {
+            siteId: input.boundary.siteId,
+            identifiedUserId: profile.identifiedUserId,
+            epochStartedAt: profile.epochStartedAt,
+            epochEndedAt: profile.epochEndedAt,
+          })
           backupDb.$client
             .prepare('DELETE FROM identity_redaction WHERE profile_id = ?')
             .run(profile.profileId)
@@ -584,17 +584,14 @@ function cleanBackupIdentityRows(db: Db, targets: readonly IdentityRedactionTarg
       .get(target.profileId) as
       | { readonly profileEpoch: number | null; readonly status: string }
       | undefined
-    if (epoch !== undefined) {
-      db.$client
-        .prepare(
-          `UPDATE accepted_event
-           SET identified_user_id = NULL
-           WHERE site_id = ? AND identified_user_id = ?
-             AND occurrence_time >= ?
-             AND (? IS NULL OR occurrence_time < ?)`,
-        )
-        .run(target.siteId, target.identifiedUserId, epoch.startedAt, epoch.endedAt, epoch.endedAt)
+    const boundary = {
+      siteId: target.siteId,
+      identifiedUserId: target.identifiedUserId,
+      epochStartedAt: epoch?.startedAt ?? null,
+      epochEndedAt: epoch?.endedAt ?? null,
     }
+    scrubCanonicalEventPayloads(db, boundary)
+    scrubAcceptedEventIdentity(db, boundary)
     db.$client
       .prepare('DELETE FROM identity_link WHERE profile_id = ? AND profile_epoch = ?')
       .run(target.profileId, target.profileEpoch)

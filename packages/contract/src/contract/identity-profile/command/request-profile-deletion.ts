@@ -27,6 +27,7 @@ export const requestProfileDeletion = oc
     FORBIDDEN: {},
     NOT_FOUND: {},
     CONFLICT: {},
+    SERVICE_UNAVAILABLE: {},
   })
   .input(SRequestProfileDeletionInput)
   .output(SRequestProfileDeletionOutput)

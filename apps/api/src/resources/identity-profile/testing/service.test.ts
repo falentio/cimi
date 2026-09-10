@@ -37,7 +37,7 @@ function createFixture(
 }
 
 describe('IdentityProfileService', () => {
-  it('identifies a Site user after policy admission', async () => {
+  it('identifies an Identified User after policy admission', async () => {
     const { repository, policyFixture, service } = createFixture()
     repository.identify.mockResolvedValue({
       kind: 'accepted',
@@ -81,6 +81,20 @@ describe('IdentityProfileService', () => {
         collectionContext: { consent: 'denied' },
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repository.identify).not.toHaveBeenCalled()
+  })
+
+  it('rejects prohibited traits before repository access', async () => {
+    const { repository, service } = createFixture()
+
+    await expect(
+      service.identify({
+        ingestionIdentifier: 'ing_1',
+        identifiedUserId: 'usr_external_1',
+        traits: { password: 'secret' },
+        collectionContext: { consent: 'granted' },
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(repository.identify).not.toHaveBeenCalled()
   })
 
@@ -152,6 +166,22 @@ describe('IdentityProfileService', () => {
       }),
     ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
     expect(repository.identify).not.toHaveBeenCalled()
+    await lease?.release()
+  })
+
+  it('fails closed while cleanup holds the lifecycle boundary for deletion', async () => {
+    const lifecycleLock = new InMemoryLifecycleLock()
+    const lease = lifecycleLock.acquire('retention')
+    expect(lease).toBeDefined()
+    const { repository, service } = createFixture({ lifecycleLock })
+
+    await expect(
+      service.requestDeletion(
+        { siteId: 'ste_1', identifiedUserId: 'usr_external_1' },
+        createTestAuthUser(),
+      ),
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
+    expect(repository.requestDeletion).not.toHaveBeenCalled()
     await lease?.release()
   })
 

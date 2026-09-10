@@ -9,6 +9,7 @@ import {
   SProfileListOutput,
   SRequestProfileDeletionInput,
   SRequestProfileDeletionOutput,
+  hasAllowedProfileTraitKeys,
 } from '@cimi/contract'
 import {
   assertSiteManagementScope,
@@ -106,6 +107,9 @@ export class IdentityProfileService {
   ): Promise<IdentifyOutput> {
     const site = await this.resolveSite(input.ingestionIdentifier)
     const now = this.clock()
+    if (!hasAllowedProfileTraitKeys(input.traits)) {
+      throw new ORPCError('BAD_REQUEST', { status: 400 })
+    }
     if (this.protection !== undefined) {
       await this.protection.consume({ siteId: site.id, sourceIp: request.sourceIp, units: 1, now })
     }
@@ -181,7 +185,9 @@ export class IdentityProfileService {
   ): Promise<RequestProfileDeletionOutput> {
     await this.reconcileSiteOrganization(input.siteId, user.id, headers)
     await assertSiteManagementScope(user, input.siteId, this.scope)
-    const result = await this.repository.requestDeletion({ ...input, now: this.clock() })
+    const result = await this.withDeletionLease(() =>
+      this.repository.requestDeletion({ ...input, now: this.clock() }),
+    )
     if (result.kind === 'not-found') throw new ORPCError('NOT_FOUND')
     if (result.kind === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
     return result.output
@@ -215,6 +221,17 @@ export class IdentityProfileService {
       if (site === undefined) throw new ORPCError('NOT_FOUND')
       throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     }
+    try {
+      return await operation()
+    } finally {
+      await lease.release()
+    }
+  }
+
+  private async withDeletionLease<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.lifecycleLock === undefined) return operation()
+    const lease = await this.lifecycleLock.acquire('ingestion')
+    if (lease === undefined) throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     try {
       return await operation()
     } finally {
