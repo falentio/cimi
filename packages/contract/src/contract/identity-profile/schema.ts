@@ -4,6 +4,7 @@ import { SCollectionContext } from '../collection-policy/transport.ts'
 
 export const SProfileStatus = v.picklist(['active', 'deletion-requested', 'deleting', 'deleted'])
 export const PROFILE_TRAITS_MAX_SERIALIZED_BYTES = 16 * 1024
+const PROFILE_TRAITS_SIZE_ERROR = `Serialized traits must not exceed ${PROFILE_TRAITS_MAX_SERIALIZED_BYTES} UTF-8 bytes.`
 export const SDeletionCleanupStatus = v.strictObject({
   status: v.picklist(['not-required', 'pending', 'complete']),
   updatedAt: SDateTime,
@@ -15,9 +16,19 @@ export const SProfileTraits = v.pipe(
     (value) =>
       new TextEncoder().encode(JSON.stringify(value)).byteLength <=
       PROFILE_TRAITS_MAX_SERIALIZED_BYTES,
-    `Serialized traits must not exceed ${PROFILE_TRAITS_MAX_SERIALIZED_BYTES} UTF-8 bytes.`,
+    PROFILE_TRAITS_SIZE_ERROR,
   ),
 )
+
+export function isProfileTraitsPayloadOversized(value: unknown): boolean {
+  const parsed = v.safeParse(SScalarMap, value)
+  return (
+    parsed.success &&
+    Object.keys(parsed.output).length <= 64 &&
+    new TextEncoder().encode(JSON.stringify(parsed.output)).byteLength >
+      PROFILE_TRAITS_MAX_SERIALIZED_BYTES
+  )
+}
 const SProfileEpochFields = {
   epoch: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(2_147_483_647)),
   startedAt: SDateTime,

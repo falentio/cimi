@@ -93,7 +93,7 @@ Persistence permits at most one active epoch per Profile. Identity links and red
 
 **Events Emitted:** None in MVP.
 
-**Errors:** `BAD_REQUEST` (400), `FORBIDDEN` (403 for generic collection-policy refusal), `NOT_FOUND` (404 for invalid Ingestion Identifier or non-active Site), `CONFLICT` (409 for a profile in deletion), `PAYLOAD_TOO_LARGE` (413), `TOO_MANY_REQUESTS` (429).
+**Errors:** `BAD_REQUEST` (400), `FORBIDDEN` (403 for generic collection-policy refusal), `NOT_FOUND` (404 for invalid Ingestion Identifier or non-active Site), `CONFLICT` (409 for a profile in deletion), `PAYLOAD_TOO_LARGE` (413), `TOO_MANY_REQUESTS` (429), `SERVICE_UNAVAILABLE` (503 while the shared lifecycle boundary or admission gate is unavailable).
 
 ### C2: `POST /identity-profile/requestProfileDeletion` — `requestProfileDeletion`
 
@@ -143,14 +143,15 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code                | HTTP | Trigger                                                                                                                      |
-| ------------------- | ---: | ---------------------------------------------------------------------------------------------------------------------------- |
-| `BAD_REQUEST`       |  400 | Identity or Trait shape is invalid.                                                                                          |
-| `FORBIDDEN`         |  403 | Caller lacks Site profile-management scope.                                                                                  |
-| `NOT_FOUND`         |  404 | Site or profile is inaccessible.                                                                                             |
-| `CONFLICT`          |  409 | Profile status is `deletion-requested`, `deleting`, or `deleted`, or the requested identity ID remains reserved for cleanup. |
-| `PAYLOAD_TOO_LARGE` |  413 | Compact JSON UTF-8 Trait serialization exceeds 16 KiB.                                                                       |
-| `TOO_MANY_REQUESTS` |  429 | Identity mutation protection is exceeded.                                                                                    |
+| Code                  | HTTP | Trigger                                                                                                                      |
+| --------------------- | ---: | ---------------------------------------------------------------------------------------------------------------------------- |
+| `BAD_REQUEST`         |  400 | Identity or Trait shape is invalid.                                                                                          |
+| `FORBIDDEN`           |  403 | Caller lacks Site profile-management scope.                                                                                  |
+| `NOT_FOUND`           |  404 | Site or profile is inaccessible.                                                                                             |
+| `CONFLICT`            |  409 | Profile status is `deletion-requested`, `deleting`, or `deleted`, or the requested identity ID remains reserved for cleanup. |
+| `PAYLOAD_TOO_LARGE`   |  413 | Compact JSON UTF-8 Trait serialization exceeds 16 KiB.                                                                       |
+| `TOO_MANY_REQUESTS`   |  429 | Identity mutation protection is exceeded.                                                                                    |
+| `SERVICE_UNAVAILABLE` |  503 | Shared lifecycle admission or installation maintenance temporarily blocks identity mutation.                              |
 
 ## 11. Related Resources & Dependencies
 

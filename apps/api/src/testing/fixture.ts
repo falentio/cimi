@@ -11,6 +11,7 @@ export async function createApiTestFixture(
   options: {
     upgradeExecutor?: UpgradeExecutor
     eventIngestionProtection?: IngestionProtection
+    eventIngestionTrustProxyHeaders?: boolean
   } = {},
 ) {
   const db = createMigratedTestDb()
@@ -32,6 +33,7 @@ export async function createApiTestFixture(
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
+        eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
         startRetentionCleanupWorker: false,
         ...(options.eventIngestionProtection === undefined
           ? {}

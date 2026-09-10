@@ -5,13 +5,16 @@ import type { TokenHash } from './token.ts'
 
 export interface InvitationRepositoryDrizzleDependencies {
   db: Db
+  clock?: (() => Date) | undefined
 }
 
 export class InvitationRepositoryDrizzle implements InvitationRepository {
   private readonly db: Db
+  private readonly clock: () => Date
 
-  constructor({ db }: InvitationRepositoryDrizzleDependencies) {
+  constructor({ db, clock }: InvitationRepositoryDrizzleDependencies) {
     this.db = db
+    this.clock = clock ?? (() => new Date())
   }
 
   async findById(id: string): Promise<InvitationRepository.InvitationRecord | undefined> {
@@ -54,7 +57,7 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
       .offset(options.offset)
     const hasMore = rows.length > options.limit
     return {
-      items: rows.slice(0, options.limit).map((row) => toPublic(row, new Date())),
+      items: rows.slice(0, options.limit).map((row) => toPublic(row, this.clock())),
       nextOffset: hasMore ? options.offset + options.limit : null,
       hasMore,
       totalCount: countRow?.count ?? 0,

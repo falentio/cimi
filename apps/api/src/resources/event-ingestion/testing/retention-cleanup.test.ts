@@ -47,6 +47,88 @@ function boundary(): RetentionPolicyRepository.SiteRetentionBoundary {
 }
 
 describe('AcceptanceRetentionCleanup', () => {
+  it('processes an explicit identity redaction through both cleanup stages', async () => {
+    using fixture = createSiteDrizzleFixture()
+    fixture.db
+      .insert(schema.TIdentityProfile)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        status: 'deletion-requested',
+        profileEpoch: 1,
+        traits: { plan: 'pro' },
+        firstSeenAt: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityProfileEpoch)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        epoch: 1,
+        status: 'active',
+        startedAt: now,
+        endedAt: null,
+        redactedAt: null,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityRedaction)
+      .values({
+        id: 'redaction_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        identifiedUserId: 'user_1',
+        profileEpoch: 1,
+        reason: 'explicit',
+        status: 'requested',
+        requestedAt: now,
+        appliedAt: null,
+        derivedCleanupStatus: 'pending',
+        backupCleanupStatus: 'pending',
+        derivedCleanupUpdatedAt: now,
+        backupCleanupUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      dataDirectoryPath: tmpdir(),
+    })
+
+    await cleanup.runIdentityDerived({ now })
+    expect(fixture.db.select().from(schema.TIdentityProfile).all()).toMatchObject([
+      { status: 'deleted', traits: null },
+    ])
+    expect(
+      fixture.db
+        .select({
+          status: schema.TIdentityRedaction.status,
+          derivedCleanupStatus: schema.TIdentityRedaction.derivedCleanupStatus,
+        })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ status: 'applied', derivedCleanupStatus: 'complete' }])
+
+    await cleanup.runIdentityBackup({ now })
+    expect(
+      fixture.db
+        .select({ backupCleanupStatus: schema.TIdentityRedaction.backupCleanupStatus })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ backupCleanupStatus: 'complete' }])
+  })
+
   it('redacts expired profile data and rebuilds identity projections', async () => {
     using fixture = createSiteDrizzleFixture()
     fixture.db
@@ -459,11 +541,11 @@ describe('AcceptanceRetentionCleanup', () => {
           profileId: 'profile_1',
           siteId: 'ste_1',
           identifiedUserId: 'user_1',
-          status: 'deleted',
+          status: 'active',
           profileEpoch: 1,
-          traits: null,
+          traits: { plan: 'pro' },
           firstSeenAt: new Date('2025-01-01T00:00:00.000Z'),
-          lastSeenAt: new Date('2025-01-01T00:00:00.000Z'),
+          lastSeenAt: now,
           createdAt: new Date('2025-01-01T00:00:00.000Z'),
           updatedAt: now,
         })
@@ -475,10 +557,10 @@ describe('AcceptanceRetentionCleanup', () => {
           siteId: 'ste_1',
           identifiedUserId: 'user_1',
           epoch: 1,
-          status: 'redacted',
+          status: 'active',
           startedAt: new Date('2025-01-01T00:00:00.000Z'),
-          endedAt: new Date('2026-08-15T00:00:00.000Z'),
-          redactedAt: now,
+          endedAt: null,
+          redactedAt: null,
         })
         .run()
       backupDb
@@ -486,7 +568,7 @@ describe('AcceptanceRetentionCleanup', () => {
         .values({
           profileId: 'profile_2',
           siteId: 'ste_1',
-          identifiedUserId: 'user_1',
+          identifiedUserId: 'user_2',
           status: 'active',
           profileEpoch: 2,
           traits: { plan: 'enterprise' },
@@ -501,7 +583,7 @@ describe('AcceptanceRetentionCleanup', () => {
         .values({
           profileId: 'profile_2',
           siteId: 'ste_1',
-          identifiedUserId: 'user_1',
+          identifiedUserId: 'user_2',
           epoch: 2,
           status: 'active',
           startedAt: new Date('2026-08-15T00:00:00.000Z'),
@@ -550,7 +632,7 @@ describe('AcceptanceRetentionCleanup', () => {
           receiptTime: new Date('2026-08-01T00:00:00.000Z'),
           late: false,
           visitorId: 'visitor_2',
-          identifiedUserId: 'user_1',
+          identifiedUserId: 'user_2',
           analyticsSessionId: 'session_2',
           botPolicyOutcome: 'included',
           policyRevisionId: backupRevision.id,
@@ -609,7 +691,7 @@ describe('AcceptanceRetentionCleanup', () => {
           cleanedBackup.$client
             .prepare('SELECT identified_user_id AS identifiedUserId FROM accepted_event')
             .all(),
-        ).toEqual([{ identifiedUserId: null }, { identifiedUserId: 'user_1' }])
+        ).toEqual([{ identifiedUserId: null }, { identifiedUserId: 'user_2' }])
         expect(cleanedBackup.$client.prepare('SELECT event_pk FROM event_payload').all()).toEqual(
           [],
         )

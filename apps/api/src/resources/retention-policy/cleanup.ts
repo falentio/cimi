@@ -10,6 +10,8 @@ export interface RetentionCleanupBatchResult {
 }
 
 export interface RetentionCleanupPort {
+  runIdentityDerived?(input: { now: Date }): Promise<void>
+  runIdentityBackup?(input: { now: Date }): Promise<void>
   runDerived(input: {
     runId: string
     siteId: string
@@ -95,6 +97,12 @@ export class RetentionCleanupWorker {
       await this.repository.refreshDueBoundaries(now)
       await this.repository.recoverInterrupted(now)
       if (this.cleanup === undefined) return
+      if (this.cleanup.runIdentityDerived !== undefined) {
+        await this.cleanup.runIdentityDerived({ now })
+      }
+      if (this.cleanup.runIdentityBackup !== undefined) {
+        await this.cleanup.runIdentityBackup({ now })
+      }
       const work = await this.repository.claimNext({ now })
       if (work === undefined) return
       try {

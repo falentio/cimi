@@ -22,6 +22,7 @@ export const api = implement({
   invitation: contract.invitation,
   backupRestore: contract.backupRestore,
   eventIngestion: contract.eventIngestion,
+  identityProfile: contract.identityProfile,
 }).$context<ApiContext>()
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {

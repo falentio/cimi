@@ -108,7 +108,7 @@ describe('InvitationRepositoryDrizzle', () => {
   it('lists in created order with pagination metadata and maps expired on read without leaking hashes', async () => {
     const db = seed()
     try {
-      const repo = new InvitationRepositoryDrizzle({ db })
+      const repo = new InvitationRepositoryDrizzle({ db, clock: () => now })
       await repo.insert({
         id: 'inv_1',
         organizationId: 'org_1',

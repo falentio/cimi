@@ -147,6 +147,7 @@ const expectedErrors: Record<string, ErrorMap> = {
     'CONFLICT',
     'PAYLOAD_TOO_LARGE',
     'TOO_MANY_REQUESTS',
+    'SERVICE_UNAVAILABLE',
   ),
   'identityProfile.requestProfileDeletion': catalog(
     'UNAUTHORIZED',
