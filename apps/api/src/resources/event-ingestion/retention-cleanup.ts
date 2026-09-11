@@ -345,12 +345,14 @@ function prepareProfileRedaction(db: Db, profile: IdentityProfileCleanupRow, now
     .run(now.getTime(), profile.profileId)
 }
 
-function hasPendingIdentityRedactions(db: Db): boolean {
+export function hasPendingIdentityRedactions(db: Db): boolean {
   const row = db.$client
     .prepare(
       `SELECT 1 AS pending
-       FROM identity_redaction
-       WHERE derived_cleanup_status = 'pending'
+       FROM identity_redaction r
+       JOIN identity_profile p ON p.profile_id = r.profile_id
+       WHERE r.derived_cleanup_status = 'pending'
+          OR (r.derived_cleanup_status = 'complete' AND p.status = 'deleting')
        LIMIT 1`,
     )
     .get() as { readonly pending: number } | undefined
@@ -380,36 +382,40 @@ function markProfileDerivedCleanupComplete(input: {
     input.siteId === undefined
       ? [input.now.getTime(), input.now.getTime(), input.now.getTime()]
       : [input.now.getTime(), input.now.getTime(), input.now.getTime(), input.siteId]
-  input.db.$client
-    .prepare(
-      `UPDATE identity_redaction
-       SET status = 'applied', applied_at = COALESCE(applied_at, ?),
-           derived_cleanup_status = 'complete', derived_cleanup_updated_at = ?, updated_at = ?
-       WHERE derived_cleanup_status = 'pending'${siteClause}`,
-    )
-    .run(...values)
-  input.db.$client
-    .prepare(
-      `UPDATE identity_profile
-       SET status = 'deleted', traits = NULL, updated_at = ?
-       WHERE status = 'deleting'
-         AND profile_id IN (
+  input.db.$client.transaction(() => {
+    input.db.$client
+      .prepare(
+        `UPDATE identity_redaction
+         SET status = 'applied', applied_at = COALESCE(applied_at, ?),
+             derived_cleanup_status = 'complete', derived_cleanup_updated_at = ?, updated_at = ?
+         WHERE derived_cleanup_status = 'pending'${siteClause}`,
+      )
+      .run(...values)
+    input.db.$client
+      .prepare(
+        `UPDATE identity_profile
+         SET status = 'deleted', traits = NULL, updated_at = ?
+         WHERE status = 'deleting'
+           AND profile_id IN (
+             SELECT profile_id FROM identity_redaction
+             WHERE derived_cleanup_status = 'complete'${siteClause}
+           )`,
+      )
+      .run(
+        ...(input.siteId === undefined
+          ? [input.now.getTime()]
+          : [input.now.getTime(), input.siteId]),
+      )
+    input.db.$client
+      .prepare(
+        `DELETE FROM identity_link
+         WHERE profile_id IN (
            SELECT profile_id FROM identity_redaction
            WHERE derived_cleanup_status = 'complete'${siteClause}
          )`,
-    )
-    .run(
-      ...(input.siteId === undefined ? [input.now.getTime()] : [input.now.getTime(), input.siteId]),
-    )
-  input.db.$client
-    .prepare(
-      `DELETE FROM identity_link
-       WHERE profile_id IN (
-         SELECT profile_id FROM identity_redaction
-         WHERE derived_cleanup_status = 'complete'${siteClause}
-       )`,
-    )
-    .run(...(input.siteId === undefined ? [] : [input.siteId]))
+      )
+      .run(...(input.siteId === undefined ? [] : [input.siteId]))
+  })()
 }
 
 interface BackupArtifactRow {

@@ -6,7 +6,11 @@ import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
 import { createTestAnalyticsDb } from '@cimi/db/testing'
 import { mock } from 'vitest-mock-extended'
 import type { AcceptanceRepository } from '../repository.ts'
-import { AcceptanceBackupRestoreCleanup, AcceptanceRetentionCleanup } from '../retention-cleanup.ts'
+import {
+  AcceptanceBackupRestoreCleanup,
+  AcceptanceRetentionCleanup,
+  hasPendingIdentityRedactions,
+} from '../retention-cleanup.ts'
 import {
   createSiteDrizzleFixture,
   createSiteMembershipRow,
@@ -379,6 +383,184 @@ describe('AcceptanceRetentionCleanup', () => {
         .from(schema.TIdentityRedaction)
         .all(),
     ).toEqual([{ status: 'requested', derivedCleanupStatus: 'pending' }])
+  })
+
+  it('finishes a deleting profile link and redaction in one drain', async () => {
+    using fixture = createSiteDrizzleFixture()
+    fixture.db
+      .insert(schema.TIdentityProfile)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        status: 'deleting',
+        profileEpoch: 1,
+        traits: { plan: 'pro' },
+        firstSeenAt: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityProfileEpoch)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        epoch: 1,
+        status: 'redacted',
+        startedAt: now,
+        endedAt: now,
+        redactedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityLink)
+      .values({
+        id: 'link_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        profileEpoch: 1,
+        anonymousIdentityId: 'anonymous_1',
+        analyticsSessionId: 'session_1',
+        effectiveFrom: now,
+        linkedAt: now,
+        unlinkedAt: null,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityRedaction)
+      .values({
+        id: 'redaction_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        identifiedUserId: 'user_1',
+        profileEpoch: 1,
+        reason: 'explicit',
+        status: 'requested',
+        requestedAt: now,
+        appliedAt: null,
+        derivedCleanupStatus: 'pending',
+        backupCleanupStatus: 'pending',
+        derivedCleanupUpdatedAt: now,
+        backupCleanupUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+    })
+
+    await cleanup.runIdentityDerived({ now })
+
+    expect(
+      fixture.db
+        .select({ status: schema.TIdentityProfile.status })
+        .from(schema.TIdentityProfile)
+        .all(),
+    ).toEqual([{ status: 'deleted' }])
+    expect(fixture.db.select().from(schema.TIdentityLink).all()).toHaveLength(0)
+    expect(
+      fixture.db
+        .select({
+          status: schema.TIdentityRedaction.status,
+          derivedCleanupStatus: schema.TIdentityRedaction.derivedCleanupStatus,
+        })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ status: 'applied', derivedCleanupStatus: 'complete' }])
+  })
+
+  it('resumes a half-written completion where the profile is still deleting', async () => {
+    using fixture = createSiteDrizzleFixture()
+    fixture.db
+      .insert(schema.TIdentityProfile)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        status: 'deleting',
+        profileEpoch: 1,
+        traits: null,
+        firstSeenAt: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityProfileEpoch)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        epoch: 1,
+        status: 'redacted',
+        startedAt: now,
+        endedAt: now,
+        redactedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityLink)
+      .values({
+        id: 'link_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        profileEpoch: 1,
+        anonymousIdentityId: 'anonymous_1',
+        analyticsSessionId: 'session_1',
+        effectiveFrom: now,
+        linkedAt: now,
+        unlinkedAt: null,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityRedaction)
+      .values({
+        id: 'redaction_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        identifiedUserId: 'user_1',
+        profileEpoch: 1,
+        reason: 'explicit',
+        status: 'applied',
+        requestedAt: now,
+        appliedAt: now,
+        derivedCleanupStatus: 'complete',
+        backupCleanupStatus: 'pending',
+        derivedCleanupUpdatedAt: now,
+        backupCleanupUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    expect(hasPendingIdentityRedactions(fixture.db)).toBe(true)
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+    })
+
+    await cleanup.runIdentityDerived({ now })
+
+    expect(
+      fixture.db
+        .select({ status: schema.TIdentityProfile.status })
+        .from(schema.TIdentityProfile)
+        .all(),
+    ).toEqual([{ status: 'deleted' }])
+    expect(fixture.db.select().from(schema.TIdentityLink).all()).toHaveLength(0)
+    expect(hasPendingIdentityRedactions(fixture.db)).toBe(false)
   })
 
   it('uses the replay cutoff for replay material cleanup', async () => {
