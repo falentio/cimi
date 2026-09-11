@@ -6,6 +6,9 @@ import {
   SProfile,
   SProfileTraits,
 } from './schema.ts'
+import { getProfile } from './query/get.ts'
+import { listProfiles } from './query/list.ts'
+import { getDeletionStatus } from './query/get-deletion-status.ts'
 
 const timestamps = {
   firstSeenAt: '2026-08-23T00:00:00Z',
@@ -105,5 +108,23 @@ describe('identity profile schemas', () => {
     expect(safeParse(SProfileTraits, { email: 'person@example.com', name: 'Person' }).success).toBe(
       true,
     )
+  })
+})
+
+describe('identity profile query admission metadata', () => {
+  it('gates profile reads on analytics-read admission', () => {
+    expect(listProfiles['~orpc'].meta).toMatchObject({
+      auth: 'authenticated',
+      admission: 'analytics-read',
+    })
+    expect(getProfile['~orpc'].meta).toMatchObject({
+      auth: 'authenticated',
+      admission: 'analytics-read',
+    })
+  })
+
+  it('keeps deletion status readable during degraded analytics admission', () => {
+    expect(getDeletionStatus['~orpc'].meta).toMatchObject({ auth: 'authenticated' })
+    expect(getDeletionStatus['~orpc'].meta['admission']).toBeUndefined()
   })
 })
