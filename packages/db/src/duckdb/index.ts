@@ -25,11 +25,38 @@ export {
 
 export const ANALYTICS_DB_FILENAME = 'analytics.duckdb'
 
+export interface AnalyticsProjectionCheckpoint {
+  readonly projectedAcceptanceSequence: number
+  readonly occurrenceCoveredFrom: Date | null
+  readonly occurrenceCoveredThrough: Date | null
+  readonly statisticsRefreshedAt: Date | null
+  readonly readiness: string
+}
+
+export interface AnalyticsProjectionGap {
+  readonly id: string
+  readonly occurrenceFrom: Date | null
+  readonly occurrenceTo: Date | null
+  readonly unbounded: boolean
+}
+
+/**
+ * One reader-consistent view of a Site's projection state. `factCardinality` is counted in the
+ * same read as the checkpoint, so it always describes exactly the projected set the checkpoint
+ * reports; callers may compare the two without a torn read.
+ */
+export interface AnalyticsProjectionSnapshot {
+  readonly checkpoint: AnalyticsProjectionCheckpoint | null
+  readonly openGaps: readonly AnalyticsProjectionGap[]
+  readonly factCardinality: number
+}
+
 export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
   deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number>
   purgeSite(input: { siteId: string }): Promise<void>
+  readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot>
   close(): Promise<void>
 }
 
@@ -103,6 +130,53 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       } catch {
         return false
       }
+    },
+    async readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot> {
+      if (closed || closing) throw new Error('Analytics database is closed')
+      if (unavailable) throw new Error('Analytics database is unavailable')
+      return enqueue(async () => {
+        const checkpointReader = await connection.runAndReadAll(
+          `SELECT projected_replay_sequence,
+                  epoch_ms(occurrence_covered_from) AS occurrence_covered_from,
+                  epoch_ms(occurrence_covered_through) AS occurrence_covered_through,
+                  epoch_ms(statistics_refreshed_at) AS statistics_refreshed_at,
+                  readiness
+           FROM projection_checkpoints WHERE site_id = ?`,
+          [input.siteId],
+        )
+        const checkpointRow = checkpointReader.getRowObjects()[0]
+        const gapReader = await connection.runAndReadAll(
+          `SELECT id, epoch_ms(occurrence_from) AS occurrence_from,
+                  epoch_ms(occurrence_to) AS occurrence_to, unbounded
+           FROM projection_gaps WHERE site_id = ? AND status = 'open' ORDER BY id`,
+          [input.siteId],
+        )
+        const cardinalityReader = await connection.runAndReadAll(
+          'SELECT count(*) AS fact_cardinality FROM events WHERE site_id = ?',
+          [input.siteId],
+        )
+        const factCardinality = Number(
+          cardinalityReader.getRowObjects()[0]?.['fact_cardinality'] ?? 0,
+        )
+        if (checkpointRow === undefined) {
+          return {
+            checkpoint: null,
+            openGaps: readGapRows(gapReader.getRowObjects()),
+            factCardinality,
+          }
+        }
+        return {
+          checkpoint: {
+            projectedAcceptanceSequence: Number(checkpointRow['projected_replay_sequence'] ?? 0),
+            occurrenceCoveredFrom: readInstant(checkpointRow['occurrence_covered_from']),
+            occurrenceCoveredThrough: readInstant(checkpointRow['occurrence_covered_through']),
+            statisticsRefreshedAt: readInstant(checkpointRow['statistics_refreshed_at']),
+            readiness: String(checkpointRow['readiness'] ?? 'unavailable'),
+          },
+          openGaps: readGapRows(gapReader.getRowObjects()),
+          factCardinality,
+        }
+      })
     },
     async rebuild(input: { controlDb: Db }): Promise<void> {
       if (closed || closing) throw new Error('Analytics database is closed')
@@ -937,6 +1011,31 @@ function propertyValue(property: PropertyRow): string | number | boolean | null 
 
 function timestamp(value: number | null): string | null {
   return value === null ? null : new Date(value).toISOString()
+}
+
+/**
+ * Reads a DuckDB instant selected as `epoch_ms(...)`. A naive DuckDB `TIMESTAMP` converts to a JS
+ * `Date` through the host timezone, so the projection reads select epoch milliseconds and rebuild
+ * the instant here instead.
+ */
+function readInstant(value: unknown): Date | null {
+  if (value === null || value === undefined) return null
+  if (value instanceof Date) return value
+  if (typeof value === 'bigint' || typeof value === 'number') {
+    const parsed = new Date(Number(value))
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+  const parsed = new Date(String(value))
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function readGapRows(rows: readonly Record<string, unknown>[]): AnalyticsProjectionGap[] {
+  return rows.map((row) => ({
+    id: String(row['id']),
+    occurrenceFrom: readInstant(row['occurrence_from']),
+    occurrenceTo: readInstant(row['occurrence_to']),
+    unbounded: Boolean(row['unbounded']),
+  }))
 }
 
 function closeResources(

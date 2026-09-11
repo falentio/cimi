@@ -22,6 +22,9 @@ export {
   ANALYTICS_REQUIRED_TABLES,
   createAnalyticsDb,
   type AnalyticsDb,
+  type AnalyticsProjectionCheckpoint,
+  type AnalyticsProjectionGap,
+  type AnalyticsProjectionSnapshot,
   type CreateAnalyticsDbOptions,
 } from './duckdb/index.ts'
 export {
