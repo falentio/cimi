@@ -351,6 +351,18 @@ describe('IdentityProfileRepositoryDrizzle', () => {
       hasMore: true,
       totalCount: 2,
     })
+    await expect(repository.list({ siteId: 'ste_1', offset: 1, limit: 1 })).resolves.toMatchObject({
+      items: [{ identifiedUserId: 'app_user_2', status: 'active' }],
+      nextOffset: null,
+      hasMore: false,
+      totalCount: 2,
+    })
+    await expect(repository.list({ siteId: 'ste_1', offset: 2, limit: 1 })).resolves.toEqual({
+      items: [],
+      nextOffset: null,
+      hasMore: false,
+      totalCount: 2,
+    })
   })
 
   it('creates an active Profile Epoch and links the current Alias', async () => {
@@ -443,6 +455,12 @@ describe('IdentityProfileRepositoryDrizzle', () => {
     await expect(
       repository.find({ siteId: 'ste_1', identifiedUserId: 'app_user_1' }),
     ).resolves.toEqual({ status: 'deletion-requested' })
+    expect(
+      fixture.db
+        .select({ reason: schema.TIdentityRedaction.reason })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ reason: 'explicit' }])
     await expect(
       repository.getDeletionStatus({ siteId: 'ste_1', identifiedUserId: 'app_user_1' }),
     ).resolves.toEqual({

@@ -84,6 +84,32 @@ describe('IdentityProfileService', () => {
     expect(repository.identify).not.toHaveBeenCalled()
   })
 
+  it('rejects identification with granted consent when GPC is enabled', async () => {
+    const { repository, service } = createFixture()
+
+    await expect(
+      service.identify({
+        ingestionIdentifier: 'ing_1',
+        identifiedUserId: 'usr_external_1',
+        collectionContext: { consent: 'granted', gpc: true },
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repository.identify).not.toHaveBeenCalled()
+  })
+
+  it('rejects identification with granted consent when DNT is enabled', async () => {
+    const { repository, service } = createFixture()
+
+    await expect(
+      service.identify({
+        ingestionIdentifier: 'ing_1',
+        identifiedUserId: 'usr_external_1',
+        collectionContext: { consent: 'granted', dnt: true },
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repository.identify).not.toHaveBeenCalled()
+  })
+
   it('rejects prohibited traits before repository access', async () => {
     const { repository, service } = createFixture()
 
@@ -195,6 +221,29 @@ describe('IdentityProfileService', () => {
       ),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(repository.find).not.toHaveBeenCalled()
+  })
+
+  it('enforces Site scope before profile lists', async () => {
+    const { repository, service } = createFixture()
+
+    await expect(
+      service.list({ siteId: 'ste_1' }, createTestAuthUser({ id: 'user_2' })),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(repository.list).not.toHaveBeenCalled()
+  })
+
+  it('requires Site management scope before requesting profile deletion', async () => {
+    const { repository, service } = createFixture({
+      memberships: [{ organizationId: 'org_1', userId: 'user_2', role: 'member' }],
+    })
+
+    await expect(
+      service.requestDeletion(
+        { siteId: 'ste_1', identifiedUserId: 'usr_external_1' },
+        createTestAuthUser({ id: 'user_2' }),
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repository.requestDeletion).not.toHaveBeenCalled()
   })
 
   it('allows Site members to read deletion status', async () => {

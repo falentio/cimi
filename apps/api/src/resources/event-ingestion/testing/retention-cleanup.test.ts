@@ -106,6 +106,14 @@ describe('AcceptanceRetentionCleanup', () => {
       dataDirectoryPath: tmpdir(),
     })
 
+    await cleanup.runIdentityBackup({ now })
+    expect(
+      fixture.db
+        .select({ backupCleanupStatus: schema.TIdentityRedaction.backupCleanupStatus })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ backupCleanupStatus: 'pending' }])
+
     await cleanup.runIdentityDerived({ now })
     expect(fixture.db.select().from(schema.TIdentityProfile).all()).toMatchObject([
       { status: 'deleted', traits: null },
@@ -115,10 +123,13 @@ describe('AcceptanceRetentionCleanup', () => {
         .select({
           status: schema.TIdentityRedaction.status,
           derivedCleanupStatus: schema.TIdentityRedaction.derivedCleanupStatus,
+          backupCleanupStatus: schema.TIdentityRedaction.backupCleanupStatus,
         })
         .from(schema.TIdentityRedaction)
         .all(),
-    ).toEqual([{ status: 'applied', derivedCleanupStatus: 'complete' }])
+    ).toEqual([
+      { status: 'applied', derivedCleanupStatus: 'complete', backupCleanupStatus: 'pending' },
+    ])
 
     await cleanup.runIdentityBackup({ now })
     expect(
