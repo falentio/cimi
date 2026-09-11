@@ -49,12 +49,17 @@ export interface IdentityProfileRequestContext {
   readonly isBot?: boolean | undefined
 }
 
+export interface IdentityProjectionDebtMarker {
+  mark(input: { readonly siteId?: string | undefined; readonly now: Date }): void
+}
+
 export interface IdentityProfileServiceDependencies {
   readonly repository: IdentityProfileRepository
   readonly siteRepository: SiteRepository
   readonly collectionPolicy: CollectionPolicyService
   readonly scope: SiteScopeGuardDependencies
   readonly profileActivityCutoff?: ((siteId: string) => Promise<Date | undefined>) | undefined
+  readonly projectionDebt?: IdentityProjectionDebtMarker | undefined
   readonly membership?: OrganizationMembershipReconciler | undefined
   readonly protection?: IdentityProfileProtection | undefined
   readonly lifecycleLock?: LifecycleLock | undefined
@@ -69,6 +74,7 @@ export class IdentityProfileService {
   private readonly collectionPolicy: CollectionPolicyService
   private readonly scope: SiteScopeGuardDependencies
   private readonly profileActivityCutoff: (siteId: string) => Promise<Date | undefined>
+  private readonly projectionDebt: IdentityProjectionDebtMarker | undefined
   private readonly membership: OrganizationMembershipReconciler | undefined
   private readonly protection: IdentityProfileProtection | undefined
   private readonly lifecycleLock: LifecycleLock | undefined
@@ -80,6 +86,7 @@ export class IdentityProfileService {
     collectionPolicy,
     scope,
     profileActivityCutoff,
+    projectionDebt,
     membership,
     protection,
     lifecycleLock,
@@ -90,6 +97,7 @@ export class IdentityProfileService {
     this.collectionPolicy = collectionPolicy
     this.scope = scope
     this.profileActivityCutoff = profileActivityCutoff ?? (async () => undefined)
+    this.projectionDebt = projectionDebt
     this.membership = membership
     this.protection = protection
     this.lifecycleLock = lifecycleLock
@@ -141,6 +149,7 @@ export class IdentityProfileService {
     if (result.kind === 'invalid') throw new ORPCError('BAD_REQUEST', { status: 400 })
     if (result.kind === 'payload-too-large')
       throw new ORPCError('PAYLOAD_TOO_LARGE', { status: 413 })
+    this.projectionDebt?.mark({ siteId: site.id, now })
     return result.output
   }
 
@@ -198,6 +207,7 @@ export class IdentityProfileService {
     )
     if (result.kind === 'not-found') throw new ORPCError('NOT_FOUND')
     if (result.kind === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
+    this.projectionDebt?.mark({ siteId: input.siteId, now: this.clock() })
     return result.output
   }
 

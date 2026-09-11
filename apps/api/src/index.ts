@@ -170,6 +170,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     collectionPolicy: collectionPolicy.service,
     membership: membership.service,
     protection: eventIngestionProtection,
+    projectionDebt: identityProjectionDebt,
     lifecycleLock: lock,
     router: {
       trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,

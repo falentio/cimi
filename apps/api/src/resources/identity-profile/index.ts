@@ -10,7 +10,11 @@ import type { SiteRepository } from '../site/repository.ts'
 import { IdentityProfileRepositoryDrizzle } from './repository.drizzle.ts'
 import type { IdentityProfileIdFactory } from './repository.ts'
 import { identityProfileRouter, type IdentityProfileRouterOptions } from './router.ts'
-import { IdentityProfileService, type IdentityProfileProtection } from './service.ts'
+import {
+  IdentityProfileService,
+  type IdentityProfileProtection,
+  type IdentityProjectionDebtMarker,
+} from './service.ts'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 
 export { identityProfileRouter }
@@ -20,6 +24,7 @@ export {
   type IdentityProfileProtection,
   type IdentityProfileRequestContext,
   type IdentityProfileServiceDependencies,
+  type IdentityProjectionDebtMarker,
 } from './service.ts'
 export {
   IdentityProfileRepositoryDrizzle,
@@ -40,6 +45,7 @@ export interface CreateIdentityProfileDependencies {
   readonly collectionPolicy: CollectionPolicyService
   readonly siteRepository?: SiteRepository | undefined
   readonly scope?: SiteScopeGuardDependencies | undefined
+  readonly projectionDebt?: IdentityProjectionDebtMarker | undefined
   readonly membership?: OrganizationMembershipReconciler | undefined
   readonly protection?: IdentityProfileProtection | undefined
   readonly lifecycleLock: LifecycleLock
@@ -53,6 +59,7 @@ export function createIdentityProfile({
   collectionPolicy,
   siteRepository,
   scope,
+  projectionDebt,
   membership,
   protection,
   lifecycleLock,
@@ -79,6 +86,7 @@ export function createIdentityProfile({
         .limit(1)
       return row[0]?.profileActivityCutoffAt
     },
+    ...(projectionDebt === undefined ? {} : { projectionDebt }),
     ...(membership === undefined ? {} : { membership }),
     ...(protection === undefined ? {} : { protection }),
     lifecycleLock,
