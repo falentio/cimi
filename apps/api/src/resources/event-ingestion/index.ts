@@ -38,6 +38,12 @@ export {
   DefaultIdentitySessionResolver,
   type DefaultIdentitySessionResolverDependencies,
 } from './identity-session.ts'
+export {
+  DEFAULT_SESSION_WINDOW,
+  sessionContinues,
+  type SessionWindow,
+  type SessionWindowState,
+} from './session-window.ts'
 export { isParsedPayloadOversized } from './payload-size.ts'
 export { deriveAttribution, type DerivedAttribution } from './attribution.ts'
 export {

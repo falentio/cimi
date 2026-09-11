@@ -9,6 +9,7 @@ import {
   setNestedMapValue,
 } from '@cimi/utils'
 import type { Db } from '../client.ts'
+import { linkCoversEvent } from '../identity/coverage.ts'
 import {
   ANALYTICS_PROJECTION_VERSION,
   ANALYTICS_REQUIRED_TABLES,
@@ -846,13 +847,24 @@ function projectEventIdentity(
 ): EventRow & {
   profileId: string | null
 } {
-  const links = identities.links.filter(
-    (link) =>
-      link.siteId === event.siteId &&
-      link.anonymousIdentityId === event.anonymousIdentityId &&
-      (link.analyticsSessionId === null || link.analyticsSessionId === event.analyticsSessionId) &&
-      link.effectiveFrom <= event.receiptTime &&
-      (link.unlinkedAt === null || event.receiptTime < link.unlinkedAt),
+  const links = identities.links.filter((link) =>
+    linkCoversEvent(
+      {
+        siteId: link.siteId,
+        profileId: link.profileId,
+        profileEpoch: link.profileEpoch,
+        anonymousIdentityId: link.anonymousIdentityId,
+        analyticsSessionId: link.analyticsSessionId,
+        effectiveFromMs: link.effectiveFrom,
+        unlinkedAtMs: link.unlinkedAt,
+      },
+      {
+        siteId: event.siteId,
+        anonymousIdentityId: event.anonymousIdentityId,
+        analyticsSessionId: event.analyticsSessionId,
+        receiptTimeMs: event.receiptTime,
+      },
+    ),
   )
   const linkedEpochs = identities.epochs.filter(
     (epoch) =>

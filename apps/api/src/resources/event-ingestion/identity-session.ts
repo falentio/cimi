@@ -3,9 +3,7 @@ import { ORPCError } from '@orpc/server'
 import type { DerivedAttribution } from './attribution.ts'
 import type { IdentitySessionAssignment, IdentitySessionResolver } from './service.ts'
 import type { EventInput, NormalizedEvent, StoredIdentitySession } from './repository.ts'
-
-const SESSION_INACTIVITY_MS = 30 * 60 * 1000
-const SESSION_MAX_MS = 24 * 60 * 60 * 1000
+import { sessionContinues } from './session-window.ts'
 
 interface SessionState {
   visitorId: string
@@ -239,9 +237,7 @@ function nextState(
   receiptMs: number,
   identifiedUserId: string | null,
 ): SessionState {
-  const inactive = receiptMs - state.lastSeenMs > SESSION_INACTIVITY_MS
-  const expired = receiptMs - state.sessionStartMs > SESSION_MAX_MS
-  if (!inactive && !expired) {
+  if (sessionContinues(state, receiptMs)) {
     return {
       ...state,
       lastSeenMs: receiptMs,
