@@ -1,12 +1,16 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
 import { createTestAnalyticsDb } from '@cimi/db/testing'
 import { mock } from 'vitest-mock-extended'
 import type { AcceptanceRepository } from '../repository.ts'
-import { AcceptanceBackupRestoreCleanup, AcceptanceRetentionCleanup } from '../retention-cleanup.ts'
+import {
+  AcceptanceBackupRestoreCleanup,
+  AcceptanceRetentionCleanup,
+  hasPendingIdentityRedactions,
+} from '../retention-cleanup.ts'
 import {
   createSiteDrizzleFixture,
   createSiteMembershipRow,
@@ -17,6 +21,7 @@ import {
 import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
+import { createIdentityProjectionDebt } from '../identity-projection-debt.ts'
 
 const now = new Date('2026-09-05T14:30:00.000Z')
 
@@ -47,6 +52,99 @@ function boundary(): RetentionPolicyRepository.SiteRetentionBoundary {
 }
 
 describe('AcceptanceRetentionCleanup', () => {
+  it('processes an explicit identity redaction through both cleanup stages', async () => {
+    using fixture = createSiteDrizzleFixture()
+    fixture.db
+      .insert(schema.TIdentityProfile)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        status: 'deletion-requested',
+        profileEpoch: 1,
+        traits: { plan: 'pro' },
+        firstSeenAt: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityProfileEpoch)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        epoch: 1,
+        status: 'active',
+        startedAt: now,
+        endedAt: null,
+        redactedAt: null,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityRedaction)
+      .values({
+        id: 'redaction_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        identifiedUserId: 'user_1',
+        profileEpoch: 1,
+        reason: 'explicit',
+        status: 'requested',
+        requestedAt: now,
+        appliedAt: null,
+        derivedCleanupStatus: 'pending',
+        backupCleanupStatus: 'pending',
+        derivedCleanupUpdatedAt: now,
+        backupCleanupUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      dataDirectoryPath: tmpdir(),
+    })
+
+    await cleanup.runIdentityBackup({ now })
+    expect(
+      fixture.db
+        .select({ backupCleanupStatus: schema.TIdentityRedaction.backupCleanupStatus })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ backupCleanupStatus: 'pending' }])
+
+    await cleanup.runIdentityDerived({ now })
+    expect(fixture.db.select().from(schema.TIdentityProfile).all()).toMatchObject([
+      { status: 'deleted', traits: null },
+    ])
+    expect(
+      fixture.db
+        .select({
+          status: schema.TIdentityRedaction.status,
+          derivedCleanupStatus: schema.TIdentityRedaction.derivedCleanupStatus,
+          backupCleanupStatus: schema.TIdentityRedaction.backupCleanupStatus,
+        })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([
+      { status: 'applied', derivedCleanupStatus: 'complete', backupCleanupStatus: 'pending' },
+    ])
+
+    await cleanup.runIdentityBackup({ now })
+    expect(
+      fixture.db
+        .select({ backupCleanupStatus: schema.TIdentityRedaction.backupCleanupStatus })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ backupCleanupStatus: 'complete' }])
+  })
+
   it('redacts expired profile data and rebuilds identity projections', async () => {
     using fixture = createSiteDrizzleFixture()
     fixture.db
@@ -288,6 +386,249 @@ describe('AcceptanceRetentionCleanup', () => {
     ).toEqual([{ status: 'requested', derivedCleanupStatus: 'pending' }])
   })
 
+  it('finishes a deleting profile link and redaction in one drain', async () => {
+    using fixture = createSiteDrizzleFixture()
+    fixture.db
+      .insert(schema.TIdentityProfile)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        status: 'deleting',
+        profileEpoch: 1,
+        traits: { plan: 'pro' },
+        firstSeenAt: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityProfileEpoch)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        epoch: 1,
+        status: 'redacted',
+        startedAt: now,
+        endedAt: now,
+        redactedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityLink)
+      .values({
+        id: 'link_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        profileEpoch: 1,
+        anonymousIdentityId: 'anonymous_1',
+        analyticsSessionId: 'session_1',
+        effectiveFrom: now,
+        linkedAt: now,
+        unlinkedAt: null,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityRedaction)
+      .values({
+        id: 'redaction_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        identifiedUserId: 'user_1',
+        profileEpoch: 1,
+        reason: 'explicit',
+        status: 'requested',
+        requestedAt: now,
+        appliedAt: null,
+        derivedCleanupStatus: 'pending',
+        backupCleanupStatus: 'pending',
+        derivedCleanupUpdatedAt: now,
+        backupCleanupUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+    })
+
+    await cleanup.runIdentityDerived({ now })
+
+    expect(
+      fixture.db
+        .select({ status: schema.TIdentityProfile.status })
+        .from(schema.TIdentityProfile)
+        .all(),
+    ).toEqual([{ status: 'deleted' }])
+    expect(fixture.db.select().from(schema.TIdentityLink).all()).toHaveLength(0)
+    expect(
+      fixture.db
+        .select({
+          status: schema.TIdentityRedaction.status,
+          derivedCleanupStatus: schema.TIdentityRedaction.derivedCleanupStatus,
+        })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ status: 'applied', derivedCleanupStatus: 'complete' }])
+  })
+
+  it('resumes a half-written completion where the profile is still deleting', async () => {
+    using fixture = createSiteDrizzleFixture()
+    fixture.db
+      .insert(schema.TIdentityProfile)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        status: 'deleting',
+        profileEpoch: 1,
+        traits: null,
+        firstSeenAt: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityProfileEpoch)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        epoch: 1,
+        status: 'redacted',
+        startedAt: now,
+        endedAt: now,
+        redactedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityLink)
+      .values({
+        id: 'link_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        profileEpoch: 1,
+        anonymousIdentityId: 'anonymous_1',
+        analyticsSessionId: 'session_1',
+        effectiveFrom: now,
+        linkedAt: now,
+        unlinkedAt: null,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityRedaction)
+      .values({
+        id: 'redaction_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        identifiedUserId: 'user_1',
+        profileEpoch: 1,
+        reason: 'explicit',
+        status: 'applied',
+        requestedAt: now,
+        appliedAt: now,
+        derivedCleanupStatus: 'complete',
+        backupCleanupStatus: 'pending',
+        derivedCleanupUpdatedAt: now,
+        backupCleanupUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    expect(hasPendingIdentityRedactions(fixture.db)).toBe(true)
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+    })
+
+    await cleanup.runIdentityDerived({ now })
+
+    expect(
+      fixture.db
+        .select({ status: schema.TIdentityProfile.status })
+        .from(schema.TIdentityProfile)
+        .all(),
+    ).toEqual([{ status: 'deleted' }])
+    expect(fixture.db.select().from(schema.TIdentityLink).all()).toHaveLength(0)
+    expect(hasPendingIdentityRedactions(fixture.db)).toBe(false)
+  })
+
+  it('drains projection debt through an analytics rebuild with no pending redactions', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const debt = createIdentityProjectionDebt({ db: fixture.db })
+    const earlier = new Date('2026-09-05T10:00:00.000Z')
+    debt.mark({ now: earlier })
+    debt.mark({ now })
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const rebuild = vi.spyOn(analyticsFixture.analytics, 'rebuild')
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      identityDebt: debt,
+    })
+
+    expect(debt.hasPending()).toBe(true)
+    await cleanup.runIdentityDerived({ now })
+
+    expect(rebuild).toHaveBeenCalledTimes(1)
+    expect(debt.hasPending()).toBe(false)
+  })
+
+  it('keeps the maximum debt marker and clears only through the observed mark', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const debt = createIdentityProjectionDebt({ db: fixture.db })
+    const earlier = new Date('2026-09-05T10:00:00.000Z')
+    const later = new Date('2026-09-05T12:00:00.000Z')
+
+    debt.mark({ now: later })
+    debt.mark({ now: earlier })
+    expect(
+      fixture.db.$client.prepare('SELECT debt_through AS d FROM identity_projection_debt').get(),
+    ).toEqual({ d: later.getTime() })
+    expect(debt.isStale(new Date('2026-09-05T11:00:00.000Z'))).toBe(true)
+
+    debt.clear({ now: new Date('2026-09-05T11:00:00.000Z') })
+    expect(debt.hasPending()).toBe(true)
+
+    debt.clear({ now: new Date('2026-09-05T13:00:00.000Z') })
+    expect(debt.hasPending()).toBe(false)
+  })
+
+  it('drains debt again after a fresh mark', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const debt = createIdentityProjectionDebt({ db: fixture.db })
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      identityDebt: debt,
+    })
+
+    debt.mark({ now })
+    await cleanup.runIdentityDerived({ now })
+    expect(debt.hasPending()).toBe(false)
+
+    debt.mark({ now })
+    expect(debt.hasPending()).toBe(true)
+    await cleanup.runIdentityDerived({ now })
+    expect(debt.hasPending()).toBe(false)
+  })
+
   it('uses the replay cutoff for replay material cleanup', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.deleteExpiredReplayMaterial.mockResolvedValue(1)
@@ -459,11 +800,11 @@ describe('AcceptanceRetentionCleanup', () => {
           profileId: 'profile_1',
           siteId: 'ste_1',
           identifiedUserId: 'user_1',
-          status: 'deleted',
+          status: 'active',
           profileEpoch: 1,
-          traits: null,
+          traits: { plan: 'pro' },
           firstSeenAt: new Date('2025-01-01T00:00:00.000Z'),
-          lastSeenAt: new Date('2025-01-01T00:00:00.000Z'),
+          lastSeenAt: now,
           createdAt: new Date('2025-01-01T00:00:00.000Z'),
           updatedAt: now,
         })
@@ -475,10 +816,10 @@ describe('AcceptanceRetentionCleanup', () => {
           siteId: 'ste_1',
           identifiedUserId: 'user_1',
           epoch: 1,
-          status: 'redacted',
+          status: 'active',
           startedAt: new Date('2025-01-01T00:00:00.000Z'),
-          endedAt: new Date('2026-08-15T00:00:00.000Z'),
-          redactedAt: now,
+          endedAt: null,
+          redactedAt: null,
         })
         .run()
       backupDb
@@ -486,7 +827,7 @@ describe('AcceptanceRetentionCleanup', () => {
         .values({
           profileId: 'profile_2',
           siteId: 'ste_1',
-          identifiedUserId: 'user_1',
+          identifiedUserId: 'user_2',
           status: 'active',
           profileEpoch: 2,
           traits: { plan: 'enterprise' },
@@ -501,7 +842,7 @@ describe('AcceptanceRetentionCleanup', () => {
         .values({
           profileId: 'profile_2',
           siteId: 'ste_1',
-          identifiedUserId: 'user_1',
+          identifiedUserId: 'user_2',
           epoch: 2,
           status: 'active',
           startedAt: new Date('2026-08-15T00:00:00.000Z'),
@@ -521,7 +862,7 @@ describe('AcceptanceRetentionCleanup', () => {
           receiptTime: new Date('2026-08-01T00:00:00.000Z'),
           late: false,
           visitorId: 'visitor_1',
-          identifiedUserId: 'user_1',
+          identifiedUserId: null,
           analyticsSessionId: 'session_1',
           botPolicyOutcome: 'included',
           policyRevisionId: backupRevision.id,
@@ -536,7 +877,14 @@ describe('AcceptanceRetentionCleanup', () => {
       if (acceptedEvent === undefined) throw new Error('Accepted Event insert returned no row')
       backupDb
         .insert(schema.TEventPayload)
-        .values({ eventPk: acceptedEvent.eventPk, canonicalPayloadJson: '{}' })
+        .values({
+          eventPk: acceptedEvent.eventPk,
+          canonicalPayloadJson: JSON.stringify({
+            eventId: 'event_1',
+            kind: 'custom_event',
+            identifiedUserId: 'user_1',
+          }),
+        })
         .run()
       const currentEvent = backupDb
         .insert(schema.TAcceptedEvent)
@@ -550,7 +898,7 @@ describe('AcceptanceRetentionCleanup', () => {
           receiptTime: new Date('2026-08-01T00:00:00.000Z'),
           late: false,
           visitorId: 'visitor_2',
-          identifiedUserId: 'user_1',
+          identifiedUserId: 'user_2',
           analyticsSessionId: 'session_2',
           botPolicyOutcome: 'included',
           policyRevisionId: backupRevision.id,
@@ -565,7 +913,14 @@ describe('AcceptanceRetentionCleanup', () => {
       if (currentEvent === undefined) throw new Error('Accepted Event insert returned no row')
       backupDb
         .insert(schema.TEventPayload)
-        .values({ eventPk: currentEvent.eventPk, canonicalPayloadJson: '{}' })
+        .values({
+          eventPk: currentEvent.eventPk,
+          canonicalPayloadJson: JSON.stringify({
+            eventId: 'event_2',
+            kind: 'custom_event',
+            identifiedUserId: 'user_2',
+          }),
+        })
         .run()
     } finally {
       closeDb(backupDb)
@@ -600,7 +955,7 @@ describe('AcceptanceRetentionCleanup', () => {
         runId: 'run_1',
         siteId: 'ste_1',
         now,
-        boundary: { ...boundary(), replayReceiptCutoffAt: new Date('2026-08-05T00:00:00.000Z') },
+        boundary: { ...boundary(), replayReceiptCutoffAt: new Date('2026-07-01T00:00:00.000Z') },
         checkpoints: [],
       })
       const cleanedBackup = createDb({ path: backupPath })
@@ -609,10 +964,14 @@ describe('AcceptanceRetentionCleanup', () => {
           cleanedBackup.$client
             .prepare('SELECT identified_user_id AS identifiedUserId FROM accepted_event')
             .all(),
-        ).toEqual([{ identifiedUserId: null }, { identifiedUserId: 'user_1' }])
-        expect(cleanedBackup.$client.prepare('SELECT event_pk FROM event_payload').all()).toEqual(
-          [],
-        )
+        ).toEqual([{ identifiedUserId: null }, { identifiedUserId: 'user_2' }])
+        const payloads = cleanedBackup.$client
+          .prepare('SELECT canonical_payload_json AS payload FROM event_payload ORDER BY event_pk')
+          .all() as Array<{ readonly payload: string }>
+        expect(payloads.map(({ payload }) => JSON.parse(payload))).toEqual([
+          { eventId: 'event_1', kind: 'custom_event', identifiedUserId: null },
+          { eventId: 'event_2', kind: 'custom_event', identifiedUserId: 'user_2' },
+        ])
         expect(
           cleanedBackup.$client
             .prepare('SELECT profile_id FROM identity_profile ORDER BY profile_id')

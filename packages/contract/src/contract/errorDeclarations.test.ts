@@ -147,12 +147,14 @@ const expectedErrors: Record<string, ErrorMap> = {
     'CONFLICT',
     'PAYLOAD_TOO_LARGE',
     'TOO_MANY_REQUESTS',
+    'SERVICE_UNAVAILABLE',
   ),
   'identityProfile.requestProfileDeletion': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
     'NOT_FOUND',
     'CONFLICT',
+    'SERVICE_UNAVAILABLE',
   ),
   'installation.getInstallationStatus': catalog(
     'UNAUTHORIZED',

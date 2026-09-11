@@ -9,6 +9,7 @@ import {
   setNestedMapValue,
 } from '@cimi/utils'
 import type { Db } from '../client.ts'
+import { linkCoversEvent } from '../identity/coverage.ts'
 import {
   ANALYTICS_PROJECTION_VERSION,
   ANALYTICS_REQUIRED_TABLES,
@@ -28,6 +29,7 @@ export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
   deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number>
+  purgeSite(input: { siteId: string }): Promise<void>
   close(): Promise<void>
 }
 
@@ -90,7 +92,14 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
              AND table_name IN (${ANALYTICS_REQUIRED_TABLES.map((table) => `'${table}'`).join(', ')})`,
         )
         const row = reader.getRowObjects()[0]
-        return Number(row?.['table_count']) === ANALYTICS_REQUIRED_TABLES.length
+        if (Number(row?.['table_count']) !== ANALYTICS_REQUIRED_TABLES.length) return false
+        const versionReader = await connection.runAndReadAll(
+          `SELECT count(*) AS stale_count
+           FROM projection_checkpoints
+           WHERE projection_version <> '${ANALYTICS_PROJECTION_VERSION}'`,
+        )
+        const versionRow = versionReader.getRowObjects()[0]
+        return Number(versionRow?.['stale_count']) === 0
       } catch {
         return false
       }
@@ -541,6 +550,28 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
         return count
       })
     },
+    async purgeSite(input: { siteId: string }): Promise<void> {
+      if (closed || closing) throw new Error('Analytics database is closed')
+      if (unavailable) throw new Error('Analytics database is unavailable')
+      if (rebuilding) throw new Error('Analytics database rebuild is already running')
+      return enqueue(async () => {
+        await connection.run('BEGIN TRANSACTION')
+        try {
+          await connection.run('DELETE FROM event_properties WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM events WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM analytics_sessions WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM visitors WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM projection_checkpoints WHERE site_id = ?', [
+            input.siteId,
+          ])
+          await connection.run('DELETE FROM projection_gaps WHERE site_id = ?', [input.siteId])
+          await connection.run('COMMIT')
+        } catch (error) {
+          await connection.run('ROLLBACK')
+          throw error
+        }
+      })
+    },
     async close(): Promise<void> {
       if (closed || closing) return
       closing = true
@@ -808,7 +839,7 @@ function readProjectionCheckpoints(db: Db): ProjectionCheckpointRow[] {
           COALESCE(rc.event_occurrence_cutoff_at, pc.effective_retention_from) AS effectiveRetentionFrom,
          statistics_refreshed_at AS statisticsRefreshedAt,
          COALESCE(pc.readiness, 'ready') AS readiness,
-         COALESCE(pc.projection_version, '${ANALYTICS_PROJECTION_VERSION}') AS projectionVersion,
+          '${ANALYTICS_PROJECTION_VERSION}' AS projectionVersion,
          COALESCE(pc.updated_at, s.updated_at) AS updatedAt
          FROM site s
          LEFT JOIN projection_checkpoint pc ON pc.site_id = s.id
@@ -839,13 +870,24 @@ function projectEventIdentity(
 ): EventRow & {
   profileId: string | null
 } {
-  const links = identities.links.filter(
-    (link) =>
-      link.siteId === event.siteId &&
-      link.anonymousIdentityId === event.anonymousIdentityId &&
-      (link.analyticsSessionId === null || link.analyticsSessionId === event.analyticsSessionId) &&
-      link.effectiveFrom <= event.occurrenceTime &&
-      (link.unlinkedAt === null || event.occurrenceTime < link.unlinkedAt),
+  const links = identities.links.filter((link) =>
+    linkCoversEvent(
+      {
+        siteId: link.siteId,
+        profileId: link.profileId,
+        profileEpoch: link.profileEpoch,
+        anonymousIdentityId: link.anonymousIdentityId,
+        analyticsSessionId: link.analyticsSessionId,
+        effectiveFromMs: link.effectiveFrom,
+        unlinkedAtMs: link.unlinkedAt,
+      },
+      {
+        siteId: event.siteId,
+        anonymousIdentityId: event.anonymousIdentityId,
+        analyticsSessionId: event.analyticsSessionId,
+        receiptTimeMs: event.receiptTime,
+      },
+    ),
   )
   const linkedEpochs = identities.epochs.filter(
     (epoch) =>

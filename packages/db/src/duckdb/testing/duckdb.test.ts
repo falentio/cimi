@@ -72,6 +72,28 @@ describe('createAnalyticsDb', () => {
     await second.close()
   })
 
+  it('reports stale projection versions as unavailable', async () => {
+    const path = join(dir, 'stale-analytics.duckdb')
+    const tempDirectory = join(dir, 'stale-analytics-tmp')
+    const analytics = await createAnalyticsDb({ path, tempDirectory })
+    await analytics.close()
+
+    const instance = await DuckDBInstance.create(path, {
+      temp_directory: tempDirectory,
+    })
+    const connection = await instance.connect()
+    await connection.run(
+      `INSERT INTO projection_checkpoints (site_id, projection_version, updated_at)
+       VALUES ('ste-stale', 'v3', current_timestamp)`,
+    )
+    connection.closeSync()
+    instance.closeSync()
+
+    const stale = await createAnalyticsDb({ path, tempDirectory })
+    await expect(stale.ready()).resolves.toBe(false)
+    await stale.close()
+  })
+
   it('creates a fresh migrated in-memory database and closes it idempotently', async () => {
     const analytics = await createTestAnalyticsDb()
 
@@ -323,6 +345,26 @@ describe('createAnalyticsDb', () => {
         .run(1, 'plan', 'string', 'pro')
       controlDb.$client
         .prepare(
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, anonymous_identity_id, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          5,
+          'ste-1',
+          'evt-5',
+          'custom_event',
+          now + 500,
+          now - 2_000,
+          'vis-2',
+          'vis-2',
+          'ses-2',
+          'pol-1',
+          5,
+          'fingerprint-5',
+          'pending',
+          now - 2_000,
+        )
+      controlDb.$client
+        .prepare(
           'INSERT INTO projection_checkpoint (site_id, projected_replay_sequence, occurrence_covered_from, occurrence_covered_through, effective_retention_from, statistics_refreshed_at, readiness, projection_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run('ste-1', 9, now - 10_000, now, now - 100_000, now, 'rebuilding', 'v2', now)
@@ -417,7 +459,7 @@ describe('createAnalyticsDb', () => {
         expect(Object.fromEntries(counts)).toEqual({
           visitors: 2,
           analytics_sessions: 2,
-          events: 3,
+          events: 4,
           event_properties: 1,
           projection_checkpoints: 2,
           projection_gaps: 1,
@@ -434,13 +476,17 @@ describe('createAnalyticsDb', () => {
           "SELECT identified_user_id FROM events WHERE event_id = 'evt-4'",
         )
         expect(relinkedEvent.getRowObjects()[0]?.['identified_user_id']).toBe('identified-2')
+        const receiptBoundEvent = await inspectionConnection.runAndReadAll(
+          "SELECT identified_user_id FROM events WHERE event_id = 'evt-5'",
+        )
+        expect(receiptBoundEvent.getRowObjects()[0]?.['identified_user_id']).toBeNull()
         const checkpoint = await inspectionConnection.runAndReadAll(
           "SELECT projected_replay_sequence, readiness, projection_version FROM projection_checkpoints WHERE site_id = 'ste-1'",
         )
         expect(checkpoint.getRowObjects()[0]).toMatchObject({
           projected_replay_sequence: 9n,
           readiness: 'rebuilding',
-          projection_version: 'v2',
+          projection_version: 'v4',
         })
         const emptySiteCheckpoint = await inspectionConnection.runAndReadAll(
           "SELECT projected_replay_sequence, readiness, projection_version, updated_at FROM projection_checkpoints WHERE site_id = 'ste-2'",
@@ -448,7 +494,137 @@ describe('createAnalyticsDb', () => {
         expect(emptySiteCheckpoint.getRowObjects()[0]).toMatchObject({
           projected_replay_sequence: 0n,
           readiness: 'ready',
-          projection_version: 'v3',
+          projection_version: 'v4',
+        })
+      } finally {
+        inspectionConnection.closeSync()
+        inspectionInstance.closeSync()
+      }
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('purges all derived rows for one Site and is idempotent', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analyticsPath = join(dir, 'purge-analytics.duckdb')
+    const analytics = await createAnalyticsDb({
+      path: analyticsPath,
+      tempDirectory: join(dir, 'purge-analytics-tmp'),
+    })
+    const now = Date.now()
+
+    try {
+      migrateControlDb(controlDb)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('user-1', 'User', 'user@example.com', 1, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO organization (id, name, owner_user_id, is_personal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('org-1', 'Organization', 'user-1', 0, now, now)
+      const insertSite = controlDb.$client.prepare(
+        'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+      insertSite.run('ste-1', 'org-1', 'Site', 'example.com', 'ing-1', now, now)
+      insertSite.run('ste-2', 'org-1', 'Site 2', 'example.org', 'ing-2', now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO installation (id, status, data_directory_ready, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run('ins-1', 'ready', 1, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO collection_policy_revision (id, installation_id, scope, version, policy_json, effective_from, committed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('pol-1', 'ins-1', 'installation', 1, '{}', now, now, now)
+      const insertEvent = controlDb.$client.prepare(
+        'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+      for (const [eventPk, siteId, eventId] of [
+        [1, 'ste-1', 'evt-1'],
+        [2, 'ste-2', 'evt-2'],
+      ] as const) {
+        insertEvent.run(
+          eventPk,
+          siteId,
+          eventId,
+          'custom_event',
+          now,
+          now,
+          `vis-${siteId}`,
+          `ses-${siteId}`,
+          'pol-1',
+          eventPk,
+          `fingerprint-${eventPk}`,
+          'pending',
+          now,
+        )
+      }
+      controlDb.$client
+        .prepare(
+          'INSERT INTO event_property (event_pk, property_key, value_type, string_value) VALUES (?, ?, ?, ?)',
+        )
+        .run(1, 'plan', 'string', 'pro')
+      const insertCheckpoint = controlDb.$client.prepare(
+        'INSERT INTO projection_checkpoint (site_id, projected_replay_sequence, readiness, projection_version, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      insertCheckpoint.run('ste-1', 1, 'ready', 'v4', now)
+      insertCheckpoint.run('ste-2', 2, 'ready', 'v4', now)
+      const insertGap = controlDb.$client.prepare(
+        'INSERT INTO projection_gap (id, site_id, occurrence_from, occurrence_to, observed_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      insertGap.run('gap-1', 'ste-1', now, now + 1_000, now)
+      insertGap.run('gap-2', 'ste-2', now, now + 1_000, now)
+
+      await analytics.rebuild({ controlDb })
+      await analytics.purgeSite({ siteId: 'ste-1' })
+      await expect(analytics.purgeSite({ siteId: 'ste-1' })).resolves.toBeUndefined()
+      await analytics.close()
+
+      const inspectionInstance = await DuckDBInstance.create(analyticsPath)
+      const inspectionConnection = await inspectionInstance.connect()
+      try {
+        const countFor = async (siteId: string) => {
+          const reader = await inspectionConnection.runAndReadAll(
+            `SELECT
+               (SELECT count(*) FROM events WHERE site_id = '${siteId}') AS events,
+               (SELECT count(*) FROM visitors WHERE site_id = '${siteId}') AS visitors,
+               (SELECT count(*) FROM analytics_sessions WHERE site_id = '${siteId}') AS sessions,
+               (SELECT count(*) FROM projection_checkpoints WHERE site_id = '${siteId}') AS checkpoints,
+               (SELECT count(*) FROM projection_gaps WHERE site_id = '${siteId}') AS gaps,
+               (SELECT count(*) FROM event_properties WHERE site_id = '${siteId}') AS properties`,
+          )
+          const row = reader.getRowObjects()[0]!
+          return {
+            events: Number(row['events']),
+            visitors: Number(row['visitors']),
+            sessions: Number(row['sessions']),
+            checkpoints: Number(row['checkpoints']),
+            gaps: Number(row['gaps']),
+            properties: Number(row['properties']),
+          }
+        }
+
+        await expect(countFor('ste-1')).resolves.toEqual({
+          events: 0,
+          visitors: 0,
+          sessions: 0,
+          checkpoints: 0,
+          gaps: 0,
+          properties: 0,
+        })
+        await expect(countFor('ste-2')).resolves.toEqual({
+          events: 1,
+          visitors: 1,
+          sessions: 1,
+          checkpoints: 1,
+          gaps: 1,
+          properties: 0,
         })
       } finally {
         inspectionConnection.closeSync()

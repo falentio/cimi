@@ -9,6 +9,7 @@ export interface SiteLifecycleWorkerDependencies {
   lock: LifecycleLock
   intervalMs?: number
   onError?: (error: unknown) => void
+  onPurgedSite?: (input: { siteId: string; now: Date }) => Promise<void>
 }
 
 export class SiteLifecycleWorker {
@@ -16,6 +17,9 @@ export class SiteLifecycleWorker {
   private readonly lock: LifecycleLock
   private readonly intervalMs: number
   private readonly onError: (error: unknown) => void
+  private readonly onPurgedSite:
+    | ((input: { siteId: string; now: Date }) => Promise<void>)
+    | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private runPromise: Promise<void> | undefined
 
@@ -24,11 +28,13 @@ export class SiteLifecycleWorker {
     lock,
     intervalMs = DEFAULT_INTERVAL_MS,
     onError,
+    onPurgedSite,
   }: SiteLifecycleWorkerDependencies) {
     this.repository = repository
     this.lock = lock
     this.intervalMs = intervalMs
     this.onError = onError ?? ((error) => console.error('Site lifecycle worker failed', error))
+    this.onPurgedSite = onPurgedSite
   }
 
   runOnce(now = new Date()): Promise<void> {
@@ -84,11 +90,13 @@ export class SiteLifecycleWorker {
     const duePurges = await this.repository.findDuePurges(now)
     for (const { siteId } of duePurges) {
       await this.withLease('site_purge', async () => {
-        await this.repository.purge({
+        const result = await this.repository.purge({
           siteId,
           operationId: generateId('sop'),
           requestedAt: now,
         })
+        if (result.status !== 'completed') return
+        await this.onPurgedSite?.({ siteId, now })
       })
     }
   }

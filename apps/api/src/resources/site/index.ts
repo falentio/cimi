@@ -29,6 +29,7 @@ export interface CreateSiteLifecycleWorkerDependencies {
   lock: LifecycleLock
   intervalMs?: number | undefined
   onError?: ((error: unknown) => void) | undefined
+  onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined
 }
 
 export function createSiteLifecycleWorker({
@@ -36,11 +37,13 @@ export function createSiteLifecycleWorker({
   lock,
   intervalMs,
   onError,
+  onPurgedSite,
 }: CreateSiteLifecycleWorkerDependencies): SiteLifecycleWorker {
   const repository = new SiteRepositoryDrizzle({ db })
   const dependencies: SiteLifecycleWorkerDependencies = { repository, lock }
   if (intervalMs !== undefined) dependencies.intervalMs = intervalMs
   if (onError !== undefined) dependencies.onError = onError
+  if (onPurgedSite !== undefined) dependencies.onPurgedSite = onPurgedSite
   return new SiteLifecycleWorker(dependencies)
 }
 

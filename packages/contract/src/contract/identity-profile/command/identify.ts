@@ -23,7 +23,7 @@ export const identify = oc
     tags: ['identity-profile'],
     successStatus: 200,
   })
-  .meta({ auth: 'public' })
+  .meta({ auth: 'public', admission: 'ingestion' })
   .errors({
     BAD_REQUEST: {},
     FORBIDDEN: {},
@@ -31,6 +31,7 @@ export const identify = oc
     CONFLICT: {},
     PAYLOAD_TOO_LARGE: {},
     TOO_MANY_REQUESTS: {},
+    SERVICE_UNAVAILABLE: {},
   })
   .input(SIdentifyInput)
   .output(SIdentifyOutput)

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { schema } from '@cimi/contract'
 import { InMemorySiteScopePort } from '@cimi/guard'
 import {
@@ -26,6 +26,7 @@ function createFixture(
   options: {
     protection?: IngestionProtection
     identitySession?: IdentitySessionResolver
+    withoutResolver?: boolean
     coalescer?: AcceptanceCoalescer
     lifecycleLock?: LifecycleLock
     acceptance?: MockProxy<AcceptanceRepository> & AcceptanceRepository
@@ -79,8 +80,13 @@ function createFixture(
     retention: retentionRepository,
     acceptance: acceptanceRepository,
     clock: () => now,
+    ...(options.withoutResolver === true
+      ? {}
+      : {
+          identitySession:
+            options.identitySession ?? new DefaultIdentitySessionResolver({ clock: () => now }),
+        }),
     ...(options.protection === undefined ? {} : { protection: options.protection }),
-    ...(options.identitySession === undefined ? {} : { identitySession: options.identitySession }),
     ...(options.coalescer === undefined ? {} : { coalescer: options.coalescer }),
     ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
   })
@@ -452,7 +458,7 @@ describe('EventIngestionService', () => {
   })
 
   it('fails closed for an identified reference without an identity resolver', async () => {
-    const { service, acceptanceRepository } = createFixture()
+    const { service, acceptanceRepository } = createFixture({ withoutResolver: true })
 
     await expect(
       service.collectEvent(
@@ -498,6 +504,47 @@ describe('EventIngestionService', () => {
     await service.flush()
 
     await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    await service.stop()
+  })
+
+  it('holds the ingestion lease until the acceptance commit completes', async () => {
+    const lifecycleLock = new InMemoryLifecycleLock()
+    const acceptanceRepository = mock<AcceptanceRepository>()
+    acceptanceRepository.findByEventId.mockResolvedValue(undefined)
+    acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
+    let releaseAppend!: () => void
+    const appendReleased = new Promise<void>((resolve) => {
+      releaseAppend = resolve
+    })
+    let appendStarted = false
+    acceptanceRepository.append.mockImplementation(async (candidates) => {
+      appendStarted = true
+      await appendReleased
+      return candidates.map(() => ({ status: 'accepted' }) as const)
+    })
+    const coalescer = new AcceptanceCoalescer({
+      repository: acceptanceRepository,
+      windowMs: 60_000,
+      clock: () => now,
+    })
+    const { service } = createFixture({
+      acceptance: acceptanceRepository,
+      coalescer,
+      lifecycleLock,
+    })
+
+    const resultPromise = service.collectEvent(event())
+    await vi.waitFor(() => expect(coalescer.queueDepth).toBe(1))
+    const flushPromise = service.flush()
+    await vi.waitFor(() => expect(appendStarted).toBe(true))
+
+    expect(lifecycleLock.acquire('retention')).toBeUndefined()
+    releaseAppend()
+    await flushPromise
+    await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    const retentionLease = lifecycleLock.acquire('retention')
+    expect(retentionLease).toBeDefined()
+    await retentionLease?.release()
     await service.stop()
   })
 

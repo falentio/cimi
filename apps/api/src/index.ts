@@ -3,7 +3,7 @@ import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
 import { onError, ORPCError } from '@orpc/server'
-import { ERROR_CATALOG } from '@cimi/contract'
+import { ERROR_CATALOG, isProfileTraitsPayloadOversized } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
@@ -15,6 +15,7 @@ import {
   type ReadQuiescencePort,
 } from '@cimi/kernel'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
+import { isRecord } from '@cimi/utils'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
 import {
@@ -35,6 +36,7 @@ import {
   InMemoryIngestionProtection,
   AcceptanceBackupRestoreCleanup,
   AcceptanceRetentionCleanup,
+  createIdentityProjectionDebt,
   type IdentitySessionResolver,
   type IngestionProtection,
 } from './resources/event-ingestion/index.ts'
@@ -45,6 +47,7 @@ import {
   type BackupRestoreCleanupPort,
   type BackupRestoreHealthSnapshot,
 } from './resources/backup-restore/index.ts'
+import { createIdentityProfile } from './resources/identity-profile/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -132,7 +135,11 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lifecycle: installation.service,
     membership: membership.service,
   })
-  const siteLifecycleWorker = createSiteLifecycleWorker({ db: deps.db, lock })
+  const siteLifecycleWorker = createSiteLifecycleWorker({
+    db: deps.db,
+    lock,
+    onPurgedSite: ({ siteId }) => deps.analytics.purgeSite({ siteId }),
+  })
   siteLifecycleWorker.start()
   const installationStartup = installation.service.resumeOnStartup().catch(() => undefined)
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
@@ -146,17 +153,29 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lock,
     lifecycle: installation.service,
   })
+  const eventIngestionProtection =
+    deps.eventIngestionProtection ??
+    new InMemoryIngestionProtection(deps.eventIngestionProtectionThresholds)
+  const identityProjectionDebt = createIdentityProjectionDebt({ db: deps.db })
   const eventIngestion = createEventIngestion({
     db: deps.db,
     collectionPolicy: collectionPolicy.service,
     retention: retentionPolicy.repository,
     lifecycleLock: lock,
-    protection:
-      deps.eventIngestionProtection ??
-      (deps.eventIngestionProtectionThresholds === undefined
-        ? undefined
-        : new InMemoryIngestionProtection(deps.eventIngestionProtectionThresholds)),
+    protection: eventIngestionProtection,
     identitySession: deps.eventIdentitySession,
+    router: {
+      trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
+      countryResolver: deps.eventIngestionCountryResolver,
+    },
+  })
+  const identityProfile = createIdentityProfile({
+    db: deps.db,
+    collectionPolicy: collectionPolicy.service,
+    membership: membership.service,
+    protection: eventIngestionProtection,
+    projectionDebt: identityProjectionDebt,
+    lifecycleLock: lock,
     router: {
       trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
       countryResolver: deps.eventIngestionCountryResolver,
@@ -173,6 +192,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       analytics: deps.analytics,
       db: deps.db,
       dataDirectoryPath: deps.dataDirectoryPath,
+      identityDebt: identityProjectionDebt,
     }),
   )
   if (deps.startRetentionCleanupWorker !== false) retentionPolicy.worker.start()
@@ -233,6 +253,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     invitation: invitation.router,
     backupRestore: backupRestore.router,
     eventIngestion: eventIngestion.router,
+    identityProfile: identityProfile.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
@@ -316,6 +337,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     if (request instanceof Response) return request
     if (rawLimit === COLLECT_EVENT_MAX_RAW_REQUEST_BYTES && (await parsedPayloadTooLarge(request)))
       return payloadTooLargeResponse()
+    if (await identityProfilePayloadTooLarge(request)) return payloadTooLargeResponse()
     let user: AuthUser | undefined
     try {
       user = await getUser(deps.auth, request)
@@ -390,6 +412,17 @@ async function parsedPayloadTooLarge(request: Request): Promise<boolean> {
   try {
     const value: unknown = JSON.parse(await request.clone().text())
     return isParsedPayloadOversized(value)
+  } catch {
+    return false
+  }
+}
+
+async function identityProfilePayloadTooLarge(request: Request): Promise<boolean> {
+  const path = new URL(request.url).pathname.replace(/^\/api/, '').replace(/\/+$/, '')
+  if (request.method !== 'POST' || path !== '/identity-profile/identify') return false
+  try {
+    const value: unknown = JSON.parse(await request.clone().text())
+    return isRecord(value) && isProfileTraitsPayloadOversized(value['traits'])
   } catch {
     return false
   }

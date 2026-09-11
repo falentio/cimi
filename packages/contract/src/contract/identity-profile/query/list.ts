@@ -22,7 +22,7 @@ export const listProfiles = oc
     tags: ['identity-profile'],
     successStatus: 200,
   })
-  .meta({ auth: 'authenticated' })
+  .meta({ auth: 'authenticated', admission: 'analytics-read' })
   .errors({
     UNAUTHORIZED: {},
     FORBIDDEN: {},

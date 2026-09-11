@@ -20,6 +20,7 @@ import {
   type RetentionManifest,
   type RetentionManifestBoundary,
 } from './retention-manifest.ts'
+import { scrubAcceptedEventIdentity, scrubCanonicalEventPayloads } from './identity-redaction.ts'
 
 export { BackupIncompatibilityError } from './errors.ts'
 export class InsufficientStorageError extends Error {}
@@ -326,7 +327,9 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     try {
       await mkdir(dirname(path), { recursive: true })
       const retentionManifest = input.kind === 'source' ? this.captureRetentionManifest() : null
+      const redactions = this.captureIdentityRedactions()
       await this.db.$client.backup(path)
+      this.scrubCapturedIdentityData(path, redactions)
       const artifactStats = await stat(path)
       if (!artifactStats.isFile() || artifactStats.size === 0) {
         throw new InsufficientStorageError('SQLite artifact is empty')
@@ -392,6 +395,37 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       updatedAt: row.updatedAt,
     }))
     return { version: 1, boundaries }
+  }
+
+  private captureIdentityRedactions(): readonly RedactionRow[] {
+    return this.db.$client
+      .prepare(
+        `SELECT id, site_id AS siteId, profile_id AS profileId,
+                identified_user_id AS identifiedUserId, profile_epoch AS profileEpoch,
+                reason, status, requested_at AS requestedAt, applied_at AS appliedAt,
+                derived_cleanup_status AS derivedCleanupStatus,
+                backup_cleanup_status AS backupCleanupStatus,
+                derived_cleanup_updated_at AS derivedCleanupUpdatedAt,
+                backup_cleanup_updated_at AS backupCleanupUpdatedAt,
+                created_at AS createdAt, updated_at AS updatedAt
+         FROM identity_redaction`,
+      )
+      .all() as RedactionRow[]
+  }
+
+  private scrubCapturedIdentityData(path: string, redactions: readonly RedactionRow[]): void {
+    if (redactions.length === 0) return
+    const backupDb = createDb({ path })
+    try {
+      backupDb.$client.transaction(() => {
+        for (const redaction of redactions) {
+          this.applyRedactionToDatabase(backupDb, redaction)
+        }
+      })()
+      backupDb.$client.pragma('wal_checkpoint(TRUNCATE)')
+    } finally {
+      closeDb(backupDb)
+    }
   }
 
   private restoreRetentionManifest(db: Db, source: SourceManifest): void {
@@ -570,13 +604,44 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     const hasEpoch = db.$client.prepare(
       'SELECT 1 FROM identity_profile_epoch WHERE profile_id = ? AND epoch = ?',
     )
+    const insertProfile = db.$client.prepare(
+      `INSERT OR IGNORE INTO identity_profile
+       (profile_id, site_id, identified_user_id, status, profile_epoch, traits,
+        first_seen_at, last_seen_at, created_at, updated_at)
+       VALUES (?, ?, ?, 'deleted', ?, NULL, ?, ?, ?, ?)`,
+    )
+    const insertEpoch = db.$client.prepare(
+      `INSERT OR IGNORE INTO identity_profile_epoch
+       (profile_id, site_id, identified_user_id, epoch, status, started_at, ended_at, redacted_at)
+       VALUES (?, ?, ?, ?, 'redacted', ?, ?, ?)`,
+    )
     for (const row of rows) {
-      if (
-        hasSite.get(row.siteId) === undefined ||
-        hasProfile.get(row.profileId) === undefined ||
-        hasEpoch.get(row.profileId, row.profileEpoch) === undefined
-      ) {
-        continue
+      if (hasSite.get(row.siteId) === undefined) continue
+      const profileExists = hasProfile.get(row.profileId) !== undefined
+      if (!profileExists) {
+        insertProfile.run(
+          row.profileId,
+          row.siteId,
+          row.identifiedUserId,
+          row.profileEpoch,
+          row.requestedAt,
+          row.requestedAt,
+          row.createdAt,
+          row.updatedAt,
+        )
+      }
+      const epochExists = hasEpoch.get(row.profileId, row.profileEpoch) !== undefined
+      if (!epochExists) {
+        const redactedAt = row.appliedAt ?? row.requestedAt
+        insertEpoch.run(
+          row.profileId,
+          row.siteId,
+          row.identifiedUserId,
+          row.profileEpoch,
+          row.requestedAt,
+          redactedAt,
+          redactedAt,
+        )
       }
       insert.run(
         row.id,
@@ -595,6 +660,64 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         row.createdAt,
         row.updatedAt,
       )
+      this.applyRedactionToDatabase(db, row, !epochExists)
+    }
+  }
+
+  private applyRedactionToDatabase(db: Db, row: RedactionRow, scrubAll = false): void {
+    const epoch = db.$client
+      .prepare(
+        `SELECT started_at AS startedAt, ended_at AS endedAt
+         FROM identity_profile_epoch
+         WHERE profile_id = ? AND epoch = ?`,
+      )
+      .get(row.profileId, row.profileEpoch) as
+      | { readonly startedAt: number; readonly endedAt: number | null }
+      | undefined
+    const profile = db.$client
+      .prepare(
+        `SELECT profile_epoch AS profileEpoch
+         FROM identity_profile
+         WHERE profile_id = ?`,
+      )
+      .get(row.profileId) as { readonly profileEpoch: number | null } | undefined
+    const redactedAt = row.appliedAt ?? row.requestedAt
+    const boundary = {
+      siteId: row.siteId,
+      identifiedUserId: row.identifiedUserId,
+      epochStartedAt: scrubAll ? null : (epoch?.startedAt ?? null),
+      epochEndedAt: scrubAll ? null : (epoch?.endedAt ?? null),
+    }
+    scrubCanonicalEventPayloads(db, boundary)
+    scrubAcceptedEventIdentity(db, boundary)
+    if (epoch === undefined) return
+    db.$client
+      .prepare(
+        `UPDATE identity_profile_epoch
+         SET status = 'redacted', ended_at = COALESCE(ended_at, ?),
+             redacted_at = COALESCE(redacted_at, ?)
+         WHERE profile_id = ? AND epoch = ?`,
+      )
+      .run(redactedAt, redactedAt, row.profileId, row.profileEpoch)
+    db.$client
+      .prepare(
+        `UPDATE identity_link
+         SET unlinked_at = COALESCE(unlinked_at, ?)
+         WHERE profile_id = ? AND profile_epoch = ?`,
+      )
+      .run(redactedAt, row.profileId, row.profileEpoch)
+    if (profile?.profileEpoch === row.profileEpoch) {
+      db.$client
+        .prepare(
+          `UPDATE identity_profile
+           SET status = ?, traits = NULL, updated_at = ?
+           WHERE profile_id = ?`,
+        )
+        .run(
+          row.derivedCleanupStatus === 'complete' ? 'deleted' : 'deleting',
+          redactedAt,
+          row.profileId,
+        )
     }
   }
 

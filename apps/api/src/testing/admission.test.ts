@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { ERROR_CATALOG } from '@cimi/contract'
 import { createApiApp } from '../index.ts'
-import { createApiTestFixture } from './fixture.ts'
+import { createApiTestFixture, signUpTestUser } from './fixture.ts'
 
 async function pausedApp(fixture: Awaited<ReturnType<typeof createApiTestFixture>>) {
   return createApiApp({
@@ -107,6 +107,47 @@ test('accept-only admission passes a standard route through', async () => {
 
   const response = await app.fetch(new Request('http://localhost/api/hello/list'))
   expect(response.status).toBe(200)
+  await app.close()
+})
+
+test('cleanup-pending restore blocks analytics-read identity queries with SERVICE_UNAVAILABLE', async () => {
+  await using fixture = await createApiTestFixture()
+  const app = createApiApp({
+    db: fixture.db,
+    auth: fixture.auth,
+    analytics: fixture.analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+    lifecycle: {
+      async getSnapshot() {
+        return {
+          installationStatus: 'ready' as const,
+          controlStore: 'ready' as const,
+          analyticsStore: 'ready' as const,
+          cleanupPending: true,
+        }
+      },
+    },
+  })
+
+  const health = await app.fetch(new Request('http://localhost/api/system/health'))
+  expect(health.status).toBe(200)
+  await expect(health.json()).resolves.toMatchObject({ status: 'degraded', cleanupPending: true })
+
+  const owner = await signUpTestUser(app, 'restore-owner@example.com', 'Restore Owner')
+  const response = await app.fetch(
+    new Request(
+      'http://localhost/api/identity-profile/listProfiles?siteId=ste_1&limit=10&offset=0',
+      { headers: { cookie: owner.cookie } },
+    ),
+  )
+  expect(response.status).toBe(503)
+  await expect(response.json()).resolves.toMatchObject({
+    code: 'SERVICE_UNAVAILABLE',
+    status: 503,
+    message: ERROR_CATALOG.SERVICE_UNAVAILABLE.message,
+  })
   await app.close()
 })
 

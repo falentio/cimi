@@ -24,3 +24,11 @@ export {
   type AnalyticsDb,
   type CreateAnalyticsDbOptions,
 } from './duckdb/index.ts'
+export {
+  isRedacted,
+  linkCoversEvent,
+  type IdentityCoverageEvent,
+  type IdentityCoverageLink,
+  type IdentityRedactionScope,
+  type IdentityRedactionTarget,
+} from './identity/coverage.ts'

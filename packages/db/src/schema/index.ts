@@ -48,7 +48,7 @@ export {
   TRetentionCleanupRun,
   TRetentionPolicy,
 } from './lifecycle.ts'
-export { TProjectionCheckpoint, TProjectionGap } from './projection.ts'
+export { TIdentityProjectionDebt, TProjectionCheckpoint, TProjectionGap } from './projection.ts'
 export {
   TCohort,
   TCohortVersion,

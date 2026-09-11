@@ -69,3 +69,28 @@ export {
   SBatchEventResult,
   SEvent,
 } from './contract/event-ingestion/schema.ts'
+export {
+  SProfileStatus,
+  PROFILE_TRAITS_MAX_SERIALIZED_BYTES,
+  PROFILE_EPOCH_HISTORY_MAX,
+  PROFILE_EPOCH_NUMBER_MAX,
+  SDeletionCleanupStatus,
+  SProfileTraits,
+  SProfileEpoch,
+  SProfile,
+  SProfileIdentityFields,
+  SIdentifyFields,
+  hasAllowedProfileTraitKeys,
+  isProfileTraitsPayloadOversized,
+} from './contract/identity-profile/schema.ts'
+export { SIdentifyInput, SIdentifyOutput } from './contract/identity-profile/command/identify.ts'
+export {
+  SRequestProfileDeletionInput,
+  SRequestProfileDeletionOutput,
+} from './contract/identity-profile/command/request-profile-deletion.ts'
+export { SProfileListInput, SProfileListOutput } from './contract/identity-profile/query/list.ts'
+export { SProfileGetInput, SProfileGetOutput } from './contract/identity-profile/query/get.ts'
+export {
+  SDeletionStatusInput,
+  SDeletionStatusOutput,
+} from './contract/identity-profile/query/get-deletion-status.ts'

@@ -1,6 +1,7 @@
 import { schema } from '@cimi/contract'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
 import { isRecord, resolveSiteLocalCutoff } from '@cimi/utils'
+import { createHash } from 'node:crypto'
 import { ORPCError } from '@orpc/server'
 import { safeParse, type InferOutput } from 'valibot'
 import { sanitizeDestination } from '../collection-policy/evaluator.ts'
@@ -165,29 +166,29 @@ export class EventIngestionService {
     input: CollectEventInput,
     request: IngestionRequestContext = {},
   ): Promise<CollectEventOutput> {
-    const admission = await this.withAdmissionLease(input.ingestionIdentifier, () =>
-      this.collectEventAdmitted(input, request),
-    )
-    if ('output' in admission) return admission.output
-    try {
-      await admission.reservation.completion
-    } catch (error) {
-      if (admission.candidate !== undefined) await this.rollbackIdentity(admission.candidate)
-      throw acceptanceError(error)
-    }
-    if (admission.candidate !== undefined) {
+    return this.withAdmissionLease(input.ingestionIdentifier, async () => {
+      const admission = await this.collectEventAdmitted(input, request)
+      if ('output' in admission) return admission.output
       try {
-        await this.commitIdentity(admission.candidate)
+        await admission.reservation.completion
       } catch (error) {
-        await this.rollbackIdentity(admission.candidate)
+        if (admission.candidate !== undefined) await this.rollbackIdentity(admission.candidate)
         throw acceptanceError(error)
       }
-    }
-    return {
-      status: admission.reservation.status,
-      eventId: input.eventId,
-      receiptTime: admission.reservation.receiptTime,
-    }
+      if (admission.candidate !== undefined) {
+        try {
+          await this.commitIdentity(admission.candidate)
+        } catch (error) {
+          await this.rollbackIdentity(admission.candidate)
+          throw acceptanceError(error)
+        }
+      }
+      return {
+        status: admission.reservation.status,
+        eventId: input.eventId,
+        receiptTime: admission.reservation.receiptTime,
+      }
+    })
   }
 
   private async collectEventAdmitted(
@@ -248,20 +249,20 @@ export class EventIngestionService {
     input: CollectEventsInput,
     request: IngestionRequestContext = {},
   ): Promise<CollectEventsOutput> {
-    const admission = await this.withAdmissionLease(input.ingestionIdentifier, () =>
-      this.collectEventsAdmitted(input, request),
-    )
-    try {
-      await Promise.all(admission.waits)
-    } catch (error) {
-      throw acceptanceError(error)
-    }
-    return {
-      results: admission.results.map((result) => {
-        if (result === undefined) throw new Error('Batch result count mismatch')
-        return result
-      }),
-    }
+    return this.withAdmissionLease(input.ingestionIdentifier, async () => {
+      const admission = await this.collectEventsAdmitted(input, request)
+      try {
+        await Promise.all(admission.waits)
+      } catch (error) {
+        throw acceptanceError(error)
+      }
+      return {
+        results: admission.results.map((result) => {
+          if (result === undefined) throw new Error('Batch result count mismatch')
+          return result
+        }),
+      }
+    })
   }
 
   private async collectEventsAdmitted(
@@ -488,13 +489,15 @@ export class EventIngestionService {
     if (input.kind === 'outbound' && destination === null) throw new ORPCError('BAD_REQUEST')
 
     const perEventAttribution = deriveAttribution(input, request.userAgent, request.country)
+    const anonymousIdentityId =
+      input.anonymousIdentityId ?? deriveAnonymousIdentityId(input.eventId)
     const normalizedDraft = normalizeEvent(
       input,
       decision.outcome,
       occurrence.toISOString(),
       destination,
       decision.outcome.identifiedUserId,
-      decision.outcome.bot === 'recorded_excluded' ? null : (input.anonymousIdentityId ?? null),
+      decision.outcome.bot === 'recorded_excluded' ? null : anonymousIdentityId,
       perEventAttribution,
     )
     const identity =
@@ -545,10 +548,7 @@ export class EventIngestionService {
     readonly anonymousIdentityId: string | null
   }): Promise<IdentitySessionAssignment> {
     if (this.identitySession !== undefined) return this.identitySession.resolve(input)
-    if (input.identifiedUserId !== null) {
-      throw new ORPCError('BAD_REQUEST')
-    }
-    return { visitorId: null, identifiedUserId: null, analyticsSessionId: null }
+    throw new ORPCError('BAD_REQUEST')
   }
 
   private async commitIdentity(candidate: ReservableCandidate): Promise<void> {
@@ -658,6 +658,11 @@ export class EventIngestionService {
 }
 
 class PolicyRejectionError extends Error {}
+
+export function deriveAnonymousIdentityId(eventId: string): string {
+  const digest = createHash('sha256').update(eventId).digest('base64url')
+  return `ano_${digest}`
+}
 
 function isPolicyRejection(error: unknown): error is PolicyRejectionError {
   return error instanceof PolicyRejectionError
