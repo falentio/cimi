@@ -438,6 +438,22 @@ describe('ReportingAdmissionService', () => {
     expect(ports.metadata.getActive).not.toHaveBeenCalled()
   })
 
+  it('rejects a missing site metadata with NOT_FOUND and short-circuits every later port', async () => {
+    const ports = createPorts()
+    ports.metadata.getActive.mockReturnValue(undefined)
+
+    const error = await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'NOT_FOUND',
+    )
+
+    expect(error.reason).toBe('metadata-missing')
+    expect(ports.projection.read).not.toHaveBeenCalled()
+    expect(ports.statistics.read).not.toHaveBeenCalled()
+    expect(ports.retention.read).not.toHaveBeenCalled()
+    expect(ports.factWork.estimate).not.toHaveBeenCalled()
+  })
+
   it('short-circuits stale statistics before gaps, retention, and Fact-Work', async () => {
     const ports = createPorts()
     ports.statistics.read.mockReturnValue({
@@ -547,6 +563,64 @@ describe('ReportingAdmissionService', () => {
     expect(ports.retention.read).toHaveBeenCalledOnce()
     expect(ports.factWork.estimate).toHaveBeenCalledOnce()
   })
+
+  it('rejects an undefined Fact-Work estimate as fact-work-uncertain', async () => {
+    const ports = createPorts()
+    ports.factWork.estimate.mockReturnValue(undefined)
+
+    const error = await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+
+    expect(error.reason).toBe('fact-work-uncertain')
+  })
+
+  it('rejects a non-finite Fact-Work estimate as fact-work-uncertain', async () => {
+    const ports = createPorts()
+    ports.factWork.estimate.mockReturnValue({
+      units: Number.NaN,
+      budget: 1_000,
+      components: {
+        baseFacts: 0,
+        extraMetrics: 0,
+        bucketWork: 0,
+        dimensions: 0,
+        filters: 0,
+        distinctCounts: 0,
+      },
+    })
+
+    const error = await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+
+    expect(error.reason).toBe('fact-work-uncertain')
+  })
+
+  it('rejects a Fact-Work estimate budget that differs from the requested budget', async () => {
+    const ports = createPorts()
+    ports.factWork.estimate.mockReturnValue({
+      units: 100,
+      budget: 999,
+      components: {
+        baseFacts: 100,
+        extraMetrics: 0,
+        bucketWork: 0,
+        dimensions: 0,
+        filters: 0,
+        distinctCounts: 0,
+      },
+    })
+
+    const error = await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+
+    expect(error.reason).toBe('fact-work-uncertain')
+  })
 })
 
 describe('ReportingAdmissionService with one evidence read', () => {
@@ -598,6 +672,30 @@ describe('ReportingAdmissionService with one evidence read', () => {
     expect(ports.evidencePort.read).toHaveBeenCalledOnce()
     expect(ticket.freshness.current.status).toBe('current')
     expect(ticket.factWork.units).toBe(100)
+  })
+
+  it('rejects a missing site metadata with NOT_FOUND before reading any evidence', async () => {
+    const metadataPort = mock<ReportingMetadataPort>()
+    const readinessPort = mock<AnalyticsReadinessPort>()
+    const evidencePort = mock<ReportingEvidencePort>()
+    const factWorkPort = mock<FactWorkPort>()
+    metadataPort.getActive.mockReturnValue(undefined)
+    readinessPort.getHealth.mockReturnValue({ controlStore: 'ready', analyticsStore: 'ready' })
+
+    const error = await expectAdmissionError(
+      () =>
+        new ReportingAdmissionService({
+          metadata: metadataPort,
+          analyticsReadiness: readinessPort,
+          evidence: evidencePort,
+          factWork: factWorkPort,
+        }).admit(admissionInput()),
+      'NOT_FOUND',
+    )
+
+    expect(error.reason).toBe('metadata-missing')
+    expect(evidencePort.read).not.toHaveBeenCalled()
+    expect(factWorkPort.estimate).not.toHaveBeenCalled()
   })
 
   it('rejects misaligned statistics rather than trusting a torn pair', async () => {
