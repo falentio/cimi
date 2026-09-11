@@ -26,6 +26,7 @@ function createFixture(
   options: {
     protection?: IngestionProtection
     identitySession?: IdentitySessionResolver
+    withoutResolver?: boolean
     coalescer?: AcceptanceCoalescer
     lifecycleLock?: LifecycleLock
     acceptance?: MockProxy<AcceptanceRepository> & AcceptanceRepository
@@ -79,8 +80,13 @@ function createFixture(
     retention: retentionRepository,
     acceptance: acceptanceRepository,
     clock: () => now,
+    ...(options.withoutResolver === true
+      ? {}
+      : {
+          identitySession:
+            options.identitySession ?? new DefaultIdentitySessionResolver({ clock: () => now }),
+        }),
     ...(options.protection === undefined ? {} : { protection: options.protection }),
-    ...(options.identitySession === undefined ? {} : { identitySession: options.identitySession }),
     ...(options.coalescer === undefined ? {} : { coalescer: options.coalescer }),
     ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
   })
@@ -452,7 +458,7 @@ describe('EventIngestionService', () => {
   })
 
   it('fails closed for an identified reference without an identity resolver', async () => {
-    const { service, acceptanceRepository } = createFixture()
+    const { service, acceptanceRepository } = createFixture({ withoutResolver: true })
 
     await expect(
       service.collectEvent(

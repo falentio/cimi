@@ -1,6 +1,7 @@
 import { schema } from '@cimi/contract'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
 import { isRecord, resolveSiteLocalCutoff } from '@cimi/utils'
+import { createHash } from 'node:crypto'
 import { ORPCError } from '@orpc/server'
 import { safeParse, type InferOutput } from 'valibot'
 import { sanitizeDestination } from '../collection-policy/evaluator.ts'
@@ -488,13 +489,15 @@ export class EventIngestionService {
     if (input.kind === 'outbound' && destination === null) throw new ORPCError('BAD_REQUEST')
 
     const perEventAttribution = deriveAttribution(input, request.userAgent, request.country)
+    const anonymousIdentityId =
+      input.anonymousIdentityId ?? deriveAnonymousIdentityId(input.eventId)
     const normalizedDraft = normalizeEvent(
       input,
       decision.outcome,
       occurrence.toISOString(),
       destination,
       decision.outcome.identifiedUserId,
-      decision.outcome.bot === 'recorded_excluded' ? null : (input.anonymousIdentityId ?? null),
+      decision.outcome.bot === 'recorded_excluded' ? null : anonymousIdentityId,
       perEventAttribution,
     )
     const identity =
@@ -545,10 +548,7 @@ export class EventIngestionService {
     readonly anonymousIdentityId: string | null
   }): Promise<IdentitySessionAssignment> {
     if (this.identitySession !== undefined) return this.identitySession.resolve(input)
-    if (input.identifiedUserId !== null) {
-      throw new ORPCError('BAD_REQUEST')
-    }
-    return { visitorId: null, identifiedUserId: null, analyticsSessionId: null }
+    throw new ORPCError('BAD_REQUEST')
   }
 
   private async commitIdentity(candidate: ReservableCandidate): Promise<void> {
@@ -658,6 +658,13 @@ export class EventIngestionService {
 }
 
 class PolicyRejectionError extends Error {}
+
+// The wire contract keeps anonymousIdentityId optional, but every accepted Event needs durable
+// anonymous continuity. Deriving it from the Event ID makes a retried Event reuse one identity.
+export function deriveAnonymousIdentityId(eventId: string): string {
+  const digest = createHash('sha256').update(eventId).digest('base64url')
+  return `ano_${digest}`
+}
 
 function isPolicyRejection(error: unknown): error is PolicyRejectionError {
   return error instanceof PolicyRejectionError
