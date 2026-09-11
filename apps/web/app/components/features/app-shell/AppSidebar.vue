@@ -92,7 +92,7 @@ const user = computed(() => {
     </SidebarHeader>
     <SidebarContent>
       <NavMain :group="NAV_REGISTRY.main" />
-      <NavProjects :group="siteNav.items.length > 0 ? siteNav : NAV_REGISTRY.sites" />
+      <NavProjects v-if="siteNav.items.length > 0" :group="siteNav" />
       <NavSecondary :group="secondary" class="mt-auto" />
     </SidebarContent>
     <SidebarFooter>

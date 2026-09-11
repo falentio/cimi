@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { ArrowDown01Icon, Globe02Icon, Tick02Icon } from '@hugeicons/core-free-icons'
+import { ArrowDown01Icon, Globe02Icon, PlusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import {
   Command,
@@ -9,9 +9,9 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command'
+import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   SidebarMenu,
@@ -25,6 +25,7 @@ import {
   type WorkspaceSite,
   type WorkspaceTeam,
 } from './workspace'
+import CreateOrganizationDialog from './CreateOrganizationDialog.vue'
 
 const props = defineProps<{
   teams: readonly WorkspaceTeam[]
@@ -40,6 +41,7 @@ const emit = defineEmits<{
 
 const { isMobile } = useSidebar()
 const searchOpen = shallowRef(false)
+const createOrganizationOpen = shallowRef(false)
 
 const activeTeam = computed(
   () => props.teams.find((team) => team.id === props.activeTeamId) ?? props.teams[0],
@@ -60,6 +62,11 @@ function selectTeam(teamId: string): void {
 function selectSite(siteId: string): void {
   searchOpen.value = false
   emit('siteChange', siteId)
+}
+
+function openCreateOrganization(): void {
+  searchOpen.value = false
+  createOrganizationOpen.value = true
 }
 </script>
 
@@ -125,7 +132,6 @@ function selectSite(siteId: string): void {
                   <CommandShortcut v-if="activeTeamId === team.id">Current</CommandShortcut>
                 </CommandItem>
               </CommandGroup>
-              <CommandSeparator />
               <CommandGroup heading="Sites">
                 <CommandItem
                   v-for="site in sites"
@@ -151,9 +157,21 @@ function selectSite(siteId: string): void {
                 </CommandItem>
               </CommandGroup>
             </CommandList>
+            <div class="border-border border-t p-1">
+              <Button
+                class="w-full justify-start gap-2 px-2"
+                type="button"
+                variant="ghost"
+                @click="openCreateOrganization"
+              >
+                <HugeiconsIcon :icon="PlusSignIcon" :size="16" aria-hidden="true" />
+                <span>Create organization</span>
+              </Button>
+            </div>
           </Command>
         </PopoverContent>
       </Popover>
+      <CreateOrganizationDialog v-model:open="createOrganizationOpen" />
     </SidebarMenuItem>
   </SidebarMenu>
 </template>
