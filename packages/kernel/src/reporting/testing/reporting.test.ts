@@ -13,9 +13,11 @@ import {
   estimateFactWork,
   findRelevantProjectionGap,
   resolveReportPeriods,
+  type AlignedStatistics,
   type FactWorkPort,
   type ProjectionEvidence,
   type ReportingAdmissionDependencies,
+  type ReportingEvidencePort,
   type ReportingMetadataPort,
   type ReportingProjectionPort,
   type ReportingRetentionPort,
@@ -544,5 +546,115 @@ describe('ReportingAdmissionService', () => {
     )
     expect(ports.retention.read).toHaveBeenCalledOnce()
     expect(ports.factWork.estimate).toHaveBeenCalledOnce()
+  })
+})
+
+describe('ReportingAdmissionService with one evidence read', () => {
+  function createEvidenceDependencies(evidence: {
+    readonly projection?: ProjectionEvidence
+    readonly retention?: RetentionCoverage
+    readonly statistics?: AlignedStatistics | undefined
+  }) {
+    const metadataPort = mock<ReportingMetadataPort>()
+    const readinessPort = mock<AnalyticsReadinessPort>()
+    const evidencePort = mock<ReportingEvidencePort>()
+    const factWorkPort = mock<FactWorkPort>()
+    metadataPort.getActive.mockReturnValue(metadata)
+    readinessPort.getHealth.mockReturnValue({ controlStore: 'ready', analyticsStore: 'ready' })
+    evidencePort.read.mockReturnValue({
+      projection: evidence.projection ?? projectionEvidence(),
+      retention: evidence.retention ?? completeRetention(),
+      statistics:
+        'statistics' in evidence
+          ? evidence.statistics
+          : { state: 'aligned', asOfAcceptanceSequence: 42, factCardinality: 100 },
+    })
+    factWorkPort.estimate.mockReturnValue({
+      units: 100,
+      budget: 1_000,
+      components: {
+        baseFacts: 100,
+        extraMetrics: 0,
+        bucketWork: 0,
+        dimensions: 0,
+        filters: 0,
+        distinctCounts: 0,
+      },
+    })
+    const dependencies: ReportingAdmissionDependencies = {
+      metadata: metadataPort,
+      analyticsReadiness: readinessPort,
+      evidence: evidencePort,
+      factWork: factWorkPort,
+    }
+    return { dependencies, evidencePort, factWorkPort }
+  }
+
+  it('reads the whole evidence in one call and admits', async () => {
+    const ports = createEvidenceDependencies({})
+
+    const ticket = await new ReportingAdmissionService(ports.dependencies).admit(admissionInput())
+
+    expect(ports.evidencePort.read).toHaveBeenCalledOnce()
+    expect(ticket.freshness.current.status).toBe('current')
+    expect(ticket.factWork.units).toBe(100)
+  })
+
+  it('rejects misaligned statistics rather than trusting a torn pair', async () => {
+    const ports = createEvidenceDependencies({
+      statistics: { state: 'aligned', asOfAcceptanceSequence: 41, factCardinality: 100 },
+    })
+
+    await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+    expect(ports.factWorkPort.estimate).not.toHaveBeenCalled()
+  })
+
+  it('treats missing statistics as uncertain', async () => {
+    const ports = createEvidenceDependencies({ statistics: undefined })
+
+    await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+  })
+
+  it('rejects a relevant gap before retention and Fact-Work', async () => {
+    const ports = createEvidenceDependencies({
+      projection: {
+        ...projectionEvidence(),
+        openGaps: [
+          {
+            id: 'gap-1',
+            unbounded: false,
+            occurrenceFrom: instant('2026-09-05T00:00:00.000Z'),
+            occurrenceTo: instant('2026-09-05T12:00:00.000Z'),
+          },
+        ],
+      },
+    })
+
+    await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+    expect(ports.factWorkPort.estimate).not.toHaveBeenCalled()
+  })
+
+  it('rejects incomplete retention before Fact-Work', async () => {
+    const ports = createEvidenceDependencies({
+      retention: { ...completeRetention(), profileActivity: { state: 'unknown' } },
+    })
+
+    await expectAdmissionError(
+      () =>
+        new ReportingAdmissionService(ports.dependencies).admit(
+          admissionInput({ coverage: ['event-occurrence', 'profile-activity'] }),
+        ),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+    expect(ports.factWorkPort.estimate).not.toHaveBeenCalled()
   })
 })

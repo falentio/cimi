@@ -10,6 +10,9 @@ export { findRelevantProjectionGap, resolveReportPeriods } from './interval.ts'
 export type {
   FactWorkPort,
   ReportingAdmissionDependencies,
+  ReportingEvidence,
+  ReportingEvidencePort,
+  ReportingEvidenceRequest,
   ReportingMetadataPort,
   ReportingProjectionPort,
   ReportingRetentionPort,

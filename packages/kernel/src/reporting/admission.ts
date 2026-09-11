@@ -11,6 +11,7 @@ import type {
   ReportAdmissionTicket,
   ResolvedPeriod,
   ResolvedPeriods,
+  RetentionCoverage,
 } from './types.ts'
 import type { ReportingAdmissionDependencies } from './ports.ts'
 
@@ -38,34 +39,15 @@ export class ReportingAdmissionService {
       ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
     })
 
-    const projection = await this.readPort(() => this.#dependencies.projection.read(input.siteId))
-    const statistics = await this.readPort(() =>
-      this.#dependencies.statistics.read({
-        siteId: input.siteId,
-        periods,
-        coverage: input.coverage,
-        projection,
-      }),
-    )
-    assertAlignedStatistics(statistics, projection)
+    const facts = await this.#readFacts(input, periods)
 
-    if (findRelevantProjectionGap(projection.openGaps, periods) !== undefined) {
-      throw queryLimitExceeded('projection-gap')
-    }
-
-    const retention = await this.readPort(() =>
-      this.#dependencies.retention.read({
-        siteId: input.siteId,
-        dependencies: input.coverage,
-      }),
-    )
-    checkRetentionCoverage({ coverage: retention, required: input.coverage, periods })
+    checkRetentionCoverage({ coverage: facts.retention, required: input.coverage, periods })
 
     const bucketWork = input.work.bucketWork ?? countBucketStarts(periods)
     const factWorkPort = this.#dependencies.factWork ?? { estimate: defaultFactWorkEstimator }
     const estimate = await this.readPort(() =>
       factWorkPort.estimate({
-        factCardinality: statistics.factCardinality,
+        factCardinality: facts.statistics.factCardinality,
         extraMetricCount: input.work.extraMetricCount,
         bucketWork,
         dimensionCount: input.work.dimensionCount,
@@ -79,12 +61,64 @@ export class ReportingAdmissionService {
     return {
       periods,
       freshness: {
-        current: resolveFreshness(periods.current, projection),
+        current: resolveFreshness(periods.current, facts.projection),
         comparison:
-          periods.comparison === null ? null : resolveFreshness(periods.comparison, projection),
+          periods.comparison === null
+            ? null
+            : resolveFreshness(periods.comparison, facts.projection),
       },
       factWork: estimate,
     }
+  }
+
+  /**
+   * Reads the window's preflight facts. With the deep port this is one transaction, so projection
+   * and statistics cannot be torn apart by a concurrent rebuild. The narrow ports keep their
+   * original stage-by-stage reads, including the fail-fast that skips retention when the gap gate
+   * already rejects the request.
+   */
+  async #readFacts(
+    input: ReportAdmissionInput,
+    periods: ResolvedPeriods,
+  ): Promise<{
+    readonly projection: ProjectionEvidence
+    readonly statistics: Extract<AlignedStatistics, { readonly state: 'aligned' }>
+    readonly retention: RetentionCoverage
+  }> {
+    const dependencies = this.#dependencies
+    if ('evidence' in dependencies) {
+      const evidence = await this.readPort(() =>
+        dependencies.evidence.read({ siteId: input.siteId, periods, coverage: input.coverage }),
+      )
+      const statistics: AlignedStatistics = evidence.statistics ?? {
+        state: 'unknown',
+        asOfAcceptanceSequence: null,
+        factCardinality: null,
+      }
+      const aligned = requireAlignedStatistics(statistics, evidence.projection)
+      rejectRelevantGap(evidence.projection, periods)
+      return {
+        projection: evidence.projection,
+        statistics: aligned,
+        retention: evidence.retention,
+      }
+    }
+
+    const projection = await this.readPort(() => dependencies.projection.read(input.siteId))
+    const statistics = await this.readPort(() =>
+      dependencies.statistics.read({
+        siteId: input.siteId,
+        periods,
+        coverage: input.coverage,
+        projection,
+      }),
+    )
+    const aligned = requireAlignedStatistics(statistics, projection)
+    rejectRelevantGap(projection, periods)
+    const retention = await this.readPort(() =>
+      dependencies.retention.read({ siteId: input.siteId, dependencies: input.coverage }),
+    )
+    return { projection, statistics: aligned, retention }
   }
 
   private async readPort<T>(read: () => T | PromiseLike<T>): Promise<T> {
@@ -96,10 +130,16 @@ export class ReportingAdmissionService {
   }
 }
 
-function assertAlignedStatistics(
+function rejectRelevantGap(projection: ProjectionEvidence, periods: ResolvedPeriods): void {
+  if (findRelevantProjectionGap(projection.openGaps, periods) !== undefined) {
+    throw queryLimitExceeded('projection-gap')
+  }
+}
+
+function requireAlignedStatistics(
   statistics: AlignedStatistics,
   projection: ProjectionEvidence,
-): asserts statistics is Extract<AlignedStatistics, { readonly state: 'aligned' }> {
+): Extract<AlignedStatistics, { readonly state: 'aligned' }> {
   if (
     statistics.state !== 'aligned' ||
     statistics.asOfAcceptanceSequence !== projection.checkpoint.projectedAcceptanceSequence ||
@@ -108,6 +148,7 @@ function assertAlignedStatistics(
   ) {
     throw queryLimitExceeded('statistics-uncertain')
   }
+  return statistics
 }
 
 function assertAdmittedFactWork(
