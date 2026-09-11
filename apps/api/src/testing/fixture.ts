@@ -2,21 +2,35 @@ import { expect } from 'vitest'
 import { closeDb, schema } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
+import type { AnalyticsDb } from '@cimi/db'
 import { createApiApp } from '../index.ts'
 import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 import type { UpgradeExecutor } from '../resources/installation/service.ts'
 import type { IngestionProtection } from '../resources/event-ingestion/index.ts'
+import type { BackupRestoreExecutor } from '../resources/backup-restore/index.ts'
 
 export async function createApiTestFixture(
   options: {
     upgradeExecutor?: UpgradeExecutor
     eventIngestionProtection?: IngestionProtection
     eventIngestionTrustProxyHeaders?: boolean
+    analyticsReady?: (() => boolean) | undefined
+    backupRestoreExecutor?: BackupRestoreExecutor | undefined
   } = {},
 ) {
   const db = createMigratedTestDb()
   try {
-    const analytics = await createTestAnalyticsDb()
+    const realAnalytics = await createTestAnalyticsDb()
+    const analytics: AnalyticsDb =
+      options.analyticsReady === undefined
+        ? realAnalytics
+        : {
+            ready: async () => options.analyticsReady!(),
+            rebuild: (input) => realAnalytics.rebuild(input),
+            deleteExpired: (input) => realAnalytics.deleteExpired(input),
+            purgeSite: (input) => realAnalytics.purgeSite(input),
+            close: () => realAnalytics.close(),
+          }
     try {
       const auth = createAuth({
         db,
@@ -35,6 +49,9 @@ export async function createApiTestFixture(
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
         eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
         startRetentionCleanupWorker: false,
+        ...(options.backupRestoreExecutor === undefined
+          ? {}
+          : { backupRestoreExecutor: options.backupRestoreExecutor }),
         ...(options.eventIngestionProtection === undefined
           ? {}
           : { eventIngestionProtection: options.eventIngestionProtection }),
@@ -43,13 +60,13 @@ export async function createApiTestFixture(
         app,
         auth,
         db,
-        analytics,
+        analytics: realAnalytics,
         async [Symbol.asyncDispose]() {
           try {
             await app.close()
           } finally {
             try {
-              await analytics.close()
+              await realAnalytics.close()
             } finally {
               closeDb(db)
             }
@@ -57,7 +74,7 @@ export async function createApiTestFixture(
         },
       }
     } catch (error) {
-      await analytics.close()
+      await realAnalytics.close()
       throw error
     }
   } catch (error) {

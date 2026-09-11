@@ -45,6 +45,7 @@ import { COLLECT_EVENT_MAX_RAW_REQUEST_BYTES, EVENT_RAW_REQUEST_LIMITS } from '@
 import {
   createBackupRestore,
   type BackupRestoreCleanupPort,
+  type BackupRestoreExecutor,
   type BackupRestoreHealthSnapshot,
 } from './resources/backup-restore/index.ts'
 import { createIdentityProfile } from './resources/identity-profile/index.ts'
@@ -68,6 +69,7 @@ export interface CreateApiAppDependencies {
   acceptance?: AcceptanceQuiescencePort | undefined
   reads?: ReadQuiescencePort | undefined
   cleanup?: BackupRestoreCleanupPort | undefined
+  backupRestoreExecutor?: BackupRestoreExecutor | undefined
   dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
@@ -213,6 +215,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     dataDirectoryReady: deps.dataDirectoryReady,
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
+    ...(deps.backupRestoreExecutor === undefined ? {} : { executor: deps.backupRestoreExecutor }),
   })
   const backupRestoreStartup = installationStartup
     .then(() => backupRestore.service.start())
