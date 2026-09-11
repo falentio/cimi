@@ -138,8 +138,6 @@ export function createEventIngestion({
               .limit(1)
             const profile = row[0]
             if (profile === undefined) return false
-            // Until the retention worker refreshes, an aged-out profile must stop receiving
-            // references even though its stored status is still active.
             return (
               profile.profileActivityCutoffAt === null ||
               profile.lastSeenAt >= profile.profileActivityCutoffAt

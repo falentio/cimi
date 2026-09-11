@@ -659,8 +659,6 @@ export class EventIngestionService {
 
 class PolicyRejectionError extends Error {}
 
-// The wire contract keeps anonymousIdentityId optional, but every accepted Event needs durable
-// anonymous continuity. Deriving it from the Event ID makes a retried Event reuse one identity.
 export function deriveAnonymousIdentityId(eventId: string): string {
   const digest = createHash('sha256').update(eventId).digest('base64url')
   return `ano_${digest}`

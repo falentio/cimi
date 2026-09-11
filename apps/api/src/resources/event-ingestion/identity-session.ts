@@ -118,8 +118,6 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
       if (stored !== undefined) state = fromStored(stored, identifiedUserId)
     }
 
-    // A persisted Alias link still applies to future Events the caller sent anonymously; the
-    // caller-supplied identity, when present, already won above.
     const linkedUserId =
       identifiedUserId === null && key.kind === 'anonymous'
         ? await this.resolveLinkedUserId(input, state?.sessionId ?? null, receiptMs)

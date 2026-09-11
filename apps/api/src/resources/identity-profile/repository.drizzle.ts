@@ -424,8 +424,6 @@ function resolveSessionStart(
           .orderBy(asc(schema.TAcceptedEvent.receiptTime), asc(schema.TAcceptedEvent.eventPk))
           .limit(1)
           .all()[0]?.receiptTime ?? latest.receiptTime)
-  // The stored Session is only still current if the latest Event falls inside its window; an
-  // expired Session must not be relabeled from its own start, so anchor at now instead.
   const anchored = sessionContinues(
     { sessionStartMs: sessionStart.getTime(), lastSeenMs: latest.receiptTime.getTime() },
     input.now.getTime(),
@@ -620,8 +618,6 @@ function isConstraintError(error: unknown): boolean {
   return error instanceof Error && /constraint|unique|foreign key/i.test(error.message)
 }
 
-// Natural expiry is applied by the retention worker on a schedule; until it runs, reads must
-// still hide an active profile the effective cutoff has already aged out.
 function isActivityExpired(row: ProfileRow, cutoff: Date | undefined): boolean {
   return row.status === 'active' && cutoff !== undefined && row.lastSeenAt < cutoff
 }
