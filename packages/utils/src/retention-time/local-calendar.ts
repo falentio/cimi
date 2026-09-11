@@ -227,18 +227,6 @@ export function enumerateLocalBucketStarts(
     starts.push({ instant, local, offsetMinutes: localOffsetMinutes(instant, input.timeZone) })
     return input.maxStarts !== undefined && starts.length > input.maxStarts
   }
-  const appendWallTime = (date: LocalCalendarDate, hour: number, minute: number): boolean => {
-    const localInstants = resolveLocalDateTimeInstants({
-      date,
-      timeZone: input.timeZone,
-      hour,
-      minute,
-    })
-    for (const instant of localInstants) {
-      if (append(instant, { ...date, hour, minute, second: 0 })) return true
-    }
-    return false
-  }
 
   for (
     let date = input.fromDate;
@@ -246,11 +234,21 @@ export function enumerateLocalBucketStarts(
     date = addCalendarDays(date, 1)
   ) {
     if (input.granularity === 'minute' || input.granularity === 'hour') {
-      const minuteStep = input.granularity === 'minute' ? 1 : 60
-      for (let minuteOfDay = 0; minuteOfDay < 24 * 60; minuteOfDay += minuteStep) {
-        const hour = Math.floor(minuteOfDay / 60)
-        const minute = minuteOfDay % 60
-        if (appendWallTime(date, hour, minute)) return starts
+      const stepMs = (input.granularity === 'minute' ? 1 : 60) * MINUTE_MS
+      const dayStart = resolveLocalDateStartOrUndefined(date, input.timeZone)
+      if (dayStart === undefined) continue
+      const nextDayStart = resolveLocalDateStartOrUndefined(
+        addCalendarDays(date, 1),
+        input.timeZone,
+      )
+      if (nextDayStart === undefined) continue
+      for (
+        let instantMs = dayStart.getTime();
+        instantMs < nextDayStart.getTime();
+        instantMs += stepMs
+      ) {
+        const instant = new Date(instantMs)
+        if (append(instant, getLocalCalendarDateTime(instant, input.timeZone))) return starts
       }
       continue
     }
@@ -262,11 +260,26 @@ export function enumerateLocalBucketStarts(
       (input.granularity === 'month' && date.day === 1) ||
       (input.granularity === 'year' && date.month === 1 && date.day === 1)
     if (!shouldAppend) continue
-    const instant = resolveLocalDateStart({ date, timeZone: input.timeZone })
-    if (append(instant, { ...date, hour: 0, minute: 0, second: 0 })) return starts
+    // A zone can skip a whole local day (Samoa skipped 2011-12-30). That calendar day has no
+    // midnight to start from, so it contributes no bucket rather than failing the whole range.
+    const dayStart = resolveLocalDateStartOrUndefined(date, input.timeZone)
+    if (dayStart === undefined) continue
+    if (append(dayStart, { ...date, hour: 0, minute: 0, second: 0 })) return starts
   }
 
   return starts
+}
+
+function resolveLocalDateStartOrUndefined(
+  date: LocalCalendarDate,
+  timeZone: string,
+): Date | undefined {
+  try {
+    return resolveLocalDateStart({ date, timeZone })
+  } catch (error) {
+    if (error instanceof RangeError) return undefined
+    throw error
+  }
 }
 
 function findFirstInstantOnLocalDate(
