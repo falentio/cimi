@@ -135,7 +135,11 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lifecycle: installation.service,
     membership: membership.service,
   })
-  const siteLifecycleWorker = createSiteLifecycleWorker({ db: deps.db, lock })
+  const siteLifecycleWorker = createSiteLifecycleWorker({
+    db: deps.db,
+    lock,
+    onPurgedSite: ({ siteId }) => deps.analytics.purgeSite({ siteId }),
+  })
   siteLifecycleWorker.start()
   const installationStartup = installation.service.resumeOnStartup().catch(() => undefined)
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })

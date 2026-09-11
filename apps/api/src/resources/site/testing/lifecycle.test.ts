@@ -6,12 +6,17 @@ import { SiteLifecycleWorker } from '../lifecycle.ts'
 
 const now = new Date('2026-09-03T00:00:00.000Z')
 
-function createWorker() {
+function createWorker(onPurgedSite?: (input: { siteId: string; now: Date }) => Promise<void>) {
   const repository = mock<SiteRepository>()
   repository.findPendingLifecycleOperations.mockResolvedValue([])
   repository.findDuePurges.mockResolvedValue([])
   const onError = vi.fn()
-  const worker = new SiteLifecycleWorker({ repository, lock: new InMemoryLifecycleLock(), onError })
+  const worker = new SiteLifecycleWorker({
+    repository,
+    lock: new InMemoryLifecycleLock(),
+    onError,
+    ...(onPurgedSite === undefined ? {} : { onPurgedSite }),
+  })
   return { repository, onError, worker }
 }
 
@@ -123,5 +128,31 @@ describe('SiteLifecycleWorker', () => {
     await stopping
 
     expect(repository.findPendingLifecycleOperations).toHaveBeenCalledTimes(1)
+  })
+
+  it('invokes onPurgedSite after a due purge commits', async () => {
+    const onPurgedSite = vi.fn().mockResolvedValue(undefined)
+    const { repository, worker } = createWorker(onPurgedSite)
+    repository.findDuePurges.mockResolvedValue([{ siteId: 'ste_1' }])
+    repository.purge.mockResolvedValue({ status: 'completed' })
+
+    await expect(worker.runOnce(now)).resolves.toBeUndefined()
+
+    expect(repository.purge).toHaveBeenCalledWith(
+      expect.objectContaining({ siteId: 'ste_1', requestedAt: now }),
+    )
+    expect(onPurgedSite).toHaveBeenCalledTimes(1)
+    expect(onPurgedSite).toHaveBeenCalledWith({ siteId: 'ste_1', now })
+  })
+
+  it('skips onPurgedSite when the purge does not commit', async () => {
+    const onPurgedSite = vi.fn().mockResolvedValue(undefined)
+    const { repository, worker } = createWorker(onPurgedSite)
+    repository.findDuePurges.mockResolvedValue([{ siteId: 'ste_1' }])
+    repository.purge.mockRejectedValue(new Error('purge lost'))
+
+    await expect(worker.runOnce(now)).resolves.toBeUndefined()
+
+    expect(onPurgedSite).not.toHaveBeenCalled()
   })
 })

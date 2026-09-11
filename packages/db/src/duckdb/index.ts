@@ -29,6 +29,7 @@ export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
   deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number>
+  purgeSite(input: { siteId: string }): Promise<void>
   close(): Promise<void>
 }
 
@@ -547,6 +548,28 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           throw error
         }
         return count
+      })
+    },
+    async purgeSite(input: { siteId: string }): Promise<void> {
+      if (closed || closing) throw new Error('Analytics database is closed')
+      if (unavailable) throw new Error('Analytics database is unavailable')
+      if (rebuilding) throw new Error('Analytics database rebuild is already running')
+      return enqueue(async () => {
+        await connection.run('BEGIN TRANSACTION')
+        try {
+          await connection.run('DELETE FROM event_properties WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM events WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM analytics_sessions WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM visitors WHERE site_id = ?', [input.siteId])
+          await connection.run('DELETE FROM projection_checkpoints WHERE site_id = ?', [
+            input.siteId,
+          ])
+          await connection.run('DELETE FROM projection_gaps WHERE site_id = ?', [input.siteId])
+          await connection.run('COMMIT')
+        } catch (error) {
+          await connection.run('ROLLBACK')
+          throw error
+        }
       })
     },
     async close(): Promise<void> {
