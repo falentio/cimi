@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import Unimplemented from '@/components/features/unimplemented/Unimplemented.vue'
+import SiteOverview from '@/components/features/site-overview/SiteOverview.vue'
 </script>
 
 <template>
-  <Unimplemented />
+  <SiteOverview />
 </template>
