@@ -19,6 +19,7 @@ import {
   scrubCanonicalEventPayloads,
 } from '../backup-restore/identity-redaction.ts'
 import type { IdentityProjectionDebt } from './identity-projection-debt.ts'
+import { identityRedactionRequest } from './identity-redaction-transition.ts'
 
 export interface AcceptanceRetentionCleanupDependencies {
   readonly acceptance: AcceptanceRepository
@@ -307,14 +308,17 @@ interface IdentityProfileCleanupRow {
 
 function prepareProfileRedaction(db: Db, profile: IdentityProfileCleanupRow, now: Date): void {
   if (profile.profileEpoch === null) return
-  const reason = profile.status === 'active' ? 'retention' : 'explicit'
+  const request = identityRedactionRequest({
+    reason: profile.status === 'active' ? 'retention' : 'explicit',
+    now,
+  })
   db.$client
     .prepare(
       `INSERT OR IGNORE INTO identity_redaction
        (id, site_id, profile_id, identified_user_id, profile_epoch, reason, status,
         requested_at, applied_at, derived_cleanup_status, backup_cleanup_status,
         derived_cleanup_updated_at, backup_cleanup_updated_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'requested', ?, NULL, 'pending', 'pending', ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       generateId('ird'),
@@ -322,12 +326,15 @@ function prepareProfileRedaction(db: Db, profile: IdentityProfileCleanupRow, now
       profile.profileId,
       profile.identifiedUserId,
       profile.profileEpoch,
-      reason,
-      now.getTime(),
-      now.getTime(),
-      now.getTime(),
-      now.getTime(),
-      now.getTime(),
+      request.reason,
+      request.status,
+      request.requestedAt.getTime(),
+      request.derivedCleanupStatus,
+      request.backupCleanupStatus,
+      request.derivedCleanupUpdatedAt.getTime(),
+      request.backupCleanupUpdatedAt.getTime(),
+      request.createdAt.getTime(),
+      request.updatedAt.getTime(),
     )
   db.$client
     .prepare(

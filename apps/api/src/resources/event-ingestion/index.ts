@@ -56,6 +56,11 @@ export {
   createIdentityProjectionDebt,
   type IdentityProjectionDebt,
 } from './identity-projection-debt.ts'
+export {
+  identityRedactionRequest,
+  type IdentityRedactionReason,
+  type IdentityRedactionRequestValues,
+} from './identity-redaction-transition.ts'
 export type {
   AcceptanceCandidate,
   AcceptanceRepository,
