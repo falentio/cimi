@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
 import { createTestAnalyticsDb } from '@cimi/db/testing'
 import { mock } from 'vitest-mock-extended'
@@ -21,6 +21,7 @@ import {
 import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
+import { createIdentityProjectionDebt } from '../identity-projection-debt.ts'
 
 const now = new Date('2026-09-05T14:30:00.000Z')
 
@@ -561,6 +562,71 @@ describe('AcceptanceRetentionCleanup', () => {
     ).toEqual([{ status: 'deleted' }])
     expect(fixture.db.select().from(schema.TIdentityLink).all()).toHaveLength(0)
     expect(hasPendingIdentityRedactions(fixture.db)).toBe(false)
+  })
+
+  it('drains projection debt through an analytics rebuild with no pending redactions', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const debt = createIdentityProjectionDebt({ db: fixture.db })
+    const earlier = new Date('2026-09-05T10:00:00.000Z')
+    debt.mark({ now: earlier })
+    debt.mark({ now })
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const rebuild = vi.spyOn(analyticsFixture.analytics, 'rebuild')
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      identityDebt: debt,
+    })
+
+    expect(debt.hasPending()).toBe(true)
+    await cleanup.runIdentityDerived({ now })
+
+    expect(rebuild).toHaveBeenCalledTimes(1)
+    expect(debt.hasPending()).toBe(false)
+  })
+
+  it('keeps the maximum debt marker and clears only through the observed mark', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const debt = createIdentityProjectionDebt({ db: fixture.db })
+    const earlier = new Date('2026-09-05T10:00:00.000Z')
+    const later = new Date('2026-09-05T12:00:00.000Z')
+
+    debt.mark({ now: later })
+    debt.mark({ now: earlier })
+    expect(
+      fixture.db.$client.prepare('SELECT debt_through AS d FROM identity_projection_debt').get(),
+    ).toEqual({ d: later.getTime() })
+    expect(debt.isStale(new Date('2026-09-05T11:00:00.000Z'))).toBe(true)
+
+    debt.clear({ now: new Date('2026-09-05T11:00:00.000Z') })
+    expect(debt.hasPending()).toBe(true)
+
+    debt.clear({ now: new Date('2026-09-05T13:00:00.000Z') })
+    expect(debt.hasPending()).toBe(false)
+  })
+
+  it('drains debt again after a fresh mark', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const debt = createIdentityProjectionDebt({ db: fixture.db })
+
+    await using analyticsFixture = await createAnalyticsFixture()
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      identityDebt: debt,
+    })
+
+    debt.mark({ now })
+    await cleanup.runIdentityDerived({ now })
+    expect(debt.hasPending()).toBe(false)
+
+    debt.mark({ now })
+    expect(debt.hasPending()).toBe(true)
+    await cleanup.runIdentityDerived({ now })
+    expect(debt.hasPending()).toBe(false)
   })
 
   it('uses the replay cutoff for replay material cleanup', async () => {

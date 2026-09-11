@@ -20,6 +20,18 @@ export const TProjectionCheckpoint = sqliteTable('projection_checkpoint', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
+export const TIdentityProjectionDebt = sqliteTable(
+  'identity_projection_debt',
+  {
+    singletonKey: text('singleton_key').primaryKey().notNull(),
+    debtThrough: integer('debt_through', { mode: 'timestamp_ms' }),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    check('identity_projection_debt_singleton_key_check', sql`${table.singletonKey} = 'default'`),
+  ],
+)
+
 export const TProjectionGap = sqliteTable(
   'projection_gap',
   {

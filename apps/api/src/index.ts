@@ -36,6 +36,7 @@ import {
   InMemoryIngestionProtection,
   AcceptanceBackupRestoreCleanup,
   AcceptanceRetentionCleanup,
+  createIdentityProjectionDebt,
   type IdentitySessionResolver,
   type IngestionProtection,
 } from './resources/event-ingestion/index.ts'
@@ -151,6 +152,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   const eventIngestionProtection =
     deps.eventIngestionProtection ??
     new InMemoryIngestionProtection(deps.eventIngestionProtectionThresholds)
+  const identityProjectionDebt = createIdentityProjectionDebt({ db: deps.db })
   const eventIngestion = createEventIngestion({
     db: deps.db,
     collectionPolicy: collectionPolicy.service,
@@ -185,6 +187,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       analytics: deps.analytics,
       db: deps.db,
       dataDirectoryPath: deps.dataDirectoryPath,
+      identityDebt: identityProjectionDebt,
     }),
   )
   if (deps.startRetentionCleanupWorker !== false) retentionPolicy.worker.start()

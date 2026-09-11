@@ -52,6 +52,10 @@ export {
   type AcceptanceBackupRestoreCleanupDependencies,
   type AcceptanceRetentionCleanupDependencies,
 } from './retention-cleanup.ts'
+export {
+  createIdentityProjectionDebt,
+  type IdentityProjectionDebt,
+} from './identity-projection-debt.ts'
 export type {
   AcceptanceCandidate,
   AcceptanceRepository,

@@ -18,12 +18,14 @@ import {
   scrubAcceptedEventIdentity,
   scrubCanonicalEventPayloads,
 } from '../backup-restore/identity-redaction.ts'
+import type { IdentityProjectionDebt } from './identity-projection-debt.ts'
 
 export interface AcceptanceRetentionCleanupDependencies {
   readonly acceptance: AcceptanceRepository
   readonly analytics?: AnalyticsDb | undefined
   readonly db?: Db | undefined
   readonly dataDirectoryPath?: string | undefined
+  readonly identityDebt?: IdentityProjectionDebt | undefined
 }
 
 export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
@@ -31,24 +33,31 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
   private readonly analytics: AnalyticsDb | undefined
   private readonly db: Db | undefined
   private readonly dataDirectoryPath: string | undefined
+  private readonly identityDebt: IdentityProjectionDebt | undefined
 
   constructor({
     acceptance,
     analytics,
     db,
     dataDirectoryPath,
+    identityDebt,
   }: AcceptanceRetentionCleanupDependencies) {
     this.acceptance = acceptance
     this.analytics = analytics
     this.db = db
     this.dataDirectoryPath = dataDirectoryPath
+    this.identityDebt = identityDebt
   }
 
   async runIdentityDerived(input: { readonly now: Date }): Promise<void> {
-    if (this.db === undefined || !hasPendingIdentityRedactions(this.db)) return
+    if (this.db === undefined) return
+    const redactionsPending = hasPendingIdentityRedactions(this.db)
+    const debtPending = this.identityDebt?.hasPending() ?? false
+    if (!redactionsPending && !debtPending) return
     if (this.analytics === undefined) throw new Error('Analytics cleanup is not configured')
     preparePendingIdentityRedactions({ db: this.db, now: input.now })
     await this.analytics.rebuild({ controlDb: this.db })
+    this.identityDebt?.clear({ now: input.now })
     markProfileDerivedCleanupComplete({ db: this.db, now: input.now })
   }
 
