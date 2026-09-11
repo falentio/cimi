@@ -1,4 +1,5 @@
 import { generateId } from '@cimi/utils'
+import { linkCoversEvent, type IdentityCoverageLink } from '@cimi/db'
 import { ORPCError } from '@orpc/server'
 import type { DerivedAttribution } from './attribution.ts'
 import type { IdentitySessionAssignment, IdentitySessionResolver } from './service.ts'
@@ -28,6 +29,14 @@ export interface DefaultIdentitySessionResolverDependencies {
   readonly references?:
     | { exists(siteId: string, identifiedUserId: string): Promise<boolean> }
     | undefined
+  readonly links?:
+    | {
+        currentForAnonymous(input: {
+          readonly siteId: string
+          readonly anonymousIdentityId: string
+        }): Promise<(IdentityCoverageLink & { readonly identifiedUserId: string }) | undefined>
+      }
+    | undefined
   readonly history?:
     | {
         findIdentitySession(input: {
@@ -54,13 +63,20 @@ function draftAttribution(event: NormalizedEvent): DerivedAttribution {
 export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
   private readonly clock: () => Date
   private readonly references: DefaultIdentitySessionResolverDependencies['references']
+  private readonly links: DefaultIdentitySessionResolverDependencies['links']
   private readonly history: DefaultIdentitySessionResolverDependencies['history']
   private readonly sessions = new Map<string, Map<IdentityKind, Map<string, SessionState>>>()
   private readonly pending = new Map<string, Map<IdentityKind, Map<string, PendingState>>>()
 
-  constructor({ clock, references, history }: DefaultIdentitySessionResolverDependencies = {}) {
+  constructor({
+    clock,
+    references,
+    links,
+    history,
+  }: DefaultIdentitySessionResolverDependencies = {}) {
     this.clock = clock ?? (() => new Date())
     this.references = references
+    this.links = links
     this.history = history
   }
 
@@ -102,17 +118,52 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
       if (stored !== undefined) state = fromStored(stored, identifiedUserId)
     }
 
+    // A persisted Alias link still applies to future Events the caller sent anonymously; the
+    // caller-supplied identity, when present, already won above.
+    const linkedUserId =
+      identifiedUserId === null && key.kind === 'anonymous'
+        ? await this.resolveLinkedUserId(input, state?.sessionId ?? null, receiptMs)
+        : null
+    const resolvedUserId = identifiedUserId ?? linkedUserId
+
     const next =
       state === undefined
-        ? createState(input.event, receiptMs, identifiedUserId)
-        : nextState(state, input.event, receiptMs, identifiedUserId)
+        ? createState(input.event, receiptMs, resolvedUserId)
+        : nextState(state, input.event, receiptMs, resolvedUserId)
     if (staged !== undefined) {
       staged.state = next
       staged.assignments.set(next.sessionId, next)
     } else {
       this.stagePending(input.siteId, key.kind, key.id, next)
     }
-    return assignment(next, identifiedUserId)
+    return assignment(next, resolvedUserId)
+  }
+
+  private async resolveLinkedUserId(
+    input: {
+      readonly siteId: string
+      readonly event: NormalizedEvent
+      readonly anonymousIdentityId: string | null
+    },
+    analyticsSessionId: string | null,
+    receiptMs: number,
+  ): Promise<string | null> {
+    if (this.links === undefined || input.anonymousIdentityId === null) return null
+    const link = await this.links.currentForAnonymous({
+      siteId: input.siteId,
+      anonymousIdentityId: input.anonymousIdentityId,
+    })
+    if (link === undefined) return null
+    if (
+      !linkCoversEvent(link, {
+        siteId: input.siteId,
+        anonymousIdentityId: input.anonymousIdentityId,
+        analyticsSessionId,
+        receiptTimeMs: receiptMs,
+      })
+    )
+      return null
+    return link.identifiedUserId
   }
 
   commit(input: Parameters<NonNullable<IdentitySessionResolver['commit']>>[0]): void {

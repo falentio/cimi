@@ -1,5 +1,5 @@
 import { schema, type Db } from '@cimi/db'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
@@ -135,6 +135,51 @@ export function createEventIngestion({
               profile.profileActivityCutoffAt === null ||
               profile.lastSeenAt >= profile.profileActivityCutoffAt
             )
+          },
+        },
+        links: {
+          async currentForAnonymous({ siteId, anonymousIdentityId }) {
+            const row = await db
+              .select({
+                siteId: schema.TIdentityLink.siteId,
+                profileId: schema.TIdentityLink.profileId,
+                profileEpoch: schema.TIdentityLink.profileEpoch,
+                anonymousIdentityId: schema.TIdentityLink.anonymousIdentityId,
+                analyticsSessionId: schema.TIdentityLink.analyticsSessionId,
+                effectiveFrom: schema.TIdentityLink.effectiveFrom,
+                unlinkedAt: schema.TIdentityLink.unlinkedAt,
+                identifiedUserId: schema.TIdentityProfileEpoch.identifiedUserId,
+              })
+              .from(schema.TIdentityLink)
+              .innerJoin(
+                schema.TIdentityProfileEpoch,
+                and(
+                  eq(schema.TIdentityProfileEpoch.siteId, schema.TIdentityLink.siteId),
+                  eq(schema.TIdentityProfileEpoch.profileId, schema.TIdentityLink.profileId),
+                  eq(schema.TIdentityProfileEpoch.epoch, schema.TIdentityLink.profileEpoch),
+                  eq(schema.TIdentityProfileEpoch.status, 'active'),
+                ),
+              )
+              .where(
+                and(
+                  eq(schema.TIdentityLink.siteId, siteId),
+                  eq(schema.TIdentityLink.anonymousIdentityId, anonymousIdentityId),
+                  isNull(schema.TIdentityLink.unlinkedAt),
+                ),
+              )
+              .limit(1)
+            const link = row[0]
+            if (link === undefined) return undefined
+            return {
+              siteId: link.siteId,
+              profileId: link.profileId,
+              profileEpoch: link.profileEpoch,
+              anonymousIdentityId: link.anonymousIdentityId,
+              analyticsSessionId: link.analyticsSessionId,
+              effectiveFromMs: link.effectiveFrom.getTime(),
+              unlinkedAtMs: link.unlinkedAt?.getTime() ?? null,
+              identifiedUserId: link.identifiedUserId,
+            }
           },
         },
       }),
