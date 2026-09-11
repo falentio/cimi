@@ -9,6 +9,7 @@ import {
   SProfileTraits,
 } from '@cimi/contract'
 import { generateId } from '@cimi/utils'
+import { sessionContinues } from '../event-ingestion/session-window.ts'
 import type {
   ActiveIdentityProfile,
   IdentityProfile,
@@ -415,6 +416,14 @@ function resolveSessionStart(
           .orderBy(asc(schema.TAcceptedEvent.receiptTime), asc(schema.TAcceptedEvent.eventPk))
           .limit(1)
           .all()[0]?.receiptTime ?? latest.receiptTime)
+  // The stored Session is only still current if the latest Event falls inside its window; an
+  // expired Session must not be relabeled from its own start, so anchor at now instead.
+  const anchored = sessionContinues(
+    { sessionStartMs: sessionStart.getTime(), lastSeenMs: latest.receiptTime.getTime() },
+    input.now.getTime(),
+  )
+    ? sessionStart
+    : input.now
   const redactedThrough =
     tx
       .select({ endedAt: schema.TIdentityProfileEpoch.endedAt })
@@ -429,7 +438,7 @@ function resolveSessionStart(
       .orderBy(desc(schema.TIdentityProfileEpoch.endedAt))
       .limit(1)
       .all()[0]?.endedAt ?? null
-  return redactedThrough !== null && redactedThrough > sessionStart ? redactedThrough : sessionStart
+  return redactedThrough !== null && redactedThrough > anchored ? redactedThrough : anchored
 }
 
 function selectProfile(
