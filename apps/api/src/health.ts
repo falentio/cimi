@@ -121,15 +121,20 @@ export async function resolveRequestAdmissionGate(
   }
 }
 
-export async function systemHealthHandler(deps: CreateApiAppDependencies): Promise<{
-  status: HealthStatus
-  controlStore: StoreHealth
-  analyticsStore: StoreHealth
-  cleanupPending: boolean
-  version: string
-  checkedAt: string
-  ingestion?: AcceptanceDiagnosticsSnapshot | undefined
-}> {
+export interface StoreHealthReport {
+  readonly controlStore: StoreHealth
+  readonly analyticsStore: StoreHealth
+  readonly cleanupPending: boolean
+}
+
+/**
+ * The single place that probes control and analytics store readiness. `systemHealthHandler` and
+ * the reporting readiness port both read through here, so a report cannot disagree with the
+ * admission gate about whether the analytics store is ready.
+ */
+export async function readStoreHealth(
+  deps: Pick<CreateApiAppDependencies, 'db' | 'analytics' | 'dataDirectoryReady' | 'lifecycle'>,
+): Promise<StoreHealthReport> {
   let controlDatabase = false
   try {
     const result = deps.db.$client.prepare('select 1').get()
@@ -156,10 +161,25 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
         ? deps.dataDirectoryReady()
         : deps.dataDirectoryReady
   } catch {}
-  const controlStore =
-    controlDatabase && dataDirectoryReady ? (lifecycle.controlStore ?? 'ready') : 'unavailable'
-  const analyticsStore = analyticsDatabase ? (lifecycle.analyticsStore ?? 'ready') : 'unavailable'
-  const cleanupPending = lifecycle.cleanupPending ?? false
+  return {
+    controlStore:
+      controlDatabase && dataDirectoryReady ? (lifecycle.controlStore ?? 'ready') : 'unavailable',
+    analyticsStore: analyticsDatabase ? (lifecycle.analyticsStore ?? 'ready') : 'unavailable',
+    cleanupPending: lifecycle.cleanupPending ?? false,
+  }
+}
+
+export async function systemHealthHandler(deps: CreateApiAppDependencies): Promise<{
+  status: HealthStatus
+  controlStore: StoreHealth
+  analyticsStore: StoreHealth
+  cleanupPending: boolean
+  version: string
+  checkedAt: string
+  ingestion?: AcceptanceDiagnosticsSnapshot | undefined
+}> {
+  const { controlStore, analyticsStore, cleanupPending } = await readStoreHealth(deps)
+  const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
 
   const response = {
     status: resolveInstallationHealth({
