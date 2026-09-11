@@ -144,6 +144,7 @@ export class IdentityProfileService {
       traits: input.traits,
       anonymousIdentityId: input.anonymousIdentityId,
       now,
+      profileActivityCutoffAt: await this.profileActivityCutoff(site.id),
     })
     if (result.kind === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
     if (result.kind === 'invalid') throw new ORPCError('BAD_REQUEST', { status: 400 })

@@ -35,6 +35,7 @@ export declare namespace IdentityProfileRepository {
     readonly traits: InferOutput<typeof SIdentifyInput>['traits']
     readonly anonymousIdentityId: string | undefined
     readonly now: Date
+    readonly profileActivityCutoffAt?: Date | undefined
   }
 
   export type IdentifyResult =

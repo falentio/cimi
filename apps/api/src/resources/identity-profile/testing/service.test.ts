@@ -125,6 +125,7 @@ describe('IdentityProfileService', () => {
       traits: { plan: 'pro' },
       anonymousIdentityId: 'ano_1',
       now,
+      profileActivityCutoffAt: profileActivityCutoff,
     })
   })
 

@@ -227,6 +227,7 @@ function identifyInTransaction(
 
   if (profile.status === 'active') {
     if (profile.profileEpoch === null) return { kind: 'conflict' }
+    if (isActivityExpired(profile, input.profileActivityCutoffAt)) return { kind: 'conflict' }
     const mergedTraits = mergeTraits(parseTraits(profile.traits), input.traits)
     if (mergedTraits.kind !== 'valid') return mergedTraits
     const traits = mergedTraits.value

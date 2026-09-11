@@ -778,4 +778,37 @@ describe('IdentityProfileRepositoryDrizzle', () => {
       totalCount: 1,
     })
   })
+
+  it('rejects a trait update on an active profile past the activity cutoff', async () => {
+    using fixture = createSiteDrizzleFixture()
+    await new InstallationRepositoryDrizzle({ db: fixture.db }).insert(
+      createInstallationInsertInput(),
+    )
+    const repository = new IdentityProfileRepositoryDrizzle({ db: fixture.db })
+    await repository.identify({
+      siteId: 'ste_1',
+      identifiedUserId: 'app_user_1',
+      traits: { plan: 'pro' },
+      anonymousIdentityId: undefined,
+      now: firstSeenAt,
+    })
+    const cutoff = new Date('2026-09-10T06:01:00.000Z')
+    seedProfileActivityCutoff(fixture.db, cutoff)
+
+    await expect(
+      repository.identify({
+        siteId: 'ste_1',
+        identifiedUserId: 'app_user_1',
+        traits: { plan: 'team' },
+        anonymousIdentityId: undefined,
+        now: later,
+        profileActivityCutoffAt: cutoff,
+      }),
+    ).resolves.toEqual({ kind: 'conflict' })
+    const stored = fixture.db
+      .select({ traits: schema.TIdentityProfile.traits })
+      .from(schema.TIdentityProfile)
+      .all()[0]
+    expect(stored?.traits).toEqual({ plan: 'pro' })
+  })
 })
