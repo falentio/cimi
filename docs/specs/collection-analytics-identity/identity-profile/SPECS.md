@@ -151,7 +151,7 @@ No domain event channel is required by the MVP contract.
 | `CONFLICT`            |  409 | Profile status is `deletion-requested`, `deleting`, or `deleted`, or the requested identity ID remains reserved for cleanup. |
 | `PAYLOAD_TOO_LARGE`   |  413 | Compact JSON UTF-8 Trait serialization exceeds 16 KiB.                                                                       |
 | `TOO_MANY_REQUESTS`   |  429 | Identity mutation protection is exceeded.                                                                                    |
-| `SERVICE_UNAVAILABLE` |  503 | Shared lifecycle admission or installation maintenance temporarily blocks identity mutation.                              |
+| `SERVICE_UNAVAILABLE` |  503 | Shared lifecycle admission or installation maintenance temporarily blocks identity mutation.                                 |
 
 ## 11. Related Resources & Dependencies
 
