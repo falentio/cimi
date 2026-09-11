@@ -407,6 +407,10 @@ importers:
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))
 
   packages/kernel:
+    dependencies:
+      '@cimi/utils':
+        specifier: workspace:*
+        version: link:../utils
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -417,6 +421,9 @@ importers:
       vitest:
         specifier: 4.1.10
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))
+      vitest-mock-extended:
+        specifier: 'catalog:'
+        version: 5.1.1(typescript@6.0.3)(vitest@4.1.10)
 
   packages/maxmindb:
     dependencies:

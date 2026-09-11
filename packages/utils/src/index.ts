@@ -42,8 +42,25 @@ export {
 } from './user-agent/index.ts'
 export { getRegistrableDomain } from './registrable-domain/index.ts'
 export {
+  addCalendarDays,
+  calendarDaysInclusive,
+  compareCalendarDates,
+  enumerateLocalBucketStarts,
+  formatLocalCalendarDate,
+  getLocalCalendarDateTime,
+  localOffsetMinutes,
+  parseLocalCalendarDate,
+  resolveLocalDateStart,
+  resolveLocalDateTimeInstants,
   resolveSiteLocalCutoff,
   resolveSiteLocalDay,
+  subtractCalendarMonths,
+  type EnumerateLocalBucketStartsInput,
+  type LocalBucketGranularity,
+  type LocalBucketStart,
+  type LocalCalendarDate,
+  type LocalCalendarDateTime,
+  type LocalWeekStart,
   type ResolveSiteLocalCutoffInput,
   type ResolveSiteLocalDayInput,
 } from './retention-time/index.ts'
