@@ -109,8 +109,16 @@ export function createEventIngestion({
         references: {
           async exists(siteId, identifiedUserId) {
             const row = await db
-              .select({ profileId: schema.TIdentityProfile.profileId })
+              .select({
+                profileId: schema.TIdentityProfile.profileId,
+                lastSeenAt: schema.TIdentityProfile.lastSeenAt,
+                profileActivityCutoffAt: schema.TRetentionEffectiveCutoff.profileActivityCutoffAt,
+              })
               .from(schema.TIdentityProfile)
+              .leftJoin(
+                schema.TRetentionEffectiveCutoff,
+                eq(schema.TRetentionEffectiveCutoff.siteId, schema.TIdentityProfile.siteId),
+              )
               .where(
                 and(
                   eq(schema.TIdentityProfile.siteId, siteId),
@@ -119,7 +127,14 @@ export function createEventIngestion({
                 ),
               )
               .limit(1)
-            return row[0] !== undefined
+            const profile = row[0]
+            if (profile === undefined) return false
+            // Until the retention worker refreshes, an aged-out profile must stop receiving
+            // references even though its stored status is still active.
+            return (
+              profile.profileActivityCutoffAt === null ||
+              profile.lastSeenAt >= profile.profileActivityCutoffAt
+            )
           },
         },
       }),

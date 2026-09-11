@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNull, max } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, isNull, max, ne, or } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import { parse, safeParse } from 'valibot'
 import {
@@ -51,11 +51,19 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
 
   async find(input: IdentityProfileRepository.FindInput): Promise<IdentityProfile | undefined> {
     const row = await this.findRow(input)
-    return row === undefined ? undefined : toProfile(this.db, row)
+    if (row === undefined || isActivityExpired(row, input.profileActivityCutoffAt)) return undefined
+    return toProfile(this.db, row)
   }
 
   async list(input: IdentityProfileRepository.ListInput): Promise<IdentityProfileList> {
-    const where = and(eq(schema.TIdentityProfile.siteId, input.siteId))
+    const activityVisible =
+      input.profileActivityCutoffAt === undefined
+        ? undefined
+        : or(
+            ne(schema.TIdentityProfile.status, 'active'),
+            gte(schema.TIdentityProfile.lastSeenAt, input.profileActivityCutoffAt),
+          )
+    const where = and(eq(schema.TIdentityProfile.siteId, input.siteId), activityVisible)
     const [countRow, rows] = await Promise.all([
       this.db.select({ count: count() }).from(schema.TIdentityProfile).where(where),
       this.db
@@ -610,4 +618,10 @@ function cleanupStatus(status: 'not-required' | 'pending' | 'complete', updatedA
 
 function isConstraintError(error: unknown): boolean {
   return error instanceof Error && /constraint|unique|foreign key/i.test(error.message)
+}
+
+// Natural expiry is applied by the retention worker on a schedule; until it runs, reads must
+// still hide an active profile the effective cutoff has already aged out.
+function isActivityExpired(row: ProfileRow, cutoff: Date | undefined): boolean {
+  return row.status === 'active' && cutoff !== undefined && row.lastSeenAt < cutoff
 }

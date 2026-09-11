@@ -54,6 +54,7 @@ export interface IdentityProfileServiceDependencies {
   readonly siteRepository: SiteRepository
   readonly collectionPolicy: CollectionPolicyService
   readonly scope: SiteScopeGuardDependencies
+  readonly profileActivityCutoff?: ((siteId: string) => Promise<Date | undefined>) | undefined
   readonly membership?: OrganizationMembershipReconciler | undefined
   readonly protection?: IdentityProfileProtection | undefined
   readonly lifecycleLock?: LifecycleLock | undefined
@@ -67,6 +68,7 @@ export class IdentityProfileService {
   private readonly siteRepository: SiteRepository
   private readonly collectionPolicy: CollectionPolicyService
   private readonly scope: SiteScopeGuardDependencies
+  private readonly profileActivityCutoff: (siteId: string) => Promise<Date | undefined>
   private readonly membership: OrganizationMembershipReconciler | undefined
   private readonly protection: IdentityProfileProtection | undefined
   private readonly lifecycleLock: LifecycleLock | undefined
@@ -77,6 +79,7 @@ export class IdentityProfileService {
     siteRepository,
     collectionPolicy,
     scope,
+    profileActivityCutoff,
     membership,
     protection,
     lifecycleLock,
@@ -86,6 +89,7 @@ export class IdentityProfileService {
     this.siteRepository = siteRepository
     this.collectionPolicy = collectionPolicy
     this.scope = scope
+    this.profileActivityCutoff = profileActivityCutoff ?? (async () => undefined)
     this.membership = membership
     this.protection = protection
     this.lifecycleLock = lifecycleLock
@@ -151,6 +155,7 @@ export class IdentityProfileService {
       siteId: input.siteId,
       offset: input.offset ?? 0,
       limit: input.limit ?? DEFAULT_PAGE_SIZE,
+      profileActivityCutoffAt: await this.profileActivityCutoff(input.siteId),
     })
   }
 
@@ -161,7 +166,10 @@ export class IdentityProfileService {
   ): Promise<ProfileGetOutput> {
     await this.reconcileSiteOrganization(input.siteId, user.id, headers)
     await assertSiteScope(user, input.siteId, this.scope)
-    const profile = await this.repository.find(input)
+    const profile = await this.repository.find({
+      ...input,
+      profileActivityCutoffAt: await this.profileActivityCutoff(input.siteId),
+    })
     if (profile === undefined) throw new ORPCError('NOT_FOUND')
     return profile
   }

@@ -46,12 +46,14 @@ export declare namespace IdentityProfileRepository {
   export interface FindInput {
     readonly siteId: string
     readonly identifiedUserId: string
+    readonly profileActivityCutoffAt?: Date | undefined
   }
 
   export interface ListInput {
     readonly siteId: string
     readonly offset: number
     readonly limit: number
+    readonly profileActivityCutoffAt?: Date | undefined
   }
 
   export interface RequestDeletionInput extends FindInput {

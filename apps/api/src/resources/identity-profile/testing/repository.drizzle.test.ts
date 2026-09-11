@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { asc, eq, isNull } from 'drizzle-orm'
 import { SProfileTraits } from '@cimi/contract'
-import { schema } from '@cimi/db'
+import { schema, type Db } from '@cimi/db'
 import { safeParse } from 'valibot'
 import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { IdentityProfileRepositoryDrizzle } from '../repository.drizzle.ts'
@@ -10,6 +10,24 @@ import { createInstallationInsertInput } from '../../installation/fixture.drizzl
 
 const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
 const later = new Date('2026-09-10T06:05:00.000Z')
+
+function seedProfileActivityCutoff(db: Db, cutoffAt: Date): void {
+  db.insert(schema.TRetentionEffectiveCutoff)
+    .values({
+      siteId: 'ste_1',
+      installationId: 'ins_1',
+      policyId: 'rtn_1',
+      reportingTimezone: 'UTC',
+      localDay: '2026-09-10',
+      eventOccurrenceCutoffAt: cutoffAt,
+      rawReceiptCutoffAt: cutoffAt,
+      profileActivityCutoffAt: cutoffAt,
+      replayReceiptCutoffAt: null,
+      effectiveAt: cutoffAt,
+      updatedAt: cutoffAt,
+    })
+    .run()
+}
 
 describe('IdentityProfileRepositoryDrizzle', () => {
   it('updates traits by removing null markers and preserves the current Alias', async () => {
@@ -692,5 +710,72 @@ describe('IdentityProfileRepositoryDrizzle', () => {
     expect(profile.identityHistory).toHaveLength(32)
     expect(profile.identityHistory[0]?.epoch).toBe(2)
     expect(profile.identityHistory.at(-1)?.epoch).toBe(33)
+  })
+
+  it('hides an active profile whose lastSeenAt is before the profile activity cutoff', async () => {
+    using fixture = createSiteDrizzleFixture()
+    await new InstallationRepositoryDrizzle({ db: fixture.db }).insert(
+      createInstallationInsertInput(),
+    )
+    const repository = new IdentityProfileRepositoryDrizzle({ db: fixture.db })
+    await repository.identify({
+      siteId: 'ste_1',
+      identifiedUserId: 'app_user_1',
+      traits: undefined,
+      anonymousIdentityId: undefined,
+      now: firstSeenAt,
+    })
+    const cutoff = new Date('2026-09-10T06:01:00.000Z')
+    seedProfileActivityCutoff(fixture.db, cutoff)
+
+    await expect(
+      repository.find({
+        siteId: 'ste_1',
+        identifiedUserId: 'app_user_1',
+        profileActivityCutoffAt: cutoff,
+      }),
+    ).resolves.toBeUndefined()
+    await expect(
+      repository.find({ siteId: 'ste_1', identifiedUserId: 'app_user_1' }),
+    ).resolves.toMatchObject({ status: 'active' })
+  })
+
+  it('excludes a cut-off active profile from the profile list', async () => {
+    using fixture = createSiteDrizzleFixture()
+    await new InstallationRepositoryDrizzle({ db: fixture.db }).insert(
+      createInstallationInsertInput(),
+    )
+    let nextId = 0
+    const repository = new IdentityProfileRepositoryDrizzle({
+      db: fixture.db,
+      ids: {
+        identityProfileId: () => `ipr_${++nextId}`,
+        identityLinkId: () => `ilk_${++nextId}`,
+        identityRedactionId: () => `ird_${++nextId}`,
+      },
+    })
+    await repository.identify({
+      siteId: 'ste_1',
+      identifiedUserId: 'app_user_1',
+      traits: undefined,
+      anonymousIdentityId: undefined,
+      now: firstSeenAt,
+    })
+    await repository.identify({
+      siteId: 'ste_1',
+      identifiedUserId: 'app_user_2',
+      traits: undefined,
+      anonymousIdentityId: undefined,
+      now: new Date('2026-09-10T06:10:00.000Z'),
+    })
+    const cutoff = new Date('2026-09-10T06:01:00.000Z')
+    seedProfileActivityCutoff(fixture.db, cutoff)
+
+    await expect(
+      repository.list({ siteId: 'ste_1', offset: 0, limit: 20, profileActivityCutoffAt: cutoff }),
+    ).resolves.toMatchObject({
+      items: [{ identifiedUserId: 'app_user_2', status: 'active' }],
+      totalCount: 1,
+    })
   })
 })

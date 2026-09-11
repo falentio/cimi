@@ -1,4 +1,6 @@
 import type { Db } from '@cimi/db'
+import { schema } from '@cimi/db'
+import { eq } from 'drizzle-orm'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
 import type { LifecycleLock } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
@@ -67,6 +69,16 @@ export function createIdentityProfile({
     siteRepository: siteRepository ?? new SiteRepositoryDrizzle({ db }),
     collectionPolicy,
     scope: scope ?? createSiteScopeDependencies({ db }),
+    profileActivityCutoff: async (siteId) => {
+      const row = await db
+        .select({
+          profileActivityCutoffAt: schema.TRetentionEffectiveCutoff.profileActivityCutoffAt,
+        })
+        .from(schema.TRetentionEffectiveCutoff)
+        .where(eq(schema.TRetentionEffectiveCutoff.siteId, siteId))
+        .limit(1)
+      return row[0]?.profileActivityCutoffAt
+    },
     ...(membership === undefined ? {} : { membership }),
     ...(protection === undefined ? {} : { protection }),
     lifecycleLock,

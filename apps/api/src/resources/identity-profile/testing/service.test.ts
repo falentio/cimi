@@ -14,6 +14,7 @@ import type { IdentityProfileRepository } from '../repository.ts'
 import { IdentityProfileService } from '../service.ts'
 
 const now = new Date('2026-09-10T06:00:00.000Z')
+const profileActivityCutoff = new Date('2026-09-10T06:01:00.000Z')
 
 function createFixture(
   options: {
@@ -30,6 +31,7 @@ function createFixture(
     siteRepository,
     collectionPolicy: policyFixture.service,
     scope: { siteScope: policyFixture.scope, membership: policyFixture.scope },
+    profileActivityCutoff: async () => profileActivityCutoff,
     ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
     clock: () => now,
   })
@@ -209,6 +211,34 @@ describe('IdentityProfileService', () => {
     ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
     expect(repository.requestDeletion).not.toHaveBeenCalled()
     await lease?.release()
+  })
+
+  it('threads the profile activity cutoff into profile reads', async () => {
+    const { repository, service } = createFixture()
+    repository.find.mockResolvedValue(undefined)
+    repository.list.mockResolvedValue({
+      items: [],
+      nextOffset: null,
+      hasMore: false,
+      totalCount: 0,
+    })
+    const cutoff = new Date('2026-09-10T06:01:00.000Z')
+
+    await expect(
+      service.get({ siteId: 'ste_1', identifiedUserId: 'usr_external_1' }, createTestAuthUser()),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(repository.find).toHaveBeenCalledWith({
+      siteId: 'ste_1',
+      identifiedUserId: 'usr_external_1',
+      profileActivityCutoffAt: cutoff,
+    })
+    await service.list({ siteId: 'ste_1' }, createTestAuthUser())
+    expect(repository.list).toHaveBeenCalledWith({
+      siteId: 'ste_1',
+      offset: 0,
+      limit: 20,
+      profileActivityCutoffAt: cutoff,
+    })
   })
 
   it('enforces Site scope before profile reads', async () => {
