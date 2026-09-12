@@ -39,10 +39,6 @@ function handleMetricToggle(id: OverviewMetricId): void {
   selectedMetricIds.value = selectedMetricIds.value.includes(id) ? [] : [id]
 }
 
-function clearMetricSelection(): void {
-  selectedMetricIds.value = []
-}
-
 const rangeOptions: readonly OverviewRangeOption[] = [
   { value: '7d', label: 'Last 7 days' },
   { value: '30d', label: 'Last 30 days' },
@@ -500,7 +496,6 @@ function handleBreakdownTabChange(payload: {
         :metrics="overviewFixture.metrics"
         :selected-ids="selectedMetricIds"
         @toggle="handleMetricToggle"
-        @clear="clearMetricSelection"
       />
       <OverviewChart
         :metric="activeMetric"

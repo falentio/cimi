@@ -1,15 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  ArrowDownRight01Icon,
-  ArrowUpRight01Icon,
-  Cancel01Icon,
-  FilterIcon,
-  MinusSignIcon,
-} from '@hugeicons/core-free-icons'
+import { ArrowDownRight01Icon, ArrowUpRight01Icon, MinusSignIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { VisArea, VisXYContainer } from '@unovis/vue'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ChartConfig } from '@/components/ui/chart'
 import { ChartContainer } from '@/components/ui/chart'
@@ -33,7 +26,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   toggle: [id: OverviewMetricId]
-  clear: []
 }>()
 
 const changeIcons: Readonly<Record<ChangeKind, OverviewIcon>> = {
@@ -75,11 +67,8 @@ const metricCells = computed(() =>
   })),
 )
 
-/** Focused is a single-select lens: the first selected id is the active filter. */
+/** Single-select: the first selected id is the active metric. */
 const activeId = computed<OverviewMetricId | null>(() => props.selectedIds.at(0) ?? null)
-const activeMetric = computed(
-  () => props.metrics.find((metric) => metric.id === activeId.value) ?? null,
-)
 const hasSelection = computed(() => activeId.value !== null)
 </script>
 
@@ -87,26 +76,6 @@ const hasSelection = computed(() => activeId.value !== null)
   <section aria-label="Key metrics" class="min-w-0">
     <Card class="min-w-0 gap-0 p-0">
       <CardContent class="bg-muted p-1">
-        <div
-          v-if="hasSelection"
-          class="mb-1 flex items-center justify-between gap-2 rounded-lg bg-card px-3 py-2"
-        >
-          <p class="flex min-w-0 items-center gap-2 text-sm">
-            <HugeiconsIcon
-              :icon="FilterIcon"
-              :size="15"
-              class="text-primary shrink-0"
-              aria-hidden="true"
-            />
-            <span class="text-muted-foreground shrink-0">Filtering by</span>
-            <span class="truncate font-medium">{{ activeMetric?.label }}</span>
-          </p>
-          <Button type="button" variant="ghost" size="sm" @click="emit('clear')">
-            <HugeiconsIcon :icon="Cancel01Icon" aria-hidden="true" data-icon="inline-start" />
-            Clear
-          </Button>
-        </div>
-
         <ul class="grid min-w-0 list-none gap-1 bg-muted sm:grid-cols-2 xl:grid-cols-3">
           <li
             v-for="{ metric, sparklineData: data } in metricCells"
