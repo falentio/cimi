@@ -25,11 +25,6 @@ const emptyPlan: ReportFilterPlan = {
   requiresProfileJoin: false,
 }
 
-/**
- * A Site whose six Sessions exercise each metric rule: distinct visitors and sessions, eligibility
- * (a page_view), valid duration (>= 2 events), and the bounce rule (exactly one page_view, no
- * engagement kind, span < 10s).
- */
 function seedEvents(db: Db): void {
   const now = DAY_ONE
   db.$client
@@ -278,10 +273,6 @@ function seedBreakdownEvents(db: Db, events: readonly BreakdownSeedEvent[]): voi
 
 const ATTRIBUTED_DAY = DAY_ONE + 10 * 60 * 60 * 1000
 
-/**
- * Five attributed Sessions: two device=desktop, one device=mobile, and two with no device so the
- * NULL row is excluded. Session s3 sees two distinct pages.
- */
 function attributedEvents(): readonly BreakdownSeedEvent[] {
   return [
     {
@@ -356,10 +347,6 @@ interface EventKindSeed {
   readonly properties?: Readonly<Record<string, string | number | boolean | null>> | undefined
 }
 
-/**
- * Seeds one accepted event per row across every kind and links the per-kind control tables plus
- * typed event properties, so a rebuild projects a varied events table.
- */
 function seedEventKindEvents(db: Db, events: readonly EventKindSeed[]): void {
   const now = DAY_ONE
   db.$client
@@ -487,10 +474,6 @@ function seedEventKindEvents(db: Db, events: readonly EventKindSeed[]): void {
 
 const EVENT_DAY = DAY_ONE + 10 * 60 * 60 * 1000
 
-/**
- * Seven accepted events across three kinds in a two-day window. Page views carry a mixed-type
- * property bag; the two error events prove the per-kind window filter and the count-distinct total.
- */
 function eventKindSeeds(): readonly EventKindSeed[] {
   return [
     {
@@ -1280,7 +1263,6 @@ describe('session span across the window boundary', () => {
       )
       await analytics.rebuild({ controlDb })
 
-      // s1's only in-window event on DAY_TWO, but its history also holds the DAY_ONE events.
       const result = await createQuery(analytics).trafficAggregate({
         siteId: createSiteId(SITE),
         period: dayTwoPeriod(),

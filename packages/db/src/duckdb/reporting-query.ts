@@ -713,11 +713,6 @@ function readPropertyValue(row: Record<string, unknown>): string | number | bool
   return readString(row['string_value'])
 }
 
-/**
- * The windowed-session scan shared by every breakdown leg. `page` partitions over the page_view
- * paths the session saw, everything else partitions over one `analytics_sessions` attribution
- * column, so the CTE keeps the filtered session ids and projects the per-dimension value source.
- */
 function sessionScopeCte(predicateSql: string): string {
   return `windowed AS (
   SELECT e.analytics_session_id AS session_id,

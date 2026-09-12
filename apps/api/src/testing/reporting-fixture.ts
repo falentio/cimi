@@ -129,12 +129,6 @@ interface SeedEvent {
   readonly properties?: Readonly<Record<string, string | number | boolean | null>> | undefined
 }
 
-/**
- * Seeds accepted events for a Site so a rebuild projects them. Only the columns the projection
- * reads are populated; the acceptance metadata is synthesized per event. Optional attribution and
- * page-view columns drive the session attribution a breakdown reads; per-kind control tables and
- * typed properties drive the event-report projection.
- */
 export function seedAcceptedEvents(db: Db, siteId: string, events: readonly SeedEvent[]): void {
   const policyId = db.$client
     .prepare('SELECT policy_revision_id FROM accepted_event LIMIT 1')

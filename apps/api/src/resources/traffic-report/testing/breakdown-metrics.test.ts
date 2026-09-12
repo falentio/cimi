@@ -13,11 +13,6 @@ function at(date: string, hour: number, offsetMs = 0): number {
   return Date.parse(`${date}T${String(hour).padStart(2, '0')}:00:00.000Z`) + offsetMs
 }
 
-/**
- * Six attributed Sessions: four on /a (three desktop, one mobile) and two on /b (one desktop, one
- * with no device). Session s3 sees both /a and /b. One Session has no device so the NULL device
- * row must be excluded while the denominator still counts it.
- */
 async function projectedSiteWithAttributedEvents(email: string) {
   const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
   const { cookie, siteId } = await createOwnerSite(fixture.app, fixture.db, email)

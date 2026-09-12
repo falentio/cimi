@@ -13,10 +13,6 @@ function at(date: string, hour: number, offsetMs = 0): number {
   return Date.parse(`${date}T${String(hour).padStart(2, '0')}:00:00.000Z`) + offsetMs
 }
 
-/**
- * A projected Site with page views, custom events, an outbound click, a performance sample, and two
- * errors across two days. One page view carries a mixed-type property bag.
- */
 async function projectedSiteWithKinds(email: string) {
   const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
   const { cookie, siteId } = await createOwnerSite(fixture.app, fixture.db, email)
