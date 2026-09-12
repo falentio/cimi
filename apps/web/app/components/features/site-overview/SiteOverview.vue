@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import {
   Activity01Icon,
   Alert02Icon,
@@ -33,10 +33,26 @@ import MetricGrid from './MetricGrid.vue'
 import OverviewChart from './OverviewChart.vue'
 import OverviewToolbar from './OverviewToolbar.vue'
 
+const route = useRoute()
+const router = useRouter()
+
+/** Search param key holding the active metric, e.g. `?metric=visitors`. */
+const METRIC_PARAM = 'metric'
+
 const selectedMetricIds = shallowRef<readonly OverviewMetricId[]>([])
 
 function handleMetricToggle(id: OverviewMetricId): void {
-  selectedMetricIds.value = selectedMetricIds.value.includes(id) ? [] : [id]
+  const next = selectedMetricIds.value.includes(id) ? [] : [id]
+  selectedMetricIds.value = next
+
+  const query = { ...route.query }
+  if (next.length === 0) {
+    delete query[METRIC_PARAM]
+  } else {
+    query[METRIC_PARAM] = next
+  }
+
+  void router.replace({ query })
 }
 
 const rangeOptions: readonly OverviewRangeOption[] = [
@@ -252,6 +268,26 @@ const metrics: readonly OverviewMetric[] = [
     },
   },
 ]
+
+const metricIds: ReadonlySet<string> = new Set(metrics.map((metric) => metric.id))
+
+function isOverviewMetricId(value: unknown): value is OverviewMetricId {
+  return typeof value === 'string' && metricIds.has(value)
+}
+
+function readMetricParam(): OverviewMetricId[] {
+  const value = route.query[METRIC_PARAM]
+  const id = Array.isArray(value) ? value.at(0) : value
+  return isOverviewMetricId(id) ? [id] : []
+}
+
+watch(
+  () => route.query[METRIC_PARAM],
+  () => {
+    selectedMetricIds.value = readMetricParam()
+  },
+  { immediate: true },
+)
 
 const rangeLabels: Readonly<Record<OverviewRange, readonly string[]>> = {
   '7d': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
