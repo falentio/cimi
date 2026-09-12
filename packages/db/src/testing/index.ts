@@ -31,6 +31,7 @@ export async function createTestAnalyticsDb(): Promise<AnalyticsDb> {
       rebuild: (input) => analytics.rebuild(input),
       deleteExpired: (input) => analytics.deleteExpired(input),
       purgeSite: (input) => analytics.purgeSite(input),
+      readProjectionSnapshot: (input) => analytics.readProjectionSnapshot(input),
       async close() {
         if (closed) return
         closed = true

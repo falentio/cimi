@@ -48,6 +48,7 @@ import {
   type BackupRestoreHealthSnapshot,
 } from './resources/backup-restore/index.ts'
 import { createIdentityProfile } from './resources/identity-profile/index.ts'
+import { createTrafficReport } from './resources/traffic-report/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -239,6 +240,12 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       }
     },
   }
+  const trafficReport = createTrafficReport({
+    db: deps.db,
+    analytics: deps.analytics,
+    lifecycle,
+    dataDirectoryReady: deps.dataDirectoryReady,
+  })
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
@@ -254,6 +261,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     backupRestore: backupRestore.router,
     eventIngestion: eventIngestion.router,
     identityProfile: identityProfile.router,
+    trafficReport: trafficReport.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {

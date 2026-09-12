@@ -83,6 +83,17 @@ export const MAX_AUTHENTICATED_REPORT_OUTPUT_BUCKETS = Math.max(
   ...Object.values(AUTHENTICATED_REPORT_BUCKET_LIMITS),
 )
 
+export type ReportFactWorkFamily = 'aggregate' | 'breakdown' | 'row-list' | 'stateful'
+
+export const REPORT_FACT_WORK_BUDGETS = {
+  aggregate: 25_000_000,
+  breakdown: 10_000_000,
+  'row-list': 1_000_000,
+  stateful: 10_000_000,
+} as const satisfies Readonly<Record<ReportFactWorkFamily, number>>
+
+export type TrafficReportFamily = Extract<ReportFactWorkFamily, 'aggregate' | 'breakdown'>
+
 const getInclusiveDayCount = (fromDate: string, toDate: string) => {
   const from = Date.parse(`${fromDate}T00:00:00Z`)
   const to = Date.parse(`${toDate}T00:00:00Z`)

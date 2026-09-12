@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  REPORT_FACT_WORK_BUDGETS,
   SMetricPoint,
   STrafficAbsoluteDateTime,
   isWithinAuthenticatedReportBucketLimit,
@@ -26,6 +27,15 @@ describe('traffic report contract', () => {
   it('requires absolute trend timestamps', () => {
     expect('2026-08-24T12:00:00').not.toEqual(expect.schemaMatching(STrafficAbsoluteDateTime))
     expect('2026-08-24T12:00:00+02:00').toEqual(expect.schemaMatching(STrafficAbsoluteDateTime))
+  })
+
+  it('fixes one Fact-Work budget per report family', () => {
+    expect(REPORT_FACT_WORK_BUDGETS).toEqual({
+      aggregate: 25_000_000,
+      breakdown: 10_000_000,
+      'row-list': 1_000_000,
+      stateful: 10_000_000,
+    })
   })
 
   it('uses separate bucket bounds for each authenticated granularity', () => {

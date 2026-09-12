@@ -13,7 +13,7 @@ export const ANALYTICS_REQUIRED_TABLES = [
   'projection_gaps',
 ] as const
 
-export const ANALYTICS_PROJECTION_VERSION = 'v4'
+export const ANALYTICS_PROJECTION_VERSION = 'v5'
 
 export const ANALYTICS_MIGRATIONS: AnalyticsMigration[] = [
   {
@@ -147,6 +147,13 @@ export const ANALYTICS_MIGRATIONS: AnalyticsMigration[] = [
       ALTER TABLE events ADD COLUMN browser VARCHAR;
       ALTER TABLE events ADD COLUMN operating_system VARCHAR;
       ALTER TABLE events ADD COLUMN country VARCHAR;
+    `,
+  },
+  {
+    version: 4,
+    name: 'projected-fact-cardinality',
+    sql: `
+      ALTER TABLE projection_checkpoints ADD COLUMN projected_fact_cardinality BIGINT;
     `,
   },
 ]
