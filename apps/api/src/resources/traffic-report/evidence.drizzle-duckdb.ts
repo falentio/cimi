@@ -3,7 +3,6 @@ import { schema, type AnalyticsDb, type Db } from '@cimi/db'
 import {
   createInstantMs,
   type AlignedStatistics,
-  type CoverageDependency,
   type ProjectionEvidence,
   type ReportingEvidence,
   type ReportingEvidencePort,
@@ -19,20 +18,21 @@ export interface ReportingEvidenceDrizzleDuckDbDependencies {
 
 /**
  * Reads a report window's evidence from its two stores. The projection snapshot is DuckDB and
- * the retention cutoffs are SQLite; both projection and statistics come out of one
- * `readProjectionSnapshot` call, so the aligned-statistics assertion in the kernel compares two
- * values read from the same checkpoint.
+ * the retention cutoffs are SQLite. The checkpoint publishes the cardinality the last rebuild
+ * projected, and the snapshot counts the stored facts; the statistics are aligned only when those
+ * two agree, so a checkpoint that does not describe the counted facts fails closed.
  */
 export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
   constructor(private readonly deps: ReportingEvidenceDrizzleDuckDbDependencies) {}
 
   async read(request: ReportingEvidenceRequest): Promise<ReportingEvidence> {
     const snapshot = await this.deps.analytics.readProjectionSnapshot({ siteId: request.siteId })
-    const retention = await this.readRetention(request.siteId, request.coverage)
+    const retention = await this.readRetention(request.siteId)
     const checkpoint = snapshot.checkpoint
     const projection: ProjectionEvidence = {
       checkpoint: {
         projectedAcceptanceSequence: checkpoint?.projectedAcceptanceSequence ?? 0,
+        projectedFactCardinality: checkpoint?.projectedFactCardinality ?? null,
         occurrenceCoveredFrom:
           checkpoint?.occurrenceCoveredFrom === null ||
           checkpoint?.occurrenceCoveredFrom === undefined
@@ -59,10 +59,7 @@ export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
       statistics: resolveStatistics(checkpoint, snapshot.factCardinality),
     }
   }
-  private async readRetention(
-    siteId: string,
-    dependencies: readonly CoverageDependency[],
-  ): Promise<RetentionCoverage> {
+  private async readRetention(siteId: string): Promise<RetentionCoverage> {
     const rows = await this.deps.db
       .select({
         eventOccurrenceCutoffAt: schema.TRetentionEffectiveCutoff.eventOccurrenceCutoffAt,
@@ -96,24 +93,30 @@ function availableFrom(value: Date): RetentionBoundary {
 }
 
 /**
- * Statistics are aligned because the cardinality is counted from the same checkpoint the
- * projection reports, so the two sequences are equal by construction and the kernel's alignment
- * assertion holds.
- *
- * A checkpoint that is absent, or present but not `ready`, has no trustworthy projection to count
- * against; those return `unknown` so the kernel rejects the request instead of reporting an
- * empty Site. Note that a Site rebuilt from an empty journal yields a `ready` checkpoint with a
- * zero sequence and zero cardinality, which is a legitimate empty Site and admits.
+ * Statistics are aligned only when the facts counted at report time are the ones the checkpoint
+ * published. A checkpoint that is absent, or present but not `ready`, has no trustworthy
+ * projection; a checkpoint whose published cardinality does not match the count describes a
+ * different fact set. All of those return `unknown` or `stale` so the kernel rejects the request
+ * instead of reporting an empty or partial Site. A Site rebuilt with no events publishes a zero
+ * cardinality and a zero count, which is a legitimate empty Site and admits.
  */
 function resolveStatistics(
   checkpoint: {
     readonly projectedAcceptanceSequence: number
+    readonly projectedFactCardinality: number | null
     readonly readiness: string
   } | null,
   factCardinality: number,
 ): AlignedStatistics | undefined {
   if (checkpoint === null || checkpoint.readiness !== 'ready') {
     return { state: 'unknown', asOfAcceptanceSequence: null, factCardinality: null }
+  }
+  if (checkpoint.projectedFactCardinality !== factCardinality) {
+    return {
+      state: 'stale',
+      asOfAcceptanceSequence: checkpoint.projectedAcceptanceSequence,
+      factCardinality,
+    }
   }
   return {
     state: 'aligned',

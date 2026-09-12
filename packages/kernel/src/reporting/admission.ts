@@ -136,13 +136,20 @@ function rejectRelevantGap(projection: ProjectionEvidence, periods: ResolvedPeri
   }
 }
 
+/**
+ * Alignment means the counted facts are the ones the projection published. The checkpoint stamps
+ * the cardinality it projected, and the statistics carry the cardinality counted at report time;
+ * those two are written by different code at different instants, so comparing them is a real check
+ * rather than a value against itself.
+ */
 function requireAlignedStatistics(
   statistics: AlignedStatistics,
   projection: ProjectionEvidence,
 ): Extract<AlignedStatistics, { readonly state: 'aligned' }> {
   if (
     statistics.state !== 'aligned' ||
-    statistics.asOfAcceptanceSequence !== projection.checkpoint.projectedAcceptanceSequence ||
+    projection.checkpoint.projectedFactCardinality === null ||
+    statistics.factCardinality !== projection.checkpoint.projectedFactCardinality ||
     !Number.isFinite(statistics.factCardinality) ||
     statistics.factCardinality < 0
   ) {

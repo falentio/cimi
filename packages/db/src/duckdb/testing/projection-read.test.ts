@@ -27,18 +27,19 @@ describe('readProjectionSnapshot', () => {
     const now = Date.parse('2026-09-05T00:00:00.000Z')
     try {
       migrateControlDb(controlDb)
-      seedControlDb(controlDb, now, { statisticsRefreshedAt: now })
+      seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 3 })
       await analytics.rebuild({ controlDb })
 
       const snapshot = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
 
       expect(snapshot.checkpoint).toMatchObject({
         projectedAcceptanceSequence: 3,
+        projectedFactCardinality: 3,
         readiness: 'ready',
       })
       expect(snapshot.checkpoint?.occurrenceCoveredFrom?.getTime()).toBe(now)
       expect(snapshot.checkpoint?.occurrenceCoveredThrough?.getTime()).toBe(now + 2_000)
-      expect(snapshot.checkpoint?.statisticsRefreshedAt?.getTime()).toBe(now)
+      expect(snapshot.checkpoint?.statisticsRefreshedAt).not.toBeNull()
       expect(snapshot.factCardinality).toBe(3)
       expect(snapshot.openGaps).toEqual([
         {
@@ -55,18 +56,20 @@ describe('readProjectionSnapshot', () => {
     }
   })
 
-  it('carries a null statistics refresh through to the snapshot', async () => {
+  it('publishes the projected fact set rather than the copied control checkpoint', async () => {
     const controlDb = createDb({ path: ':memory:' })
     const analytics = await createTestAnalyticsDb()
     const now = Date.parse('2026-09-05T00:00:00.000Z')
     try {
       migrateControlDb(controlDb)
-      seedControlDb(controlDb, now, { statisticsRefreshedAt: null })
+      seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 999 })
       await analytics.rebuild({ controlDb })
 
       const snapshot = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
 
-      expect(snapshot.checkpoint?.statisticsRefreshedAt).toBeNull()
+      expect(snapshot.checkpoint?.projectedAcceptanceSequence).toBe(3)
+      expect(snapshot.checkpoint?.projectedFactCardinality).toBe(3)
+      expect(snapshot.factCardinality).toBe(3)
     } finally {
       await analytics.close()
       closeDb(controlDb)
@@ -77,7 +80,10 @@ describe('readProjectionSnapshot', () => {
 function seedControlDb(
   controlDb: ReturnType<typeof createDb>,
   now: number,
-  options: { readonly statisticsRefreshedAt: number | null },
+  options: {
+    readonly statisticsRefreshedAt: number | null
+    readonly projectedReplaySequence: number
+  },
 ): void {
   controlDb.$client
     .prepare(
@@ -142,7 +148,16 @@ function seedControlDb(
     .prepare(
       'INSERT INTO projection_checkpoint (site_id, projected_replay_sequence, occurrence_covered_from, occurrence_covered_through, statistics_refreshed_at, readiness, projection_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
-    .run('ste-1', 3, now, now + 2_000, options.statisticsRefreshedAt, 'ready', 'v4', now)
+    .run(
+      'ste-1',
+      options.projectedReplaySequence,
+      now,
+      now + 2_000,
+      options.statisticsRefreshedAt,
+      'ready',
+      'v5',
+      now,
+    )
   const insertGap = controlDb.$client.prepare(
     'INSERT INTO projection_gap (id, site_id, occurrence_from, occurrence_to, status, observed_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )

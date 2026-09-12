@@ -92,6 +92,7 @@ function projectionEvidence(
   return {
     checkpoint: {
       projectedAcceptanceSequence: 42,
+      projectedFactCardinality: 100,
       occurrenceCoveredFrom: instant('2025-01-01T00:00:00.000Z'),
       occurrenceCoveredThrough,
     },
@@ -698,9 +699,9 @@ describe('ReportingAdmissionService with one evidence read', () => {
     expect(factWorkPort.estimate).not.toHaveBeenCalled()
   })
 
-  it('rejects misaligned statistics rather than trusting a torn pair', async () => {
+  it('rejects a fact cardinality that disagrees with the published checkpoint', async () => {
     const ports = createEvidenceDependencies({
-      statistics: { state: 'aligned', asOfAcceptanceSequence: 41, factCardinality: 100 },
+      statistics: { state: 'aligned', asOfAcceptanceSequence: 42, factCardinality: 99 },
     })
 
     await expectAdmissionError(
@@ -708,6 +709,20 @@ describe('ReportingAdmissionService with one evidence read', () => {
       'QUERY_LIMIT_EXCEEDED',
     )
     expect(ports.factWorkPort.estimate).not.toHaveBeenCalled()
+  })
+
+  it('rejects an aligned pair whose checkpoint publishes no cardinality', async () => {
+    const ports = createEvidenceDependencies({
+      projection: {
+        ...projectionEvidence(),
+        checkpoint: { ...projectionEvidence().checkpoint, projectedFactCardinality: null },
+      },
+    })
+
+    await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
   })
 
   it('treats missing statistics as uncertain', async () => {

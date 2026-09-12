@@ -88,6 +88,7 @@ export interface ProjectionGap {
 
 export interface ProjectionCheckpoint {
   readonly projectedAcceptanceSequence: number
+  readonly projectedFactCardinality: number | null
   readonly occurrenceCoveredFrom: InstantMs | null
   readonly occurrenceCoveredThrough: InstantMs | null
 }

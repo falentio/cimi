@@ -27,6 +27,7 @@ export const ANALYTICS_DB_FILENAME = 'analytics.duckdb'
 
 export interface AnalyticsProjectionCheckpoint {
   readonly projectedAcceptanceSequence: number
+  readonly projectedFactCardinality: number | null
   readonly occurrenceCoveredFrom: Date | null
   readonly occurrenceCoveredThrough: Date | null
   readonly statisticsRefreshedAt: Date | null
@@ -41,9 +42,10 @@ export interface AnalyticsProjectionGap {
 }
 
 /**
- * One reader-consistent view of a Site's projection state. `factCardinality` is counted in the
- * same read as the checkpoint, so it always describes exactly the projected set the checkpoint
- * reports; callers may compare the two without a torn read.
+ * One reader-consistent view of a Site's projection state. `factCardinality` is counted live in
+ * the same read as the checkpoint. The checkpoint's `projectedFactCardinality` is what the last
+ * rebuild published, so comparing the two tells a caller whether the counted facts are the ones
+ * the checkpoint describes.
  */
 export interface AnalyticsProjectionSnapshot {
   readonly checkpoint: AnalyticsProjectionCheckpoint | null
@@ -137,6 +139,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       return enqueue(async () => {
         const checkpointReader = await connection.runAndReadAll(
           `SELECT projected_replay_sequence,
+                  projected_fact_cardinality,
                   epoch_ms(occurrence_covered_from) AS occurrence_covered_from,
                   epoch_ms(occurrence_covered_through) AS occurrence_covered_through,
                   epoch_ms(statistics_refreshed_at) AS statistics_refreshed_at,
@@ -168,6 +171,11 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
         return {
           checkpoint: {
             projectedAcceptanceSequence: Number(checkpointRow['projected_replay_sequence'] ?? 0),
+            projectedFactCardinality:
+              checkpointRow['projected_fact_cardinality'] === null ||
+              checkpointRow['projected_fact_cardinality'] === undefined
+                ? null
+                : Number(checkpointRow['projected_fact_cardinality']),
             occurrenceCoveredFrom: readInstant(checkpointRow['occurrence_covered_from']),
             occurrenceCoveredThrough: readInstant(checkpointRow['occurrence_covered_through']),
             statisticsRefreshedAt: readInstant(checkpointRow['statistics_refreshed_at']),
@@ -189,7 +197,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           const events = readEvents(input.controlDb)
           const properties = readProperties(input.controlDb)
           const identities = readIdentities(input.controlDb)
-          const checkpoints = readProjectionCheckpoints(input.controlDb)
+          const activeSiteIds = readActiveSiteIds(input.controlDb)
           const gaps = readProjectionGaps(input.controlDb)
           const propertiesByEvent = new Map<
             number,
@@ -204,6 +212,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           const projectedEvents = events
             .filter((event) => event.projectionState !== 'failed')
             .map((event) => projectEventIdentity(event, identities))
+          const projected = foldProjectedCheckpoints(activeSiteIds, projectedEvents, Date.now())
           const sessions = new Map<string, Map<string, SessionRow>>()
           const visitors = new Map<string, Map<string, VisitorRow>>()
           for (const event of projectedEvents) {
@@ -371,16 +380,17 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               )
             }
 
-            for (const checkpoint of checkpoints) {
+            for (const checkpoint of projected) {
               await connection.run(
                 `INSERT INTO projection_checkpoints (
-               site_id, projected_replay_sequence, occurrence_covered_from,
-               occurrence_covered_through, effective_retention_from, statistics_refreshed_at,
-               readiness, projection_version, updated_at
-             ) VALUES (?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, CAST(? AS TIMESTAMP))`,
+               site_id, projected_replay_sequence, projected_fact_cardinality,
+               occurrence_covered_from, occurrence_covered_through, effective_retention_from,
+               statistics_refreshed_at, readiness, projection_version, updated_at
+             ) VALUES (?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, CAST(? AS TIMESTAMP))`,
                 [
                   checkpoint.siteId,
                   checkpoint.projectedReplaySequence,
+                  checkpoint.projectedFactCardinality,
                   timestamp(checkpoint.occurrenceCoveredFrom),
                   timestamp(checkpoint.occurrenceCoveredThrough),
                   timestamp(checkpoint.effectiveRetentionFrom),
@@ -605,6 +615,10 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
                    SELECT max(event.occurrence_time) FROM events event
                    WHERE event.site_id = checkpoint.site_id
                  ),
+                 projected_fact_cardinality = (
+                   SELECT count(*) FROM events event
+                   WHERE event.site_id = checkpoint.site_id
+                 ),
                  effective_retention_from = CAST(? AS TIMESTAMP),
                  statistics_refreshed_at = current_timestamp,
                  updated_at = current_timestamp
@@ -743,13 +757,14 @@ interface Identities {
   redactions: IdentityRedactionRow[]
 }
 
-interface ProjectionCheckpointRow {
+interface ProjectedCheckpointRow {
   siteId: string
   projectedReplaySequence: number
+  projectedFactCardinality: number
   occurrenceCoveredFrom: number | null
   occurrenceCoveredThrough: number | null
-  effectiveRetentionFrom: number | null
-  statisticsRefreshedAt: number | null
+  effectiveRetentionFrom: null
+  statisticsRefreshedAt: number
   readiness: string
   projectionVersion: string
   updatedAt: number
@@ -903,26 +918,65 @@ function readIdentities(db: Db): Identities {
   return { epochs, links, redactions }
 }
 
-function readProjectionCheckpoints(db: Db): ProjectionCheckpointRow[] {
-  return db.$client
-    .prepare(
-      `SELECT
-         s.id AS siteId, COALESCE(pc.projected_replay_sequence, 0) AS projectedReplaySequence,
-         occurrence_covered_from AS occurrenceCoveredFrom,
-          occurrence_covered_through AS occurrenceCoveredThrough,
-          COALESCE(rc.event_occurrence_cutoff_at, pc.effective_retention_from) AS effectiveRetentionFrom,
-         statistics_refreshed_at AS statisticsRefreshedAt,
-         COALESCE(pc.readiness, 'ready') AS readiness,
-          '${ANALYTICS_PROJECTION_VERSION}' AS projectionVersion,
-         COALESCE(pc.updated_at, s.updated_at) AS updatedAt
+function readActiveSiteIds(db: Db): string[] {
+  return (
+    db.$client
+      .prepare(
+        `SELECT s.id AS siteId
          FROM site s
-         LEFT JOIN projection_checkpoint pc ON pc.site_id = s.id
-         LEFT JOIN retention_effective_cutoff rc ON rc.site_id = s.id
          WHERE s.status = 'active'
            AND NOT EXISTS (SELECT 1 FROM site_tombstone st WHERE st.site_id = s.id)
          ORDER BY s.id`,
-    )
-    .all() as ProjectionCheckpointRow[]
+      )
+      .all() as { siteId: string }[]
+  ).map((row) => row.siteId)
+}
+
+/**
+ * Builds one checkpoint per active Site from the events the rebuild actually projected. The
+ * cursor, coverage, and cardinality are the projected set's own facts, so a reader that counts the
+ * stored events sees the same set the checkpoint describes. A Site with no projected events still
+ * gets a `ready` row with a zero cursor, which is a legitimately empty Site rather than an absent
+ * one.
+ */
+function foldProjectedCheckpoints(
+  siteIds: readonly string[],
+  events: readonly (EventRow & { profileId: string | null })[],
+  builtAt: number,
+): ProjectedCheckpointRow[] {
+  const bySite = new Map<
+    string,
+    { sequence: number; from: number | null; through: number | null }
+  >()
+  for (const siteId of siteIds) {
+    bySite.set(siteId, { sequence: 0, from: null, through: null })
+  }
+  const counts = new Map<string, number>()
+  for (const event of events) {
+    const site = bySite.get(event.siteId)
+    if (site === undefined) continue
+    site.sequence = Math.max(site.sequence, event.replaySequence)
+    counts.set(event.siteId, (counts.get(event.siteId) ?? 0) + 1)
+    site.from =
+      site.from === null ? event.occurrenceTime : Math.min(site.from, event.occurrenceTime)
+    site.through =
+      site.through === null ? event.occurrenceTime : Math.max(site.through, event.occurrenceTime)
+  }
+  return siteIds.map((siteId) => {
+    const site = bySite.get(siteId)!
+    return {
+      siteId,
+      projectedReplaySequence: site.sequence,
+      projectedFactCardinality: counts.get(siteId) ?? 0,
+      occurrenceCoveredFrom: site.from,
+      occurrenceCoveredThrough: site.through,
+      effectiveRetentionFrom: null,
+      statisticsRefreshedAt: builtAt,
+      readiness: 'ready',
+      projectionVersion: ANALYTICS_PROJECTION_VERSION,
+      updatedAt: builtAt,
+    }
+  })
 }
 
 function readProjectionGaps(db: Db): GapRow[] {

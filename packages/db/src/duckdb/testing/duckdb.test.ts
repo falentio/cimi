@@ -481,25 +481,107 @@ describe('createAnalyticsDb', () => {
         )
         expect(receiptBoundEvent.getRowObjects()[0]?.['identified_user_id']).toBeNull()
         const checkpoint = await inspectionConnection.runAndReadAll(
-          "SELECT projected_replay_sequence, readiness, projection_version FROM projection_checkpoints WHERE site_id = 'ste-1'",
+          "SELECT projected_replay_sequence, projected_fact_cardinality, readiness, projection_version FROM projection_checkpoints WHERE site_id = 'ste-1'",
         )
         expect(checkpoint.getRowObjects()[0]).toMatchObject({
-          projected_replay_sequence: 9n,
-          readiness: 'rebuilding',
-          projection_version: 'v4',
+          projected_replay_sequence: 5n,
+          projected_fact_cardinality: 4n,
+          readiness: 'ready',
+          projection_version: 'v5',
         })
         const emptySiteCheckpoint = await inspectionConnection.runAndReadAll(
-          "SELECT projected_replay_sequence, readiness, projection_version, updated_at FROM projection_checkpoints WHERE site_id = 'ste-2'",
+          "SELECT projected_replay_sequence, projected_fact_cardinality, readiness, projection_version, updated_at FROM projection_checkpoints WHERE site_id = 'ste-2'",
         )
         expect(emptySiteCheckpoint.getRowObjects()[0]).toMatchObject({
           projected_replay_sequence: 0n,
+          projected_fact_cardinality: 0n,
           readiness: 'ready',
-          projection_version: 'v4',
+          projection_version: 'v5',
         })
       } finally {
         inspectionConnection.closeSync()
         inspectionInstance.closeSync()
       }
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('republishes the fact cardinality when retention deletes events', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analytics = await createTestAnalyticsDb()
+    const now = Date.parse('2026-09-05T14:30:00.000Z')
+    const cutoff = now - 24 * 60 * 60 * 1000
+
+    try {
+      migrateControlDb(controlDb)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('user-1', 'User', 'user@example.com', 1, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO organization (id, name, owner_user_id, is_personal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('org-1', 'Organization', 'user-1', 0, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('ste-1', 'org-1', 'Site', 'example.com', 'ing-1', now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO installation (id, status, data_directory_ready, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run('ins-1', 'ready', 1, now, now)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO collection_policy_revision (id, installation_id, scope, version, policy_json, effective_from, committed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('pol-1', 'ins-1', 'installation', 1, '{}', now, now, now)
+      const insertEvent = controlDb.$client.prepare(
+        'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+      insertEvent.run(
+        1,
+        'ste-1',
+        'expired',
+        'custom_event',
+        cutoff - 1_000,
+        cutoff - 1_000,
+        'vis-1',
+        'ses-1',
+        'pol-1',
+        1,
+        'fp-1',
+        'pending',
+        now,
+      )
+      insertEvent.run(
+        2,
+        'ste-1',
+        'retained',
+        'custom_event',
+        cutoff + 1_000,
+        cutoff + 1_000,
+        'vis-1',
+        'ses-1',
+        'pol-1',
+        2,
+        'fp-2',
+        'pending',
+        now,
+      )
+
+      await analytics.rebuild({ controlDb })
+      await analytics.deleteExpired({ siteId: 'ste-1', occurrenceCutoff: new Date(cutoff) })
+
+      const snapshot = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
+
+      expect(snapshot.factCardinality).toBe(1)
+      expect(snapshot.checkpoint?.projectedFactCardinality).toBe(1)
     } finally {
       await analytics.close()
       closeDb(controlDb)
