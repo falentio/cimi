@@ -1,9 +1,12 @@
 import type { AuthUser } from '@cimi/auth'
 import {
+  AUTHENTICATED_REPORT_BUCKET_LIMITS,
+  REPORT_FACT_WORK_BUDGETS,
   STrafficBreakdownsOutput,
   STrafficOverviewOutput,
   type STrafficBreakdownsInput,
   type STrafficOverviewInput,
+  type TrafficReportFamily,
 } from '@cimi/contract'
 import { assertSiteScope, type SiteScopeGuardDependencies } from '@cimi/guard'
 import {
@@ -11,27 +14,10 @@ import {
   createCalendarDate,
   createSiteId,
   type FreshnessEvidence,
-  type ReportGranularity,
   type ResolvedPeriod,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from './errors.ts'
-
-const BUCKET_LIMITS: Readonly<Record<ReportGranularity, number>> = {
-  minute: 1_800,
-  hour: 720,
-  day: 366,
-  week: 104,
-  month: 36,
-  year: 10,
-}
-
-/**
- * The Fact-Work budget for one overview request. The contract's bucket limits keep a legal
- * request well inside it; the value exists so the kernel rejects an estimate it cannot vouch for
- * rather than executing unbounded work.
- */
-const REPORT_FACT_WORK_BUDGET = 50_000_000
 
 export type TrafficOverviewInput = v.InferOutput<typeof STrafficOverviewInput>
 export type TrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput>
@@ -51,7 +37,7 @@ export class TrafficReportService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<TrafficOverviewOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
-    const ticket = await this.admit(input)
+    const ticket = await this.admit(input, 'aggregate')
 
     const current = this.overviewPeriod(ticket.periods.current, ticket.freshness.current)
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
@@ -68,7 +54,7 @@ export class TrafficReportService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<TrafficBreakdownsOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
-    const ticket = await this.admit(input)
+    const ticket = await this.admit(input, 'breakdown')
 
     const current = this.breakdownPage(ticket.freshness.current)
     if (ticket.freshness.comparison === null) {
@@ -80,7 +66,10 @@ export class TrafficReportService {
     }
   }
 
-  private async admit(input: TrafficOverviewInput | TrafficBreakdownsInput) {
+  private async admit(
+    input: TrafficOverviewInput | TrafficBreakdownsInput,
+    family: TrafficReportFamily,
+  ) {
     try {
       return await this.deps.admission.admit({
         siteId: createSiteId(input.siteId),
@@ -96,14 +85,17 @@ export class TrafficReportService {
                 toDate: createCalendarDate(input.comparison.toDate),
               },
             }),
-        bucket: { granularity: input.granularity, maxStarts: BUCKET_LIMITS[input.granularity] },
+        bucket: {
+          granularity: input.granularity,
+          maxStarts: AUTHENTICATED_REPORT_BUCKET_LIMITS[input.granularity],
+        },
         coverage: ['event-occurrence'],
         work: {
           extraMetricCount: 'dimension' in input ? 1 : 0,
           dimensionCount: 'dimension' in input ? 1 : 0,
           filterCount: input.filters?.length ?? 0,
           distinctCountOperations: 0,
-          budget: REPORT_FACT_WORK_BUDGET,
+          budget: REPORT_FACT_WORK_BUDGETS[family],
         },
       })
     } catch (error) {
@@ -114,8 +106,9 @@ export class TrafficReportService {
   /**
    * Metric aggregation over the DuckDB projection is not built on this branch. Every bucket is
    * reported zero-filled with `complete: false`, the contract's representation for a bucket whose
-   * values are not computed, so the response claims no measurement it does not have. Computing
-   * real counts is the follow-up that owns the metric formulas.
+   * values are not computed, so the response claims no measurement it does not have. The
+   * per-bucket completeness rule, where only the current partial bucket is `complete: false`,
+   * lands with aggregation in #65, which owns the metric formulas.
    */
   private overviewPeriod(
     period: ResolvedPeriod,
