@@ -192,6 +192,7 @@ test('rejects a range that reaches past Effective Retention instead of clamping 
   await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
   const { app } = fixture
   const { cookie, siteId } = await createOwnerSite(app, fixture.db, 'report-overbound@example.com')
+  await fixture.analytics.rebuild({ controlDb: fixture.db })
 
   const response = await apiTestRequest(
     app,

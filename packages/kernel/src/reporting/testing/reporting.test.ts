@@ -439,6 +439,22 @@ describe('ReportingAdmissionService', () => {
     expect(ports.metadata.getActive).not.toHaveBeenCalled()
   })
 
+  it('fails closed when the analytics store is not ready', async () => {
+    const ports = createPorts()
+    ports.readiness.getHealth.mockReturnValue({
+      controlStore: 'ready',
+      analyticsStore: 'unavailable',
+    })
+
+    const error = await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'SERVICE_UNAVAILABLE',
+    )
+
+    expect(error.reason).toBe('analytics-not-ready')
+    expect(ports.metadata.getActive).not.toHaveBeenCalled()
+  })
+
   it('rejects a missing site metadata with NOT_FOUND and short-circuits every later port', async () => {
     const ports = createPorts()
     ports.metadata.getActive.mockReturnValue(undefined)
