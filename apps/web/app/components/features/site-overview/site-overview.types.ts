@@ -56,6 +56,11 @@ export interface BreakdownTab {
 
 export type BreakdownId = 'pages' | 'referrers' | 'countries' | 'devices'
 
+export interface BreakdownTabChange {
+  readonly sectionId: BreakdownId
+  readonly tabId: BreakdownTabId
+}
+
 export interface BreakdownSection {
   readonly id: BreakdownId
   readonly title: string

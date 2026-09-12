@@ -1,56 +1,21 @@
 <script setup lang="ts">
-import { HugeiconsIcon } from '@hugeicons/vue'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { BreakdownId, BreakdownTabId, VisibleBreakdownSection } from './site-overview.types'
+import { Card, CardContent } from '@/components/ui/card'
+import BreakdownSectionHeader from './BreakdownSectionHeader.vue'
+import type { BreakdownTabChange, VisibleBreakdownSection } from './site-overview.types'
 
 const props = defineProps<{
   readonly sections: readonly VisibleBreakdownSection[]
 }>()
 
 const emit = defineEmits<{
-  tabChange: [payload: { sectionId: BreakdownId; tabId: BreakdownTabId }]
+  tabChange: [payload: BreakdownTabChange]
 }>()
-
-function selectTab(sectionId: BreakdownId, tabId: BreakdownTabId): void {
-  emit('tabChange', { sectionId, tabId })
-}
 </script>
 
 <template>
   <div class="grid gap-4 sm:grid-cols-2">
     <Card v-for="section in props.sections" :key="section.id" size="sm" class="min-w-0">
-      <CardHeader class="gap-3">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex min-w-0 items-start gap-2.5">
-            <span
-              class="bg-muted text-muted-foreground mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md"
-            >
-              <HugeiconsIcon :icon="section.icon" :size="15" aria-hidden="true" />
-            </span>
-            <div class="min-w-0">
-              <CardTitle class="truncate text-sm">{{ section.title }}</CardTitle>
-              <CardDescription class="mt-0.5 text-xs">{{ section.subtitle }}</CardDescription>
-            </div>
-          </div>
-        </div>
-        <div role="group" :aria-label="`${section.title} views`" class="flex flex-wrap gap-1">
-          <Button
-            v-for="tab in section.tabs"
-            :key="tab.id"
-            type="button"
-            size="xs"
-            variant="ghost"
-            :aria-pressed="section.activeTab === tab.id"
-            :class="
-              section.activeTab === tab.id ? 'bg-muted text-foreground' : 'text-muted-foreground'
-            "
-            @click="selectTab(section.id, tab.id)"
-          >
-            {{ tab.label }}
-          </Button>
-        </div>
-      </CardHeader>
+      <BreakdownSectionHeader :section="section" @tab-change="emit('tabChange', $event)" />
       <CardContent class="pt-0">
         <p v-if="section.rows.length === 0" class="text-muted-foreground py-4 text-sm">
           No data for this view.
