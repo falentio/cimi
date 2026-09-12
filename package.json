@@ -13,7 +13,7 @@
     "prepare": "vp config --no-agent"
   },
   "dependencies": {
-    "@opencode-ai/sdk": "1.18.29"
+    "@opencode-ai/sdk": "1.18.30"
   },
   "devDependencies": {
     "@types/node": "catalog:",
