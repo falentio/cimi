@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, h, render } from 'vue'
+import { isClient } from '@vueuse/core'
 import { VisArea, VisAxis, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ChartConfig } from '@/components/ui/chart'
@@ -8,10 +9,9 @@ import {
   ChartCrosshair,
   ChartLegendContent,
   ChartTooltip,
-  ChartTooltipContent,
-  componentToString,
 } from '@/components/ui/chart'
-import type { OverviewMetric, OverviewTrend } from './site-overview.types'
+import type { OverviewMetric, OverviewRange, OverviewTrend } from './site-overview.types'
+import OverviewChartTooltip from './OverviewChartTooltip.vue'
 
 interface ChartDatum {
   readonly index: number
@@ -23,6 +23,7 @@ interface ChartDatum {
 const props = defineProps<{
   readonly metric: OverviewMetric
   readonly trend: OverviewTrend
+  readonly range: OverviewRange
   readonly rangeLabel: string
 }>()
 
@@ -59,10 +60,24 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-const tooltipTemplate = componentToString(chartConfig, ChartTooltipContent, {
-  labelKey: 'label',
-  indicator: 'line',
-})
+const tooltipTemplate = (datum: ChartDatum): string => {
+  if (!isClient) return ''
+  const container = document.createElement('div')
+  render(
+    h(OverviewChartTooltip, {
+      payload: datum,
+      title: props.metric.label,
+      dates: props.trend.dates,
+      range: props.range,
+      unit: props.metric.unit,
+      polarity: props.metric.polarity,
+      currentColor: chartConfig.current.color,
+      previousColor: chartConfig.previous.color,
+    }),
+    container,
+  )
+  return container.innerHTML
+}
 
 function formatXTick(value: number | Date): string {
   return typeof value === 'number' ? (chartData.value[value]?.label ?? '') : ''
@@ -95,7 +110,7 @@ const chartSummary = computed(() => {
         role="img"
         :aria-label="chartSummary"
       >
-        <VisXYContainer :x-domain="xDomain" :y-domain="yDomain">
+        <VisXYContainer :data="chartData" :x-domain="xDomain" :y-domain="yDomain">
           <VisArea
             :data="chartData"
             :x="(d: ChartDatum) => d.index"

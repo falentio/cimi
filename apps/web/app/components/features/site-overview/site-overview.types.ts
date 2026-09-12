@@ -13,6 +13,9 @@ export type ChangeKind = 'positive' | 'negative' | 'neutral'
 
 export type OverviewMetricUnit = 'count' | 'percent' | 'duration'
 
+/** Whether a larger value is an improvement (bounce/exit rates are inverted). */
+export type OverviewMetricPolarity = 'higher-is-better' | 'lower-is-better'
+
 export interface OverviewMetric {
   readonly id: string
   readonly label: string
@@ -23,6 +26,7 @@ export interface OverviewMetric {
   readonly icon: OverviewIcon
   readonly sparkline: readonly number[]
   readonly unit: OverviewMetricUnit
+  readonly polarity: OverviewMetricPolarity
   readonly trends: Readonly<Record<OverviewRange, OverviewTrendSeries>>
 }
 
@@ -74,11 +78,13 @@ export interface OverviewTrendSeries {
 
 export interface OverviewTrend extends OverviewTrendSeries {
   readonly labels: readonly string[]
+  readonly dates: readonly string[]
 }
 
 export interface OverviewFixture {
   readonly metrics: readonly OverviewMetric[]
   readonly rangeLabels: Readonly<Record<OverviewRange, readonly string[]>>
+  readonly rangeDates: Readonly<Record<OverviewRange, readonly string[]>>
   readonly defaultMetricId: OverviewMetricId
   readonly breakdowns: readonly BreakdownSection[]
 }

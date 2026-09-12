@@ -57,6 +57,7 @@ const metrics: readonly OverviewMetric[] = [
     icon: UserGroupIcon,
     sparkline: [38, 44, 42, 53, 49, 62, 58, 68, 64, 78],
     unit: 'count',
+    polarity: 'higher-is-better',
     trends: {
       '7d': {
         current: [42.1, 45.9, 47.2, 53.6, 60.3, 61.6, 68],
@@ -90,6 +91,7 @@ const metrics: readonly OverviewMetric[] = [
     icon: ViewIcon,
     sparkline: [44, 42, 50, 47, 56, 53, 61, 64, 59, 73],
     unit: 'count',
+    polarity: 'higher-is-better',
     trends: {
       '7d': {
         current: [39.5, 47.5, 51.6, 56.4, 62.9, 65.7, 73],
@@ -123,6 +125,7 @@ const metrics: readonly OverviewMetric[] = [
     icon: Activity01Icon,
     sparkline: [31, 37, 34, 45, 42, 48, 46, 55, 52, 61],
     unit: 'count',
+    polarity: 'higher-is-better',
     trends: {
       '7d': {
         current: [32.3, 36.6, 40.8, 48.6, 48.9, 57.8, 61],
@@ -156,6 +159,7 @@ const metrics: readonly OverviewMetric[] = [
     icon: Analytics01Icon,
     sparkline: [62, 59, 61, 54, 56, 49, 52, 44, 46, 39],
     unit: 'percent',
+    polarity: 'lower-is-better',
     trends: {
       '7d': {
         current: [29.9, 30.3, 31, 31.3, 31.4, 31.9, 32.4],
@@ -189,6 +193,7 @@ const metrics: readonly OverviewMetric[] = [
     icon: Chart01Icon,
     sparkline: [34, 39, 36, 43, 46, 44, 52, 56, 53, 61],
     unit: 'duration',
+    polarity: 'higher-is-better',
     trends: {
       '7d': {
         current: [33.8, 40.1, 43.2, 49.5, 50.9, 55, 61],
@@ -222,6 +227,7 @@ const metrics: readonly OverviewMetric[] = [
     icon: Link01Icon,
     sparkline: [29, 32, 31, 35, 33, 39, 38, 42, 44, 47],
     unit: 'percent',
+    polarity: 'lower-is-better',
     trends: {
       '7d': {
         current: [27.8, 26, 24.8, 23, 21, 19.9, 18.7],
@@ -252,6 +258,53 @@ const rangeLabels: Readonly<Record<OverviewRange, readonly string[]>> = {
   '30d': ['Apr 22', 'Apr 27', 'May 2', 'May 7', 'May 12', 'May 17', 'May 22', 'May 27'],
   '90d': ['Mar 1', 'Mar 14', 'Mar 27', 'Apr 9', 'Apr 22', 'May 5', 'May 18', 'May 31'],
   '12m': ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'],
+}
+
+/** ISO dates aligned to {@link rangeLabels}, used for the chart tooltip. */
+const rangeDates: Readonly<Record<OverviewRange, readonly string[]>> = {
+  '7d': [
+    '2026-05-18',
+    '2026-05-19',
+    '2026-05-20',
+    '2026-05-21',
+    '2026-05-22',
+    '2026-05-23',
+    '2026-05-24',
+  ],
+  '30d': [
+    '2026-04-22',
+    '2026-04-27',
+    '2026-05-02',
+    '2026-05-07',
+    '2026-05-12',
+    '2026-05-17',
+    '2026-05-22',
+    '2026-05-27',
+  ],
+  '90d': [
+    '2026-03-01',
+    '2026-03-14',
+    '2026-03-27',
+    '2026-04-09',
+    '2026-04-22',
+    '2026-05-05',
+    '2026-05-18',
+    '2026-05-31',
+  ],
+  '12m': [
+    '2025-06-01',
+    '2025-07-01',
+    '2025-08-01',
+    '2025-09-01',
+    '2025-10-01',
+    '2025-11-01',
+    '2025-12-01',
+    '2026-01-01',
+    '2026-02-01',
+    '2026-03-01',
+    '2026-04-01',
+    '2026-05-01',
+  ],
 }
 
 function rows(items: readonly [string, string, number][]): readonly RankingRow[] {
@@ -375,6 +428,7 @@ const breakdowns: readonly BreakdownSection[] = [
 const overviewFixture: OverviewFixture = {
   metrics,
   rangeLabels,
+  rangeDates,
   defaultMetricId: 'visitors',
   breakdowns,
 }
@@ -405,6 +459,7 @@ const activeMetric = computed(
 )
 const activeTrend = computed<OverviewTrend>(() => ({
   labels: overviewFixture.rangeLabels[selectedRange.value],
+  dates: overviewFixture.rangeDates[selectedRange.value],
   ...activeMetric.value.trends[selectedRange.value],
 }))
 const visibleBreakdowns = computed<readonly VisibleBreakdownSection[]>(() =>
@@ -500,6 +555,7 @@ function handleBreakdownTabChange(payload: {
       <OverviewChart
         :metric="activeMetric"
         :trend="activeTrend"
+        :range="selectedRange"
         :range-label="selectedRangeLabel"
       />
       <BreakdownGrid :sections="visibleBreakdowns" @tab-change="handleBreakdownTabChange" />
