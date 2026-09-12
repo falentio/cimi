@@ -16,10 +16,14 @@ export const api = implement({
   installation: contract.installation,
   organization: contract.organization,
   membership: contract.membership,
+  collectionPolicy: contract.collectionPolicy,
   retentionPolicy: contract.retentionPolicy,
   site: contract.site,
   invitation: contract.invitation,
   backupRestore: contract.backupRestore,
+  eventIngestion: contract.eventIngestion,
+  identityProfile: contract.identityProfile,
+  trafficReport: contract.trafficReport,
 }).$context<ApiContext>()
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {

@@ -4,6 +4,7 @@ import { schema, type Db } from '@cimi/db'
 import { generateId, resolveSiteLocalCutoff, resolveSiteLocalDay } from '@cimi/utils'
 import { parse } from 'valibot'
 import { ORPCError } from '@orpc/server'
+import { identityRedactionRequest } from '../event-ingestion/identity-redaction-transition.ts'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 export interface RetentionPolicyRepositoryDrizzleDependencies {
@@ -847,6 +848,7 @@ function redactExpiredProfiles(
       .limit(1)
       .all()[0]
     if (existing?.reason === 'explicit') continue
+    const request = identityRedactionRequest({ reason: 'retention', now })
     tx.insert(schema.TIdentityRedaction)
       .values({
         id: generateId('ird'),
@@ -854,16 +856,7 @@ function redactExpiredProfiles(
         profileId: profile.profileId,
         identifiedUserId: profile.identifiedUserId,
         profileEpoch: epoch.epoch,
-        reason: 'retention',
-        status: 'requested',
-        requestedAt: now,
-        appliedAt: null,
-        derivedCleanupStatus: 'pending',
-        backupCleanupStatus: 'pending',
-        derivedCleanupUpdatedAt: now,
-        backupCleanupUpdatedAt: now,
-        createdAt: now,
-        updatedAt: now,
+        ...request,
       })
       .onConflictDoNothing()
       .run()

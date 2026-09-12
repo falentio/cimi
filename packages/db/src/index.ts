@@ -23,5 +23,16 @@ export {
   ANALYTICS_REQUIRED_TABLES,
   createAnalyticsDb,
   type AnalyticsDb,
+  type AnalyticsProjectionCheckpoint,
+  type AnalyticsProjectionGap,
+  type AnalyticsProjectionSnapshot,
   type CreateAnalyticsDbOptions,
 } from './duckdb/index.ts'
+export {
+  isRedacted,
+  linkCoversEvent,
+  type IdentityCoverageEvent,
+  type IdentityCoverageLink,
+  type IdentityRedactionScope,
+  type IdentityRedactionTarget,
+} from './identity/coverage.ts'

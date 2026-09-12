@@ -3,6 +3,7 @@ import { schema } from '@cimi/contract'
 import { assertInstallationAdmin } from '@cimi/guard'
 import type {
   AcceptanceJournalPort,
+  AcceptanceQuiescencePort,
   LifecycleLease,
   LifecycleLock,
   LifecycleOperationStatus,
@@ -54,6 +55,7 @@ export interface InstallationServiceDependencies {
   repository: InstallationRepository
   lock: LifecycleLock
   journal: AcceptanceJournalPort
+  acceptance?: AcceptanceQuiescencePort | undefined
   dataDirectoryReady: DataDirectoryReadiness
   clock?: (() => Date) | undefined
   ids?: InstallationIdFactory | undefined
@@ -121,6 +123,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
   private readonly repository: InstallationRepository
   private readonly lock: LifecycleLock
   private readonly journal: AcceptanceJournalPort
+  private acceptance: AcceptanceQuiescencePort | undefined
   private readonly dataDirectoryReady: () => boolean
   private readonly clock: () => Date
   private readonly ids: InstallationIdFactory
@@ -132,6 +135,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     repository,
     lock,
     journal,
+    acceptance,
     dataDirectoryReady,
     clock,
     ids,
@@ -140,6 +144,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     this.repository = repository
     this.lock = lock
     this.journal = journal
+    this.acceptance = acceptance
     this.dataDirectoryReady =
       typeof dataDirectoryReady === 'function' ? dataDirectoryReady : () => dataDirectoryReady
     this.clock = clock ?? (() => new Date())
@@ -241,6 +246,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
       }
       try {
         await this.journal.drain()
+        await this.drainAcceptance()
       } catch (error) {
         try {
           await this.repository.failUpgrade({
@@ -249,6 +255,9 @@ export class InstallationService implements LifecycleOperationStatusReader {
             errorCode: 'INTERNAL_SERVER_ERROR',
             now: this.clock(),
           })
+        } catch {}
+        try {
+          await this.acceptance?.resumeAdmission()
         } catch {}
         throw error
       }
@@ -269,6 +278,23 @@ export class InstallationService implements LifecycleOperationStatusReader {
   async getActiveOperation(): Promise<LifecycleOperationStatus | null> {
     const existing = await this.repository.find()
     return existing?.activeOperation ?? null
+  }
+
+  setAcceptanceQuiescence(acceptance: AcceptanceQuiescencePort | undefined): void {
+    this.acceptance = acceptance
+  }
+
+  private async drainAcceptance(): Promise<void> {
+    if (this.acceptance === undefined) return
+    await this.acceptance.stopAdmission()
+    await this.acceptance.drain()
+  }
+
+  private async resumeAcceptance(): Promise<void> {
+    if (this.acceptance === undefined) return
+    try {
+      await this.acceptance.resumeAdmission()
+    } catch {}
   }
 
   async stop(): Promise<void> {
@@ -384,6 +410,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
       .finally(async () => {
         if (this.upgradeTask === task) this.upgradeTask = undefined
         if (this.upgradeLease === input.lease) this.upgradeLease = undefined
+        await this.resumeAcceptance()
         await input.lease.release()
       })
     this.upgradeTask = task

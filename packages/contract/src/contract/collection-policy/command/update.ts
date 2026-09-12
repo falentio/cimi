@@ -1,10 +1,10 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { PSafePolicy, SCollectionPolicyUpdateFields } from '../schema.ts'
+import { SCollectionPolicyUpdateFields, SPolicy } from '../schema.ts'
 
 export const SCollectionPolicyUpdateInput = SCollectionPolicyUpdateFields
 export type SCollectionPolicyUpdateInput = v.InferOutput<typeof SCollectionPolicyUpdateInput>
-export const SCollectionPolicyUpdateOutput = PSafePolicy
+export const SCollectionPolicyUpdateOutput = SPolicy
 export type SCollectionPolicyUpdateOutput = v.InferOutput<typeof SCollectionPolicyUpdateOutput>
 
 export const updateCollectionPolicy = oc

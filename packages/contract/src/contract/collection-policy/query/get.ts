@@ -17,7 +17,7 @@ export const getCollectionPolicy = oc
     tags: ['collection-policy'],
     successStatus: 200,
   })
-  .meta({ auth: 'admin' })
+  .meta({ auth: 'admin', admission: 'exempt' })
   .errors({
     UNAUTHORIZED: {},
     FORBIDDEN: {},

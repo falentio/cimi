@@ -3,7 +3,7 @@ import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
 import { onError, ORPCError } from '@orpc/server'
-import { ERROR_CATALOG } from '@cimi/contract'
+import { ERROR_CATALOG, isProfileTraitsPayloadOversized } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
@@ -15,6 +15,7 @@ import {
   type ReadQuiescencePort,
 } from '@cimi/kernel'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
+import { isRecord } from '@cimi/utils'
 import { api } from './orpc.ts'
 import { createHello } from './resources/hello/index.ts'
 import {
@@ -26,14 +27,28 @@ import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createRetentionPolicy } from './resources/retention-policy/index.ts'
+import { createCollectionPolicy } from './resources/collection-policy/index.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
 import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
+import {
+  createEventIngestion,
+  InMemoryIngestionProtection,
+  AcceptanceBackupRestoreCleanup,
+  AcceptanceRetentionCleanup,
+  createIdentityProjectionDebt,
+  type IdentitySessionResolver,
+  type IngestionProtection,
+} from './resources/event-ingestion/index.ts'
+import { isParsedPayloadOversized } from './resources/event-ingestion/payload-size.ts'
+import { COLLECT_EVENT_MAX_RAW_REQUEST_BYTES, EVENT_RAW_REQUEST_LIMITS } from '@cimi/contract'
 import {
   createBackupRestore,
   type BackupRestoreCleanupPort,
   type BackupRestoreHealthSnapshot,
 } from './resources/backup-restore/index.ts'
+import { createIdentityProfile } from './resources/identity-profile/index.ts'
+import { createTrafficReport } from './resources/traffic-report/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -58,11 +73,42 @@ export interface CreateApiAppDependencies {
   controlDatabasePath: string
   dataDirectoryPath: string
   upgradeExecutor?: UpgradeExecutor | undefined
+  eventIngestionProtection?: IngestionProtection | undefined
+  eventIngestionProtectionThresholds?:
+    | {
+        siteRatePerSecond?: number
+        siteBurst?: number
+        sourceIpRatePerSecond?: number
+        sourceIpBurst?: number
+      }
+    | undefined
+  eventIngestionTrustProxyHeaders?: boolean | undefined
+  eventIngestionCountryResolver?: ((headers: Headers) => string | undefined) | undefined
+  eventIdentitySession?: IdentitySessionResolver | undefined
+  startRetentionCleanupWorker?: boolean | undefined
 }
 
 export type ApiApp = Hono & { close(): Promise<void> }
 
 const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
+
+function combineAcceptanceQuiescence(
+  primary: AcceptanceQuiescencePort,
+  secondary: AcceptanceQuiescencePort,
+): AcceptanceQuiescencePort {
+  return {
+    async stopAdmission() {
+      await Promise.all([primary.stopAdmission(), secondary.stopAdmission()])
+    },
+    async drain() {
+      const [first, second] = await Promise.all([primary.drain(), secondary.drain()])
+      return { lastSafeSequence: Math.max(first.lastSafeSequence, second.lastSafeSequence) }
+    },
+    async resumeAdmission() {
+      await Promise.all([primary.resumeAdmission(), secondary.resumeAdmission()])
+    },
+  }
+}
 
 export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   const hello = createHello({ db: deps.db })
@@ -90,7 +136,11 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lifecycle: installation.service,
     membership: membership.service,
   })
-  const siteLifecycleWorker = createSiteLifecycleWorker({ db: deps.db, lock })
+  const siteLifecycleWorker = createSiteLifecycleWorker({
+    db: deps.db,
+    lock,
+    onPurgedSite: ({ siteId }) => deps.analytics.purgeSite({ siteId }),
+  })
   siteLifecycleWorker.start()
   const installationStartup = installation.service.resumeOnStartup().catch(() => undefined)
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
@@ -99,14 +149,68 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lock,
     lifecycle: installation.service,
   })
-  retentionPolicy.worker.start()
+  const collectionPolicy = createCollectionPolicy({
+    db: deps.db,
+    lock,
+    lifecycle: installation.service,
+  })
+  const eventIngestionProtection =
+    deps.eventIngestionProtection ??
+    new InMemoryIngestionProtection(deps.eventIngestionProtectionThresholds)
+  const identityProjectionDebt = createIdentityProjectionDebt({ db: deps.db })
+  const eventIngestion = createEventIngestion({
+    db: deps.db,
+    collectionPolicy: collectionPolicy.service,
+    retention: retentionPolicy.repository,
+    lifecycleLock: lock,
+    protection: eventIngestionProtection,
+    identitySession: deps.eventIdentitySession,
+    router: {
+      trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
+      countryResolver: deps.eventIngestionCountryResolver,
+    },
+  })
+  const identityProfile = createIdentityProfile({
+    db: deps.db,
+    collectionPolicy: collectionPolicy.service,
+    membership: membership.service,
+    protection: eventIngestionProtection,
+    projectionDebt: identityProjectionDebt,
+    lifecycleLock: lock,
+    router: {
+      trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
+      countryResolver: deps.eventIngestionCountryResolver,
+    },
+  })
+  const upgradeAcceptance =
+    deps.acceptance === undefined
+      ? eventIngestion.coalescer
+      : combineAcceptanceQuiescence(eventIngestion.coalescer, deps.acceptance)
+  installation.service.setAcceptanceQuiescence(upgradeAcceptance)
+  retentionPolicy.worker.setCleanupPort(
+    new AcceptanceRetentionCleanup({
+      acceptance: eventIngestion.acceptanceRepository,
+      analytics: deps.analytics,
+      db: deps.db,
+      dataDirectoryPath: deps.dataDirectoryPath,
+      identityDebt: identityProjectionDebt,
+    }),
+  )
+  if (deps.startRetentionCleanupWorker !== false) retentionPolicy.worker.start()
   const backupRestore = createBackupRestore({
     db: deps.db,
     analytics: deps.analytics,
     lock,
-    ...(deps.acceptance === undefined ? {} : { acceptance: deps.acceptance }),
+    acceptance: upgradeAcceptance,
     ...(deps.reads === undefined ? {} : { reads: deps.reads }),
-    ...(deps.cleanup === undefined ? {} : { cleanup: deps.cleanup }),
+    cleanup:
+      deps.cleanup ??
+      new AcceptanceBackupRestoreCleanup({
+        acceptance: eventIngestion.acceptanceRepository,
+        analytics: deps.analytics,
+        db: deps.db,
+        dataDirectoryPath: deps.dataDirectoryPath,
+      }),
     dataDirectoryReady: deps.dataDirectoryReady,
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
@@ -132,9 +236,16 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       return {
         ...installationSnapshot,
         ...(admissionMode === undefined ? {} : { admissionMode }),
+        ingestion: eventIngestion.service.diagnostics,
       }
     },
   }
+  const trafficReport = createTrafficReport({
+    db: deps.db,
+    analytics: deps.analytics,
+    lifecycle,
+    dataDirectoryReady: deps.dataDirectoryReady,
+  })
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
@@ -144,9 +255,13 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     organization: organization.router,
     membership: membership.router,
     retentionPolicy: retentionPolicy.router,
+    collectionPolicy: collectionPolicy.router,
     site: site.router,
     invitation: invitation.router,
     backupRestore: backupRestore.router,
+    eventIngestion: eventIngestion.router,
+    identityProfile: identityProfile.router,
+    trafficReport: trafficReport.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
@@ -224,9 +339,16 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/*', async (c) => {
+    const rawLimit = eventRawRequestLimit(c.req.raw)
+    const request =
+      rawLimit === undefined ? c.req.raw : await readRequestWithinLimit(c.req.raw, rawLimit)
+    if (request instanceof Response) return request
+    if (rawLimit === COLLECT_EVENT_MAX_RAW_REQUEST_BYTES && (await parsedPayloadTooLarge(request)))
+      return payloadTooLargeResponse()
+    if (await identityProfilePayloadTooLarge(request)) return payloadTooLargeResponse()
     let user: AuthUser | undefined
     try {
-      user = await getUser(deps.auth, c.req.raw)
+      user = await getUser(deps.auth, request)
     } catch {
       return c.json(
         {
@@ -239,9 +361,9 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       )
     }
 
-    const { matched, response } = await openAPIHandler.handle(c.req.raw, {
+    const { matched, response } = await openAPIHandler.handle(request, {
       prefix: '/api',
-      context: { user, headers: c.req.raw.headers },
+      context: { user, headers: request.headers },
     })
     if (matched && response) return response
     return new Response('Not Found', { status: 404 })
@@ -253,6 +375,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       if (closed) return
       closed = true
       await retentionPolicy.worker.stop()
+      await eventIngestion.service.stop()
       await siteLifecycleWorker.stop()
       await backupRestoreStartup
       await backupRestore.worker.stop()
@@ -260,6 +383,76 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       await installation.service.stop()
     },
   })
+}
+
+async function readRequestWithinLimit(
+  request: Request,
+  limit: number,
+): Promise<Request | Response> {
+  const contentLength = request.headers.get('content-length')
+  if (contentLength !== null && Number(contentLength) > limit) return payloadTooLargeResponse()
+  if (request.body === null) return request
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  while (true) {
+    const next = await reader.read()
+    if (next.done) break
+    size += next.value.byteLength
+    if (size > limit) {
+      await reader.cancel()
+      return payloadTooLargeResponse()
+    }
+    chunks.push(next.value)
+  }
+
+  const body = new Uint8Array(size)
+  let offset = 0
+  for (const chunk of chunks) {
+    body.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new Request(request, { method: request.method, body: new Blob([body.buffer]) })
+}
+
+async function parsedPayloadTooLarge(request: Request): Promise<boolean> {
+  try {
+    const value: unknown = JSON.parse(await request.clone().text())
+    return isParsedPayloadOversized(value)
+  } catch {
+    return false
+  }
+}
+
+async function identityProfilePayloadTooLarge(request: Request): Promise<boolean> {
+  const path = new URL(request.url).pathname.replace(/^\/api/, '').replace(/\/+$/, '')
+  if (request.method !== 'POST' || path !== '/identity-profile/identify') return false
+  try {
+    const value: unknown = JSON.parse(await request.clone().text())
+    return isRecord(value) && isProfileTraitsPayloadOversized(value['traits'])
+  } catch {
+    return false
+  }
+}
+
+function eventRawRequestLimit(request: Request): number | undefined {
+  const path = new URL(request.url).pathname.replace(/^\/api/, '').replace(/\/+$/, '')
+  if (request.method !== 'POST') return undefined
+  return EVENT_RAW_REQUEST_LIMITS[path]
+}
+
+function payloadTooLargeResponse(): Response {
+  const definition = ERROR_CATALOG.PAYLOAD_TOO_LARGE
+  return Response.json(
+    {
+      defined: false,
+      code: definition.code,
+      status: definition.status,
+      message: definition.message,
+    },
+    { status: definition.status },
+  )
 }
 
 function getLifecycleLock(db: Db): LifecycleLock {

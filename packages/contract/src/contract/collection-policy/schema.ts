@@ -1,8 +1,32 @@
 import * as v from 'valibot'
-import { SId, SScalarKey } from '../../schema/index.ts'
+import { SId, SHostname, SScalarKey } from '../../schema/index.ts'
 export { SCollectionContext } from './transport.ts'
 
-const SPolicyValues = {
+export const POLICY_FIELDS = [
+  'anonymousCollection',
+  'honorGpcDnt',
+  'consentMode',
+  'botPolicy',
+  'captureQueryStrings',
+  'urlPolicy',
+  'propertyPolicy',
+  'profileFilterKeys',
+  'exclusions',
+] as const
+export type PolicyField = (typeof POLICY_FIELDS)[number]
+
+const SCollectionPath = v.pipe(v.string(), v.nonEmpty(), v.transform(normalizeCollectionPath))
+
+function normalizeCollectionPath(value: string): string {
+  const candidate = value.startsWith('/') ? value : `/${value}`
+  try {
+    return new URL(candidate, 'https://cimi.invalid').pathname || '/'
+  } catch {
+    return candidate
+  }
+}
+
+const policyValueEntries = {
   anonymousCollection: v.picklist(['enabled', 'disabled']),
   honorGpcDnt: v.boolean(),
   consentMode: v.picklist(['none', 'required_for_identity', 'required_for_all']),
@@ -22,31 +46,59 @@ const SPolicyValues = {
   }),
   profileFilterKeys: v.pipe(v.array(SScalarKey), v.maxLength(64)),
   exclusions: v.strictObject({
-    hostnames: v.pipe(v.array(v.string()), v.maxLength(128)),
-    paths: v.pipe(v.array(v.string()), v.maxLength(128)),
+    hostnames: v.pipe(v.array(SHostname), v.maxLength(128)),
+    paths: v.pipe(v.array(SCollectionPath), v.maxLength(128)),
     countries: v.pipe(v.array(v.string()), v.maxLength(128)),
     ipRanges: v.pipe(v.array(v.string()), v.maxLength(128)),
   }),
 }
+export const SPolicyValues = v.strictObject(policyValueEntries)
+export type PolicyValues = v.InferOutput<typeof SPolicyValues>
+
+export const DEFAULT_COLLECTION_POLICY: PolicyValues = {
+  anonymousCollection: 'enabled',
+  honorGpcDnt: true,
+  consentMode: 'required_for_identity',
+  botPolicy: 'exclude',
+  captureQueryStrings: false,
+  urlPolicy: {
+    capturePath: true,
+    captureReferrer: true,
+    stripQueryStrings: true,
+    stripSensitiveValues: true,
+  },
+  propertyPolicy: {
+    allowScalarProperties: true,
+    maxProperties: 64,
+    maxValueLength: 512,
+    reservedNames: [],
+  },
+  profileFilterKeys: [],
+  exclusions: { hostnames: [], paths: [], countries: [], ipRanges: [] },
+}
 
 export const SInstallationDefaultPolicy = v.strictObject({
   scope: v.literal('installation'),
-  ...SPolicyValues,
+  ...policyValueEntries,
 })
 export const SSiteOverridePolicy = v.strictObject({
   scope: v.literal('site'),
   siteId: SId,
-  ...SPolicyValues,
+  ...policyValueEntries,
 })
 export const SPolicy = v.variant('scope', [SInstallationDefaultPolicy, SSiteOverridePolicy])
 
 const SInstallationDefaultPolicyUpdate = v.strictObject({
   scope: v.literal('installation'),
-  policy: v.strictObject(SPolicyValues),
+  policy: SPolicyValues,
 })
 const SSiteOverridePolicyUpdate = v.strictObject({
   scope: v.literal('site'),
-  policy: v.strictObject({ siteId: SId, ...SPolicyValues }),
+  policy: v.strictObject({ siteId: SId, ...policyValueEntries }),
+})
+const SSiteOverridePolicyClear = v.strictObject({
+  scope: v.literal('site'),
+  policy: v.strictObject({ siteId: SId, clear: v.literal(true) }),
 })
 
 export const SCollectionPolicySource = v.strictObject({
@@ -68,7 +120,8 @@ export const PSafePolicy = v.strictObject({
   source: SCollectionPolicySource,
 })
 export const SCollectionPolicySiteFields = v.strictObject({ siteId: SId })
-export const SCollectionPolicyUpdateFields = v.variant('scope', [
+export const SCollectionPolicyUpdateFields = v.union([
   SInstallationDefaultPolicyUpdate,
   SSiteOverridePolicyUpdate,
+  SSiteOverridePolicyClear,
 ])

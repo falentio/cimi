@@ -42,8 +42,25 @@ export {
 } from './user-agent/index.ts'
 export { getRegistrableDomain } from './registrable-domain/index.ts'
 export {
+  addCalendarDays,
+  calendarDaysInclusive,
+  compareCalendarDates,
+  enumerateLocalBucketStarts,
+  formatLocalCalendarDate,
+  getLocalCalendarDateTime,
+  localOffsetMinutes,
+  parseLocalCalendarDate,
+  resolveLocalDateStart,
+  resolveLocalDateTimeInstants,
   resolveSiteLocalCutoff,
   resolveSiteLocalDay,
+  subtractCalendarMonths,
+  type EnumerateLocalBucketStartsInput,
+  type LocalBucketGranularity,
+  type LocalBucketStart,
+  type LocalCalendarDate,
+  type LocalCalendarDateTime,
+  type LocalWeekStart,
   type ResolveSiteLocalCutoffInput,
   type ResolveSiteLocalDayInput,
 } from './retention-time/index.ts'
@@ -60,3 +77,10 @@ export {
   type EventName,
   type UnlistenFn,
 } from './event/index.ts'
+export { canonicalJsonString, isRecord, sortedRecord } from './canonical-json/index.ts'
+export { getNestedMapValue, nestedMapValues, setNestedMapValue } from './nested-map/index.ts'
+export {
+  mergeEventAttribution,
+  parseEventAttribution,
+  type EventAttribution,
+} from './event-attribution/index.ts'

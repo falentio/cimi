@@ -1,7 +1,8 @@
 import * as v from 'valibot'
-import { and, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm'
 import { schema as contractSchema } from '@cimi/contract'
 import { schema, type Db } from '@cimi/db'
+import { generateId } from '@cimi/utils'
 import type { InstallationRepository } from './repository.ts'
 
 export interface InstallationRepositoryDrizzleDependencies {
@@ -77,6 +78,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           updatedAt: input.updatedAt,
         })
         .run()
+      insertDefaultCollectionPolicy(tx, input.id, input.createdAt)
       const row = tx
         .select()
         .from(schema.TInstallation)
@@ -145,6 +147,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
             updatedAt: input.updatedAt,
           })
           .run()
+      }
+      if (selectActiveCollectionPolicy(tx, current.id) === undefined) {
+        insertDefaultCollectionPolicy(tx, current.id, input.updatedAt)
       }
 
       const updated = tx
@@ -582,6 +587,55 @@ function selectActiveRetention(
     .limit(1)
     .all()[0]
   return policy === undefined ? undefined : toRetention(policy)
+}
+
+function selectActiveCollectionPolicy(tx: SqliteTransaction, installationId: string) {
+  return tx
+    .select({ id: schema.TCollectionPolicyRevision.id })
+    .from(schema.TCollectionPolicyRevision)
+    .where(
+      and(
+        eq(schema.TCollectionPolicyRevision.installationId, installationId),
+        eq(schema.TCollectionPolicyRevision.scope, 'installation'),
+        isNull(schema.TCollectionPolicyRevision.effectiveTo),
+      ),
+    )
+    .limit(1)
+    .all()[0]
+}
+
+function insertDefaultCollectionPolicy(
+  tx: SqliteTransaction,
+  installationId: string,
+  now: Date,
+): void {
+  const latest = tx
+    .select({ version: schema.TCollectionPolicyRevision.version })
+    .from(schema.TCollectionPolicyRevision)
+    .where(
+      and(
+        eq(schema.TCollectionPolicyRevision.installationId, installationId),
+        eq(schema.TCollectionPolicyRevision.scope, 'installation'),
+      ),
+    )
+    .orderBy(desc(schema.TCollectionPolicyRevision.version))
+    .limit(1)
+    .all()[0]
+  tx.insert(schema.TCollectionPolicyRevision)
+    .values({
+      id: generateId('cpr'),
+      installationId,
+      scope: 'installation',
+      siteId: null,
+      version: (latest?.version ?? 0) + 1,
+      policyJson: contractSchema.DEFAULT_COLLECTION_POLICY,
+      effectiveFrom: now,
+      effectiveTo: null,
+      committedAt: now,
+      createdBy: null,
+      createdAt: now,
+    })
+    .run()
 }
 
 type SqliteTransaction = Parameters<Parameters<Db['transaction']>[0]>[0]

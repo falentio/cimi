@@ -3,10 +3,19 @@ import { closeDb, schema } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
 import { createApiApp } from '../index.ts'
+import type { HealthLifecycle } from '../health.ts'
 import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 import type { UpgradeExecutor } from '../resources/installation/service.ts'
+import type { IngestionProtection } from '../resources/event-ingestion/index.ts'
 
-export async function createApiTestFixture(options: { upgradeExecutor?: UpgradeExecutor } = {}) {
+export async function createApiTestFixture(
+  options: {
+    upgradeExecutor?: UpgradeExecutor
+    eventIngestionProtection?: IngestionProtection
+    eventIngestionTrustProxyHeaders?: boolean
+    lifecycle?: HealthLifecycle
+  } = {},
+) {
   const db = createMigratedTestDb()
   try {
     const analytics = await createTestAnalyticsDb()
@@ -26,6 +35,12 @@ export async function createApiTestFixture(options: { upgradeExecutor?: UpgradeE
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
+        eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
+        startRetentionCleanupWorker: false,
+        ...(options.lifecycle === undefined ? {} : { lifecycle: options.lifecycle }),
+        ...(options.eventIngestionProtection === undefined
+          ? {}
+          : { eventIngestionProtection: options.eventIngestionProtection }),
       })
       return {
         app,

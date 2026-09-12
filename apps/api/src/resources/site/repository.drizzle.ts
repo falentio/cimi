@@ -8,6 +8,15 @@ export interface SiteRepositoryDrizzleDependencies {
 
 const RECOVERY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
 
+function liveSite(db: Db) {
+  return notExists(
+    db
+      .select({ siteId: schema.TSiteTombstone.siteId })
+      .from(schema.TSiteTombstone)
+      .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
+  )
+}
+
 export class SiteRepositoryDrizzle implements SiteRepository {
   private readonly db: Db
 
@@ -19,15 +28,23 @@ export class SiteRepositoryDrizzle implements SiteRepository {
     const rows = await this.db
       .select()
       .from(schema.TSite)
+      .where(and(eq(schema.TSite.id, siteId), liveSite(this.db)))
+      .limit(1)
+    const row = rows[0]
+    return row === undefined ? undefined : toSiteRecord(row)
+  }
+
+  async findByIngestionIdentifier(
+    ingestionIdentifier: string,
+  ): Promise<SiteRepository.SiteRecord | undefined> {
+    const rows = await this.db
+      .select()
+      .from(schema.TSite)
       .where(
         and(
-          eq(schema.TSite.id, siteId),
-          notExists(
-            this.db
-              .select({ siteId: schema.TSiteTombstone.siteId })
-              .from(schema.TSiteTombstone)
-              .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
-          ),
+          eq(schema.TSite.ingestionIdentifier, ingestionIdentifier),
+          eq(schema.TSite.status, 'active'),
+          liveSite(this.db),
         ),
       )
       .limit(1)
@@ -42,12 +59,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
     const where = and(
       eq(schema.TSite.organizationId, organizationId),
       eq(schema.TSite.status, 'active'),
-      notExists(
-        this.db
-          .select({ siteId: schema.TSiteTombstone.siteId })
-          .from(schema.TSiteTombstone)
-          .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
-      ),
+      liveSite(this.db),
     )
     const [countRow] = await this.db.select({ count: count() }).from(schema.TSite).where(where)
     const rows = await this.db
@@ -177,18 +189,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
     const rows = await this.db
       .update(schema.TSite)
       .set({ ingestionIdentifier, updatedAt: new Date() })
-      .where(
-        and(
-          eq(schema.TSite.id, siteId),
-          eq(schema.TSite.status, 'active'),
-          notExists(
-            this.db
-              .select({ siteId: schema.TSiteTombstone.siteId })
-              .from(schema.TSiteTombstone)
-              .where(eq(schema.TSiteTombstone.siteId, schema.TSite.id)),
-          ),
-        ),
-      )
+      .where(and(eq(schema.TSite.id, siteId), eq(schema.TSite.status, 'active'), liveSite(this.db)))
       .returning()
     const row = rows[0]
     return row === undefined ? undefined : toSite(row)

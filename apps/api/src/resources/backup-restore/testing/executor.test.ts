@@ -6,8 +6,301 @@ import { createTestAnalyticsDb } from '@cimi/db/testing'
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { ConfiguredSqliteExecutor } from '../executor.ts'
+import {
+  createSiteOrganizationRow,
+  createSiteRow,
+  createSiteUserRow,
+} from '../../site/fixture.drizzle.ts'
 
 describe('ConfiguredSqliteExecutor', () => {
+  it('preserves a current deleted Site when restoring an active backup', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-deleted-site-restore-test-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    migrateControlDb(db)
+    const analytics = await createTestAnalyticsDb()
+    try {
+      db.insert(schema.TUser).values(createSiteUserRow()).run()
+      db.insert(schema.TOrganization).values(createSiteOrganizationRow()).run()
+      db.insert(schema.TSite).values(createSiteRow()).run()
+      const executor = new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+      const source = await executor.captureBackup({
+        operationId: 'bop_deleted_site',
+        artifactId: 'bar_deleted_site',
+        lastSafeSequence: 1,
+      })
+      const deletedAt = new Date('2026-09-01T00:00:00.000Z')
+      db.insert(schema.TSiteLifecycleOperation)
+        .values({
+          id: 'sop_delete',
+          siteId: 'ste_1',
+          operationType: 'delete',
+          status: 'completed',
+          requestedAt: deletedAt,
+          startedAt: deletedAt,
+          completedAt: deletedAt,
+          errorSummary: null,
+          createdAt: deletedAt,
+          updatedAt: deletedAt,
+        })
+        .run()
+      db.update(schema.TSite)
+        .set({
+          status: 'deleted',
+          deleteRequestedAt: new Date('2026-08-31T00:00:00.000Z'),
+          deletedAt,
+          recoveryDeadline: new Date('2026-10-01T00:00:00.000Z'),
+          purgeAt: new Date('2026-10-01T00:00:00.000Z'),
+          currentOperationId: 'sop_delete',
+          cleanupStatus: 'pending',
+          cleanupUpdatedAt: deletedAt,
+        })
+        .where(eq(schema.TSite.id, 'ste_1'))
+        .run()
+
+      await executor.restoreSqlite({ operationId: 'bop_deleted_site', source })
+
+      expect(
+        db
+          .select({
+            status: schema.TSite.status,
+            recoveryDeadline: schema.TSite.recoveryDeadline,
+            purgeAt: schema.TSite.purgeAt,
+            currentOperationId: schema.TSite.currentOperationId,
+          })
+          .from(schema.TSite)
+          .where(eq(schema.TSite.id, 'ste_1'))
+          .all(),
+      ).toEqual([
+        {
+          status: 'deleted',
+          recoveryDeadline: new Date('2026-10-01T00:00:00.000Z'),
+          purgeAt: new Date('2026-10-01T00:00:00.000Z'),
+          currentOperationId: 'sop_delete',
+        },
+      ])
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves completed identity redactions after restoring a cleaned older backup', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-redacted-identity-restore-test-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    migrateControlDb(db)
+    const analytics = await createTestAnalyticsDb()
+    const redactedAt = new Date('2026-09-05T00:00:00.000Z')
+    try {
+      db.insert(schema.TUser).values(createSiteUserRow()).run()
+      db.insert(schema.TOrganization).values(createSiteOrganizationRow()).run()
+      db.insert(schema.TSite).values(createSiteRow()).run()
+      db.insert(schema.TInstallation)
+        .values({
+          id: 'ins_1',
+          status: 'ready',
+          eventRetentionMonths: 12,
+          profileRetentionMonths: 12,
+          replayRetentionMonths: null,
+          dataDirectoryReady: true,
+          createdAt: new Date('2026-09-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+        })
+        .run()
+      db.insert(schema.TCollectionPolicyRevision)
+        .values({
+          id: 'policy_1',
+          installationId: 'ins_1',
+          scope: 'site',
+          siteId: 'ste_1',
+          version: 1,
+          policyJson: {},
+          effectiveFrom: new Date('2026-09-01T00:00:00.000Z'),
+          effectiveTo: null,
+          committedAt: new Date('2026-09-01T00:00:00.000Z'),
+          createdBy: null,
+          createdAt: new Date('2026-09-01T00:00:00.000Z'),
+        })
+        .run()
+      db.insert(schema.TIdentityProfile)
+        .values({
+          profileId: 'profile_1',
+          siteId: 'ste_1',
+          identifiedUserId: 'user_1',
+          status: 'active',
+          profileEpoch: 1,
+          traits: { plan: 'pro' },
+          firstSeenAt: new Date('2026-09-01T00:00:00.000Z'),
+          lastSeenAt: new Date('2026-09-01T00:00:00.000Z'),
+          createdAt: new Date('2026-09-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+        })
+        .run()
+      db.insert(schema.TIdentityProfileEpoch)
+        .values({
+          profileId: 'profile_1',
+          siteId: 'ste_1',
+          identifiedUserId: 'user_1',
+          epoch: 1,
+          status: 'active',
+          startedAt: new Date('2026-09-01T00:00:00.000Z'),
+          endedAt: null,
+          redactedAt: null,
+        })
+        .run()
+      const acceptedEvent = db
+        .insert(schema.TAcceptedEvent)
+        .values({
+          siteId: 'ste_1',
+          eventId: 'event_1',
+          eventKind: 'custom_event',
+          anonymousIdentityId: null,
+          pageViewId: null,
+          occurrenceTime: new Date('2026-09-01T00:00:00.000Z'),
+          receiptTime: new Date('2026-09-02T00:00:00.000Z'),
+          late: false,
+          visitorId: 'visitor_1',
+          identifiedUserId: 'user_1',
+          analyticsSessionId: 'session_1',
+          botPolicyOutcome: 'included',
+          policyRevisionId: 'policy_1',
+          replaySequence: 1,
+          payloadFingerprint: 'fingerprint_1',
+          projectionState: 'projected',
+          projectedAt: new Date('2026-09-02T00:00:00.000Z'),
+          createdAt: new Date('2026-09-02T00:00:00.000Z'),
+        })
+        .returning({ eventPk: schema.TAcceptedEvent.eventPk })
+        .all()[0]
+      if (acceptedEvent === undefined) throw new Error('Accepted Event insert returned no row')
+      db.insert(schema.TEventPayload)
+        .values({
+          eventPk: acceptedEvent.eventPk,
+          canonicalPayloadJson: JSON.stringify({
+            eventId: 'event_1',
+            kind: 'custom_event',
+            identifiedUserId: 'user_1',
+          }),
+        })
+        .run()
+      const executor = new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+      const source = await executor.captureBackup({
+        operationId: 'bop_redacted_identity',
+        artifactId: 'bar_redacted_identity',
+        lastSafeSequence: 1,
+      })
+      db.update(schema.TIdentityProfile)
+        .set({ status: 'deleted', traits: null, updatedAt: redactedAt })
+        .where(eq(schema.TIdentityProfile.profileId, 'profile_1'))
+        .run()
+      db.update(schema.TIdentityProfileEpoch)
+        .set({ status: 'redacted', endedAt: redactedAt, redactedAt })
+        .where(eq(schema.TIdentityProfileEpoch.profileId, 'profile_1'))
+        .run()
+      db.insert(schema.TIdentityRedaction)
+        .values({
+          id: 'redaction_1',
+          siteId: 'ste_1',
+          profileId: 'profile_1',
+          identifiedUserId: 'user_1',
+          profileEpoch: 1,
+          reason: 'explicit',
+          status: 'applied',
+          requestedAt: redactedAt,
+          appliedAt: redactedAt,
+          derivedCleanupStatus: 'complete',
+          backupCleanupStatus: 'complete',
+          derivedCleanupUpdatedAt: redactedAt,
+          backupCleanupUpdatedAt: redactedAt,
+          createdAt: redactedAt,
+          updatedAt: redactedAt,
+        })
+        .run()
+
+      const scrubbedSource = await executor.captureBackup({
+        operationId: 'bop_scrubbed_identity',
+        artifactId: 'bar_scrubbed_identity',
+        lastSafeSequence: 2,
+      })
+      const scrubbedDb = createDb({ path: join(directory, scrubbedSource.storageKey) })
+      try {
+        expect(
+          scrubbedDb.$client.prepare('SELECT identified_user_id FROM accepted_event').get(),
+        ).toEqual({
+          identified_user_id: null,
+        })
+        expect(
+          JSON.parse(
+            (
+              scrubbedDb.$client
+                .prepare('SELECT canonical_payload_json FROM event_payload')
+                .get() as {
+                canonical_payload_json: string
+              }
+            ).canonical_payload_json,
+          ),
+        ).toMatchObject({ identifiedUserId: null })
+      } finally {
+        closeDb(scrubbedDb)
+      }
+
+      const cleanedOlderDb = createDb({ path: join(directory, source.storageKey) })
+      try {
+        cleanedOlderDb.$client
+          .prepare('DELETE FROM identity_profile WHERE profile_id = ?')
+          .run('profile_1')
+      } finally {
+        closeDb(cleanedOlderDb)
+      }
+
+      await executor.restoreSqlite({ operationId: 'bop_redacted_identity', source })
+
+      expect(
+        db
+          .select({
+            status: schema.TIdentityProfile.status,
+            traits: schema.TIdentityProfile.traits,
+          })
+          .from(schema.TIdentityProfile)
+          .where(eq(schema.TIdentityProfile.profileId, 'profile_1'))
+          .all(),
+      ).toEqual([{ status: 'deleted', traits: null }])
+      expect(db.$client.prepare('SELECT identified_user_id FROM accepted_event').get()).toEqual({
+        identified_user_id: null,
+      })
+      expect(
+        db.$client
+          .prepare('SELECT epoch, status FROM identity_profile_epoch WHERE profile_id = ?')
+          .get('profile_1'),
+      ).toEqual({ epoch: 1, status: 'redacted' })
+      expect(
+        JSON.parse(
+          (
+            db.$client.prepare('SELECT canonical_payload_json FROM event_payload').get() as {
+              canonical_payload_json: string
+            }
+          ).canonical_payload_json,
+        ),
+      ).toMatchObject({ identifiedUserId: null })
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
   it('captures, validates, and restores a configured SQLite generation', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-backup-test-'))
     const controlDatabasePath = join(directory, 'control.sqlite')

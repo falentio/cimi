@@ -34,7 +34,11 @@ export type LifecycleErrorCode =
   | 'CONFLICT'
   | 'INTERNAL_SERVER_ERROR'
 
-export type LifecycleLockKind = PersistedLifecycleOperationKind | 'initialization'
+export type LifecycleLockKind =
+  | PersistedLifecycleOperationKind
+  | 'initialization'
+  | 'collection_policy'
+  | 'ingestion'
 
 export const LIFECYCLE_OPERATION_PHASES = [
   'pre_upgrade_safety',
@@ -74,8 +78,11 @@ export interface LifecycleLease {
 }
 
 export interface LifecycleLock {
-  acquire(kind: LifecycleOperationKind | 'initialization'): PortResult<LifecycleLease | undefined>
+  acquire(
+    kind: LifecycleOperationKind | 'initialization' | 'collection_policy' | 'ingestion',
+  ): PortResult<LifecycleLease | undefined>
   isLocked(): PortResult<boolean>
+  heldKind?(): PortResult<LifecycleLockKind | null>
 }
 
 export interface LifecycleOperationStatusReader {
@@ -148,29 +155,50 @@ export class InMemoryRetentionResolver implements RetentionResolver {
 }
 
 export class InMemoryLifecycleLock implements LifecycleLock {
-  #lease: { readonly token: symbol; readonly kind: LifecycleLockKind } | undefined
+  #exclusiveLease: { readonly token: symbol; readonly kind: LifecycleLockKind } | undefined
+  #ingestionLeases = new Set<symbol>()
 
-  acquire(kind: LifecycleOperationKind | 'initialization'): LifecycleLease | undefined {
-    if (this.#lease !== undefined) return undefined
+  acquire(
+    kind: LifecycleOperationKind | 'initialization' | 'collection_policy' | 'ingestion',
+  ): LifecycleLease | undefined {
+    if (kind === 'ingestion') {
+      if (this.#exclusiveLease !== undefined) return undefined
+      const token = Symbol('ingestion-lease')
+      this.#ingestionLeases.add(token)
+      return {
+        kind: 'ingestion',
+        release: () => {
+          this.#ingestionLeases.delete(token)
+        },
+      }
+    }
+    if (this.#exclusiveLease !== undefined || this.#ingestionLeases.size > 0) return undefined
     const lease = {
       token: Symbol('lifecycle-lease'),
-      kind: kind === 'initialization' ? kind : normalizeLifecycleOperationKind(kind),
+      kind:
+        kind === 'initialization' || kind === 'collection_policy'
+          ? kind
+          : normalizeLifecycleOperationKind(kind),
     }
-    this.#lease = lease
+    this.#exclusiveLease = lease
     return {
       kind: lease.kind,
       release: () => {
-        if (this.#lease?.token === lease.token) this.#lease = undefined
+        if (this.#exclusiveLease?.token === lease.token) this.#exclusiveLease = undefined
       },
     }
   }
 
   isLocked(): boolean {
-    return this.#lease !== undefined
+    return this.#exclusiveLease !== undefined || this.#ingestionLeases.size > 0
+  }
+
+  heldKind(): LifecycleLockKind | null {
+    return this.#exclusiveLease?.kind ?? (this.#ingestionLeases.size > 0 ? 'ingestion' : null)
   }
 
   get kind(): LifecycleLockKind | undefined {
-    return this.#lease?.kind
+    return this.#exclusiveLease?.kind ?? (this.#ingestionLeases.size > 0 ? 'ingestion' : undefined)
   }
 }
 

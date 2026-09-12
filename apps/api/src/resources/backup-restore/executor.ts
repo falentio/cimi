@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve } from 'node:path'
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray, ne } from 'drizzle-orm'
 import {
   ControlMigrationIncompatibilityError,
   closeDb,
@@ -20,6 +20,7 @@ import {
   type RetentionManifest,
   type RetentionManifestBoundary,
 } from './retention-manifest.ts'
+import { scrubAcceptedEventIdentity, scrubCanonicalEventPayloads } from './identity-redaction.ts'
 
 export { BackupIncompatibilityError } from './errors.ts'
 export class InsufficientStorageError extends Error {}
@@ -159,6 +160,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         'SELECT id, site_id AS siteId, profile_id AS profileId, identified_user_id AS identifiedUserId, profile_epoch AS profileEpoch, reason, status, requested_at AS requestedAt, applied_at AS appliedAt, derived_cleanup_status AS derivedCleanupStatus, backup_cleanup_status AS backupCleanupStatus, derived_cleanup_updated_at AS derivedCleanupUpdatedAt, backup_cleanup_updated_at AS backupCleanupUpdatedAt, created_at AS createdAt, updated_at AS updatedAt FROM identity_redaction',
       )
       .all() as RedactionRow[]
+    const siteLifecycle = this.captureSiteLifecycle()
     const lifecycle = this.captureRestoreLifecycle(input.operationId)
     const path = this.resolveStoragePath(input.source.storageKey, 'backups')
     await restoreDbFromBackup({
@@ -181,6 +183,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         this.restoreTombstones(stagedDb, tombstones)
         this.restoreRedactions(stagedDb, redactions)
         if (lifecycle !== undefined) this.restoreLifecycle(stagedDb, lifecycle, input.source)
+        this.restoreSiteLifecycle(stagedDb, siteLifecycle, input.operationId)
       },
     })
   }
@@ -324,7 +327,9 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     try {
       await mkdir(dirname(path), { recursive: true })
       const retentionManifest = input.kind === 'source' ? this.captureRetentionManifest() : null
+      const redactions = this.captureIdentityRedactions()
       await this.db.$client.backup(path)
+      this.scrubCapturedIdentityData(path, redactions)
       const artifactStats = await stat(path)
       if (!artifactStats.isFile() || artifactStats.size === 0) {
         throw new InsufficientStorageError('SQLite artifact is empty')
@@ -390,6 +395,37 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       updatedAt: row.updatedAt,
     }))
     return { version: 1, boundaries }
+  }
+
+  private captureIdentityRedactions(): readonly RedactionRow[] {
+    return this.db.$client
+      .prepare(
+        `SELECT id, site_id AS siteId, profile_id AS profileId,
+                identified_user_id AS identifiedUserId, profile_epoch AS profileEpoch,
+                reason, status, requested_at AS requestedAt, applied_at AS appliedAt,
+                derived_cleanup_status AS derivedCleanupStatus,
+                backup_cleanup_status AS backupCleanupStatus,
+                derived_cleanup_updated_at AS derivedCleanupUpdatedAt,
+                backup_cleanup_updated_at AS backupCleanupUpdatedAt,
+                created_at AS createdAt, updated_at AS updatedAt
+         FROM identity_redaction`,
+      )
+      .all() as RedactionRow[]
+  }
+
+  private scrubCapturedIdentityData(path: string, redactions: readonly RedactionRow[]): void {
+    if (redactions.length === 0) return
+    const backupDb = createDb({ path })
+    try {
+      backupDb.$client.transaction(() => {
+        for (const redaction of redactions) {
+          this.applyRedactionToDatabase(backupDb, redaction)
+        }
+      })()
+      backupDb.$client.pragma('wal_checkpoint(TRUNCATE)')
+    } finally {
+      closeDb(backupDb)
+    }
   }
 
   private restoreRetentionManifest(db: Db, source: SourceManifest): void {
@@ -474,6 +510,91 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     }
   }
 
+  private captureSiteLifecycle(): readonly SiteLifecycleState[] {
+    const sites = this.db.select().from(schema.TSite).where(ne(schema.TSite.status, 'active')).all()
+    const operationIds = sites.flatMap((site) =>
+      site.currentOperationId === null ? [] : [site.currentOperationId],
+    )
+    const operations =
+      operationIds.length === 0
+        ? []
+        : this.db
+            .select()
+            .from(schema.TSiteLifecycleOperation)
+            .where(inArray(schema.TSiteLifecycleOperation.id, operationIds))
+            .all()
+    const operationsById = new Map(operations.map((operation) => [operation.id, operation]))
+    return sites.map((site) => ({
+      site,
+      operation:
+        site.currentOperationId === null ? undefined : operationsById.get(site.currentOperationId),
+    }))
+  }
+
+  private restoreSiteLifecycle(
+    db: Db,
+    rows: readonly SiteLifecycleState[],
+    restoreOperationId: string,
+  ): void {
+    const findSite = db.$client.prepare('SELECT 1 FROM site WHERE id = ?')
+    const updateSite = db.$client.prepare(
+      `UPDATE site
+       SET status = ?, delete_requested_at = ?, deleted_at = ?, recovery_deadline = ?, purge_at = ?,
+           purged_at = ?, current_operation_id = ?, cleanup_status = ?, cleanup_updated_at = ?,
+           cleanup_error = ?
+       WHERE id = ?`,
+    )
+    const insertOperation = db.$client.prepare(
+      'INSERT OR IGNORE INTO site_lifecycle_operation (id, site_id, operation_type, status, requested_at, started_at, completed_at, error_summary, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    const insertTombstone = db.$client.prepare(
+      'INSERT OR REPLACE INTO site_tombstone (site_id, organization_id, hostname, purge_operation_id, purged_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    for (const row of rows) {
+      const site = row.site
+      if (findSite.get(site.id) !== undefined) {
+        updateSite.run(
+          site.status,
+          site.deleteRequestedAt?.getTime() ?? null,
+          site.deletedAt?.getTime() ?? null,
+          site.recoveryDeadline?.getTime() ?? null,
+          site.purgeAt?.getTime() ?? null,
+          site.purgedAt?.getTime() ?? null,
+          site.currentOperationId,
+          site.cleanupStatus,
+          site.cleanupUpdatedAt?.getTime() ?? null,
+          site.cleanupError,
+          site.id,
+        )
+        if (row.operation !== undefined) {
+          const operation = row.operation
+          insertOperation.run(
+            operation.id,
+            operation.siteId,
+            operation.operationType,
+            operation.status,
+            operation.requestedAt.getTime(),
+            operation.startedAt?.getTime() ?? null,
+            operation.completedAt?.getTime() ?? null,
+            operation.errorSummary,
+            operation.createdAt.getTime(),
+            operation.updatedAt.getTime(),
+          )
+        }
+        continue
+      }
+      const tombstoneTime = site.purgedAt ?? site.deletedAt ?? site.createdAt
+      insertTombstone.run(
+        site.id,
+        site.organizationId,
+        site.hostname,
+        site.currentOperationId ?? restoreOperationId,
+        tombstoneTime.getTime(),
+        site.createdAt.getTime(),
+      )
+    }
+  }
+
   private restoreRedactions(db: Db, rows: readonly RedactionRow[]): void {
     const insert = db.$client.prepare(
       'INSERT OR REPLACE INTO identity_redaction (id, site_id, profile_id, identified_user_id, profile_epoch, reason, status, requested_at, applied_at, derived_cleanup_status, backup_cleanup_status, derived_cleanup_updated_at, backup_cleanup_updated_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -483,13 +604,44 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     const hasEpoch = db.$client.prepare(
       'SELECT 1 FROM identity_profile_epoch WHERE profile_id = ? AND epoch = ?',
     )
+    const insertProfile = db.$client.prepare(
+      `INSERT OR IGNORE INTO identity_profile
+       (profile_id, site_id, identified_user_id, status, profile_epoch, traits,
+        first_seen_at, last_seen_at, created_at, updated_at)
+       VALUES (?, ?, ?, 'deleted', ?, NULL, ?, ?, ?, ?)`,
+    )
+    const insertEpoch = db.$client.prepare(
+      `INSERT OR IGNORE INTO identity_profile_epoch
+       (profile_id, site_id, identified_user_id, epoch, status, started_at, ended_at, redacted_at)
+       VALUES (?, ?, ?, ?, 'redacted', ?, ?, ?)`,
+    )
     for (const row of rows) {
-      if (
-        hasSite.get(row.siteId) === undefined ||
-        hasProfile.get(row.profileId) === undefined ||
-        hasEpoch.get(row.profileId, row.profileEpoch) === undefined
-      ) {
-        continue
+      if (hasSite.get(row.siteId) === undefined) continue
+      const profileExists = hasProfile.get(row.profileId) !== undefined
+      if (!profileExists) {
+        insertProfile.run(
+          row.profileId,
+          row.siteId,
+          row.identifiedUserId,
+          row.profileEpoch,
+          row.requestedAt,
+          row.requestedAt,
+          row.createdAt,
+          row.updatedAt,
+        )
+      }
+      const epochExists = hasEpoch.get(row.profileId, row.profileEpoch) !== undefined
+      if (!epochExists) {
+        const redactedAt = row.appliedAt ?? row.requestedAt
+        insertEpoch.run(
+          row.profileId,
+          row.siteId,
+          row.identifiedUserId,
+          row.profileEpoch,
+          row.requestedAt,
+          redactedAt,
+          redactedAt,
+        )
       }
       insert.run(
         row.id,
@@ -508,6 +660,64 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         row.createdAt,
         row.updatedAt,
       )
+      this.applyRedactionToDatabase(db, row, !epochExists)
+    }
+  }
+
+  private applyRedactionToDatabase(db: Db, row: RedactionRow, scrubAll = false): void {
+    const epoch = db.$client
+      .prepare(
+        `SELECT started_at AS startedAt, ended_at AS endedAt
+         FROM identity_profile_epoch
+         WHERE profile_id = ? AND epoch = ?`,
+      )
+      .get(row.profileId, row.profileEpoch) as
+      | { readonly startedAt: number; readonly endedAt: number | null }
+      | undefined
+    const profile = db.$client
+      .prepare(
+        `SELECT profile_epoch AS profileEpoch
+         FROM identity_profile
+         WHERE profile_id = ?`,
+      )
+      .get(row.profileId) as { readonly profileEpoch: number | null } | undefined
+    const redactedAt = row.appliedAt ?? row.requestedAt
+    const boundary = {
+      siteId: row.siteId,
+      identifiedUserId: row.identifiedUserId,
+      epochStartedAt: scrubAll ? null : (epoch?.startedAt ?? null),
+      epochEndedAt: scrubAll ? null : (epoch?.endedAt ?? null),
+    }
+    scrubCanonicalEventPayloads(db, boundary)
+    scrubAcceptedEventIdentity(db, boundary)
+    if (epoch === undefined) return
+    db.$client
+      .prepare(
+        `UPDATE identity_profile_epoch
+         SET status = 'redacted', ended_at = COALESCE(ended_at, ?),
+             redacted_at = COALESCE(redacted_at, ?)
+         WHERE profile_id = ? AND epoch = ?`,
+      )
+      .run(redactedAt, redactedAt, row.profileId, row.profileEpoch)
+    db.$client
+      .prepare(
+        `UPDATE identity_link
+         SET unlinked_at = COALESCE(unlinked_at, ?)
+         WHERE profile_id = ? AND profile_epoch = ?`,
+      )
+      .run(redactedAt, row.profileId, row.profileEpoch)
+    if (profile?.profileEpoch === row.profileEpoch) {
+      db.$client
+        .prepare(
+          `UPDATE identity_profile
+           SET status = ?, traits = NULL, updated_at = ?
+           WHERE profile_id = ?`,
+        )
+        .run(
+          row.derivedCleanupStatus === 'complete' ? 'deleted' : 'deleting',
+          redactedAt,
+          row.profileId,
+        )
     }
   }
 
@@ -667,6 +877,11 @@ interface RestoreLifecycleState {
   readonly cleanupStages: readonly (typeof schema.TBackupCleanupStage.$inferSelect)[]
   readonly sourceOperation: typeof schema.TBackupOperation.$inferSelect | undefined
   readonly sourceCleanupStages: readonly (typeof schema.TBackupCleanupStage.$inferSelect)[]
+}
+
+interface SiteLifecycleState {
+  readonly site: typeof schema.TSite.$inferSelect
+  readonly operation: typeof schema.TSiteLifecycleOperation.$inferSelect | undefined
 }
 
 export function classifyStorageExhausted(error: unknown): boolean {

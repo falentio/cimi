@@ -7,7 +7,7 @@ import { InvitationService } from './service.ts'
 import { hashInvitationToken } from './token.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
-const expiresAt = new Date('2026-09-08T00:00:00.000Z')
+const invitationLifetimeMs = 7 * 24 * 60 * 60 * 1000
 
 export interface InvitationFixtureOptions {
   readonly membership?: OrganizationMembershipReconciler | undefined
@@ -58,6 +58,7 @@ function createReconcilerMock(): OrganizationMembershipReconciler {
 export function createInvitationRecord(
   overrides: Partial<InvitationRepository.InvitationRecord> = {},
 ): InvitationRepository.InvitationRecord {
+  const expiresAt = new Date(Date.now() + invitationLifetimeMs)
   return {
     id: 'inv_1',
     organizationId: 'org_1',

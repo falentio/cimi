@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isRecord } from '@cimi/utils'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { closeDb, createDb, type Db } from './client.ts'
 
@@ -135,8 +136,4 @@ function loadControlMigrationManifest(migrationsFolder: string): readonly Migrat
       hash: createHash('sha256').update(sql).digest('hex'),
     }
   })
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
