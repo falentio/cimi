@@ -42,7 +42,7 @@ async function createOwnerSite(
   })
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
-  await seedRetentionCutoff(db, site.id)
+  seedRetentionCutoff(db, site.id)
   return { cookie: owner.cookie, siteId: site.id }
 }
 

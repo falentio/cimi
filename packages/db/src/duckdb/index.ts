@@ -1075,11 +1075,8 @@ function timestamp(value: number | null): string | null {
 function readInstant(value: unknown): Date | null {
   if (value === null || value === undefined) return null
   if (value instanceof Date) return value
-  if (typeof value === 'bigint' || typeof value === 'number') {
-    const parsed = new Date(Number(value))
-    return Number.isNaN(parsed.getTime()) ? null : parsed
-  }
-  const parsed = new Date(String(value))
+  if (typeof value !== 'number' && typeof value !== 'bigint') return null
+  const parsed = new Date(Number(value))
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
