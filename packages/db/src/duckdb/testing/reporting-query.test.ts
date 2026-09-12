@@ -143,6 +143,405 @@ function createQuery(analytics: DuckDbReportingQueryDependencies['analytics']) {
   return new DuckDbReportingQuery({ analytics })
 }
 
+interface BreakdownSeedEvent {
+  readonly session: string
+  readonly visitor: string
+  readonly kind: string
+  readonly at: number
+  readonly pagePath?: string | undefined
+  readonly device?: string | null | undefined
+  readonly browser?: string | null | undefined
+  readonly os?: string | null | undefined
+  readonly country?: string | null | undefined
+  readonly referrer?: string | null | undefined
+  readonly utmSource?: string | null | undefined
+  readonly utmMedium?: string | null | undefined
+  readonly utmCampaign?: string | null | undefined
+}
+
+/**
+ * Seeds attributed accepted events so the projection writes session attribution columns. The first
+ * event of a Session (earliest occurrence) supplies entry_page and the attribution columns.
+ */
+function seedBreakdownEvents(db: Db, events: readonly BreakdownSeedEvent[]): void {
+  const now = DAY_ONE
+  db.$client
+    .prepare(
+      'INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run('user-1', 'User', 'user@example.com', 1, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO organization (id, name, owner_user_id, is_personal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run('org-1', 'Organization', 'user-1', 0, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(SITE, 'org-1', 'Site', 'example.com', 'ing-1', now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO installation (id, status, data_directory_ready, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+    )
+    .run('ins-1', 'ready', 1, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO collection_policy_revision (id, installation_id, scope, version, policy_json, effective_from, committed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run('pol-1', 'ins-1', 'installation', 1, '{}', now, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO retention_policy (id, installation_id, scope, event_months, profile_months, version, status, effective_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run('rtn-1', 'ins-1', 'installation', 1, 1, 1, 'active', now, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO retention_effective_cutoff (site_id, installation_id, policy_id, reporting_timezone, local_day, event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at, effective_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(
+      SITE,
+      'ins-1',
+      'rtn-1',
+      'UTC',
+      '2026-09-05',
+      DAY_ONE - 1,
+      DAY_ONE - 1,
+      DAY_ONE - 1,
+      now,
+      now,
+    )
+
+  const insertEvent = db.$client.prepare(
+    `INSERT INTO accepted_event (
+       event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id,
+       analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint,
+       projection_state, created_at, device_type, browser, operating_system, country,
+       utm_source, utm_medium, utm_campaign
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  const insertPageView = db.$client.prepare(
+    `INSERT INTO event_page_view (event_pk, page_path, referrer)
+     SELECT event_pk, ?, ? FROM accepted_event WHERE site_id = ? AND event_id = ?`,
+  )
+  let sequence = 0
+  for (const event of events) {
+    sequence += 1
+    const eventId = `evt-${sequence}`
+    insertEvent.run(
+      sequence,
+      SITE,
+      eventId,
+      event.kind,
+      event.at,
+      event.at,
+      event.visitor,
+      event.session,
+      'pol-1',
+      sequence,
+      `fp-${sequence}`,
+      'pending',
+      event.at,
+      event.device ?? null,
+      event.browser ?? null,
+      event.os ?? null,
+      event.country ?? null,
+      event.utmSource ?? null,
+      event.utmMedium ?? null,
+      event.utmCampaign ?? null,
+    )
+    if (event.pagePath !== undefined) {
+      insertPageView.run(event.pagePath, event.referrer ?? null, SITE, eventId)
+    }
+  }
+
+  db.$client
+    .prepare(
+      'INSERT INTO projection_checkpoint (site_id, projected_replay_sequence, occurrence_covered_from, occurrence_covered_through, statistics_refreshed_at, readiness, projection_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(SITE, sequence, DAY_ONE, DAY_TWO + 3_000, now, 'ready', 'v5', now)
+}
+
+const ATTRIBUTED_DAY = DAY_ONE + 10 * 60 * 60 * 1000
+
+/**
+ * Five attributed Sessions: two device=desktop, one device=mobile, and two with no device so the
+ * NULL row is excluded. Session s3 sees two distinct pages.
+ */
+function attributedEvents(): readonly BreakdownSeedEvent[] {
+  return [
+    {
+      session: 's1',
+      visitor: 'v1',
+      kind: 'page_view',
+      at: ATTRIBUTED_DAY,
+      pagePath: '/a',
+      device: 'desktop',
+      browser: 'chrome',
+      os: 'macos',
+      country: 'US',
+      referrer: 'https://search.example',
+      utmSource: 'newsletter',
+      utmMedium: 'email',
+      utmCampaign: 'launch',
+    },
+    {
+      session: 's2',
+      visitor: 'v2',
+      kind: 'page_view',
+      at: ATTRIBUTED_DAY + 1,
+      pagePath: '/a',
+      device: 'desktop',
+      browser: 'firefox',
+      os: 'linux',
+      country: 'US',
+      utmSource: 'newsletter',
+      utmMedium: 'email',
+    },
+    {
+      session: 's3',
+      visitor: 'v3',
+      kind: 'page_view',
+      at: ATTRIBUTED_DAY + 2,
+      pagePath: '/a',
+      device: 'mobile',
+      browser: 'safari',
+      os: 'ios',
+      country: 'CA',
+    },
+    {
+      session: 's3',
+      visitor: 'v3',
+      kind: 'page_view',
+      at: ATTRIBUTED_DAY + 3,
+      pagePath: '/b',
+    },
+    { session: 's4', visitor: 'v4', kind: 'page_view', at: ATTRIBUTED_DAY + 4, pagePath: '/b' },
+    { session: 's5', visitor: 'v5', kind: 'page_view', at: ATTRIBUTED_DAY + 5, pagePath: '/b' },
+  ]
+}
+
+function breakdownPeriod() {
+  return periods().current
+}
+
+describe('DuckDbReportingQuery.trafficBreakdown', () => {
+  it('groups page rows by distinct sessions that viewed each path', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'page',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+
+      expect(result.rows).toEqual([
+        { value: '/a', count: 3 },
+        { value: '/b', count: 3 },
+      ])
+      expect(result.totalCount).toBe(2)
+      expect(result.denominator).toBe(5)
+      expect(result.hasMore).toBe(false)
+      expect(result.nextOffset).toBeNull()
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('groups entry_page and excludes NULL session attribution from the rows', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+
+      const entry = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'entry_page',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+      expect(entry.rows).toEqual([
+        { value: '/a', count: 3 },
+        { value: '/b', count: 2 },
+      ])
+      expect(entry.denominator).toBe(5)
+
+      const device = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'device',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+      expect(device.rows).toEqual([
+        { value: 'desktop', count: 2 },
+        { value: 'mobile', count: 1 },
+      ])
+      expect(device.totalCount).toBe(2)
+      expect(device.denominator).toBe(5)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('orders by count descending with a value tie-break and paginates deterministically', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+
+      const first = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'page',
+        sort: 'count',
+        direction: 'desc',
+        offset: 0,
+        limit: 1,
+        filterPlan: emptyPlan,
+      })
+      expect(first.rows).toEqual([{ value: '/a', count: 3 }])
+      expect(first.totalCount).toBe(2)
+      expect(first.hasMore).toBe(true)
+      expect(first.nextOffset).toBe(1)
+
+      const second = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'page',
+        sort: 'count',
+        direction: 'desc',
+        offset: first.nextOffset ?? -1,
+        limit: 1,
+        filterPlan: emptyPlan,
+      })
+      expect(second.rows).toEqual([{ value: '/b', count: 3 }])
+      expect(second.hasMore).toBe(false)
+      expect(second.nextOffset).toBeNull()
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('returns an empty page for exit_page and region while keeping the session denominator', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+
+      const exit = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'exit_page',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+      expect(exit.rows).toEqual([])
+      expect(exit.totalCount).toBe(0)
+      expect(exit.denominator).toBe(5)
+
+      const region = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'region',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+      expect(region.rows).toEqual([])
+      expect(region.totalCount).toBe(0)
+      expect(region.denominator).toBe(5)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('combines non-null utm parts into one value and drops the all-null row', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'utm',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+
+      expect(result.rows).toEqual([
+        { value: 'newsletter / email', count: 1 },
+        { value: 'newsletter / email / launch', count: 1 },
+      ])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('clamps each value to the contract maximum length', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      const longPath = `/${'x'.repeat(3000)}`
+      seedBreakdownEvents(controlDb, [
+        { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY, pagePath: longPath },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'page',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+
+      expect(result.rows).toHaveLength(1)
+      expect(result.rows[0]!.value).toHaveLength(2048)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
 describe('DuckDbReportingQuery.trafficAggregate', () => {
   it('aggregates facts and sparse trend buckets over the resolved window', async () => {
     const controlDb = createMigratedTestDb()

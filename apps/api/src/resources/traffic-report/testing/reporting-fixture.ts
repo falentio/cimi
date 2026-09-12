@@ -109,11 +109,20 @@ interface SeedEvent {
   readonly kind: 'page_view' | 'custom_event' | 'outbound' | 'performance' | 'error'
   readonly at: number
   readonly pagePath?: string | undefined
+  readonly referrer?: string | null | undefined
+  readonly device?: string | null | undefined
+  readonly browser?: string | null | undefined
+  readonly os?: string | null | undefined
+  readonly country?: string | null | undefined
+  readonly utmSource?: string | null | undefined
+  readonly utmMedium?: string | null | undefined
+  readonly utmCampaign?: string | null | undefined
 }
 
 /**
  * Seeds accepted events for a Site so a rebuild projects them. Only the columns the projection
- * reads are populated; the acceptance metadata is synthesized per event.
+ * reads are populated; the acceptance metadata is synthesized per event. Optional attribution and
+ * page-view columns drive the session attribution a breakdown reads.
  */
 export function seedAcceptedEvents(db: Db, siteId: string, events: readonly SeedEvent[]): void {
   const policyId = db.$client
@@ -124,8 +133,9 @@ export function seedAcceptedEvents(db: Db, siteId: string, events: readonly Seed
     `INSERT INTO accepted_event (
        site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id,
        analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint,
-       projection_state, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+       projection_state, created_at, device_type, browser, operating_system, country,
+       utm_source, utm_medium, utm_campaign
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   const sequenceBase = readMaxReplaySequence(db)
   events.forEach((event, index) => {
@@ -142,14 +152,21 @@ export function seedAcceptedEvents(db: Db, siteId: string, events: readonly Seed
       sequenceBase + index + 1,
       `fp-${siteId}-${sequenceBase + index + 1}`,
       event.at,
+      event.device ?? null,
+      event.browser ?? null,
+      event.os ?? null,
+      event.country ?? null,
+      event.utmSource ?? null,
+      event.utmMedium ?? null,
+      event.utmCampaign ?? null,
     )
     if (event.pagePath !== undefined) {
       db.$client
         .prepare(
-          `INSERT INTO event_page_view (event_pk, page_path)
-           SELECT event_pk, ? FROM accepted_event WHERE site_id = ? AND event_id = ?`,
+          `INSERT INTO event_page_view (event_pk, page_path, referrer)
+           SELECT event_pk, ?, ? FROM accepted_event WHERE site_id = ? AND event_id = ?`,
         )
-        .run(event.pagePath, siteId, eventId)
+        .run(event.pagePath, event.referrer ?? null, siteId, eventId)
     }
   })
 }

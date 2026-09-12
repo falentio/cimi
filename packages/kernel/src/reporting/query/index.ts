@@ -13,6 +13,11 @@ export type { ReportingQueryPort } from './ports.ts'
 export type {
   TrafficAggregateQuery,
   TrafficAggregateResult,
+  TrafficBreakdownDimension,
+  TrafficBreakdownQuery,
+  TrafficBreakdownResult,
+  TrafficBreakdownRowFacts,
+  BreakdownSort,
   TrafficMetricsFacts,
   TrafficTrendBucket,
 } from './traffic-types.ts'

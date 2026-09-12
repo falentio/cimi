@@ -62,6 +62,13 @@ function createService() {
     },
     trend: [],
   })
+  query.trafficBreakdown.mockResolvedValue({
+    rows: [],
+    totalCount: 0,
+    denominator: 0,
+    hasMore: false,
+    nextOffset: null,
+  })
   const scope = new InMemorySiteScopePort(
     [{ siteId: 'ste-1', organizationId: 'org-1' }],
     [{ organizationId: 'org-1', userId: 'user-1', role: 'owner' }],

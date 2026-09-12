@@ -1,5 +1,6 @@
 import {
   createInstantMs,
+  type BreakdownSort,
   type Predicate,
   type PredicateOperator,
   type PredicateValue,
@@ -8,6 +9,10 @@ import {
   type ReportingQueryPort,
   type TrafficAggregateQuery,
   type TrafficAggregateResult,
+  type TrafficBreakdownDimension,
+  type TrafficBreakdownQuery,
+  type TrafficBreakdownResult,
+  type TrafficBreakdownRowFacts,
   type TrafficMetricsFacts,
   type TrafficTrendBucket,
 } from '@cimi/kernel'
@@ -52,6 +57,19 @@ const IDENTITY_KIND_TO_STORE: Readonly<Record<string, string>> = {
   identified_user: 'identified',
 }
 
+const BREAKDOWN_VALUE_MAX_LENGTH = 2048
+
+const BREAKDOWN_SESSION_COLUMNS: Partial<Record<TrafficBreakdownDimension, string>> = {
+  entry_page: 'entry_page',
+  referrer: 'referrer',
+  device: 'device',
+  browser: 'browser',
+  os: 'operating_system',
+  country: 'country',
+  region: 'region',
+  city: 'city',
+}
+
 export class DuckDbReportingQuery implements ReportingQueryPort {
   constructor(private readonly deps: DuckDbReportingQueryDependencies) {}
 
@@ -70,6 +88,104 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
         : []
       return { metrics, trend }
     })
+  }
+
+  async trafficBreakdown(query: TrafficBreakdownQuery): Promise<TrafficBreakdownResult> {
+    return this.deps.analytics.readWindowed(async (reader) => {
+      const predicate = renderFilterPlan(query.filterPlan)
+      const denominator = await this.readFilteredSessionCount(reader, query, predicate)
+      if (query.dimension === 'exit_page') {
+        return { rows: [], totalCount: 0, denominator, hasMore: false, nextOffset: null }
+      }
+
+      const totalCount = await this.readBreakdownGroupCount(reader, query, predicate)
+      const rows = await this.readBreakdownRows(reader, query, predicate)
+      const hasMore = query.offset + query.limit < totalCount
+      return {
+        rows,
+        totalCount,
+        denominator,
+        hasMore,
+        nextOffset: hasMore ? query.offset + query.limit : null,
+      }
+    })
+  }
+
+  private async readFilteredSessionCount(
+    reader: AnalyticsWindowReader,
+    query: TrafficBreakdownQuery,
+    predicate: RenderedFragment,
+  ): Promise<number> {
+    const sql = `WITH windowed AS (
+  SELECT e.analytics_session_id AS session_id
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicate.sql}
+)
+SELECT count(DISTINCT session_id) AS denominator
+FROM windowed
+WHERE session_id IS NOT NULL`
+    const rows = await reader.read(sql, [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      ...predicate.args,
+    ])
+    return readCount(rows[0]?.['denominator'])
+  }
+
+  private async readBreakdownGroupCount(
+    reader: AnalyticsWindowReader,
+    query: TrafficBreakdownQuery,
+    predicate: RenderedFragment,
+  ): Promise<number> {
+    const grouped = breakdownGroupCte(query.dimension)
+    const sql = `WITH ${sessionScopeCte(predicate.sql)},
+${grouped.cte}
+SELECT count(DISTINCT value) AS total_count
+FROM breakdown_values`
+    const rows = await reader.read(sql, [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      ...predicate.args,
+      ...breakdownJoinArgs(query.dimension, query.siteId),
+    ])
+    return readCount(rows[0]?.['total_count'])
+  }
+
+  private async readBreakdownRows(
+    reader: AnalyticsWindowReader,
+    query: TrafficBreakdownQuery,
+    predicate: RenderedFragment,
+  ): Promise<readonly TrafficBreakdownRowFacts[]> {
+    const grouped = breakdownGroupCte(query.dimension)
+    const order = breakdownOrderSql(query.sort, query.direction)
+    const sql = `WITH ${sessionScopeCte(predicate.sql)},
+${grouped.cte}
+SELECT value,
+       count(DISTINCT session_id) AS session_count
+FROM breakdown_values
+GROUP BY value
+ORDER BY ${order}, value ASC
+LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
+    const rows = await reader.read(sql, [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      ...predicate.args,
+      ...breakdownJoinArgs(query.dimension, query.siteId),
+      query.limit,
+      query.offset,
+    ])
+    const facts: TrafficBreakdownRowFacts[] = []
+    for (const row of rows) {
+      const raw = row['value']
+      if (typeof raw !== 'string' || raw.length === 0) continue
+      facts.push({ value: clampValue(raw), count: readCount(row['session_count']) })
+    }
+    return facts
   }
 
   private async readMetrics(
@@ -182,6 +298,80 @@ ORDER BY buckets.bucket_index`
 function readCount(value: unknown): number {
   const parsed = Number(value ?? 0)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function clampValue(value: string): string {
+  return value.length > BREAKDOWN_VALUE_MAX_LENGTH
+    ? value.slice(0, BREAKDOWN_VALUE_MAX_LENGTH)
+    : value
+}
+
+/**
+ * The windowed-session scan shared by every breakdown leg. `page` partitions over the page_view
+ * paths the session saw, everything else partitions over one `analytics_sessions` attribution
+ * column, so the CTE keeps the filtered session ids and projects the per-dimension value source.
+ */
+function sessionScopeCte(predicateSql: string): string {
+  return `windowed AS (
+  SELECT e.analytics_session_id AS session_id,
+         e.event_kind AS event_kind,
+         e.page_path AS page_path
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
+)`
+}
+
+interface BreakdownGroupCte {
+  readonly cte: string
+}
+
+function breakdownGroupCte(dimension: TrafficBreakdownDimension): BreakdownGroupCte {
+  if (dimension === 'page') {
+    return {
+      cte: `breakdown_values AS (
+  SELECT DISTINCT windowed.session_id AS session_id, trim(windowed.page_path) AS value
+  FROM windowed
+  WHERE windowed.event_kind = 'page_view'
+    AND windowed.session_id IS NOT NULL
+    AND windowed.page_path IS NOT NULL
+    AND trim(windowed.page_path) <> ''
+)`,
+    }
+  }
+
+  const value = breakdownSessionValueExpression(dimension)
+  return {
+    cte: `breakdown_values AS (
+  SELECT windowed.session_id AS session_id, ${value} AS value
+  FROM (SELECT DISTINCT session_id FROM windowed WHERE session_id IS NOT NULL) windowed
+  JOIN analytics_sessions session
+    ON session.site_id = ? AND session.session_id = windowed.session_id
+  WHERE ${value} IS NOT NULL
+)`,
+  }
+}
+
+function breakdownSessionValueExpression(dimension: TrafficBreakdownDimension): string {
+  if (dimension === 'utm') {
+    return "NULLIF(concat_ws(' / ', NULLIF(trim(session.utm_source), ''), NULLIF(trim(session.utm_medium), ''), NULLIF(trim(session.utm_campaign), '')), '')"
+  }
+  const column = BREAKDOWN_SESSION_COLUMNS[dimension]
+  if (column === undefined) {
+    throw new Error(`Unsupported traffic breakdown dimension '${dimension}'`)
+  }
+  return `session.${column}`
+}
+
+function breakdownOrderSql(sort: BreakdownSort, direction: 'asc' | 'desc'): string {
+  const order = direction === 'desc' ? 'DESC' : 'ASC'
+  if (sort === 'value') return `value ${order}`
+  return `count(DISTINCT session_id) ${order}`
+}
+
+function breakdownJoinArgs(dimension: TrafficBreakdownDimension, siteId: string): BoundValue[] {
+  return dimension === 'page' ? [] : [siteId]
 }
 
 /** DuckDB cannot cast a bound BIGINT to TIMESTAMP, so instants bind as ISO strings. */
