@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
+import { VisArea, VisAxis, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ChartConfig } from '@/components/ui/chart'
 import {
@@ -18,8 +18,6 @@ interface ChartDatum {
   readonly label: string
   readonly current: number
   readonly previous: number
-  readonly currentSolid: number | undefined
-  readonly currentDotted: number | undefined
 }
 
 const props = defineProps<{
@@ -40,11 +38,11 @@ const chartData = computed<ChartDatum[]>(() =>
       label,
       current,
       previous,
-      currentSolid: index <= currentTailIndex.value ? current : undefined,
-      currentDotted: index >= currentTailIndex.value ? current : undefined,
     }
   }),
 )
+const solidChartData = computed(() => chartData.value.slice(0, currentTailIndex.value + 1))
+const dottedChartData = computed(() => chartData.value.slice(currentTailIndex.value))
 const xDomain = computed<[number, number]>(() => [0, Math.max(chartData.value.length - 1, 1)])
 const yDomain = computed<[number, number]>(() => [0, maxValue.value])
 const xTickValues = computed(() => chartData.value.map((point) => point.index))
@@ -73,10 +71,6 @@ function formatYTick(value: number | Date): string {
   return typeof value === 'number' ? value.toLocaleString() : ''
 }
 
-function lineDashArray(_data: ChartDatum[], seriesIndex: number): number[] | undefined {
-  return seriesIndex === 1 ? [2, 8] : undefined
-}
-
 const chartSummary = computed(() => {
   const currentEnd = props.trend.current.at(-1) ?? 0
   const previousEnd = props.trend.previous.at(-1) ?? 0
@@ -99,19 +93,37 @@ const chartSummary = computed(() => {
         role="img"
         :aria-label="chartSummary"
       >
-        <VisXYContainer :data="chartData" :x-domain="xDomain" :y-domain="yDomain">
-          <VisLine
+        <VisXYContainer :x-domain="xDomain" :y-domain="yDomain">
+          <VisArea
+            :data="chartData"
             :x="(d: ChartDatum) => d.index"
             :y="(d: ChartDatum) => d.previous"
             :color="chartConfig.previous.color"
+            :opacity="0.08"
+            :line="true"
+            :line-color="chartConfig.previous.color"
             :line-width="2"
           />
-          <VisLine
+          <VisArea
+            :data="solidChartData"
             :x="(d: ChartDatum) => d.index"
-            :y="[(d: ChartDatum) => d.currentSolid, (d: ChartDatum) => d.currentDotted]"
-            :color="[chartConfig.current.color, chartConfig.current.color]"
+            :y="(d: ChartDatum) => d.current"
+            :color="chartConfig.current.color"
+            :opacity="0.14"
+            :line="true"
+            :line-color="chartConfig.current.color"
             :line-width="2.5"
-            :line-dash-array="lineDashArray"
+          />
+          <VisArea
+            :data="dottedChartData"
+            :x="(d: ChartDatum) => d.index"
+            :y="(d: ChartDatum) => d.current"
+            :color="chartConfig.current.color"
+            :opacity="0"
+            :line="true"
+            :line-color="chartConfig.current.color"
+            :line-width="2.5"
+            :line-dash-array="[2, 8]"
           />
           <VisAxis
             type="x"
@@ -133,6 +145,7 @@ const chartSummary = computed(() => {
           />
           <ChartTooltip />
           <ChartCrosshair
+            :data="chartData"
             :x="(d: ChartDatum) => d.index"
             :y="[(d: ChartDatum) => d.current, (d: ChartDatum) => d.previous]"
             :color="[chartConfig.current.color, chartConfig.previous.color]"

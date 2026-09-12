@@ -21,6 +21,7 @@ import type {
   BreakdownTabId,
   OverviewFixture,
   OverviewMetric,
+  OverviewMetricId,
   OverviewRange,
   OverviewRangeOption,
   OverviewTrend,
@@ -31,6 +32,16 @@ import BreakdownGrid from './BreakdownGrid.vue'
 import MetricGrid from './MetricGrid.vue'
 import OverviewChart from './OverviewChart.vue'
 import OverviewToolbar from './OverviewToolbar.vue'
+
+const selectedMetricIds = shallowRef<readonly OverviewMetricId[]>([])
+
+function handleMetricToggle(id: OverviewMetricId): void {
+  selectedMetricIds.value = selectedMetricIds.value.includes(id) ? [] : [id]
+}
+
+function clearMetricSelection(): void {
+  selectedMetricIds.value = []
+}
 
 const rangeOptions: readonly OverviewRangeOption[] = [
   { value: '7d', label: 'Last 7 days' },
@@ -355,7 +366,12 @@ function handleBreakdownTabChange(payload: {
     </Empty>
 
     <template v-else>
-      <MetricGrid :metrics="overviewFixture.metrics" />
+      <MetricGrid
+        :metrics="overviewFixture.metrics"
+        :selected-ids="selectedMetricIds"
+        @toggle="handleMetricToggle"
+        @clear="clearMetricSelection"
+      />
       <OverviewChart
         :trend="overviewFixture.trends[selectedRange]"
         :range-label="selectedRangeLabel"

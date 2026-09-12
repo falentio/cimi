@@ -22,6 +22,8 @@ export interface OverviewMetric {
   readonly sparkline: readonly number[]
 }
 
+export type OverviewMetricId = OverviewMetric['id']
+
 export interface RankingRow {
   readonly id: string
   readonly label: string
