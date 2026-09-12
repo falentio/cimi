@@ -8,6 +8,7 @@ export {
   type EventFilterInput,
   type TrafficFilterInput,
 } from './compile-filter.ts'
+export { fillBuckets, type BucketCount, type FilledBucket } from './bucket-fill.ts'
 export type {
   EventKind,
   Predicate,
