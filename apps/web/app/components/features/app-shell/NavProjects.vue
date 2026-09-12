@@ -1,0 +1,37 @@
+<script setup lang="ts">
+import { HugeiconsIcon } from '@hugeicons/vue'
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
+import { isNavItemActive, type NavGroup } from './nav-config'
+
+defineProps<{
+  group: NavGroup
+}>()
+
+const route = useRoute()
+</script>
+
+<template>
+  <SidebarGroup>
+    <SidebarGroupLabel v-if="group.label">{{ group.label }}</SidebarGroupLabel>
+    <SidebarMenu>
+      <SidebarMenuItem v-for="item in group.items" :key="item.to">
+        <SidebarMenuButton
+          as-child
+          :is-active="isNavItemActive(route.path, item.to)"
+          :tooltip="item.title"
+        >
+          <NuxtLink :to="item.to">
+            <HugeiconsIcon :icon="item.icon" :size="16" aria-hidden="true" />
+            <span>{{ item.title }}</span>
+          </NuxtLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  </SidebarGroup>
+</template>
