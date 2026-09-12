@@ -11,7 +11,7 @@ import {
   ChartTooltipContent,
   componentToString,
 } from '@/components/ui/chart'
-import type { OverviewTrend } from './site-overview.types'
+import type { OverviewMetric, OverviewTrend } from './site-overview.types'
 
 interface ChartDatum {
   readonly index: number
@@ -21,6 +21,7 @@ interface ChartDatum {
 }
 
 const props = defineProps<{
+  readonly metric: OverviewMetric
   readonly trend: OverviewTrend
   readonly rangeLabel: string
 }>()
@@ -68,13 +69,14 @@ function formatXTick(value: number | Date): string {
 }
 
 function formatYTick(value: number | Date): string {
-  return typeof value === 'number' ? value.toLocaleString() : ''
+  if (typeof value !== 'number') return ''
+  return props.metric.unit === 'percent' ? `${value}%` : value.toLocaleString()
 }
 
 const chartSummary = computed(() => {
   const currentEnd = props.trend.current.at(-1) ?? 0
   const previousEnd = props.trend.previous.at(-1) ?? 0
-  return `Traffic trend for ${props.rangeLabel}. The current period ends at ${currentEnd.toLocaleString()} and the previous period ends at ${previousEnd.toLocaleString()}.`
+  return `${props.metric.label} trend for ${props.rangeLabel}. The current period ends at ${currentEnd.toLocaleString()} and the previous period ends at ${previousEnd.toLocaleString()}.`
 })
 </script>
 
@@ -82,7 +84,7 @@ const chartSummary = computed(() => {
   <Card class="min-w-0">
     <CardHeader class="gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div class="min-w-0">
-        <CardTitle>Traffic over time</CardTitle>
+        <CardTitle>{{ metric.label }} over time</CardTitle>
         <CardDescription>Current period compared with the previous period.</CardDescription>
       </div>
     </CardHeader>

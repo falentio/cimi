@@ -11,6 +11,8 @@ export interface OverviewRangeOption {
 
 export type ChangeKind = 'positive' | 'negative' | 'neutral'
 
+export type OverviewMetricUnit = 'count' | 'percent' | 'duration'
+
 export interface OverviewMetric {
   readonly id: string
   readonly label: string
@@ -20,6 +22,8 @@ export interface OverviewMetric {
   readonly comparison: string
   readonly icon: OverviewIcon
   readonly sparkline: readonly number[]
+  readonly unit: OverviewMetricUnit
+  readonly trends: Readonly<Record<OverviewRange, OverviewTrendSeries>>
 }
 
 export type OverviewMetricId = OverviewMetric['id']
@@ -62,15 +66,19 @@ export type VisibleBreakdownSection = Omit<BreakdownSection, 'rows'> & {
   readonly rows: readonly RankingRow[]
 }
 
-export interface OverviewTrend {
-  readonly labels: readonly string[]
+export interface OverviewTrendSeries {
   readonly current: readonly number[]
   readonly previous: readonly number[]
   readonly currentTailIndex: number
 }
 
+export interface OverviewTrend extends OverviewTrendSeries {
+  readonly labels: readonly string[]
+}
+
 export interface OverviewFixture {
   readonly metrics: readonly OverviewMetric[]
-  readonly trends: Readonly<Record<OverviewRange, OverviewTrend>>
+  readonly rangeLabels: Readonly<Record<OverviewRange, readonly string[]>>
+  readonly defaultMetricId: OverviewMetricId
   readonly breakdowns: readonly BreakdownSection[]
 }
