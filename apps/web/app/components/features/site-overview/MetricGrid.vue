@@ -2,8 +2,16 @@
 import { computed } from 'vue'
 import { ArrowDownRight01Icon, ArrowUpRight01Icon, MinusSignIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
+import { VisLine, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent } from '@/components/ui/card'
+import type { ChartConfig } from '@/components/ui/chart'
+import { ChartContainer } from '@/components/ui/chart'
 import type { ChangeKind, OverviewIcon, OverviewMetric } from './site-overview.types'
+
+interface SparklinePoint {
+  readonly index: number
+  readonly value: number
+}
 
 const props = defineProps<{
   readonly metrics: readonly OverviewMetric[]
@@ -21,27 +29,30 @@ const changeClasses: Readonly<Record<ChangeKind, string>> = {
   neutral: 'text-muted-foreground',
 }
 
-function sparklinePath(values: readonly number[]): string {
-  if (values.length === 0) return ''
+const sparklineConfig = {
+  value: {
+    label: 'Trend',
+    color: 'var(--primary)',
+  },
+} satisfies ChartConfig
+
+function sparklineData(values: readonly number[]): SparklinePoint[] {
+  if (values.length === 0) return []
 
   const min = Math.min(...values)
   const max = Math.max(...values)
   const span = max === min ? 1 : max - min
-  const step = values.length === 1 ? 0 : 100 / (values.length - 1)
 
-  return values
-    .map((value, index) => {
-      const x = index * step
-      const y = 24 - ((value - min) / span) * 18
-      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
-    })
-    .join(' ')
+  return values.map((value, index) => ({
+    index,
+    value: (value - min) / span,
+  }))
 }
 
 const metricCells = computed(() =>
   props.metrics.map((metric) => ({
     metric,
-    sparklinePath: sparklinePath(metric.sparkline),
+    sparklineData: sparklineData(metric.sparkline),
   })),
 )
 </script>
@@ -52,7 +63,7 @@ const metricCells = computed(() =>
       <CardContent class="p-0">
         <ul class="grid min-w-0 list-none gap-px bg-border sm:grid-cols-2 xl:grid-cols-3">
           <li
-            v-for="{ metric, sparklinePath: path } in metricCells"
+            v-for="{ metric, sparklineData: data } in metricCells"
             :key="metric.id"
             class="min-w-0 bg-card px-4 py-4"
           >
@@ -88,21 +99,26 @@ const metricCells = computed(() =>
                 </span>
                 <span class="text-muted-foreground">{{ metric.comparison }}</span>
               </div>
-              <svg
-                class="text-primary/70 h-8 w-full"
-                viewBox="0 0 100 28"
-                preserveAspectRatio="none"
+              <ChartContainer
+                :config="sparklineConfig"
+                class="aspect-auto h-8 min-h-0 min-w-0 w-full"
                 aria-hidden="true"
               >
-                <path
-                  :d="path"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                />
-              </svg>
+                <VisXYContainer
+                  :data="data"
+                  :x-domain="[0, Math.max(data.length - 1, 1)]"
+                  :y-domain="[0, 1]"
+                  :auto-margin="false"
+                  :padding="{ top: 2, right: 0, bottom: 2, left: 0 }"
+                >
+                  <VisLine
+                    :x="(point: SparklinePoint) => point.index"
+                    :y="(point: SparklinePoint) => point.value"
+                    :color="sparklineConfig.value.color"
+                    :line-width="2"
+                  />
+                </VisXYContainer>
+              </ChartContainer>
               <span class="sr-only">
                 {{ metric.label }} changed {{ metric.change }} {{ metric.comparison }}.
               </span>

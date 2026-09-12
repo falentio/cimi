@@ -1,11 +1,25 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import type { ChartConfig } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartCrosshair,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  componentToString,
+} from '@/components/ui/chart'
 import type { OverviewTrend } from './site-overview.types'
 
-interface ChartPoint {
-  readonly x: number
-  readonly y: number
+interface ChartDatum {
+  readonly index: number
+  readonly label: string
+  readonly current: number
+  readonly previous: number
+  readonly currentSolid: number | undefined
+  readonly currentDotted: number | undefined
 }
 
 const props = defineProps<{
@@ -13,63 +27,55 @@ const props = defineProps<{
   readonly rangeLabel: string
 }>()
 
-const chartWidth = 960
-const chartHeight = 300
-const plotLeft = 32
-const plotRight = 16
-const plotTop = 18
-const plotBottom = 42
-const plotWidth = chartWidth - plotLeft - plotRight
-const plotHeight = chartHeight - plotTop - plotBottom
-
-const pointCount = computed(() => Math.max(props.trend.labels.length, 1))
 const maxValue = computed(() => Math.max(1, ...props.trend.current, ...props.trend.previous))
-
-function toPoints(values: readonly number[]): readonly ChartPoint[] {
-  return values.map((value, index) => {
-    const x = plotLeft + (pointCount.value === 1 ? 0 : (index / (pointCount.value - 1)) * plotWidth)
-    const y = plotTop + plotHeight - (value / maxValue.value) * plotHeight
-    return { x, y }
-  })
-}
-
-function pathFor(points: readonly ChartPoint[]): string {
-  return points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-    .join(' ')
-}
-
-const currentPoints = computed(() => toPoints(props.trend.current))
-const previousPoints = computed(() => toPoints(props.trend.previous))
-const tailStartIndex = computed(() =>
-  Math.min(Math.max(props.trend.currentTailIndex, 0), Math.max(currentPoints.value.length - 1, 0)),
+const currentTailIndex = computed(() =>
+  Math.min(Math.max(props.trend.currentTailIndex, 0), Math.max(props.trend.labels.length - 1, 0)),
 )
-const solidCurrentPoints = computed(() => currentPoints.value.slice(0, tailStartIndex.value + 1))
-const dottedCurrentPoints = computed(() => currentPoints.value.slice(tailStartIndex.value))
-const previousPath = computed(() => pathFor(previousPoints.value))
-const solidCurrentPath = computed(() => pathFor(solidCurrentPoints.value))
-const dottedCurrentPath = computed(() => pathFor(dottedCurrentPoints.value))
-const currentAreaPath = computed(() => {
-  const points = solidCurrentPoints.value
-  const first = points[0]
-  const last = points.at(-1)
-  if (first === undefined || last === undefined || points.length < 2) return ''
-  return `${pathFor(points)} L ${last.x.toFixed(2)} ${plotTop + plotHeight} L ${first.x.toFixed(2)} ${plotTop + plotHeight} Z`
+const chartData = computed<ChartDatum[]>(() =>
+  props.trend.labels.map((label, index) => {
+    const current = props.trend.current[index] ?? 0
+    const previous = props.trend.previous[index] ?? 0
+    return {
+      index,
+      label,
+      current,
+      previous,
+      currentSolid: index <= currentTailIndex.value ? current : undefined,
+      currentDotted: index >= currentTailIndex.value ? current : undefined,
+    }
+  }),
+)
+const xDomain = computed<[number, number]>(() => [0, Math.max(chartData.value.length - 1, 1)])
+const yDomain = computed<[number, number]>(() => [0, maxValue.value])
+const xTickValues = computed(() => chartData.value.map((point) => point.index))
+
+const chartConfig = {
+  current: {
+    label: 'Current period',
+    color: 'var(--primary)',
+  },
+  previous: {
+    label: 'Previous period',
+    color: 'var(--muted-foreground)',
+  },
+} satisfies ChartConfig
+
+const tooltipTemplate = componentToString(chartConfig, ChartTooltipContent, {
+  labelKey: 'label',
+  indicator: 'line',
 })
 
-const yTicks = computed(() =>
-  [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
-    label: Math.round(maxValue.value * ratio).toLocaleString(),
-    y: plotTop + plotHeight - ratio * plotHeight,
-  })),
-)
+function formatXTick(value: number | Date): string {
+  return typeof value === 'number' ? (chartData.value[value]?.label ?? '') : ''
+}
 
-const xLabels = computed(() =>
-  props.trend.labels.map((label, index) => ({
-    label,
-    x: plotLeft + (pointCount.value === 1 ? 0 : (index / (pointCount.value - 1)) * plotWidth),
-  })),
-)
+function formatYTick(value: number | Date): string {
+  return typeof value === 'number' ? value.toLocaleString() : ''
+}
+
+function lineDashArray(_data: ChartDatum[], seriesIndex: number): number[] | undefined {
+  return seriesIndex === 1 ? [2, 8] : undefined
+}
 
 const chartSummary = computed(() => {
   const currentEnd = props.trend.current.at(-1) ?? 0
@@ -85,102 +91,57 @@ const chartSummary = computed(() => {
         <CardTitle>Traffic over time</CardTitle>
         <CardDescription>Current period compared with the previous period.</CardDescription>
       </div>
-      <div
-        class="flex shrink-0 flex-wrap items-center gap-3 text-muted-foreground text-xs"
-        role="group"
-        aria-label="Chart legend"
-      >
-        <span class="inline-flex items-center gap-1.5">
-          <span class="bg-primary size-2 rounded-full" aria-hidden="true" />
-          Current period
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="bg-muted-foreground/40 size-2 rounded-full" aria-hidden="true" />
-          Previous period
-        </span>
-      </div>
     </CardHeader>
     <CardContent class="pt-0">
-      <div class="min-w-0">
-        <svg
-          class="text-foreground block h-auto min-h-64 w-full"
-          viewBox="0 0 960 300"
-          role="img"
-          aria-labelledby="overview-chart-title overview-chart-description"
-        >
-          <title id="overview-chart-title">Traffic trend for {{ props.rangeLabel }}</title>
-          <desc id="overview-chart-description">{{ chartSummary }}</desc>
-          <g aria-hidden="true">
-            <line
-              v-for="(tick, index) in yTicks"
-              :key="index"
-              :x1="plotLeft"
-              :x2="chartWidth - plotRight"
-              :y1="tick.y"
-              :y2="tick.y"
-              class="text-border"
-              stroke="currentColor"
-              stroke-width="1"
-            />
-            <text
-              v-for="(tick, index) in yTicks"
-              :key="`label-${index}`"
-              :x="plotLeft - 8"
-              :y="tick.y + 4"
-              class="fill-foreground text-[11px]"
-              text-anchor="end"
-            >
-              {{ tick.label }}
-            </text>
-            <text
-              v-for="label in xLabels"
-              :key="label.label"
-              :x="label.x"
-              :y="chartHeight - 12"
-              class="fill-foreground text-[11px]"
-              text-anchor="middle"
-            >
-              {{ label.label }}
-            </text>
-            <path
-              :d="previousPath"
-              class="text-muted-foreground/40"
-              fill="none"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-            />
-            <path
-              v-if="currentAreaPath"
-              :d="currentAreaPath"
-              class="text-primary/10"
-              fill="currentColor"
-              stroke="none"
-            />
-            <path
-              :d="solidCurrentPath"
-              class="text-primary"
-              fill="none"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-            />
-            <path
-              :d="dottedCurrentPath"
-              class="text-primary"
-              fill="none"
-              stroke="currentColor"
-              stroke-dasharray="2 8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-            />
-          </g>
-        </svg>
-        <p class="sr-only">{{ chartSummary }}</p>
-      </div>
+      <ChartContainer
+        :config="chartConfig"
+        class="min-h-64 w-full"
+        role="img"
+        :aria-label="chartSummary"
+      >
+        <VisXYContainer :data="chartData" :x-domain="xDomain" :y-domain="yDomain">
+          <VisLine
+            :x="(d: ChartDatum) => d.index"
+            :y="(d: ChartDatum) => d.previous"
+            :color="chartConfig.previous.color"
+            :line-width="2"
+          />
+          <VisLine
+            :x="(d: ChartDatum) => d.index"
+            :y="[(d: ChartDatum) => d.currentSolid, (d: ChartDatum) => d.currentDotted]"
+            :color="[chartConfig.current.color, chartConfig.current.color]"
+            :line-width="2.5"
+            :line-dash-array="lineDashArray"
+          />
+          <VisAxis
+            type="x"
+            :x="(d: ChartDatum) => d.index"
+            :tick-values="xTickValues"
+            :tick-format="formatXTick"
+            :tick-line="false"
+            :domain-line="false"
+            :grid-line="false"
+            :tick-text-hide-overlapping="true"
+          />
+          <VisAxis
+            type="y"
+            :tick-format="formatYTick"
+            :tick-line="false"
+            :domain-line="false"
+            :grid-line="true"
+            :num-ticks="5"
+          />
+          <ChartTooltip />
+          <ChartCrosshair
+            :x="(d: ChartDatum) => d.index"
+            :y="[(d: ChartDatum) => d.current, (d: ChartDatum) => d.previous]"
+            :color="[chartConfig.current.color, chartConfig.previous.color]"
+            :template="tooltipTemplate"
+          />
+        </VisXYContainer>
+        <ChartLegendContent />
+      </ChartContainer>
+      <p class="sr-only">{{ chartSummary }}</p>
     </CardContent>
   </Card>
 </template>
