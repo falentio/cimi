@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
 import { InMemorySiteScopePort } from '@cimi/guard'
+import { ORPCError } from '@orpc/server'
 import {
   createCalendarDate,
   createInstantMs,
@@ -47,7 +48,7 @@ const ticket: ReportAdmissionTicket = {
   },
 }
 
-function createService() {
+function createService(profileFilterKeys: readonly string[]) {
   const admission = mock<ReportingAdmissionService>()
   admission.admit.mockResolvedValue(ticket)
   const query = mock<ReportingQueryPort>()
@@ -63,60 +64,85 @@ function createService() {
     },
     trend: [],
   })
-  query.trafficBreakdown.mockResolvedValue({
-    rows: [],
-    totalCount: 0,
-    denominator: 0,
-    hasMore: false,
-    nextOffset: null,
-  })
+  const port = mock<ReportingProfileFilterPort>()
+  port.getProfileFilterKeys.mockResolvedValue(profileFilterKeys)
   const scope = new InMemorySiteScopePort(
     [{ siteId: 'ste-1', organizationId: 'org-1' }],
     [{ organizationId: 'org-1', userId: 'user-1', role: 'owner' }],
   )
-  const profileFilterKeys = mock<ReportingProfileFilterPort>()
-  profileFilterKeys.getProfileFilterKeys.mockResolvedValue([])
   return {
     service: new TrafficReportService({
       admission,
       query,
-      profileFilterKeys,
+      profileFilterKeys: port,
       scope: { siteScope: scope, membership: scope },
     }),
-    admission,
+    query,
+    port,
   }
 }
 
-describe('traffic report Fact-Work budget by family', () => {
-  it('requests the aggregate budget for an overview', async () => {
-    const { service, admission } = createService()
+const profileFilter = {
+  scope: 'profile' as const,
+  field: 'trait.plan',
+  operator: 'equals' as const,
+  values: ['pro'],
+}
+
+describe('traffic report profile trait gate', () => {
+  it('resolves the Site policy then passes an approved trait filter to the query', async () => {
+    const { service, query, port } = createService(['plan'])
 
     await service.getOverview(
-      { siteId: 'ste-1', fromDate: '2026-09-05', toDate: '2026-09-06', granularity: 'day' },
-      { id: 'user-1' },
-    )
-
-    expect(admission.admit).toHaveBeenCalledWith(
-      expect.objectContaining({ work: expect.objectContaining({ budget: 25_000_000 }) }),
-    )
-  })
-
-  it('requests the breakdown budget for a breakdown', async () => {
-    const { service, admission } = createService()
-
-    await service.getBreakdowns(
       {
         siteId: 'ste-1',
         fromDate: '2026-09-05',
         toDate: '2026-09-06',
         granularity: 'day',
-        dimension: 'page',
+        filters: [profileFilter],
       },
       { id: 'user-1' },
     )
 
-    expect(admission.admit).toHaveBeenCalledWith(
-      expect.objectContaining({ work: expect.objectContaining({ budget: 10_000_000 }) }),
-    )
+    expect(port.getProfileFilterKeys).toHaveBeenCalledWith('ste-1')
+    const aggregate = query.trafficAggregate.mock.calls[0]?.[0]
+    expect(aggregate?.filterPlan.profile).toEqual([
+      { target: 'profile.trait', propertyKey: 'plan', operator: 'eq', bind: ['pro'] },
+    ])
+  })
+
+  it('rejects an unapproved trait filter before reaching the query', async () => {
+    const { service, query } = createService([])
+
+    await expect(
+      service.getOverview(
+        {
+          siteId: 'ste-1',
+          fromDate: '2026-09-05',
+          toDate: '2026-09-06',
+          granularity: 'day',
+          filters: [profileFilter],
+        },
+        { id: 'user-1' },
+      ),
+    ).rejects.toBeInstanceOf(ORPCError)
+    expect(query.trafficAggregate).not.toHaveBeenCalled()
+  })
+
+  it('does not resolve the policy when the caller fails the site scope check', async () => {
+    const { service, port } = createService(['plan'])
+
+    await expect(
+      service.getOverview(
+        {
+          siteId: 'ste-1',
+          fromDate: '2026-09-05',
+          toDate: '2026-09-06',
+          granularity: 'day',
+        },
+        undefined,
+      ),
+    ).rejects.toBeInstanceOf(ORPCError)
+    expect(port.getProfileFilterKeys).not.toHaveBeenCalled()
   })
 })

@@ -26,6 +26,7 @@ import {
   type EventRowFacts,
   type FreshnessEvidence,
   type ReportFilterPlan,
+  type ReportingProfileFilterPort,
   type ReportingQueryPort,
   type ResolvedPeriod,
   type SiteId,
@@ -51,7 +52,7 @@ const ROW_LIST_DISTINCT_OPERATIONS = 1
 export interface EventReportServiceDependencies {
   readonly admission: ReportingAdmissionService
   readonly query: ReportingQueryPort
-  readonly profileFilterKeys: readonly string[] | (() => readonly string[])
+  readonly profileFilterKeys: ReportingProfileFilterPort
   readonly scope: SiteScopeGuardDependencies
 }
 
@@ -65,7 +66,7 @@ export class EventReportService {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'aggregate')
     const siteId = createSiteId(input.siteId)
-    const filterPlan = this.compileFilters(input)
+    const filterPlan = await this.compileFilters(input, siteId)
     const eventKind = input.eventKind
 
     const current = await this.overviewPeriod(
@@ -97,7 +98,7 @@ export class EventReportService {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'aggregate')
     const siteId = createSiteId(input.siteId)
-    const filterPlan = this.compileFilters(input)
+    const filterPlan = await this.compileFilters(input, siteId)
     const eventKind = input.eventKind
 
     const current = await this.timeseriesPeriod(
@@ -129,7 +130,7 @@ export class EventReportService {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'row-list')
     const siteId = createSiteId(input.siteId)
-    const filterPlan = this.compileFilters(input)
+    const filterPlan = await this.compileFilters(input, siteId)
     const offset = input.offset ?? 0
     const limit = input.limit ?? DEFAULT_ROW_LIMIT
 
@@ -163,7 +164,7 @@ export class EventReportService {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'breakdown')
     const siteId = createSiteId(input.siteId)
-    const filterPlan = this.compileFilters(input)
+    const filterPlan = await this.compileFilters(input, siteId)
     const field = breakdownFieldForKind(input.eventKind)
     const sort = input.sort ?? 'value'
     const direction = input.direction ?? 'asc'
@@ -194,13 +195,11 @@ export class EventReportService {
     }
   }
 
-  private compileFilters(
+  private async compileFilters(
     input: EventOverviewInput | EventTimeseriesInput | EventListInput | EventBreakdownsInput,
-  ): ReportFilterPlan {
-    const profileFilterKeys =
-      typeof this.deps.profileFilterKeys === 'function'
-        ? this.deps.profileFilterKeys()
-        : this.deps.profileFilterKeys
+    siteId: SiteId,
+  ): Promise<ReportFilterPlan> {
+    const profileFilterKeys = await this.deps.profileFilterKeys.getProfileFilterKeys(siteId)
     const result = compileEventFilterPlan({
       filters: (input.filters ?? []).map(toEventFilterInput),
       profileFilterKeys,

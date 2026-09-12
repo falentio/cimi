@@ -28,6 +28,7 @@ import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createRetentionPolicy } from './resources/retention-policy/index.ts'
 import { createCollectionPolicy } from './resources/collection-policy/index.ts'
+import { CollectionPolicyReportingProfileFilter } from './resources/collection-policy/reporting-profile-filter.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
 import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
@@ -241,19 +242,22 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       }
     },
   }
+  const reportingProfileFilter = new CollectionPolicyReportingProfileFilter({
+    collectionPolicy: collectionPolicy.service,
+  })
   const trafficReport = createTrafficReport({
     db: deps.db,
     analytics: deps.analytics,
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
-    profileFilterKeys: [],
+    profileFilterKeys: reportingProfileFilter,
   })
   const eventReport = createEventReport({
     db: deps.db,
     analytics: deps.analytics,
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
-    profileFilterKeys: [],
+    profileFilterKeys: reportingProfileFilter,
   })
   const router = api.router({
     health: {

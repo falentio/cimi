@@ -34,6 +34,7 @@ export type {
   TrafficMetricsFacts,
   TrafficTrendBucket,
 } from './traffic-types.ts'
+export { ReportingQueryUnsupportedError } from './types.ts'
 export type {
   EventKind,
   Predicate,

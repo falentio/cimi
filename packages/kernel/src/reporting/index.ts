@@ -15,6 +15,7 @@ export type {
   ReportingEvidencePort,
   ReportingEvidenceRequest,
   ReportingMetadataPort,
+  ReportingProfileFilterPort,
   ReportingProjectionPort,
   ReportingRetentionPort,
   ReportingStatisticsPort,

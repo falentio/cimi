@@ -62,3 +62,14 @@ export interface ReportFilterPlan {
   readonly sessionPresence: readonly PresencePredicate[]
   readonly requiresProfileJoin: boolean
 }
+
+/**
+ * A filter the store cannot serve is a caller error, not a transient failure. The adapter throws
+ * this so the resource maps it to BAD_REQUEST instead of a misleading SERVICE_UNAVAILABLE.
+ */
+export class ReportingQueryUnsupportedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ReportingQueryUnsupportedError'
+  }
+}

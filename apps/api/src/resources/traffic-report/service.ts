@@ -20,6 +20,7 @@ import {
   type BucketCount,
   type FreshnessEvidence,
   type ReportFilterPlan,
+  type ReportingProfileFilterPort,
   type ReportingQueryPort,
   type ResolvedPeriod,
   type SiteId,
@@ -39,7 +40,7 @@ const DEFAULT_BREAKDOWN_LIMIT = 50
 export interface TrafficReportServiceDependencies {
   readonly admission: ReportingAdmissionService
   readonly query: ReportingQueryPort
-  readonly profileFilterKeys: readonly string[] | (() => readonly string[])
+  readonly profileFilterKeys: ReportingProfileFilterPort
   readonly scope: SiteScopeGuardDependencies
 }
 
@@ -53,7 +54,7 @@ export class TrafficReportService {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'aggregate')
     const siteId = createSiteId(input.siteId)
-    const filterPlan = this.compileFilters(input)
+    const filterPlan = await this.compileFilters(input, siteId)
 
     const current = await this.overviewPeriod(
       siteId,
@@ -82,7 +83,7 @@ export class TrafficReportService {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'breakdown')
     const siteId = createSiteId(input.siteId)
-    const filterPlan = this.compileFilters(input)
+    const filterPlan = await this.compileFilters(input, siteId)
     const dimension = input.dimension
     const sort = input.sort ?? 'value'
     const direction = input.direction ?? 'asc'
@@ -111,11 +112,11 @@ export class TrafficReportService {
     }
   }
 
-  private compileFilters(input: TrafficOverviewInput | TrafficBreakdownsInput): ReportFilterPlan {
-    const profileFilterKeys =
-      typeof this.deps.profileFilterKeys === 'function'
-        ? this.deps.profileFilterKeys()
-        : this.deps.profileFilterKeys
+  private async compileFilters(
+    input: TrafficOverviewInput | TrafficBreakdownsInput,
+    siteId: SiteId,
+  ): Promise<ReportFilterPlan> {
+    const profileFilterKeys = await this.deps.profileFilterKeys.getProfileFilterKeys(siteId)
     const result = compileTrafficFilterPlan({
       filters: input.filters ?? [],
       profileFilterKeys,

@@ -1,6 +1,6 @@
 import { DuckDbReportingQuery, type AnalyticsDb, type Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import { ReportingAdmissionService } from '@cimi/kernel'
+import { ReportingAdmissionService, type ReportingProfileFilterPort } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import type { HealthLifecycle } from '../../health.ts'
 import { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
@@ -28,7 +28,7 @@ export interface CreateTrafficReportDependencies {
   readonly lifecycle: HealthLifecycle
   readonly dataDirectoryReady: boolean | (() => boolean)
   readonly scope?: SiteScopeGuardDependencies | undefined
-  readonly profileFilterKeys?: readonly string[] | (() => readonly string[]) | undefined
+  readonly profileFilterKeys: ReportingProfileFilterPort
 }
 
 export function createTrafficReport({
@@ -53,7 +53,7 @@ export function createTrafficReport({
   const service = new TrafficReportService({
     admission,
     query,
-    profileFilterKeys: profileFilterKeys ?? [],
+    profileFilterKeys,
     scope: scope ?? createSiteScopeDependencies({ db }),
   })
   return { metadata, evidence, admission, query, service, router: trafficReportRouter(service) }

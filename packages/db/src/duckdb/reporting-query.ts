@@ -1,4 +1,5 @@
 import {
+  ReportingQueryUnsupportedError,
   createInstantMs,
   type BreakdownSort,
   type EventBreakdownField,
@@ -804,8 +805,8 @@ function renderFilterPlan(plan: ReportFilterPlan): RenderedFragment {
     args.push(...rendered.args)
   }
   for (const predicate of plan.profile) {
-    throw new Error(
-      `Reporting profile filter '${predicate.propertyKey ?? ''}' requires the profile join, which is not implemented`,
+    throw new ReportingQueryUnsupportedError(
+      `Reporting profile filter '${predicate.propertyKey ?? ''}' requires the profile join, which the projection does not carry`,
     )
   }
 
@@ -817,8 +818,8 @@ function renderEventPredicate(predicate: Predicate): RenderedFragment {
     return renderPropertyExists(predicate)
   }
   if (predicate.target === 'profile.trait') {
-    throw new Error(
-      `Reporting profile filter '${predicate.propertyKey ?? ''}' requires the profile join, which is not implemented`,
+    throw new ReportingQueryUnsupportedError(
+      `Reporting profile filter '${predicate.propertyKey ?? ''}' requires the profile join, which the projection does not carry`,
     )
   }
   const column = EVENT_COLUMNS[predicate.target]
@@ -830,7 +831,7 @@ function renderEventPredicate(predicate: Predicate): RenderedFragment {
 
 function renderSessionPredicate(predicate: Predicate): RenderedFragment {
   if (predicate.target === 'session.exitPage') {
-    throw new Error(
+    throw new ReportingQueryUnsupportedError(
       'Reporting session.exitPage filter is not supported: analytics_sessions stores no exit page',
     )
   }

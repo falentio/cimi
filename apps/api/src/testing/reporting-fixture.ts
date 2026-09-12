@@ -1,5 +1,6 @@
 import { expect } from 'vitest'
 import type { Db } from '@cimi/db'
+import { schema as contractSchema } from '@cimi/contract'
 import { apiTestRequest, signUpTestUser } from './fixture.ts'
 import type { createApiApp } from '../index.ts'
 
@@ -123,6 +124,8 @@ interface SeedEvent {
   readonly unit?: string | null | undefined
   readonly code?: string | null | undefined
   readonly message?: string | null | undefined
+  readonly identifiedUserId?: string | undefined
+  readonly anonymousIdentityId?: string | undefined
   readonly properties?: Readonly<Record<string, string | number | boolean | null>> | undefined
 }
 
@@ -140,10 +143,10 @@ export function seedAcceptedEvents(db: Db, siteId: string, events: readonly Seed
   const insert = db.$client.prepare(
     `INSERT INTO accepted_event (
        site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id,
-       analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint,
-       projection_state, created_at, device_type, browser, operating_system, country,
-       utm_source, utm_medium, utm_campaign
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
+       anonymous_identity_id, identified_user_id, analytics_session_id, policy_revision_id,
+       replay_sequence, payload_fingerprint, projection_state, created_at, device_type, browser,
+       operating_system, country, utm_source, utm_medium, utm_campaign
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   const sequenceBase = readMaxReplaySequence(db)
   events.forEach((event, index) => {
@@ -155,6 +158,8 @@ export function seedAcceptedEvents(db: Db, siteId: string, events: readonly Seed
       event.at,
       event.at,
       event.visitorId,
+      event.anonymousIdentityId ?? null,
+      event.identifiedUserId ?? null,
       event.sessionId,
       revisionId,
       sequenceBase + index + 1,
@@ -249,9 +254,16 @@ function ensurePolicyRevision(db: Db): string {
     .prepare(
       `INSERT INTO collection_policy_revision (
          id, installation_id, scope, version, policy_json, effective_from, committed_at, created_at
-       ) VALUES (?, ?, 'installation', 1, '{}', ?, ?, ?)
+       ) VALUES (?, ?, 'installation', 1, ?, ?, ?, ?)
        ON CONFLICT (id) DO NOTHING`,
     )
-    .run(id, installationId, now, now, now)
+    .run(
+      id,
+      installationId,
+      JSON.stringify(contractSchema.DEFAULT_COLLECTION_POLICY),
+      now,
+      now,
+      now,
+    )
   return id
 }
