@@ -47,7 +47,7 @@ export type EventReportFamily = 'aggregate' | 'row-list' | 'breakdown'
 
 const DEFAULT_ROW_LIMIT = 50
 const DEFAULT_BREAKDOWN_LIMIT = 50
-const ROW_LIST_DISTINCT_OPERATIONS = 1
+const OVERVIEW_DISTINCT_OPERATIONS = 2
 
 export interface EventReportServiceDependencies {
   readonly admission: ReportingAdmissionService
@@ -64,7 +64,7 @@ export class EventReportService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventOverviewOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
-    const ticket = await this.admit(input, 'aggregate')
+    const ticket = await this.admit(input, 'aggregate', OVERVIEW_DISTINCT_OPERATIONS)
     const siteId = createSiteId(input.siteId)
     const filterPlan = await this.compileFilters(input, siteId)
     const eventKind = input.eventKind
@@ -96,7 +96,7 @@ export class EventReportService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventTimeseriesOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
-    const ticket = await this.admit(input, 'aggregate')
+    const ticket = await this.admit(input, 'aggregate', 0)
     const siteId = createSiteId(input.siteId)
     const filterPlan = await this.compileFilters(input, siteId)
     const eventKind = input.eventKind
@@ -128,7 +128,7 @@ export class EventReportService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventListOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
-    const ticket = await this.admit(input, 'row-list')
+    const ticket = await this.admit(input, 'row-list', 1)
     const siteId = createSiteId(input.siteId)
     const filterPlan = await this.compileFilters(input, siteId)
     const offset = input.offset ?? 0
@@ -162,7 +162,7 @@ export class EventReportService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventBreakdownsOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
-    const ticket = await this.admit(input, 'breakdown')
+    const ticket = await this.admit(input, 'breakdown', 1)
     const siteId = createSiteId(input.siteId)
     const filterPlan = await this.compileFilters(input, siteId)
     const field = breakdownFieldForKind(input.eventKind)
@@ -211,6 +211,7 @@ export class EventReportService {
   private async admit(
     input: EventOverviewInput | EventTimeseriesInput | EventListInput | EventBreakdownsInput,
     family: EventReportFamily,
+    distinctCountOperations: number,
   ) {
     try {
       return await this.deps.admission.admit({
@@ -240,7 +241,7 @@ export class EventReportService {
           extraMetricCount: 0,
           dimensionCount: family === 'breakdown' ? 1 : 0,
           filterCount: input.filters?.length ?? 0,
-          distinctCountOperations: family === 'row-list' ? ROW_LIST_DISTINCT_OPERATIONS : 0,
+          distinctCountOperations,
           budget: REPORT_FACT_WORK_BUDGETS[family],
         },
       })

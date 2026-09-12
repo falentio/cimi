@@ -139,6 +139,20 @@ function periods() {
   })
 }
 
+function dayTwoPeriod() {
+  return resolveReportPeriods({
+    metadata: {
+      siteId: createSiteId(SITE),
+      reportingTimezone: 'UTC',
+      weekStartsOn: 'monday',
+    },
+    current: {
+      fromDate: createCalendarDate('2026-09-06'),
+      toDate: createCalendarDate('2026-09-06'),
+    },
+  }).current
+}
+
 function createQuery(analytics: DuckDbReportingQueryDependencies['analytics']) {
   return new DuckDbReportingQuery({ analytics })
 }
@@ -1099,11 +1113,12 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
         },
       })
 
-      // Dropping every non page_view event leaves sessions s3, s5, and s6 as single-page_view
-      // sessions with a zero span, so the bounce count grows to the four single-page sessions.
+      // The predicate scopes which Sessions the report considers; the bounce and duration rules
+      // still read each Session's full event history, so s3/s5/s6 keep the engagement events that
+      // disqualify them and only s2 remains a bounce.
       expect(result.metrics.pageviews).toBe(8)
       expect(result.metrics.sessions).toBe(6)
-      expect(result.metrics.bouncedSessions).toBe(4)
+      expect(result.metrics.bouncedSessions).toBe(1)
     } finally {
       await analytics.close()
       closeDb(controlDb)
@@ -1130,6 +1145,161 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
       ).rejects.toThrow(/profile join/)
     } finally {
       await analytics.close()
+    }
+  })
+})
+
+describe('presence filters', () => {
+  it('scopes a visitor has_done filter to sessions whose visitor performed the action', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEvents(controlDb)
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: periods().current,
+        includeTrend: false,
+        filterPlan: {
+          ...emptyPlan,
+          sessionPresence: [
+            {
+              scope: 'visitor',
+              withinPeriod: false,
+              action: 'custom_event',
+              name: null,
+              propertyFilters: [],
+              negated: false,
+            },
+          ],
+        },
+      })
+
+      expect(result.metrics.sessions).toBe(1)
+      expect(result.metrics.visitors).toBe(1)
+      expect(result.metrics.pageviews).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('negates a visitor has_done filter with has_not_done', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEvents(controlDb)
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: periods().current,
+        includeTrend: false,
+        filterPlan: {
+          ...emptyPlan,
+          sessionPresence: [
+            {
+              scope: 'visitor',
+              withinPeriod: false,
+              action: 'custom_event',
+              name: null,
+              propertyFilters: [],
+              negated: true,
+            },
+          ],
+        },
+      })
+
+      expect(result.metrics.sessions).toBe(5)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('bounds a session same_range presence filter to the report window', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEvents(controlDb)
+      await analytics.rebuild({ controlDb })
+
+      const scoped = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: periods().current,
+        eventKind: 'custom_event',
+        filterPlan: {
+          ...emptyPlan,
+          sessionPresence: [
+            {
+              scope: 'session',
+              withinPeriod: true,
+              action: 'custom_event',
+              name: null,
+              propertyFilters: [],
+              negated: false,
+            },
+          ],
+        },
+      })
+
+      expect(scoped.total).toBe(1)
+      expect(scoped.uniqueSessions).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
+describe('session span across the window boundary', () => {
+  it('measures a Session span over its full history, not only in-window events', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEvents(controlDb)
+      const laterInWindow = DAY_TWO + 11 * 60 * 60 * 1000
+      const insertEvent = controlDb.$client.prepare(
+        'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+      insertEvent.run(
+        900,
+        SITE,
+        'evt-900',
+        'page_view',
+        laterInWindow,
+        laterInWindow,
+        'v1',
+        's1',
+        'pol-1',
+        900,
+        'fp-900',
+        'pending',
+        laterInWindow,
+      )
+      await analytics.rebuild({ controlDb })
+
+      // s1's only in-window event on DAY_TWO, but its history also holds the DAY_ONE events.
+      const result = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: dayTwoPeriod(),
+        includeTrend: false,
+        filterPlan: emptyPlan,
+      })
+
+      // Three Sessions touch DAY_TWO: s1 (the added event), s2, and s3. s1's span reads its full
+      // history, so it runs from its DAY_ONE events to the DAY_TWO event even though only the
+      // DAY_TWO event falls inside the period.
+      expect(result.metrics.sessions).toBe(3)
+      expect(result.metrics.sessionsWithValidDuration).toBe(2)
+      expect(result.metrics.totalSessionDurationMs).toBe(
+        laterInWindow - (DAY_ONE + 10 * 60 * 60 * 1000) + 1_000,
+      )
+      expect(result.metrics.bouncedSessions).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
     }
   })
 })

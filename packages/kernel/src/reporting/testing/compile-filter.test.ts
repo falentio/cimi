@@ -123,7 +123,14 @@ describe('compileTrafficFilterPlan', () => {
       ]),
     )
     expect(plan.sessionPresence).toEqual<PresencePredicate[]>([
-      { action: 'custom_event', name: 'purchase', propertyFilters: [], negated: false },
+      {
+        scope: 'visitor',
+        withinPeriod: false,
+        action: 'custom_event',
+        name: 'purchase',
+        propertyFilters: [],
+        negated: false,
+      },
     ])
   })
 
@@ -132,7 +139,14 @@ describe('compileTrafficFilterPlan', () => {
       traffic([{ scope: 'visitor', operator: 'has_not_done', action: { kind: 'page_view' } }]),
     )
     expect(plan.sessionPresence).toEqual<PresencePredicate[]>([
-      { action: 'page_view', name: null, propertyFilters: [], negated: true },
+      {
+        scope: 'visitor',
+        withinPeriod: false,
+        action: 'page_view',
+        name: null,
+        propertyFilters: [],
+        negated: true,
+      },
     ])
   })
 
@@ -209,6 +223,8 @@ describe('compileEventFilterPlan', () => {
     )
     expect(plan.sessionPresence).toEqual<PresencePredicate[]>([
       {
+        scope: 'session',
+        withinPeriod: true,
         action: 'custom_event',
         name: 'purchase',
         propertyFilters: [{ key: 'total', operator: 'gt', bind: [100] }],

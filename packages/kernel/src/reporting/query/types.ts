@@ -46,7 +46,15 @@ export interface PropertyFilter {
   readonly bind: readonly PredicateValue[]
 }
 
+/**
+ * `has_done`/`has_not_done` asks whether an actor performed an action. The actor and the time
+ * window differ by report family: traffic asks about the Visitor across its whole history, event
+ * reports ask about the Analytics Session within the report range (`range: same_range`). The scope
+ * is modeled so the two cannot be conflated in SQL.
+ */
 export interface PresencePredicate {
+  readonly scope: 'visitor' | 'session'
+  readonly withinPeriod: boolean
   readonly action: EventKind
   readonly name: string | null
   readonly propertyFilters: readonly PropertyFilter[]

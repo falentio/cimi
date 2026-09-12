@@ -37,6 +37,15 @@ export type TrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOut
 
 const DEFAULT_BREAKDOWN_LIMIT = 50
 
+/**
+ * The distinct counts each report family actually evaluates: the overview reads distinct visitors
+ * and Sessions; the breakdown reads distinct Sessions and distinct dimension values.
+ */
+const DISTINCT_COUNT_OPERATIONS: Readonly<Record<TrafficReportFamily, number>> = {
+  aggregate: 2,
+  breakdown: 2,
+}
+
 export interface TrafficReportServiceDependencies {
   readonly admission: ReportingAdmissionService
   readonly query: ReportingQueryPort
@@ -153,7 +162,7 @@ export class TrafficReportService {
           extraMetricCount: 'dimension' in input ? 1 : 0,
           dimensionCount: 'dimension' in input ? 1 : 0,
           filterCount: input.filters?.length ?? 0,
-          distinctCountOperations: 0,
+          distinctCountOperations: DISTINCT_COUNT_OPERATIONS[family],
           budget: REPORT_FACT_WORK_BUDGETS[family],
         },
       })

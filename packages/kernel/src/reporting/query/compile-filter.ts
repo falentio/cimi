@@ -202,6 +202,8 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
   for (const filter of input.filters) {
     if (isTrafficPresenceFilter(filter)) {
       sessionPresence.push({
+        scope: 'visitor',
+        withinPeriod: false,
         action: filter.action.kind,
         name: filter.action.name ?? null,
         propertyFilters: [],
@@ -301,6 +303,8 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
         })
       }
       sessionPresence.push({
+        scope: 'session',
+        withinPeriod: true,
         action: filter.action.kind,
         name: filter.action.name ?? null,
         propertyFilters,

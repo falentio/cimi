@@ -28,6 +28,7 @@ import {
   type TrafficBreakdownRowFacts,
   type TrafficMetricsFacts,
   type TrafficTrendBucket,
+  type HalfOpenInterval,
 } from '@cimi/kernel'
 import type { AnalyticsDb, AnalyticsWindowReader } from './index.ts'
 
@@ -109,7 +110,7 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
 
   async trafficAggregate(query: TrafficAggregateQuery): Promise<TrafficAggregateResult> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan)
+      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const args: BoundValue[] = [
         query.siteId,
         timestamp(query.period.interval.start),
@@ -126,7 +127,7 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
 
   async trafficBreakdown(query: TrafficBreakdownQuery): Promise<TrafficBreakdownResult> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan)
+      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const denominator = await this.readFilteredSessionCount(reader, query, predicate)
       if (query.dimension === 'exit_page') {
         return { rows: [], totalCount: 0, denominator, hasMore: false, nextOffset: null }
@@ -147,7 +148,7 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
 
   async eventOverview(query: EventOverviewQuery): Promise<EventOverviewFacts> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan)
+      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const sql = `WITH windowed AS (
   SELECT e.visitor_id AS visitor_id,
          e.analytics_session_id AS session_id
@@ -182,7 +183,7 @@ FROM windowed`
       const starts = query.period.bucketStarts
       if (starts === null || starts.length === 0) return []
 
-      const predicate = renderFilterPlan(query.filterPlan)
+      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const bucketArgs: BoundValue[] = []
       const rows: string[] = []
       for (let index = 0; index < starts.length; index += 1) {
@@ -232,7 +233,7 @@ ORDER BY buckets.bucket_index`
 
   async eventRows(query: EventRowsQuery): Promise<EventRowsResult> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan)
+      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const totalCount = await this.readEventRowCount(reader, query, predicate)
       const rows = await this.readEventRowPage(reader, query, predicate)
       const hasMore = query.offset + query.limit < totalCount
@@ -247,7 +248,7 @@ ORDER BY buckets.bucket_index`
 
   async eventBreakdown(query: EventBreakdownQuery): Promise<EventBreakdownResult> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan)
+      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const totalCount = await this.readEventBreakdownCount(reader, query, predicate)
       const rows = await this.readEventBreakdownRows(reader, query, predicate)
       const hasMore = query.offset + query.limit < totalCount
@@ -539,6 +540,17 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
 ),
+scoped_sessions AS (
+  SELECT DISTINCT session_id FROM windowed WHERE session_id IS NOT NULL
+),
+session_events AS (
+  SELECT f.analytics_session_id AS session_id,
+         f.event_kind AS event_kind,
+         epoch_ms(f.occurrence_time) AS occurrence_ms
+  FROM events f
+  WHERE f.site_id = ?
+    AND f.analytics_session_id IN (SELECT session_id FROM scoped_sessions)
+),
 session_stats AS (
   SELECT session_id,
          count(*) AS event_count,
@@ -547,14 +559,13 @@ session_stats AS (
          sum(CASE WHEN event_kind = 'outbound' THEN 1 ELSE 0 END) AS outbound_count,
          max(occurrence_ms) AS max_ms,
          min(occurrence_ms) AS min_ms
-  FROM windowed
-  WHERE session_id IS NOT NULL
+  FROM session_events
   GROUP BY session_id
 )
 SELECT
   (SELECT count(*) FROM windowed WHERE event_kind = 'page_view') AS pageviews,
   (SELECT count(DISTINCT visitor_id) FROM windowed) AS visitors,
-  (SELECT count(DISTINCT session_id) FROM windowed) AS sessions,
+  (SELECT count(*) FROM scoped_sessions) AS sessions,
   (SELECT count(*) FROM session_stats WHERE page_view_count >= 1) AS eligible_sessions,
   (SELECT count(*) FROM session_stats WHERE event_count >= 2) AS sessions_with_valid_duration,
   (SELECT coalesce(sum(max_ms - min_ms), 0) FROM session_stats WHERE event_count >= 2)
@@ -562,7 +573,7 @@ SELECT
   (SELECT count(*) FROM session_stats
      WHERE page_view_count = 1 AND custom_event_count = 0 AND outbound_count = 0
        AND (max_ms - min_ms) < 10000) AS bounced_sessions`
-    const rows = await reader.read(sql, args)
+    const rows = await reader.read(sql, [...args, args[0] ?? null])
     const row = rows[0] ?? {}
     return {
       visitors: readCount(row['visitors']),
@@ -780,7 +791,7 @@ function timestamp(instant: number): string {
  * ` AND (...)`. Property, session, visitor, and presence predicates correlate on `e`, so they stay
  * inside the same windowed scan and share the caller's bound arguments.
  */
-function renderFilterPlan(plan: ReportFilterPlan): RenderedFragment {
+function renderFilterPlan(plan: ReportFilterPlan, interval: HalfOpenInterval): RenderedFragment {
   const fragments: string[] = []
   const args: BoundValue[] = []
 
@@ -800,7 +811,7 @@ function renderFilterPlan(plan: ReportFilterPlan): RenderedFragment {
     args.push(...rendered.args)
   }
   for (const presence of plan.sessionPresence) {
-    const rendered = renderPresencePredicate(presence)
+    const rendered = renderPresencePredicate(presence, interval)
     fragments.push(` AND (${rendered.sql})`)
     args.push(...rendered.args)
   }
@@ -920,12 +931,25 @@ function renderPropertyComparison(predicate: Predicate, args: BoundValue[]): str
   return parts.join(' OR ')
 }
 
-function renderPresencePredicate(presence: PresencePredicate): RenderedFragment {
+function renderPresencePredicate(
+  presence: PresencePredicate,
+  interval: HalfOpenInterval,
+): RenderedFragment {
   const args: BoundValue[] = [presence.action]
   const conditions = ['present.event_kind = ?']
   if (presence.name !== null) {
     conditions.push('present.name = ?')
     args.push(presence.name)
+  }
+  if (presence.scope === 'visitor') {
+    conditions.push('present.visitor_id = e.visitor_id')
+  } else {
+    conditions.push('present.analytics_session_id = e.analytics_session_id')
+    if (presence.withinPeriod) {
+      conditions.push('present.occurrence_time >= CAST(? AS TIMESTAMP)')
+      conditions.push('present.occurrence_time < CAST(? AS TIMESTAMP)')
+      args.push(timestamp(interval.start), timestamp(interval.endExclusive))
+    }
   }
   for (const property of presence.propertyFilters) {
     const comparison = renderPropertyFilterComparison(property.operator, property.bind)
@@ -938,7 +962,6 @@ function renderPresencePredicate(presence: PresencePredicate): RenderedFragment 
   }
   const inner = `SELECT 1 FROM events present
      WHERE present.site_id = e.site_id
-       AND present.analytics_session_id = e.analytics_session_id
        AND ${conditions.join(' AND ')}`
   return {
     sql: presence.negated ? `NOT EXISTS (${inner})` : `EXISTS (${inner})`,
