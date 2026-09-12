@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { ERROR_CATALOG } from '@cimi/contract'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
-import { createOwnerSite, readyLifecycle } from './reporting-fixture.ts'
+import { createOwnerSite, readyLifecycle } from '../../../testing/reporting-fixture.ts'
 
 function overviewPath(siteId: string, extra = ''): string {
   return `/traffic-report/getTrafficOverview?siteId=${encodeURIComponent(siteId)}&fromDate=2026-09-05&toDate=2026-09-06&granularity=day${extra}`

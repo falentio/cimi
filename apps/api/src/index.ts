@@ -49,6 +49,7 @@ import {
 } from './resources/backup-restore/index.ts'
 import { createIdentityProfile } from './resources/identity-profile/index.ts'
 import { createTrafficReport } from './resources/traffic-report/index.ts'
+import { createEventReport } from './resources/event-report/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -247,6 +248,13 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     dataDirectoryReady: deps.dataDirectoryReady,
     profileFilterKeys: [],
   })
+  const eventReport = createEventReport({
+    db: deps.db,
+    analytics: deps.analytics,
+    lifecycle,
+    dataDirectoryReady: deps.dataDirectoryReady,
+    profileFilterKeys: [],
+  })
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
@@ -263,6 +271,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     eventIngestion: eventIngestion.router,
     identityProfile: identityProfile.router,
     trafficReport: trafficReport.router,
+    eventReport: eventReport.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {

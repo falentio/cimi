@@ -110,3 +110,21 @@ export {
   type ReportFactWorkFamily,
   type TrafficReportFamily,
 } from './contract/traffic-report/schema.ts'
+export {
+  SEventOverviewInput,
+  SEventOverviewOutput,
+} from './contract/event-report/query/get-overview.ts'
+export {
+  SEventTimeseriesInput,
+  SEventTimeseriesOutput,
+} from './contract/event-report/query/get-timeseries.ts'
+export { SEventListInput, SEventListOutput } from './contract/event-report/query/list.ts'
+export {
+  SEventBreakdownsInput,
+  SEventBreakdownsOutput,
+} from './contract/event-report/query/get-breakdowns.ts'
+export {
+  AUTHENTICATED_EVENT_BUCKET_LIMITS,
+  MAX_AUTHENTICATED_EVENT_OUTPUT_BUCKETS,
+  isWithinAuthenticatedEventBucketLimit,
+} from './contract/event-report/schema.ts'

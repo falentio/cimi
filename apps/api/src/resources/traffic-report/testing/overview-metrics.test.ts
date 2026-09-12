@@ -1,6 +1,10 @@
 import { expect, test } from 'vitest'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
-import { createOwnerSite, readyLifecycle, seedAcceptedEvents } from './reporting-fixture.ts'
+import {
+  createOwnerSite,
+  readyLifecycle,
+  seedAcceptedEvents,
+} from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
 const DAY_TWO = '2026-09-06'

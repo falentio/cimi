@@ -11,6 +11,19 @@ export {
 export { fillBuckets, type BucketCount, type FilledBucket } from './bucket-fill.ts'
 export type { ReportingQueryPort } from './ports.ts'
 export type {
+  EventBreakdownField,
+  EventBreakdownQuery,
+  EventBreakdownResult,
+  EventBreakdownRowFacts,
+  EventBucketFacts,
+  EventBucketsQuery,
+  EventOverviewFacts,
+  EventOverviewQuery,
+  EventRowFacts,
+  EventRowsQuery,
+  EventRowsResult,
+} from './event-types.ts'
+export type {
   TrafficAggregateQuery,
   TrafficAggregateResult,
   TrafficBreakdownDimension,

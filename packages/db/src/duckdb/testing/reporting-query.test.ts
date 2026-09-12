@@ -325,6 +325,490 @@ function breakdownPeriod() {
   return periods().current
 }
 
+interface EventKindSeed {
+  readonly id: string
+  readonly session: string
+  readonly visitor: string
+  readonly kind: string
+  readonly at: number
+  readonly pagePath?: string | undefined
+  readonly referrer?: string | null | undefined
+  readonly name?: string | undefined
+  readonly destination?: string | undefined
+  readonly value?: number | undefined
+  readonly unit?: string | null | undefined
+  readonly code?: string | null | undefined
+  readonly message?: string | null | undefined
+  readonly properties?: Readonly<Record<string, string | number | boolean | null>> | undefined
+}
+
+/**
+ * Seeds one accepted event per row across every kind and links the per-kind control tables plus
+ * typed event properties, so a rebuild projects a varied events table.
+ */
+function seedEventKindEvents(db: Db, events: readonly EventKindSeed[]): void {
+  const now = DAY_ONE
+  db.$client
+    .prepare(
+      'INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run('user-1', 'User', 'user@example.com', 1, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO organization (id, name, owner_user_id, is_personal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run('org-1', 'Organization', 'user-1', 0, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(SITE, 'org-1', 'Site', 'example.com', 'ing-1', now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO installation (id, status, data_directory_ready, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+    )
+    .run('ins-1', 'ready', 1, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO collection_policy_revision (id, installation_id, scope, version, policy_json, effective_from, committed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run('pol-1', 'ins-1', 'installation', 1, '{}', now, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO retention_policy (id, installation_id, scope, event_months, profile_months, version, status, effective_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run('rtn-1', 'ins-1', 'installation', 1, 1, 1, 'active', now, now, now)
+  db.$client
+    .prepare(
+      'INSERT INTO retention_effective_cutoff (site_id, installation_id, policy_id, reporting_timezone, local_day, event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at, effective_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(
+      SITE,
+      'ins-1',
+      'rtn-1',
+      'UTC',
+      '2026-09-05',
+      DAY_ONE - 1,
+      DAY_ONE - 1,
+      DAY_ONE - 1,
+      now,
+      now,
+    )
+
+  const insertEvent = db.$client.prepare(
+    `INSERT INTO accepted_event (
+       event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id,
+       analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint,
+       projection_state, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+  )
+  const insertPageView = db.$client.prepare(
+    'INSERT INTO event_page_view (event_pk, page_path, referrer) VALUES (?, ?, ?)',
+  )
+  const insertProperty = db.$client.prepare(
+    'INSERT INTO event_property (event_pk, property_key, value_type, string_value, number_value, boolean_value) VALUES (?, ?, ?, ?, ?, ?)',
+  )
+
+  let sequence = 0
+  let eventPk = 0
+  for (const event of events) {
+    sequence += 1
+    eventPk += 1
+    insertEvent.run(
+      eventPk,
+      SITE,
+      event.id,
+      event.kind,
+      event.at,
+      event.at,
+      event.visitor,
+      event.session,
+      'pol-1',
+      sequence,
+      `fp-${sequence}`,
+      event.at,
+    )
+    if (event.pagePath !== undefined) {
+      insertPageView.run(eventPk, event.pagePath, event.referrer ?? null)
+    }
+    if (event.kind === 'custom_event') {
+      db.$client
+        .prepare('INSERT INTO event_custom (event_pk, name) VALUES (?, ?)')
+        .run(eventPk, event.name ?? '')
+    }
+    if (event.kind === 'outbound') {
+      db.$client
+        .prepare('INSERT INTO event_outbound (event_pk, destination, name) VALUES (?, ?, ?)')
+        .run(eventPk, event.destination ?? '', event.name ?? null)
+    }
+    if (event.kind === 'performance') {
+      db.$client
+        .prepare('INSERT INTO event_performance (event_pk, name, value, unit) VALUES (?, ?, ?, ?)')
+        .run(eventPk, event.name ?? '', event.value ?? 0, event.unit ?? null)
+    }
+    if (event.kind === 'error') {
+      db.$client
+        .prepare('INSERT INTO event_error (event_pk, name, code, message) VALUES (?, ?, ?, ?)')
+        .run(eventPk, event.name ?? '', event.code ?? null, event.message ?? null)
+    }
+    for (const [key, value] of Object.entries(event.properties ?? {})) {
+      if (value === null) {
+        insertProperty.run(eventPk, key, 'null', null, null, null)
+      } else if (typeof value === 'number') {
+        insertProperty.run(eventPk, key, 'number', null, value, null)
+      } else if (typeof value === 'boolean') {
+        insertProperty.run(eventPk, key, 'boolean', null, null, value ? 1 : 0)
+      } else {
+        insertProperty.run(eventPk, key, 'string', value, null, null)
+      }
+    }
+  }
+
+  db.$client
+    .prepare(
+      'INSERT INTO projection_checkpoint (site_id, projected_replay_sequence, occurrence_covered_from, occurrence_covered_through, statistics_refreshed_at, readiness, projection_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(SITE, sequence, DAY_ONE, DAY_TWO + 86_400_000, now, 'ready', 'v5', now)
+}
+
+const EVENT_DAY = DAY_ONE + 10 * 60 * 60 * 1000
+
+/**
+ * Seven accepted events across three kinds in a two-day window. Page views carry a mixed-type
+ * property bag; the two error events prove the per-kind window filter and the count-distinct total.
+ */
+function eventKindSeeds(): readonly EventKindSeed[] {
+  return [
+    {
+      id: 'evt-1',
+      session: 's1',
+      visitor: 'v1',
+      kind: 'page_view',
+      at: EVENT_DAY,
+      pagePath: '/a',
+      referrer: 'https://ref.example',
+      properties: { plan: 'pro', score: 5, active: true, note: null },
+    },
+    {
+      id: 'evt-2',
+      session: 's1',
+      visitor: 'v1',
+      kind: 'page_view',
+      at: EVENT_DAY + 1_000,
+      pagePath: '/b',
+      referrer: null,
+    },
+    {
+      id: 'evt-3',
+      session: 's2',
+      visitor: 'v2',
+      kind: 'custom_event',
+      at: EVENT_DAY + 2_000,
+      pagePath: '/b',
+      name: 'checkout',
+    },
+    {
+      id: 'evt-4',
+      session: 's2',
+      visitor: 'v2',
+      kind: 'outbound',
+      at: EVENT_DAY + 3_000,
+      pagePath: '/b',
+      name: 'click',
+      destination: 'https://out.example',
+    },
+    {
+      id: 'evt-5',
+      session: 's3',
+      visitor: 'v3',
+      kind: 'performance',
+      at: EVENT_DAY + 4_000,
+      pagePath: '/c',
+      name: 'lcp',
+      value: 1.5,
+      unit: 's',
+    },
+    {
+      id: 'evt-6',
+      session: 's3',
+      visitor: 'v3',
+      kind: 'error',
+      at: EVENT_DAY + 5_000,
+      pagePath: '/c',
+      name: 'TypeError',
+      code: 'E1',
+      message: 'boom',
+    },
+    {
+      id: 'evt-7',
+      session: 's4',
+      visitor: 'v4',
+      kind: 'error',
+      at: EVENT_DAY + 6_000,
+      pagePath: '/c',
+      name: 'RangeError',
+      code: null,
+      message: null,
+    },
+  ]
+}
+
+function eventPeriod() {
+  return periods().current
+}
+
+describe('DuckDbReportingQuery.eventOverview', () => {
+  it('counts total, distinct visitors, and distinct sessions for one kind', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const pageView = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: emptyPlan,
+      })
+      expect(pageView).toEqual({ total: 2, uniqueVisitors: 1, uniqueSessions: 1 })
+
+      const error = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'error',
+        filterPlan: emptyPlan,
+      })
+      expect(error).toEqual({ total: 2, uniqueVisitors: 2, uniqueSessions: 2 })
+
+      const missing = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'outbound',
+        filterPlan: {
+          ...emptyPlan,
+          event: [{ target: 'event.name', propertyKey: null, operator: 'eq', bind: ['nope'] }],
+        },
+      })
+      expect(missing).toEqual({ total: 0, uniqueVisitors: 0, uniqueSessions: 0 })
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
+describe('DuckDbReportingQuery.eventBuckets', () => {
+  it('returns sparse per-bucket counts for the requested kind only', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const buckets = await createQuery(analytics).eventBuckets({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: emptyPlan,
+      })
+      expect(buckets).toEqual([{ at: createInstantMs(DAY_ONE), count: 2 }])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
+describe('DuckDbReportingQuery.eventRows', () => {
+  it('orders by occurrence time with an event_id tie-break and counts distinct event ids', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).eventRows({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'error',
+        filterPlan: emptyPlan,
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+      })
+      expect(result.totalCount).toBe(2)
+      expect(result.rows.map((row) => row.eventId)).toEqual(['evt-6', 'evt-7'])
+      expect(result.rows[0]).toMatchObject({
+        eventId: 'evt-6',
+        kind: 'error',
+        name: 'TypeError',
+        code: 'E1',
+        message: 'boom',
+        occurredAt: createInstantMs(EVENT_DAY + 5_000),
+        createdAt: createInstantMs(EVENT_DAY + 5_000),
+      })
+      expect(result.rows[1]).toMatchObject({ code: null, message: null, properties: null })
+      expect(result.hasMore).toBe(false)
+      expect(result.nextOffset).toBeNull()
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('orders ascending and descending by occurrence time across all kinds', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const base = {
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view' as const,
+        filterPlan: emptyPlan,
+        offset: 0,
+        limit: 10,
+      }
+      const ascending = await createQuery(analytics).eventRows({ ...base, direction: 'asc' })
+      expect(ascending.rows.map((row) => row.eventId)).toEqual(['evt-1', 'evt-2'])
+      expect(ascending.rows[0]).toMatchObject({
+        kind: 'page_view',
+        pagePath: '/a',
+        referrer: 'https://ref.example',
+        name: null,
+        destination: null,
+        value: null,
+        unit: null,
+        code: null,
+        message: null,
+        properties: { plan: 'pro', score: 5, active: true, note: null },
+      })
+      expect(ascending.rows[1]).toMatchObject({ pagePath: '/b', referrer: null, properties: null })
+
+      const descending = await createQuery(analytics).eventRows({ ...base, direction: 'desc' })
+      expect(descending.rows.map((row) => row.eventId)).toEqual(['evt-2', 'evt-1'])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('pages across the distinct-event set with an occurrence tie-break', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const first = await createQuery(analytics).eventRows({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: emptyPlan,
+        direction: 'asc',
+        offset: 0,
+        limit: 1,
+      })
+      expect(first.rows.map((row) => row.eventId)).toEqual(['evt-1'])
+      expect(first.totalCount).toBe(2)
+      expect(first.hasMore).toBe(true)
+      expect(first.nextOffset).toBe(1)
+
+      const second = await createQuery(analytics).eventRows({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: emptyPlan,
+        direction: 'asc',
+        offset: 1,
+        limit: 1,
+      })
+      expect(second.rows.map((row) => row.eventId)).toEqual(['evt-2'])
+      expect(second.hasMore).toBe(false)
+      expect(second.nextOffset).toBeNull()
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
+describe('DuckDbReportingQuery.eventBreakdown', () => {
+  it('groups by kind, excludes empty values, and counts accepted events', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const byKind = await createQuery(analytics).eventBreakdown({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        field: 'kind',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+      expect(byKind.rows).toEqual([{ value: 'page_view', count: 2 }])
+      expect(byKind.totalCount).toBe(1)
+
+      const byName = await createQuery(analytics).eventBreakdown({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        field: 'pagePath',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+      expect(byName.rows).toEqual([
+        { value: '/a', count: 1 },
+        { value: '/b', count: 1 },
+      ])
+      expect(byName.totalCount).toBe(2)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('sorts by count descending with a value tie-break and paginates', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const first = await createQuery(analytics).eventBreakdown({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        field: 'pagePath',
+        sort: 'value',
+        direction: 'desc',
+        offset: 0,
+        limit: 1,
+        filterPlan: emptyPlan,
+      })
+      expect(first.rows).toEqual([{ value: '/b', count: 1 }])
+      expect(first.totalCount).toBe(2)
+      expect(first.hasMore).toBe(true)
+      expect(first.nextOffset).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
 describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('groups page rows by distinct sessions that viewed each path', async () => {
     const controlDb = createMigratedTestDb()

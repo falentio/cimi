@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import type { Db } from '@cimi/db'
-import { apiTestRequest, signUpTestUser } from '../../../testing/fixture.ts'
-import type { createApiApp } from '../../../index.ts'
+import { apiTestRequest, signUpTestUser } from './fixture.ts'
+import type { createApiApp } from '../index.ts'
 
 type App = ReturnType<typeof createApiApp>
 
@@ -117,12 +117,20 @@ interface SeedEvent {
   readonly utmSource?: string | null | undefined
   readonly utmMedium?: string | null | undefined
   readonly utmCampaign?: string | null | undefined
+  readonly name?: string | undefined
+  readonly destination?: string | undefined
+  readonly value?: number | undefined
+  readonly unit?: string | null | undefined
+  readonly code?: string | null | undefined
+  readonly message?: string | null | undefined
+  readonly properties?: Readonly<Record<string, string | number | boolean | null>> | undefined
 }
 
 /**
  * Seeds accepted events for a Site so a rebuild projects them. Only the columns the projection
  * reads are populated; the acceptance metadata is synthesized per event. Optional attribution and
- * page-view columns drive the session attribution a breakdown reads.
+ * page-view columns drive the session attribution a breakdown reads; per-kind control tables and
+ * typed properties drive the event-report projection.
  */
 export function seedAcceptedEvents(db: Db, siteId: string, events: readonly SeedEvent[]): void {
   const policyId = db.$client
@@ -160,15 +168,66 @@ export function seedAcceptedEvents(db: Db, siteId: string, events: readonly Seed
       event.utmMedium ?? null,
       event.utmCampaign ?? null,
     )
+    const eventPk = readEventPk(db, siteId, eventId)
     if (event.pagePath !== undefined) {
       db.$client
-        .prepare(
-          `INSERT INTO event_page_view (event_pk, page_path, referrer)
-           SELECT event_pk, ?, ? FROM accepted_event WHERE site_id = ? AND event_id = ?`,
-        )
-        .run(event.pagePath, event.referrer ?? null, siteId, eventId)
+        .prepare('INSERT INTO event_page_view (event_pk, page_path, referrer) VALUES (?, ?, ?)')
+        .run(eventPk, event.pagePath, event.referrer ?? null)
+    }
+    if (event.kind === 'custom_event') {
+      db.$client
+        .prepare('INSERT INTO event_custom (event_pk, name) VALUES (?, ?)')
+        .run(eventPk, event.name ?? '')
+    }
+    if (event.kind === 'outbound') {
+      db.$client
+        .prepare('INSERT INTO event_outbound (event_pk, destination, name) VALUES (?, ?, ?)')
+        .run(eventPk, event.destination ?? '', event.name ?? null)
+    }
+    if (event.kind === 'performance') {
+      db.$client
+        .prepare('INSERT INTO event_performance (event_pk, name, value, unit) VALUES (?, ?, ?, ?)')
+        .run(eventPk, event.name ?? '', event.value ?? 0, event.unit ?? null)
+    }
+    if (event.kind === 'error') {
+      db.$client
+        .prepare('INSERT INTO event_error (event_pk, name, code, message) VALUES (?, ?, ?, ?)')
+        .run(eventPk, event.name ?? '', event.code ?? null, event.message ?? null)
+    }
+    for (const [key, value] of Object.entries(event.properties ?? {})) {
+      insertProperty(db, eventPk, key, value)
     }
   })
+}
+
+function insertProperty(
+  db: Db,
+  eventPk: number,
+  key: string,
+  value: string | number | boolean | null,
+): void {
+  const statement = db.$client.prepare(
+    `INSERT INTO event_property (
+       event_pk, property_key, value_type, string_value, number_value, boolean_value
+     ) VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+  if (value === null) {
+    statement.run(eventPk, key, 'null', null, null, null)
+  } else if (typeof value === 'number') {
+    statement.run(eventPk, key, 'number', null, value, null)
+  } else if (typeof value === 'boolean') {
+    statement.run(eventPk, key, 'boolean', null, null, value ? 1 : 0)
+  } else {
+    statement.run(eventPk, key, 'string', value, null, null)
+  }
+}
+
+function readEventPk(db: Db, siteId: string, eventId: string): number {
+  const row = db.$client
+    .prepare('SELECT event_pk AS eventPk FROM accepted_event WHERE site_id = ? AND event_id = ?')
+    .get(siteId, eventId) as { eventPk: number } | undefined
+  if (row === undefined) throw new Error(`Accepted event ${eventId} was not inserted`)
+  return row.eventPk
 }
 
 function readMaxReplaySequence(db: Db): number {

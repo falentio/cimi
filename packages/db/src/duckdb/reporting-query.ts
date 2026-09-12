@@ -1,6 +1,18 @@
 import {
   createInstantMs,
   type BreakdownSort,
+  type EventBreakdownField,
+  type EventBreakdownQuery,
+  type EventBreakdownResult,
+  type EventBreakdownRowFacts,
+  type EventBucketFacts,
+  type EventBucketsQuery,
+  type EventKind,
+  type EventOverviewFacts,
+  type EventOverviewQuery,
+  type EventRowFacts,
+  type EventRowsQuery,
+  type EventRowsResult,
   type Predicate,
   type PredicateOperator,
   type PredicateValue,
@@ -59,6 +71,27 @@ const IDENTITY_KIND_TO_STORE: Readonly<Record<string, string>> = {
 
 const BREAKDOWN_VALUE_MAX_LENGTH = 2048
 
+const EVENT_BREAKDOWN_COLUMNS: Readonly<Record<EventBreakdownField, string>> = {
+  kind: 'e.event_kind',
+  name: 'e.name',
+  pagePath: 'e.page_path',
+  referrer: 'e.referrer',
+  destination: 'e.destination',
+  unit: 'e.unit',
+  code: 'e.code',
+}
+
+const EVENT_FIELD_MAX_LENGTHS = {
+  pagePath: 2048,
+  referrer: 2048,
+  destination: 2048,
+  message: 512,
+  code: 128,
+  unit: 64,
+} as const
+
+const EVENT_PROPERTIES_MAX_KEYS = 64
+
 const BREAKDOWN_SESSION_COLUMNS: Partial<Record<TrafficBreakdownDimension, string>> = {
   entry_page: 'entry_page',
   referrer: 'referrer',
@@ -109,6 +142,308 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
         nextOffset: hasMore ? query.offset + query.limit : null,
       }
     })
+  }
+
+  async eventOverview(query: EventOverviewQuery): Promise<EventOverviewFacts> {
+    return this.deps.analytics.readWindowed(async (reader) => {
+      const predicate = renderFilterPlan(query.filterPlan)
+      const sql = `WITH windowed AS (
+  SELECT e.visitor_id AS visitor_id,
+         e.analytics_session_id AS session_id
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)
+    AND e.event_kind = ?${predicate.sql}
+)
+SELECT count(*) AS total,
+       count(DISTINCT visitor_id) AS unique_visitors,
+       count(DISTINCT session_id) AS unique_sessions
+FROM windowed`
+      const rows = await reader.read(sql, [
+        query.siteId,
+        timestamp(query.period.interval.start),
+        timestamp(query.period.interval.endExclusive),
+        query.eventKind,
+        ...predicate.args,
+      ])
+      const row = rows[0] ?? {}
+      return {
+        total: readCount(row['total']),
+        uniqueVisitors: readCount(row['unique_visitors']),
+        uniqueSessions: readCount(row['unique_sessions']),
+      }
+    })
+  }
+
+  async eventBuckets(query: EventBucketsQuery): Promise<readonly EventBucketFacts[]> {
+    return this.deps.analytics.readWindowed(async (reader) => {
+      const starts = query.period.bucketStarts
+      if (starts === null || starts.length === 0) return []
+
+      const predicate = renderFilterPlan(query.filterPlan)
+      const bucketArgs: BoundValue[] = []
+      const rows: string[] = []
+      for (let index = 0; index < starts.length; index += 1) {
+        const bucket = starts[index]!
+        const end = starts[index + 1]?.at ?? query.period.interval.endExclusive
+        rows.push('(CAST(? AS BIGINT), CAST(? AS BIGINT), CAST(? AS BIGINT))')
+        bucketArgs.push(index, bucket.at, end)
+      }
+
+      const sql = `WITH windowed AS (
+  SELECT epoch_ms(e.occurrence_time) AS occurrence_ms
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)
+    AND e.event_kind = ?${predicate.sql}
+),
+buckets(bucket_index, start_ms, end_ms) AS (
+  VALUES ${rows.join(', ')}
+)
+SELECT buckets.bucket_index AS bucket_index,
+       count(*) AS event_count
+FROM buckets
+JOIN windowed
+  ON windowed.occurrence_ms >= buckets.start_ms
+ AND windowed.occurrence_ms < buckets.end_ms
+GROUP BY buckets.bucket_index
+ORDER BY buckets.bucket_index`
+      const result = await reader.read(sql, [
+        query.siteId,
+        timestamp(query.period.interval.start),
+        timestamp(query.period.interval.endExclusive),
+        query.eventKind,
+        ...predicate.args,
+        ...bucketArgs,
+      ])
+      const facts: EventBucketFacts[] = []
+      for (const row of result) {
+        const index = Number(row['bucket_index'] ?? -1)
+        const bucket = starts[index]
+        if (bucket === undefined) continue
+        facts.push({ at: createInstantMs(bucket.at), count: readCount(row['event_count']) })
+      }
+      return facts
+    })
+  }
+
+  async eventRows(query: EventRowsQuery): Promise<EventRowsResult> {
+    return this.deps.analytics.readWindowed(async (reader) => {
+      const predicate = renderFilterPlan(query.filterPlan)
+      const totalCount = await this.readEventRowCount(reader, query, predicate)
+      const rows = await this.readEventRowPage(reader, query, predicate)
+      const hasMore = query.offset + query.limit < totalCount
+      return {
+        rows,
+        totalCount,
+        hasMore,
+        nextOffset: hasMore ? query.offset + query.limit : null,
+      }
+    })
+  }
+
+  async eventBreakdown(query: EventBreakdownQuery): Promise<EventBreakdownResult> {
+    return this.deps.analytics.readWindowed(async (reader) => {
+      const predicate = renderFilterPlan(query.filterPlan)
+      const totalCount = await this.readEventBreakdownCount(reader, query, predicate)
+      const rows = await this.readEventBreakdownRows(reader, query, predicate)
+      const hasMore = query.offset + query.limit < totalCount
+      return {
+        rows,
+        totalCount,
+        hasMore,
+        nextOffset: hasMore ? query.offset + query.limit : null,
+      }
+    })
+  }
+
+  private async readEventRowCount(
+    reader: AnalyticsWindowReader,
+    query: EventRowsQuery,
+    predicate: RenderedFragment,
+  ): Promise<number> {
+    const sql = `WITH windowed AS (
+  SELECT e.event_id AS event_id
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)
+    AND e.event_kind = ?${predicate.sql}
+)
+SELECT count(DISTINCT event_id) AS total_count
+FROM windowed`
+    const rows = await reader.read(sql, [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      query.eventKind,
+      ...predicate.args,
+    ])
+    return readCount(rows[0]?.['total_count'])
+  }
+
+  private async readEventRowPage(
+    reader: AnalyticsWindowReader,
+    query: EventRowsQuery,
+    predicate: RenderedFragment,
+  ): Promise<readonly EventRowFacts[]> {
+    const direction = query.direction === 'desc' ? 'DESC' : 'ASC'
+    const sql = `WITH windowed AS (
+  SELECT e.site_id AS site_id,
+         e.event_id AS event_id,
+         e.event_kind AS event_kind,
+         epoch_ms(e.occurrence_time) AS occurrence_ms,
+         epoch_ms(e.receipt_time) AS receipt_ms,
+         e.page_path AS page_path,
+         e.referrer AS referrer,
+         e.name AS name,
+         e.destination AS destination,
+         e.value AS value,
+         e.unit AS unit,
+         e.code AS code,
+         e.message AS message,
+         e.replay_sequence AS replay_sequence,
+         row_number() OVER (
+           PARTITION BY e.site_id, e.event_id ORDER BY e.replay_sequence DESC
+         ) AS replay_rank
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)
+    AND e.event_kind = ?${predicate.sql}
+),
+deduplicated AS (
+  SELECT site_id, event_id, event_kind, occurrence_ms, receipt_ms, page_path, referrer,
+         name, destination, value, unit, code, message
+  FROM windowed
+  WHERE replay_rank = 1
+)
+SELECT event_id, event_kind, occurrence_ms, receipt_ms, page_path, referrer,
+       name, destination, value, unit, code, message
+FROM deduplicated
+ORDER BY occurrence_ms ${direction}, event_id ASC
+LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
+    const rows = await reader.read(sql, [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      query.eventKind,
+      ...predicate.args,
+      query.limit,
+      query.offset,
+    ])
+    const facts: EventRowFacts[] = []
+    for (const row of rows) {
+      const eventId = readString(row['event_id'])
+      const kind = readEventKind(row['event_kind'])
+      if (eventId === null || kind === null) continue
+      facts.push({
+        eventId,
+        kind,
+        occurredAt: createInstantMs(readInstantValue(row['occurrence_ms'], 'occurrence_time')),
+        createdAt: createInstantMs(readInstantValue(row['receipt_ms'], 'receipt_time')),
+        pagePath: clampNullableString(row['page_path'], EVENT_FIELD_MAX_LENGTHS.pagePath),
+        referrer: clampNullableString(row['referrer'], EVENT_FIELD_MAX_LENGTHS.referrer),
+        name: readNullableString(row['name']),
+        destination: clampNullableString(row['destination'], EVENT_FIELD_MAX_LENGTHS.destination),
+        value: readNullableNumber(row['value']),
+        unit: clampNullableString(row['unit'], EVENT_FIELD_MAX_LENGTHS.unit),
+        code: clampNullableString(row['code'], EVENT_FIELD_MAX_LENGTHS.code),
+        message: clampNullableString(row['message'], EVENT_FIELD_MAX_LENGTHS.message),
+        properties: await this.readEventProperties(reader, query.siteId, eventId),
+      })
+    }
+    return facts
+  }
+
+  private async readEventProperties(
+    reader: AnalyticsWindowReader,
+    siteId: string,
+    eventId: string,
+  ): Promise<Readonly<Record<string, string | number | boolean | null>> | null> {
+    const sql = `SELECT property_key, value_type, string_value, number_value, boolean_value
+FROM event_properties
+WHERE site_id = ? AND event_id = ?
+ORDER BY property_key
+LIMIT ${EVENT_PROPERTIES_MAX_KEYS}`
+    const rows = await reader.read(sql, [siteId, eventId])
+    if (rows.length === 0) return null
+    const properties: Record<string, string | number | boolean | null> = {}
+    for (const row of rows) {
+      const key = readString(row['property_key'])
+      if (key === null) continue
+      properties[key] = readPropertyValue(row)
+    }
+    return Object.keys(properties).length === 0 ? null : properties
+  }
+
+  private async readEventBreakdownCount(
+    reader: AnalyticsWindowReader,
+    query: EventBreakdownQuery,
+    predicate: RenderedFragment,
+  ): Promise<number> {
+    const value = eventBreakdownValueExpression(query.field)
+    const sql = `WITH windowed AS (
+  SELECT ${value} AS value
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)
+    AND e.event_kind = ?${predicate.sql}
+)
+SELECT count(DISTINCT value) AS total_count
+FROM windowed
+WHERE value IS NOT NULL AND trim(value) <> ''`
+    const rows = await reader.read(sql, [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      query.eventKind,
+      ...predicate.args,
+    ])
+    return readCount(rows[0]?.['total_count'])
+  }
+
+  private async readEventBreakdownRows(
+    reader: AnalyticsWindowReader,
+    query: EventBreakdownQuery,
+    predicate: RenderedFragment,
+  ): Promise<readonly EventBreakdownRowFacts[]> {
+    const value = eventBreakdownValueExpression(query.field)
+    const direction = query.direction === 'desc' ? 'DESC' : 'ASC'
+    const order = query.sort === 'count' ? `event_count ${direction}` : `value ${direction}`
+    const sql = `WITH windowed AS (
+  SELECT ${value} AS value
+  FROM events e
+  WHERE e.site_id = ?
+    AND e.occurrence_time >= CAST(? AS TIMESTAMP)
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)
+    AND e.event_kind = ?${predicate.sql}
+)
+SELECT value, count(*) AS event_count
+FROM windowed
+WHERE value IS NOT NULL AND trim(value) <> ''
+GROUP BY value
+ORDER BY ${order}, value ASC
+LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
+    const rows = await reader.read(sql, [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      query.eventKind,
+      ...predicate.args,
+      query.limit,
+      query.offset,
+    ])
+    const facts: EventBreakdownRowFacts[] = []
+    for (const row of rows) {
+      const raw = readString(row['value'])
+      if (raw === null || raw.length === 0) continue
+      facts.push({ value: clampValue(raw), count: readCount(row['event_count']) })
+    }
+    return facts
   }
 
   private async readFilteredSessionCount(
@@ -304,6 +639,66 @@ function clampValue(value: string): string {
   return value.length > BREAKDOWN_VALUE_MAX_LENGTH
     ? value.slice(0, BREAKDOWN_VALUE_MAX_LENGTH)
     : value
+}
+
+const EVENT_KINDS: readonly EventKind[] = [
+  'page_view',
+  'custom_event',
+  'outbound',
+  'performance',
+  'error',
+]
+
+function eventBreakdownValueExpression(field: EventBreakdownField): string {
+  const column = EVENT_BREAKDOWN_COLUMNS[field]
+  if (column === undefined) {
+    throw new Error(`Unsupported event breakdown field '${field}'`)
+  }
+  return column
+}
+
+function readEventKind(value: unknown): EventKind | null {
+  return typeof value === 'string' && (EVENT_KINDS as readonly string[]).includes(value)
+    ? (value as EventKind)
+    : null
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+
+function readNullableString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+
+function clampNullableString(value: unknown, maxLength: number): string | null {
+  if (typeof value !== 'string') return null
+  return value.length > maxLength ? value.slice(0, maxLength) : value
+}
+
+function readNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * `epoch_ms` projects a TIMESTAMP as a millisecond number. Anything else is a corrupt row rather
+ * than an instant, so it fails loudly instead of becoming an epoch value.
+ */
+function readInstantValue(value: unknown, column: string): number {
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'bigint') return Number(value)
+  throw new Error(`Expected a numeric ${column} from the events projection`)
+}
+
+function readPropertyValue(row: Record<string, unknown>): string | number | boolean | null {
+  const type = readString(row['value_type'])
+  if (type === 'number') return readNullableNumber(row['number_value']) ?? 0
+  if (type === 'boolean') return Boolean(row['boolean_value'])
+  if (type === 'null') return null
+  return readString(row['string_value'])
 }
 
 /**
