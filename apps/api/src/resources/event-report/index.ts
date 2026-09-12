@@ -3,26 +3,29 @@ import type { SiteScopeGuardDependencies } from '@cimi/guard'
 import { ReportingAdmissionService, type ReportingProfileFilterPort } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import type { HealthLifecycle } from '../../health.ts'
-import { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
-import { ReportingMetadataDrizzle } from './metadata.drizzle.ts'
-import { createReportingReadinessPort } from './readiness.ts'
-import { trafficReportRouter } from './router.ts'
-import { TrafficReportService } from './service.ts'
+import {
+  ReportingEvidenceDrizzleDuckDb,
+  ReportingMetadataDrizzle,
+  createReportingReadinessPort,
+} from '../traffic-report/index.ts'
+import { eventReportRouter } from './router.ts'
+import { EventReportService } from './service.ts'
 
-export { trafficReportRouter }
-export { TrafficReportService, type TrafficReportServiceDependencies } from './service.ts'
-export { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
-export { ReportingMetadataDrizzle } from './metadata.drizzle.ts'
-export { createReportingReadinessPort } from './readiness.ts'
+export { eventReportRouter }
+export { EventReportService, type EventReportServiceDependencies } from './service.ts'
 export { toOrpcReportingError } from './errors.ts'
 export type {
-  TrafficBreakdownsInput,
-  TrafficBreakdownsOutput,
-  TrafficOverviewInput,
-  TrafficOverviewOutput,
+  EventBreakdownsInput,
+  EventBreakdownsOutput,
+  EventListInput,
+  EventListOutput,
+  EventOverviewInput,
+  EventOverviewOutput,
+  EventTimeseriesInput,
+  EventTimeseriesOutput,
 } from './service.ts'
 
-export interface CreateTrafficReportDependencies {
+export interface CreateEventReportDependencies {
   readonly db: Db
   readonly analytics: AnalyticsDb
   readonly lifecycle: HealthLifecycle
@@ -31,14 +34,14 @@ export interface CreateTrafficReportDependencies {
   readonly profileFilterKeys: ReportingProfileFilterPort
 }
 
-export function createTrafficReport({
+export function createEventReport({
   db,
   analytics,
   lifecycle,
   dataDirectoryReady,
   scope,
   profileFilterKeys,
-}: CreateTrafficReportDependencies) {
+}: CreateEventReportDependencies) {
   const metadata = new ReportingMetadataDrizzle({ db })
   const evidence = new ReportingEvidenceDrizzleDuckDb({ db, analytics })
   const query = new DuckDbReportingQuery({ analytics })
@@ -50,13 +53,13 @@ export function createTrafficReport({
       lifecycle,
     }),
   })
-  const service = new TrafficReportService({
+  const service = new EventReportService({
     admission,
     query,
     profileFilterKeys,
     scope: scope ?? createSiteScopeDependencies({ db }),
   })
-  return { metadata, evidence, admission, query, service, router: trafficReportRouter(service) }
+  return { metadata, evidence, admission, query, service, router: eventReportRouter(service) }
 }
 
-export type TrafficReportModule = ReturnType<typeof createTrafficReport>
+export type EventReportModule = ReturnType<typeof createEventReport>

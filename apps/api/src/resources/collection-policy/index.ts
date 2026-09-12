@@ -8,6 +8,10 @@ import { CollectionPolicyService, type CollectionPolicyIdFactory } from './servi
 
 export { collectionPolicyRouter }
 export {
+  CollectionPolicyReportingProfileFilter,
+  type CollectionPolicyReportingProfileFilterDependencies,
+} from './reporting-profile-filter.ts'
+export {
   CollectionPolicyService,
   type CollectionPolicyIdFactory,
   type CollectionPolicyServiceDependencies,

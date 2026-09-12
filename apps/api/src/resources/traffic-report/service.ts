@@ -9,12 +9,23 @@ import {
   type TrafficReportFamily,
 } from '@cimi/contract'
 import { assertSiteScope, type SiteScopeGuardDependencies } from '@cimi/guard'
+import { ORPCError } from '@orpc/server'
 import {
   ReportingAdmissionService,
+  compileTrafficFilterPlan,
   createCalendarDate,
   createSiteId,
+  fillBuckets,
+  type BreakdownSort,
+  type BucketCount,
   type FreshnessEvidence,
+  type ReportFilterPlan,
+  type ReportingProfileFilterPort,
+  type ReportingQueryPort,
   type ResolvedPeriod,
+  type SiteId,
+  type TrafficBreakdownDimension,
+  type TrafficMetricsFacts,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from './errors.ts'
@@ -24,8 +35,21 @@ export type TrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput>
 export type TrafficBreakdownsInput = v.InferOutput<typeof STrafficBreakdownsInput>
 export type TrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOutput>
 
+const DEFAULT_BREAKDOWN_LIMIT = 50
+
+/**
+ * The distinct counts each report family actually evaluates: the overview reads distinct visitors
+ * and Sessions; the breakdown reads distinct Sessions and distinct dimension values.
+ */
+const DISTINCT_COUNT_OPERATIONS: Readonly<Record<TrafficReportFamily, number>> = {
+  aggregate: 2,
+  breakdown: 2,
+}
+
 export interface TrafficReportServiceDependencies {
   readonly admission: ReportingAdmissionService
+  readonly query: ReportingQueryPort
+  readonly profileFilterKeys: ReportingProfileFilterPort
   readonly scope: SiteScopeGuardDependencies
 }
 
@@ -38,14 +62,26 @@ export class TrafficReportService {
   ): Promise<TrafficOverviewOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'aggregate')
+    const siteId = createSiteId(input.siteId)
+    const filterPlan = await this.compileFilters(input, siteId)
 
-    const current = this.overviewPeriod(ticket.periods.current, ticket.freshness.current)
+    const current = await this.overviewPeriod(
+      siteId,
+      ticket.periods.current,
+      ticket.freshness.current,
+      filterPlan,
+    )
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
     return {
       ...current,
-      comparison: this.overviewPeriod(ticket.periods.comparison, ticket.freshness.comparison),
+      comparison: await this.overviewPeriod(
+        siteId,
+        ticket.periods.comparison,
+        ticket.freshness.comparison,
+        filterPlan,
+      ),
     }
   }
 
@@ -55,15 +91,47 @@ export class TrafficReportService {
   ): Promise<TrafficBreakdownsOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'breakdown')
+    const siteId = createSiteId(input.siteId)
+    const filterPlan = await this.compileFilters(input, siteId)
+    const dimension = input.dimension
+    const sort = input.sort ?? 'value'
+    const direction = input.direction ?? 'asc'
+    const offset = input.offset ?? 0
+    const limit = input.limit ?? DEFAULT_BREAKDOWN_LIMIT
 
-    const current = this.breakdownPage(ticket.freshness.current)
-    if (ticket.freshness.comparison === null) {
+    const current = await this.breakdownPage(
+      siteId,
+      ticket.periods.current,
+      ticket.freshness.current,
+      filterPlan,
+      { dimension, sort, direction, offset, limit },
+    )
+    if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
     return {
       ...current,
-      comparison: this.breakdownPage(ticket.freshness.comparison),
+      comparison: await this.breakdownPage(
+        siteId,
+        ticket.periods.comparison,
+        ticket.freshness.comparison,
+        filterPlan,
+        { dimension, sort, direction, offset, limit },
+      ),
     }
+  }
+
+  private async compileFilters(
+    input: TrafficOverviewInput | TrafficBreakdownsInput,
+    siteId: SiteId,
+  ): Promise<ReportFilterPlan> {
+    const profileFilterKeys = await this.deps.profileFilterKeys.getProfileFilterKeys(siteId)
+    const result = compileTrafficFilterPlan({
+      filters: input.filters ?? [],
+      profileFilterKeys,
+    })
+    if (!result.ok) throw new ORPCError('BAD_REQUEST', { message: result.reason })
+    return result.plan
   }
 
   private async admit(
@@ -94,7 +162,7 @@ export class TrafficReportService {
           extraMetricCount: 'dimension' in input ? 1 : 0,
           dimensionCount: 'dimension' in input ? 1 : 0,
           filterCount: input.filters?.length ?? 0,
-          distinctCountOperations: 0,
+          distinctCountOperations: DISTINCT_COUNT_OPERATIONS[family],
           budget: REPORT_FACT_WORK_BUDGETS[family],
         },
       })
@@ -103,32 +171,45 @@ export class TrafficReportService {
     }
   }
 
-  /**
-   * Metric aggregation over the DuckDB projection is not built on this branch. Every bucket is
-   * reported zero-filled with `complete: false`, the contract's representation for a bucket whose
-   * values are not computed, so the response claims no measurement it does not have. The
-   * per-bucket completeness rule, where only the current partial bucket is `complete: false`,
-   * lands with aggregation in #65, which owns the metric formulas.
-   */
-  private overviewPeriod(
+  private async overviewPeriod(
+    siteId: SiteId,
     period: ResolvedPeriod,
     freshness: FreshnessEvidence,
-  ): Omit<TrafficOverviewOutput, 'comparison'> {
+    filterPlan: ReportFilterPlan,
+  ): Promise<Omit<TrafficOverviewOutput, 'comparison'>> {
+    const result = await this.deps.query.trafficAggregate({
+      siteId,
+      period,
+      includeTrend: true,
+      filterPlan,
+    })
+    const facts = result.metrics
+    const rows: BucketCount[] = result.trend.map((bucket) => ({
+      at: bucket.at,
+      count: bucket.visitors,
+    }))
+    const filled = fillBuckets({
+      bucketStarts: period.bucketStarts ?? [],
+      interval: period.interval,
+      completeThrough: readCompleteThrough(freshness),
+      rows,
+      toValue: (row) => row.count,
+    })
     return {
       fromDate: period.dates.fromDate,
       toDate: period.dates.toDate,
-      visitors: 0,
-      sessions: 0,
-      eligibleSessions: 0,
-      sessionsWithValidDuration: 0,
-      pageviews: 0,
-      bounceRate: 0,
-      pagesPerSession: 0,
-      averageSessionDurationSeconds: 0,
-      trend: (period.bucketStarts ?? []).map((bucket) => ({
+      visitors: facts.visitors,
+      sessions: facts.sessions,
+      eligibleSessions: facts.eligibleSessions,
+      sessionsWithValidDuration: facts.sessionsWithValidDuration,
+      pageviews: facts.pageviews,
+      bounceRate: bounceRate(facts),
+      pagesPerSession: facts.sessions === 0 ? 0 : facts.pageviews / facts.sessions,
+      averageSessionDurationSeconds: averageSessionDurationSeconds(facts),
+      trend: filled.map((bucket) => ({
         at: new Date(bucket.at).toISOString(),
-        value: 0,
-        complete: false,
+        value: bucket.value,
+        complete: bucket.complete,
         metric: 'visitors' as const,
         grain: 'visitor' as const,
         unit: 'count' as const,
@@ -138,19 +219,73 @@ export class TrafficReportService {
     }
   }
 
-  /**
-   * Breakdown rows are not computed on this branch, so the page is empty and `totalCount` is
-   * zero. Pagination metadata is still returned in the contract's shape rather than omitted.
-   */
-  private breakdownPage(freshness: FreshnessEvidence): Omit<TrafficBreakdownsOutput, 'comparison'> {
+  private async breakdownPage(
+    siteId: SiteId,
+    period: ResolvedPeriod,
+    freshness: FreshnessEvidence,
+    filterPlan: ReportFilterPlan,
+    page: BreakdownPageRequest,
+  ): Promise<Omit<TrafficBreakdownsOutput, 'comparison'>> {
+    const result = await this.deps.query.trafficBreakdown({
+      siteId,
+      period,
+      dimension: page.dimension,
+      sort: page.sort,
+      direction: page.direction,
+      offset: page.offset,
+      limit: page.limit,
+      filterPlan,
+    })
     return {
-      items: [],
-      nextOffset: null,
-      hasMore: false,
-      totalCount: 0,
+      items: result.rows.map((row) => ({
+        value: row.value,
+        metric: 'sessions' as const,
+        grain: 'session' as const,
+        count: row.count,
+        denominator: result.denominator,
+        percentage: breakdownPercentage(row.count, result.denominator),
+      })),
+      nextOffset: result.nextOffset,
+      hasMore: result.hasMore,
+      totalCount: result.totalCount,
       ...freshnessOutput(freshness),
     }
   }
+}
+
+interface BreakdownPageRequest {
+  readonly dimension: TrafficBreakdownDimension
+  readonly sort: BreakdownSort
+  readonly direction: 'asc' | 'desc'
+  readonly offset: number
+  readonly limit: number
+}
+
+/**
+ * `SRate` is 0..1, so a per-row count above its session denominator is impossible by construction;
+ * surfacing that as an error beats clamping a bug into a plausible-looking rate.
+ */
+function breakdownPercentage(count: number, denominator: number): number {
+  if (denominator === 0) return 0
+  const rate = count / denominator
+  if (rate > 1) {
+    throw new Error(`Traffic breakdown count ${count} exceeds denominator ${denominator}`)
+  }
+  return rate
+}
+
+function bounceRate(facts: TrafficMetricsFacts): number {
+  return facts.eligibleSessions === 0 ? 0 : facts.bouncedSessions / facts.eligibleSessions
+}
+
+function averageSessionDurationSeconds(facts: TrafficMetricsFacts): number {
+  return facts.sessionsWithValidDuration === 0
+    ? 0
+    : facts.totalSessionDurationMs / 1000 / facts.sessionsWithValidDuration
+}
+
+function readCompleteThrough(freshness: FreshnessEvidence) {
+  return freshness.occurrenceTimeCoverageThrough
 }
 
 function freshnessOutput(freshness: FreshnessEvidence): {

@@ -364,6 +364,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@cimi/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       '@cimi/utils':
         specifier: workspace:*
         version: link:../utils

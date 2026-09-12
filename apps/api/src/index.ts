@@ -28,6 +28,7 @@ import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createRetentionPolicy } from './resources/retention-policy/index.ts'
 import { createCollectionPolicy } from './resources/collection-policy/index.ts'
+import { CollectionPolicyReportingProfileFilter } from './resources/collection-policy/reporting-profile-filter.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
 import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
@@ -49,6 +50,7 @@ import {
 } from './resources/backup-restore/index.ts'
 import { createIdentityProfile } from './resources/identity-profile/index.ts'
 import { createTrafficReport } from './resources/traffic-report/index.ts'
+import { createEventReport } from './resources/event-report/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -240,11 +242,22 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       }
     },
   }
+  const reportingProfileFilter = new CollectionPolicyReportingProfileFilter({
+    collectionPolicy: collectionPolicy.service,
+  })
   const trafficReport = createTrafficReport({
     db: deps.db,
     analytics: deps.analytics,
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
+    profileFilterKeys: reportingProfileFilter,
+  })
+  const eventReport = createEventReport({
+    db: deps.db,
+    analytics: deps.analytics,
+    lifecycle,
+    dataDirectoryReady: deps.dataDirectoryReady,
+    profileFilterKeys: reportingProfileFilter,
   })
   const router = api.router({
     health: {
@@ -262,6 +275,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     eventIngestion: eventIngestion.router,
     identityProfile: identityProfile.router,
     trafficReport: trafficReport.router,
+    eventReport: eventReport.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
