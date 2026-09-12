@@ -6,6 +6,7 @@ import {
   createInstantMs,
   type ReportAdmissionTicket,
   type ReportingAdmissionService,
+  type ReportingQueryPort,
 } from '@cimi/kernel'
 import { TrafficReportService } from '../service.ts'
 
@@ -48,6 +49,19 @@ const ticket: ReportAdmissionTicket = {
 function createService() {
   const admission = mock<ReportingAdmissionService>()
   admission.admit.mockResolvedValue(ticket)
+  const query = mock<ReportingQueryPort>()
+  query.trafficAggregate.mockResolvedValue({
+    metrics: {
+      visitors: 0,
+      sessions: 0,
+      pageviews: 0,
+      eligibleSessions: 0,
+      sessionsWithValidDuration: 0,
+      bouncedSessions: 0,
+      totalSessionDurationMs: 0,
+    },
+    trend: [],
+  })
   const scope = new InMemorySiteScopePort(
     [{ siteId: 'ste-1', organizationId: 'org-1' }],
     [{ organizationId: 'org-1', userId: 'user-1', role: 'owner' }],
@@ -55,6 +69,8 @@ function createService() {
   return {
     service: new TrafficReportService({
       admission,
+      query,
+      profileFilterKeys: [],
       scope: { siteScope: scope, membership: scope },
     }),
     admission,

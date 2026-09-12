@@ -53,12 +53,20 @@ export interface AnalyticsProjectionSnapshot {
   readonly factCardinality: number
 }
 
+export interface AnalyticsWindowReader {
+  read(
+    sql: string,
+    args: readonly (string | number | boolean | null)[],
+  ): Promise<readonly Record<string, unknown>[]>
+}
+
 export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
   deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number>
   purgeSite(input: { siteId: string }): Promise<void>
   readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot>
+  readWindowed<T>(work: (reader: AnalyticsWindowReader) => Promise<T>): Promise<T>
   close(): Promise<void>
 }
 
@@ -184,6 +192,19 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           openGaps: readGapRows(gapReader.getRowObjects()),
           factCardinality,
         }
+      })
+    },
+    async readWindowed<T>(work: (reader: AnalyticsWindowReader) => Promise<T>): Promise<T> {
+      if (closed || closing) throw new Error('Analytics database is closed')
+      if (unavailable) throw new Error('Analytics database is unavailable')
+      return enqueue(async () => {
+        const reader: AnalyticsWindowReader = {
+          async read(sql, args) {
+            const result = await connection.runAndReadAll(sql, [...args])
+            return result.getRowObjects()
+          },
+        }
+        return work(reader)
       })
     },
     async rebuild(input: { controlDb: Db }): Promise<void> {

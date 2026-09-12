@@ -9,6 +9,13 @@ export {
   type TrafficFilterInput,
 } from './compile-filter.ts'
 export { fillBuckets, type BucketCount, type FilledBucket } from './bucket-fill.ts'
+export type { ReportingQueryPort } from './ports.ts'
+export type {
+  TrafficAggregateQuery,
+  TrafficAggregateResult,
+  TrafficMetricsFacts,
+  TrafficTrendBucket,
+} from './traffic-types.ts'
 export type {
   EventKind,
   Predicate,

@@ -9,12 +9,20 @@ import {
   type TrafficReportFamily,
 } from '@cimi/contract'
 import { assertSiteScope, type SiteScopeGuardDependencies } from '@cimi/guard'
+import { ORPCError } from '@orpc/server'
 import {
   ReportingAdmissionService,
+  compileTrafficFilterPlan,
   createCalendarDate,
   createSiteId,
+  fillBuckets,
+  type BucketCount,
   type FreshnessEvidence,
+  type ReportFilterPlan,
+  type ReportingQueryPort,
   type ResolvedPeriod,
+  type SiteId,
+  type TrafficMetricsFacts,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from './errors.ts'
@@ -26,6 +34,8 @@ export type TrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOut
 
 export interface TrafficReportServiceDependencies {
   readonly admission: ReportingAdmissionService
+  readonly query: ReportingQueryPort
+  readonly profileFilterKeys: readonly string[] | (() => readonly string[])
   readonly scope: SiteScopeGuardDependencies
 }
 
@@ -38,14 +48,26 @@ export class TrafficReportService {
   ): Promise<TrafficOverviewOutput> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const ticket = await this.admit(input, 'aggregate')
+    const siteId = createSiteId(input.siteId)
+    const filterPlan = this.compileFilters(input)
 
-    const current = this.overviewPeriod(ticket.periods.current, ticket.freshness.current)
+    const current = await this.overviewPeriod(
+      siteId,
+      ticket.periods.current,
+      ticket.freshness.current,
+      filterPlan,
+    )
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
     return {
       ...current,
-      comparison: this.overviewPeriod(ticket.periods.comparison, ticket.freshness.comparison),
+      comparison: await this.overviewPeriod(
+        siteId,
+        ticket.periods.comparison,
+        ticket.freshness.comparison,
+        filterPlan,
+      ),
     }
   }
 
@@ -60,10 +82,20 @@ export class TrafficReportService {
     if (ticket.freshness.comparison === null) {
       return current
     }
-    return {
-      ...current,
-      comparison: this.breakdownPage(ticket.freshness.comparison),
-    }
+    return { ...current, comparison: this.breakdownPage(ticket.freshness.comparison) }
+  }
+
+  private compileFilters(input: TrafficOverviewInput): ReportFilterPlan {
+    const profileFilterKeys =
+      typeof this.deps.profileFilterKeys === 'function'
+        ? this.deps.profileFilterKeys()
+        : this.deps.profileFilterKeys
+    const result = compileTrafficFilterPlan({
+      filters: input.filters ?? [],
+      profileFilterKeys,
+    })
+    if (!result.ok) throw new ORPCError('BAD_REQUEST', { message: result.reason })
+    return result.plan
   }
 
   private async admit(
@@ -103,32 +135,45 @@ export class TrafficReportService {
     }
   }
 
-  /**
-   * Metric aggregation over the DuckDB projection is not built on this branch. Every bucket is
-   * reported zero-filled with `complete: false`, the contract's representation for a bucket whose
-   * values are not computed, so the response claims no measurement it does not have. The
-   * per-bucket completeness rule, where only the current partial bucket is `complete: false`,
-   * lands with aggregation in #65, which owns the metric formulas.
-   */
-  private overviewPeriod(
+  private async overviewPeriod(
+    siteId: SiteId,
     period: ResolvedPeriod,
     freshness: FreshnessEvidence,
-  ): Omit<TrafficOverviewOutput, 'comparison'> {
+    filterPlan: ReportFilterPlan,
+  ): Promise<Omit<TrafficOverviewOutput, 'comparison'>> {
+    const result = await this.deps.query.trafficAggregate({
+      siteId,
+      period,
+      includeTrend: true,
+      filterPlan,
+    })
+    const facts = result.metrics
+    const rows: BucketCount[] = result.trend.map((bucket) => ({
+      at: bucket.at,
+      count: bucket.visitors,
+    }))
+    const filled = fillBuckets({
+      bucketStarts: period.bucketStarts ?? [],
+      interval: period.interval,
+      completeThrough: readCompleteThrough(freshness),
+      rows,
+      toValue: (row) => row.count,
+    })
     return {
       fromDate: period.dates.fromDate,
       toDate: period.dates.toDate,
-      visitors: 0,
-      sessions: 0,
-      eligibleSessions: 0,
-      sessionsWithValidDuration: 0,
-      pageviews: 0,
-      bounceRate: 0,
-      pagesPerSession: 0,
-      averageSessionDurationSeconds: 0,
-      trend: (period.bucketStarts ?? []).map((bucket) => ({
+      visitors: facts.visitors,
+      sessions: facts.sessions,
+      eligibleSessions: facts.eligibleSessions,
+      sessionsWithValidDuration: facts.sessionsWithValidDuration,
+      pageviews: facts.pageviews,
+      bounceRate: bounceRate(facts),
+      pagesPerSession: facts.sessions === 0 ? 0 : facts.pageviews / facts.sessions,
+      averageSessionDurationSeconds: averageSessionDurationSeconds(facts),
+      trend: filled.map((bucket) => ({
         at: new Date(bucket.at).toISOString(),
-        value: 0,
-        complete: false,
+        value: bucket.value,
+        complete: bucket.complete,
         metric: 'visitors' as const,
         grain: 'visitor' as const,
         unit: 'count' as const,
@@ -151,6 +196,20 @@ export class TrafficReportService {
       ...freshnessOutput(freshness),
     }
   }
+}
+
+function bounceRate(facts: TrafficMetricsFacts): number {
+  return facts.eligibleSessions === 0 ? 0 : facts.bouncedSessions / facts.eligibleSessions
+}
+
+function averageSessionDurationSeconds(facts: TrafficMetricsFacts): number {
+  return facts.sessionsWithValidDuration === 0
+    ? 0
+    : facts.totalSessionDurationMs / 1000 / facts.sessionsWithValidDuration
+}
+
+function readCompleteThrough(freshness: FreshnessEvidence) {
+  return freshness.occurrenceTimeCoverageThrough
 }
 
 function freshnessOutput(freshness: FreshnessEvidence): {

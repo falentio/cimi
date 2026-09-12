@@ -245,6 +245,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     analytics: deps.analytics,
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
+    profileFilterKeys: [],
   })
   const router = api.router({
     health: {

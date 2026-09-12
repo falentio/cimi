@@ -22,6 +22,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cimi/kernel": "workspace:*",
     "@cimi/utils": "workspace:*",
     "@duckdb/node-api": "catalog:",
     "better-sqlite3": "catalog:",
