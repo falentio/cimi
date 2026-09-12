@@ -11,6 +11,8 @@ declare -a over_1000=()
 declare -a over_500=()
 declare -a over_200=()
 
+code_glob='*.{ts,tsx,js,jsx,vue,svelte,astro,mjs,cjs,mts,cts,css,scss,sass,less,html,sql,sh,py}'
+
 while IFS= read -r -d '' file; do
   [[ -f "${file}" ]] || continue
 
@@ -24,7 +26,16 @@ while IFS= read -r -d '' file; do
   elif (( lines > 200 )); then
     over_200+=("${entry}")
   fi
-done < <(rg --files --hidden --null --glob '!.git/**')
+done < <(
+  rg --files --hidden --null \
+    --glob "${code_glob}" \
+    --glob '!.git/**' \
+    --glob '!docs/**' \
+    --glob '!.agents/**' \
+    --glob '!**/migrations/**' \
+    --glob '!**/*.generated.*' \
+    --glob '!**/*.codegen.*'
+)
 
 print_group() {
   local heading=$1
@@ -46,7 +57,7 @@ print_group() {
   printf '\n'
 }
 
-printf 'Files grouped by line count\n\n'
+printf 'Refactorable code files grouped by line count\n\n'
 print_group '>1000 lines' "${over_1000[@]}"
 print_group '>500 and <=1000 lines' "${over_500[@]}"
 print_group '>200 and <=500 lines' "${over_200[@]}"
