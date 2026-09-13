@@ -1285,3 +1285,32 @@ describe('session span across the window boundary', () => {
     }
   })
 })
+
+describe('eligible Sessions apply the range before eligibility', () => {
+  it('excludes a Session whose only page_view falls outside the requested range', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY },
+        { session: 's1', visitor: 'v1', kind: 'custom_event', at: DAY_TWO + 10 * 60 * 60 * 1000 },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: dayTwoPeriod(),
+        includeTrend: false,
+        filterPlan: emptyPlan,
+      })
+
+      expect(result.metrics.sessions).toBe(1)
+      expect(result.metrics.pageviews).toBe(0)
+      expect(result.metrics.eligibleSessions).toBe(0)
+      expect(result.metrics.bouncedSessions).toBe(0)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
