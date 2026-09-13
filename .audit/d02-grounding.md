@@ -8,7 +8,9 @@ Deliverable for issue #45: real traffic-report + event-report over the DuckDB pr
 - Contract trees are authored and validated:
   - packages/contract/src/contract/traffic-report/schema.ts
   - packages/contract/src/contract/event-report/schema.ts
+
   Read them for the exact input/output shapes. They fix everything the service must produce.
+
 - Reporting admission kernel: packages/kernel/src/reporting/
   - ReportingAdmissionService.admit(input: ReportAdmissionInput): Promise<ReportAdmissionTicket>
   - Ticket = { periods: ResolvedPeriods; freshness: {current, comparison|null}; factWork }
@@ -47,6 +49,7 @@ Deliverable for issue #45: real traffic-report + event-report over the DuckDB pr
 ## Normative rules the design must honor (from specs; all cited)
 
 traffic-report (docs/specs/analytics-reporting/traffic-report/SPECS.md):
+
 - :48 overview metrics visitors/sessions/pageviews/bounce_rate/pages_per_session/average_session_duration_seconds; rates denominator eligibleSessions; duration denominator sessionsWithValidDuration.
 - :48 bounce = exactly one accepted page_view, no custom_event/outbound engagement, full Session occurrence span <10s, identify excluded as engagement.
 - :48 bucket limits minute1800/hour720/day366/week104/month36/year10; invalid/over bucket rejected not clamped.
@@ -56,6 +59,7 @@ traffic-report (docs/specs/analytics-reporting/traffic-report/SPECS.md):
 - :91 no events -> zero metrics + empty rows, not an error. :92 late event placed by Occurrence Time. :93 deleted identity excluded, aggregates recomputed.
 
 event-report (docs/specs/analytics-reporting/event-report/SPECS.md):
+
 - :50 overview counts + unique Session/Visitor context by Event Kind; typed property.* + has_done/has_not_done session same_range; authenticated only.
 - :60 timeseries buckets valid for range; empty buckets zero-filled; own freshness; granular limits same numbers.
 - :70 listEvents sorted ONLY by validated Occurrence Time with Event ID final tie-breaker; receipt time and kind are NOT sort modes; duplicate Event IDs appear once; no comparison; placement by Occurrence Time.
@@ -64,6 +68,7 @@ event-report (docs/specs/analytics-reporting/event-report/SPECS.md):
 - :116 unsupported specialized field -> BAD_REQUEST, never silently ignored.
 
 METRICS.md:
+
 - :40 sessions = count DISTINCT Sessions intersecting range (non-additive). :41 visitors = count DISTINCT Visitors intersecting range (non-additive).
 - :45 bounce_rate = bounced / eligible Sessions. :46 pages_per_session = pageviews / sessions. :47 average_session_duration_seconds = sum full Session occurrence spans / Sessions with valid duration.
 - :38 events = count accepted Events. :39 pageviews = count accepted page_view Events.
@@ -76,11 +81,11 @@ Criteria (ACCEPTANCE.md:363-529): site-local inclusive dates; non-enumeration (m
 ## Design question to answer
 
 Design the layer that turns the DuckDB projection + the kernel ticket into the exact contract
-outputs, for all six procedures:
-1. getTrafficOverview  2. getTrafficBreakdowns
-3. getEventOverview    4. getEventTimeseries  5. listEvents  6. getEventBreakdowns
+outputs, for all six procedures: `getTrafficOverview`, `getTrafficBreakdowns`, `getEventOverview`,
+`getEventTimeseries`, `listEvents`, and `getEventBreakdowns`.
 
 Resolve explicitly:
+
 - Where does the SQL live? A new AnalyticsDb read method? A new port in kernel? An adapter in apps/api?
 - What is the interface between the service and the store? What type crosses it?
 - How are filters (event/session/visitor/profile scopes; property.*; has_done/has_not_done) compiled

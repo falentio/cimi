@@ -15,13 +15,13 @@ Cross-judge corrections verified against source. Shared blind spots resolved bel
 2. Traffic and event use DIFFERENT filter unions:
    - traffic: `SScopedQueryFilter` (packages/contract/src/schema/index.ts:216) — scopes
      `event|session|visitor|profile`; event fields `kind,name,pagePath,referrer,destination,unit,
-     code`; session fields `device,browser,os,country,region,city,entryPage,exitPage,utmSource,
-     utmMedium,utmCampaign`; visitor `identityKind`; profile `trait.<k>`. Plus `has_done/has_not_done`
+code`; session fields `device,browser,os,country,region,city,entryPage,exitPage,utmSource,
+utmMedium,utmCampaign`; visitor `identityKind`; profile `trait.<k>`. Plus `has_done/has_not_done`
      visitor-scope action presence (schema/index.ts:209 `SHasDoneFilter`).
    - event: `SEventReportFilter` (packages/contract/src/contract/event-report/schema.ts:104) — scopes
      `event|session`; event fields `kind,name,pagePath,referrer,destination,unit,code` + `property.*`;
      session `has_done/has_not_done` with discriminated action + `range: same_range`.
-   The compiler must accept BOTH. Two entry functions, one shared `Predicate` output.
+     The compiler must accept BOTH. Two entry functions, one shared `Predicate` output.
 3. `region`/`city` are written as literal `null` by rebuild (packages/db/src/duckdb/index.ts:377-378)
    although the traffic breakdown contract exposes them (traffic schema.ts:178-179). Decision:
    serve them; the group-by yields no non-null rows, so the breakdown returns empty for those
@@ -35,6 +35,7 @@ Cross-judge corrections verified against source. Shared blind spots resolved bel
 ## Shared blind spot fixed: the bounce predicate
 
 `bounce_rate = bouncedSessions / eligibleSessions` (METRICS.md:45).
+
 - `bouncedSessions` = Sessions whose accepted events are: exactly one `page_view`, zero `custom_event`,
   zero `outbound`, and whose full occurrence span (`max(occurrence) - min(occurrence)` over ALL its
   accepted events) is `< 10` seconds. `identify` events do not count as engagement (they neither add
@@ -98,9 +99,9 @@ export interface ReportFilterPlan {
   readonly distinctOperations: number
 }
 export interface Predicate {
-  readonly target: ColumnRef                 // allowlisted column or json property key
-  readonly operator: 'eq'|'neq'|'contains'|'gt'|'lt'
-  readonly bind: readonly (string|number|boolean|null)[]
+  readonly target: ColumnRef // allowlisted column or json property key
+  readonly operator: 'eq' | 'neq' | 'contains' | 'gt' | 'lt'
+  readonly bind: readonly (string | number | boolean | null)[]
 }
 ```
 
