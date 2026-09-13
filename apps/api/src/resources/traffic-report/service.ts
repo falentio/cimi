@@ -28,7 +28,7 @@ import {
   type TrafficMetricsFacts,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
-import { toOrpcReportingError } from './errors.ts'
+import { toOrpcReportingError } from '../../errors.ts'
 
 export type TrafficOverviewInput = v.InferOutput<typeof STrafficOverviewInput>
 export type TrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput>

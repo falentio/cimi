@@ -1,5 +1,5 @@
 import { api, authenticatedApi } from '../../orpc.ts'
-import { toOrpcReportingError } from './errors.ts'
+import { toOrpcReportingError } from '../../errors.ts'
 import type { TrafficReportService } from './service.ts'
 
 const trafficReportApi = api.trafficReport

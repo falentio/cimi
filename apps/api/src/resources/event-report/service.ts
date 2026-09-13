@@ -32,7 +32,7 @@ import {
   type SiteId,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
-import { toOrpcReportingError } from './errors.ts'
+import { toOrpcReportingError } from '../../errors.ts'
 
 export type EventOverviewInput = v.InferOutput<typeof SEventOverviewInput>
 export type EventOverviewOutput = v.InferOutput<typeof SEventOverviewOutput>

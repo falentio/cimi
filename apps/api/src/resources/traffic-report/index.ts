@@ -14,7 +14,7 @@ export { TrafficReportService, type TrafficReportServiceDependencies } from './s
 export { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
 export { ReportingMetadataDrizzle } from './metadata.drizzle.ts'
 export { createReportingReadinessPort } from './readiness.ts'
-export { toOrpcReportingError } from './errors.ts'
+export { toOrpcReportingError } from '../../errors.ts'
 export type {
   TrafficBreakdownsInput,
   TrafficBreakdownsOutput,

@@ -13,7 +13,7 @@ import { EventReportService } from './service.ts'
 
 export { eventReportRouter }
 export { EventReportService, type EventReportServiceDependencies } from './service.ts'
-export { toOrpcReportingError } from './errors.ts'
+export { toOrpcReportingError } from '../../errors.ts'
 export type {
   EventBreakdownsInput,
   EventBreakdownsOutput,
