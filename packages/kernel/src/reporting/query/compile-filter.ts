@@ -179,6 +179,23 @@ function isCompatiblePropertyValue(
   return true
 }
 
+/**
+ * Event value filters mirror the event-report contract: `eq`/`neq` accept a string or an explicit
+ * null for a nullable Event field, while `contains` and the ordering operators narrow the type.
+ */
+function isCompatibleEventValue(
+  operator: ContractOperator,
+  values: readonly PredicateValue[],
+): boolean {
+  if (operator === 'contains') {
+    return values.every((value) => typeof value === 'string')
+  }
+  if (operator === 'greater_than' || operator === 'less_than') {
+    return values.every(isFiniteNumber)
+  }
+  return values.every((value) => typeof value === 'string' || value === null)
+}
+
 function emptyPlan(): ReportFilterPlan {
   return {
     event: [],
@@ -332,7 +349,7 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
     if (target === undefined) return { ok: false, reason: 'unsupported-field' }
     if (field === 'kind') {
       if (!values.every(isKindValue)) return { ok: false, reason: 'incompatible-value' }
-    } else if (!isCompatibleValue('event', operator, values)) {
+    } else if (!isCompatibleEventValue(operator, values)) {
       return { ok: false, reason: 'incompatible-value' }
     }
     event.push({ target, propertyKey: null, operator: predicateOperator, bind: values })
