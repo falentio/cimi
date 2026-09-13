@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { ERROR_CATALOG } from '@cimi/contract'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
 import {
   createOwnerSite,
@@ -373,4 +374,107 @@ test('redacts a stack trace and URL query from a listed error message', async ()
   expect(response.status, await response.clone().text()).toBe(200)
   const body = await response.json()
   expect(body.items[0].message).toBe('GET /cb')
+})
+
+test('returns NOT_FOUND for an unknown Site without disclosing accessibility', async () => {
+  const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+  await using _ = fixture
+  const { cookie } = await createOwnerSite(fixture.app, fixture.db, 'event-missing@example.com')
+
+  const response = await apiTestRequest(
+    fixture.app,
+    overviewPath('ste-does-not-exist', 'page_view'),
+    cookie,
+  )
+
+  expect(response.status).toBe(404)
+  await expect(response.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+})
+
+test('returns SERVICE_UNAVAILABLE before the handler when the analytics store is not ready', async () => {
+  const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-degraded@example.com')
+  await using _ = fixture
+  await fixture.analytics.close()
+
+  const response = await apiTestRequest(fixture.app, overviewPath(siteId, 'page_view'), cookie)
+
+  expect(response.status).toBe(503)
+  await expect(response.json()).resolves.toMatchObject({
+    code: 'SERVICE_UNAVAILABLE',
+    status: 503,
+    message: ERROR_CATALOG.SERVICE_UNAVAILABLE.message,
+  })
+})
+
+test('rejects an unprojected Site with QUERY_LIMIT_EXCEEDED rather than reporting empty data', async () => {
+  const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+  await using _ = fixture
+  const { cookie, siteId } = await createOwnerSite(
+    fixture.app,
+    fixture.db,
+    'event-unprojected@example.com',
+  )
+
+  const response = await apiTestRequest(fixture.app, overviewPath(siteId, 'page_view'), cookie)
+
+  expect(response.status).toBe(422)
+  await expect(response.json()).resolves.toMatchObject({
+    code: 'QUERY_LIMIT_EXCEEDED',
+    status: 422,
+  })
+})
+
+test('rejects a range that reaches past Effective Retention instead of clamping it', async () => {
+  const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-overbound@example.com')
+  await using _ = fixture
+
+  const response = await apiTestRequest(
+    fixture.app,
+    `/event-report/getEventOverview?siteId=${encodeURIComponent(siteId)}&fromDate=2020-01-01&toDate=2026-09-06&eventKind=page_view`,
+    cookie,
+  )
+
+  expect(response.status).toBe(422)
+  await expect(response.json()).resolves.toMatchObject({
+    code: 'QUERY_LIMIT_EXCEEDED',
+    status: 422,
+  })
+})
+
+test('fails closed with NOT_FOUND for a Site marked deleting', async () => {
+  const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-deleting@example.com')
+  await using _ = fixture
+  fixture.db.$client.prepare('UPDATE site SET status = ? WHERE id = ?').run('deleting', siteId)
+
+  const response = await apiTestRequest(fixture.app, overviewPath(siteId, 'page_view'), cookie)
+
+  expect(response.status).toBe(404)
+  await expect(response.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+})
+
+test('rejects a relevant Projection Gap with QUERY_LIMIT_EXCEEDED before execution', async () => {
+  const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+  await using _ = fixture
+  const { cookie, siteId } = await createOwnerSite(fixture.app, fixture.db, 'event-gap@example.com')
+  fixture.db.$client
+    .prepare(
+      `INSERT INTO projection_gap (id, site_id, occurrence_from, occurrence_to, unbounded, status, observed_at)
+       VALUES (?, ?, ?, ?, 0, 'open', ?)`,
+    )
+    .run(
+      'gap-1',
+      siteId,
+      Date.parse('2026-09-05T00:00:00Z'),
+      Date.parse('2026-09-06T00:00:00Z'),
+      Date.now(),
+    )
+  await fixture.analytics.rebuild({ controlDb: fixture.db })
+
+  const response = await apiTestRequest(fixture.app, overviewPath(siteId, 'page_view'), cookie)
+
+  expect(response.status).toBe(422)
+  await expect(response.json()).resolves.toMatchObject({
+    code: 'QUERY_LIMIT_EXCEEDED',
+    status: 422,
+  })
 })
