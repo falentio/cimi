@@ -593,6 +593,39 @@ describe('DuckDbReportingQuery.eventOverview', () => {
       closeDb(controlDb)
     }
   })
+
+  it('renders explicit null equality as IS NULL for a nullable Event field', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 's1',
+          visitor: 'v1',
+          kind: 'page_view',
+          at: ATTRIBUTED_DAY,
+          pagePath: '/a',
+          referrer: 'https://ref.example',
+        },
+        { session: 's2', visitor: 'v2', kind: 'page_view', at: ATTRIBUTED_DAY + 1, pagePath: '/b' },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        eventKind: 'page_view',
+        filterPlan: {
+          ...emptyPlan,
+          event: [{ target: 'event.referrer', propertyKey: null, operator: 'eq', bind: [null] }],
+        },
+      })
+      expect(result.total).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
 })
 
 describe('DuckDbReportingQuery.eventBuckets', () => {

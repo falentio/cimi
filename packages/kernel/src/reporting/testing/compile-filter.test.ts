@@ -258,4 +258,24 @@ describe('compileEventFilterPlan', () => {
     })
     expectFail(result, 'unsupported-field')
   })
+
+  it('accepts explicit null equality for a nullable Event field', () => {
+    const plan = expectOk(
+      compileEventFilterPlan({
+        filters: [{ scope: 'event', field: 'referrer', operator: 'equals', values: [null] }],
+        profileFilterKeys: noTraits,
+      }),
+    )
+    expect(plan.event).toEqual<Predicate[]>([
+      { target: 'event.referrer', propertyKey: null, operator: 'eq', bind: [null] },
+    ])
+  })
+
+  it('rejects contains with a null value', () => {
+    const result = compileEventFilterPlan({
+      filters: [{ scope: 'event', field: 'referrer', operator: 'contains', values: [null] }],
+      profileFilterKeys: noTraits,
+    })
+    expectFail(result, 'incompatible-value')
+  })
 })
