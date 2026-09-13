@@ -543,6 +543,10 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
 scoped_sessions AS (
   SELECT DISTINCT session_id FROM windowed WHERE session_id IS NOT NULL
 ),
+eligible_sessions AS (
+  SELECT DISTINCT session_id FROM windowed
+  WHERE session_id IS NOT NULL AND event_kind = 'page_view'
+),
 session_events AS (
   SELECT f.analytics_session_id AS session_id,
          f.event_kind AS event_kind,
@@ -566,13 +570,14 @@ SELECT
   (SELECT count(*) FROM windowed WHERE event_kind = 'page_view') AS pageviews,
   (SELECT count(DISTINCT visitor_id) FROM windowed) AS visitors,
   (SELECT count(*) FROM scoped_sessions) AS sessions,
-  (SELECT count(*) FROM session_stats WHERE page_view_count >= 1) AS eligible_sessions,
+  (SELECT count(*) FROM eligible_sessions) AS eligible_sessions,
   (SELECT count(*) FROM session_stats WHERE event_count >= 2) AS sessions_with_valid_duration,
   (SELECT coalesce(sum(max_ms - min_ms), 0) FROM session_stats WHERE event_count >= 2)
     AS total_session_duration_ms,
-  (SELECT count(*) FROM session_stats
-     WHERE page_view_count = 1 AND custom_event_count = 0 AND outbound_count = 0
-       AND (max_ms - min_ms) < 10000) AS bounced_sessions`
+  (SELECT count(*) FROM session_stats stats
+     WHERE stats.page_view_count = 1 AND stats.custom_event_count = 0 AND stats.outbound_count = 0
+       AND (stats.max_ms - stats.min_ms) < 10000
+       AND stats.session_id IN (SELECT session_id FROM eligible_sessions)) AS bounced_sessions`
     const rows = await reader.read(sql, [...args, args[0] ?? null])
     const row = rows[0] ?? {}
     return {
