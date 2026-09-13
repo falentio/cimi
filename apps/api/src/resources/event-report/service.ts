@@ -12,6 +12,7 @@ import {
   type SEventTimeseriesOutput,
 } from '@cimi/contract'
 import { assertSiteScope, type SiteScopeGuardDependencies } from '@cimi/guard'
+import { redactDiagnosticMessage } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import {
   ReportingAdmissionService,
@@ -447,7 +448,7 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
         name: row.name,
         pagePath: row.pagePath,
         code: row.code,
-        message: row.message,
+        message: row.message === null ? null : redactDiagnosticMessage(row.message),
       }
     }
   }

@@ -346,3 +346,31 @@ test('applies a typed event property filter to an event overview', async () => {
   expect(miss.status, await miss.clone().text()).toBe(200)
   await expect(miss.json()).resolves.toMatchObject({ total: 0, uniqueVisitors: 0 })
 })
+
+test('redacts a stack trace and URL query from a listed error message', async () => {
+  const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+  await using _ = fixture
+  const { cookie, siteId } = await createOwnerSite(
+    fixture.app,
+    fixture.db,
+    'event-redact@example.com',
+  )
+  seedAcceptedEvents(fixture.db, siteId, [
+    {
+      sessionId: 's1',
+      visitorId: 'v1',
+      kind: 'error',
+      at: at(DAY_TWO, 12),
+      pagePath: '/c',
+      name: 'TypeError',
+      code: 'E1',
+      message: 'GET /cb?token=secret\n    at handler (/app/src/a.ts:1:2)',
+    },
+  ])
+  await fixture.analytics.rebuild({ controlDb: fixture.db })
+
+  const response = await apiTestRequest(fixture.app, listPath(siteId, 'error'), cookie)
+  expect(response.status, await response.clone().text()).toBe(200)
+  const body = await response.json()
+  expect(body.items[0].message).toBe('GET /cb')
+})
