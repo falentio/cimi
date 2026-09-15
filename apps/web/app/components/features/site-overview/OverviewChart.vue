@@ -106,7 +106,7 @@ const chartSummary = computed(() => {
     <CardContent class="pt-0">
       <ChartContainer
         :config="chartConfig"
-        class="min-h-64 w-full"
+        class="aspect-auto h-64 min-h-0 w-full md:h-80"
         role="img"
         :aria-label="chartSummary"
       >
