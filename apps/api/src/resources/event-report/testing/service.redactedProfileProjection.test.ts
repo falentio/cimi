@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { Db } from '@cimi/db'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
 import {
@@ -71,43 +71,45 @@ async function projectedIdentifiedUserId(
   })
 }
 
-test('projects an identified event, then excludes a redacted profile while retaining the event as anonymous activity', async () => {
-  await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
-  const { cookie, siteId } = await createOwnerSite(
-    fixture.app,
-    fixture.db,
-    'redacted-profile@example.com',
-  )
-  seedAcceptedEvents(fixture.db, siteId, [
-    {
-      sessionId: 's1',
-      visitorId: 'vis-1',
-      kind: 'page_view',
-      at: at(DAY_ONE, 10),
-      pagePath: '/checkout',
-      identifiedUserId: 'user-1',
-      anonymousIdentityId: 'vis-1',
-      properties: { plan: 'pro' },
-    },
-  ])
-  seedIdentifiedProfile(fixture.db, siteId)
+describe('EventReportService.redactedProfileProjection', () => {
+  it('projects an identified event, then excludes a redacted profile while retaining the event as anonymous activity', async () => {
+    await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+    const { cookie, siteId } = await createOwnerSite(
+      fixture.app,
+      fixture.db,
+      'redacted-profile@example.com',
+    )
+    seedAcceptedEvents(fixture.db, siteId, [
+      {
+        sessionId: 's1',
+        visitorId: 'vis-1',
+        kind: 'page_view',
+        at: at(DAY_ONE, 10),
+        pagePath: '/checkout',
+        identifiedUserId: 'user-1',
+        anonymousIdentityId: 'vis-1',
+        properties: { plan: 'pro' },
+      },
+    ])
+    seedIdentifiedProfile(fixture.db, siteId)
 
-  await fixture.analytics.rebuild({ controlDb: fixture.db })
-  await expect(projectedIdentifiedUserId(fixture, siteId)).resolves.toBe('user-1')
+    await fixture.analytics.rebuild({ controlDb: fixture.db })
+    await expect(projectedIdentifiedUserId(fixture, siteId)).resolves.toBe('user-1')
 
-  markProfileRedacted(fixture.db, siteId)
-  await fixture.analytics.rebuild({ controlDb: fixture.db })
-  await expect(projectedIdentifiedUserId(fixture, siteId)).resolves.toBeNull()
+    markProfileRedacted(fixture.db, siteId)
+    await fixture.analytics.rebuild({ controlDb: fixture.db })
+    await expect(projectedIdentifiedUserId(fixture, siteId)).resolves.toBeNull()
 
-  const response = await apiTestRequest(fixture.app, listPath(siteId, 'page_view'), cookie)
-  expect(response.status, await response.clone().text()).toBe(200)
-  const body = await response.json()
-  expect(body.items).toHaveLength(1)
-  const item = body.items[0]
-  expect(item).toMatchObject({ kind: 'page_view', pagePath: '/checkout' })
-  expect(body.items[0]).not.toHaveProperty('identifiedUserId')
-  expect(body.items[0]).not.toHaveProperty('profile')
-  expect(body.items[0]).not.toHaveProperty('profileId')
-  expect(body.items[0]).not.toHaveProperty('traits')
-  expect(JSON.stringify(item)).not.toContain('identified')
+    const response = await apiTestRequest(fixture.app, listPath(siteId, 'page_view'), cookie)
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body.items).toHaveLength(1)
+    const item = body.items[0]
+    expect(item).toMatchObject({ kind: 'page_view', pagePath: '/checkout' })
+    expect(body.items[0]).not.toHaveProperty('identifiedUserId')
+    expect(body.items[0]).not.toHaveProperty('profile')
+    expect(body.items[0]).not.toHaveProperty('profileId')
+    expect(body.items[0]).not.toHaveProperty('traits')
+    expect(JSON.stringify(item)).not.toContain('identified')
+  })
 })
