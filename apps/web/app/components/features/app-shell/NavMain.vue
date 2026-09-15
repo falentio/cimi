@@ -23,7 +23,7 @@ const route = useRoute()
         <SidebarMenuItem v-for="item in group.items" :key="item.to">
           <SidebarMenuButton
             as-child
-            :is-active="isNavItemActive(route.path, item.to)"
+            :is-active="isNavItemActive(route.path, item)"
             :tooltip="item.title"
           >
             <NuxtLink :to="item.to">

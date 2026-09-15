@@ -5,6 +5,7 @@ export interface NavItem {
   readonly to: string
   readonly icon: typeof Home01Icon
   readonly admin?: true
+  readonly exact?: true
 }
 
 export interface NavGroup {
@@ -34,7 +35,8 @@ export const NAV_REGISTRY: NavRegistry = {
   },
 }
 
-export function isNavItemActive(currentPath: string, to: string): boolean {
-  if (to === '/') return currentPath === '/'
-  return currentPath === to || currentPath.startsWith(`${to}/`)
+export function isNavItemActive(currentPath: string, item: Pick<NavItem, 'to' | 'exact'>): boolean {
+  if (item.exact === true) return currentPath === item.to
+  if (item.to === '/') return currentPath === '/'
+  return currentPath === item.to || currentPath.startsWith(`${item.to}/`)
 }
