@@ -1,96 +1,98 @@
-import { describe, expect, it } from 'vitest'
-import { mock } from 'vitest-mock-extended'
-import { InMemorySiteScopePort } from '@cimi/guard'
+import { expect, it, vi } from 'vitest'
+import { DuckDbReportingQuery } from '@cimi/db'
+import { ReportingAdmissionService } from '@cimi/kernel'
+import { createSiteScopeDependencies } from '../../site/scope.ts'
 import {
-  createCalendarDate,
-  createInstantMs,
-  type ReportAdmissionTicket,
-  type ReportingAdmissionService,
-} from '@cimi/kernel'
+  ReportingEvidenceDrizzleDuckDb,
+  ReportingMetadataDrizzle,
+  createReportingReadinessPort,
+} from '../index.ts'
 import { TrafficReportService } from '../service.ts'
+import { createApiTestFixture } from '../../../testing/fixture.ts'
+import {
+  createOwnerSite,
+  readyLifecycle,
+  seedAcceptedEvents,
+} from '../../../testing/reporting-fixture.ts'
 
-const ticket: ReportAdmissionTicket = {
-  periods: {
-    current: {
-      key: 'current',
-      dates: {
-        fromDate: createCalendarDate('2026-09-05'),
-        toDate: createCalendarDate('2026-09-06'),
-      },
-      interval: { start: createInstantMs(0), endExclusive: createInstantMs(1) },
-      calendarDays: 2,
-      bucketStarts: null,
-    },
-    comparison: null,
-  },
-  freshness: {
-    current: {
-      status: 'stale',
-      projectedAcceptanceSequence: 0,
-      occurrenceTimeCoverageThrough: null,
-    },
-    comparison: null,
-  },
-  factWork: {
-    units: 0,
-    budget: 0,
-    components: {
-      baseFacts: 0,
-      extraMetrics: 0,
-      bucketWork: 0,
-      dimensions: 0,
-      filters: 0,
-      distinctCounts: 0,
-    },
-  },
-}
+const DAY_ONE = '2026-09-05'
+const DAY_TWO = '2026-09-06'
 
-function createService() {
-  const admission = mock<ReportingAdmissionService>()
-  admission.admit.mockResolvedValue(ticket)
-  const scope = new InMemorySiteScopePort(
-    [{ siteId: 'ste-1', organizationId: 'org-1' }],
-    [{ organizationId: 'org-1', userId: 'user-1', role: 'owner' }],
-  )
-  return {
-    service: new TrafficReportService({
-      admission,
-      scope: { siteScope: scope, membership: scope },
+/**
+ * Builds the real service over a real projection and the real repositories, then observes the real
+ * admission call. No port is mocked; the only instrument is a spy on the collaborator.
+ */
+async function buildOwner() {
+  const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+  const { siteId } = await createOwnerSite(fixture.app, fixture.db, 'budget-owner@example.com')
+  seedAcceptedEvents(fixture.db, siteId, [
+    {
+      sessionId: 's1',
+      visitorId: 'v1',
+      kind: 'page_view',
+      at: Date.parse(`${DAY_ONE}T10:00:00.000Z`),
+      pagePath: '/a',
+    },
+  ])
+  await fixture.analytics.rebuild({ controlDb: fixture.db })
+
+  const lifecycle = readyLifecycle()
+  const admission = new ReportingAdmissionService({
+    metadata: new ReportingMetadataDrizzle({ db: fixture.db }),
+    evidence: new ReportingEvidenceDrizzleDuckDb({ db: fixture.db, analytics: fixture.analytics }),
+    analyticsReadiness: createReportingReadinessPort({
+      health: { db: fixture.db, analytics: fixture.analytics, dataDirectoryReady: true },
+      lifecycle,
     }),
+  })
+  const admit = vi.spyOn(admission, 'admit')
+  const service = new TrafficReportService({
     admission,
-  }
+    query: new DuckDbReportingQuery({ analytics: fixture.analytics }),
+    profileFilterKeys: {
+      async getProfileFilterKeys() {
+        return []
+      },
+    },
+    scope: createSiteScopeDependencies({ db: fixture.db }),
+  })
+  const owner = fixture.db.$client
+    .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')
+    .get() as { userId: string } | undefined
+  if (owner === undefined) throw new Error('createOwnerSite did not seed an owner membership')
+  return { fixture, service, admit, siteId, userId: owner.userId }
 }
 
-describe('traffic report Fact-Work budget by family', () => {
-  it('requests the aggregate budget for an overview', async () => {
-    const { service, admission } = createService()
+it('requests the aggregate Fact-Work budget for an overview', async () => {
+  const owner = await buildOwner()
+  await using _ = owner.fixture
 
-    await service.getOverview(
-      { siteId: 'ste-1', fromDate: '2026-09-05', toDate: '2026-09-06', granularity: 'day' },
-      { id: 'user-1' },
-    )
+  await owner.service.getOverview(
+    { siteId: owner.siteId, fromDate: DAY_ONE, toDate: DAY_TWO, granularity: 'day' },
+    { id: owner.userId },
+  )
 
-    expect(admission.admit).toHaveBeenCalledWith(
-      expect.objectContaining({ work: expect.objectContaining({ budget: 25_000_000 }) }),
-    )
-  })
+  expect(owner.admit).toHaveBeenCalledWith(
+    expect.objectContaining({ work: expect.objectContaining({ budget: 25_000_000 }) }),
+  )
+})
 
-  it('requests the breakdown budget for a breakdown', async () => {
-    const { service, admission } = createService()
+it('requests the breakdown Fact-Work budget for a breakdown', async () => {
+  const owner = await buildOwner()
+  await using _ = owner.fixture
 
-    await service.getBreakdowns(
-      {
-        siteId: 'ste-1',
-        fromDate: '2026-09-05',
-        toDate: '2026-09-06',
-        granularity: 'day',
-        dimension: 'page',
-      },
-      { id: 'user-1' },
-    )
+  await owner.service.getBreakdowns(
+    {
+      siteId: owner.siteId,
+      fromDate: DAY_ONE,
+      toDate: DAY_TWO,
+      granularity: 'day',
+      dimension: 'page',
+    },
+    { id: owner.userId },
+  )
 
-    expect(admission.admit).toHaveBeenCalledWith(
-      expect.objectContaining({ work: expect.objectContaining({ budget: 10_000_000 }) }),
-    )
-  })
+  expect(owner.admit).toHaveBeenCalledWith(
+    expect.objectContaining({ work: expect.objectContaining({ budget: 10_000_000 }) }),
+  )
 })

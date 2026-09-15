@@ -24,6 +24,7 @@ export const api = implement({
   eventIngestion: contract.eventIngestion,
   identityProfile: contract.identityProfile,
   trafficReport: contract.trafficReport,
+  eventReport: contract.eventReport,
 }).$context<ApiContext>()
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {

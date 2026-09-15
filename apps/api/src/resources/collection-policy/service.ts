@@ -133,6 +133,16 @@ export class CollectionPolicyService {
     })
   }
 
+  /**
+   * The Site's effective approved trait keys, resolved through the same layer read and
+   * `resolvePolicy` call `get`/`admit` use, so a caller reading the policy for a reporting gate
+   * cannot diverge from the ingestion gate.
+   */
+  async getEffectiveProfileFilterKeys(siteId: string): Promise<readonly string[]> {
+    const layers = await this.repository.loadLayers(siteId)
+    return resolvePolicy({ siteId, layers }).effective.values.profileFilterKeys
+  }
+
   private async assertNoActiveLifecycleOperation(): Promise<void> {
     const active = await this.lifecycle.getActiveOperation()
     if (active === null || active.errorCode !== null) return

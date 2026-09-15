@@ -4,6 +4,7 @@ export {
   type ReportingAdmissionErrorReason,
 } from './errors.ts'
 export { ReportingAdmissionService } from './admission.ts'
+export * from './query/index.ts'
 export { defaultFactWorkEstimator, estimateFactWork, FACT_WORK_WEIGHTS } from './fact-work.ts'
 export { checkRetentionCoverage } from './retention.ts'
 export { findRelevantProjectionGap, resolveReportPeriods } from './interval.ts'
@@ -14,6 +15,7 @@ export type {
   ReportingEvidencePort,
   ReportingEvidenceRequest,
   ReportingMetadataPort,
+  ReportingProfileFilterPort,
   ReportingProjectionPort,
   ReportingRetentionPort,
   ReportingStatisticsPort,

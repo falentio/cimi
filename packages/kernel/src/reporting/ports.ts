@@ -34,6 +34,15 @@ export interface ReportingRetentionPort {
   }): PortResult<RetentionCoverage>
 }
 
+/**
+ * The trait keys a Site's effective collection policy approves for profile filters. Reporting
+ * resolves it per request from the same layered policy ingestion admits against, so the report gate
+ * and the ingestion gate cannot disagree about which `trait.<k>` keys are approved.
+ */
+export interface ReportingProfileFilterPort {
+  getProfileFilterKeys(siteId: SiteId): PortResult<readonly string[]>
+}
+
 export interface FactWorkPort {
   estimate(input: {
     readonly factCardinality: number
