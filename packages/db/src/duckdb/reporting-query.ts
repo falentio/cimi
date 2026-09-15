@@ -105,6 +105,18 @@ const BREAKDOWN_SESSION_COLUMNS: Partial<Record<TrafficBreakdownDimension, strin
   city: 'city',
 }
 
+const CANONICAL_EVENT_CTE = `canonical_events AS (
+  SELECT ranked.*
+  FROM (
+    SELECT e.*,
+           row_number() OVER (
+             PARTITION BY e.site_id, e.event_id ORDER BY e.replay_sequence DESC
+           ) AS replay_rank
+    FROM events e
+  ) ranked
+  WHERE ranked.replay_rank = 1
+)`
+
 export class DuckDbReportingQuery implements ReportingQueryPort {
   constructor(private readonly deps: DuckDbReportingQueryDependencies) {}
 
@@ -149,10 +161,10 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
   async eventOverview(query: EventOverviewQuery): Promise<EventOverviewFacts> {
     return this.deps.analytics.readWindowed(async (reader) => {
       const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
-      const sql = `WITH windowed AS (
+      const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT e.visitor_id AS visitor_id,
          e.analytics_session_id AS session_id
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -193,9 +205,9 @@ FROM windowed`
         bucketArgs.push(index, bucket.at, end)
       }
 
-      const sql = `WITH windowed AS (
+      const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT epoch_ms(e.occurrence_time) AS occurrence_ms
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -266,9 +278,9 @@ ORDER BY buckets.bucket_index`
     query: EventRowsQuery,
     predicate: RenderedFragment,
   ): Promise<number> {
-    const sql = `WITH windowed AS (
+    const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT e.event_id AS event_id
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -292,7 +304,7 @@ FROM windowed`
     predicate: RenderedFragment,
   ): Promise<readonly EventRowFacts[]> {
     const direction = query.direction === 'desc' ? 'DESC' : 'ASC'
-    const sql = `WITH windowed AS (
+    const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT e.site_id AS site_id,
          e.event_id AS event_id,
          e.event_kind AS event_kind,
@@ -304,27 +316,17 @@ FROM windowed`
          e.destination AS destination,
          e.value AS value,
          e.unit AS unit,
-         e.code AS code,
-         e.message AS message,
-         e.replay_sequence AS replay_sequence,
-         row_number() OVER (
-           PARTITION BY e.site_id, e.event_id ORDER BY e.replay_sequence DESC
-         ) AS replay_rank
-  FROM events e
+          e.code AS code,
+          e.message AS message
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
     AND e.event_kind = ?${predicate.sql}
-),
-deduplicated AS (
-  SELECT site_id, event_id, event_kind, occurrence_ms, receipt_ms, page_path, referrer,
-         name, destination, value, unit, code, message
-  FROM windowed
-  WHERE replay_rank = 1
-)
+ )
 SELECT event_id, event_kind, occurrence_ms, receipt_ms, page_path, referrer,
        name, destination, value, unit, code, message
-FROM deduplicated
+ FROM windowed
 ORDER BY occurrence_ms ${direction}, event_id ASC
 LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
     const rows = await reader.read(sql, [
@@ -387,9 +389,9 @@ LIMIT ${EVENT_PROPERTIES_MAX_KEYS}`
     predicate: RenderedFragment,
   ): Promise<number> {
     const value = eventBreakdownValueExpression(query.field)
-    const sql = `WITH windowed AS (
+    const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT ${value} AS value
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -416,9 +418,9 @@ WHERE value IS NOT NULL AND trim(value) <> ''`
     const value = eventBreakdownValueExpression(query.field)
     const direction = query.direction === 'desc' ? 'DESC' : 'ASC'
     const order = query.sort === 'count' ? `event_count ${direction}` : `value ${direction}`
-    const sql = `WITH windowed AS (
+    const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT ${value} AS value
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -453,9 +455,9 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
     query: TrafficBreakdownQuery,
     predicate: RenderedFragment,
   ): Promise<number> {
-    const sql = `WITH windowed AS (
+    const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT e.analytics_session_id AS session_id
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicate.sql}
@@ -530,12 +532,12 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
     predicateSql: string,
     args: readonly BoundValue[],
   ): Promise<TrafficMetricsFacts> {
-    const sql = `WITH windowed AS (
+    const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT e.analytics_session_id AS session_id,
          e.visitor_id AS visitor_id,
          e.event_kind AS event_kind,
          epoch_ms(e.occurrence_time) AS occurrence_ms
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
@@ -551,7 +553,7 @@ session_events AS (
   SELECT f.analytics_session_id AS session_id,
          f.event_kind AS event_kind,
          epoch_ms(f.occurrence_time) AS occurrence_ms
-  FROM events f
+   FROM canonical_events f
   WHERE f.site_id = ?
     AND f.analytics_session_id IN (SELECT session_id FROM scoped_sessions)
 ),
@@ -609,10 +611,10 @@ SELECT
       bucketArgs.push(index, bucket.at, end)
     }
 
-    const sql = `WITH windowed AS (
+    const sql = `WITH ${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT e.visitor_id AS visitor_id,
          epoch_ms(e.occurrence_time) AS occurrence_ms
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
@@ -719,11 +721,11 @@ function readPropertyValue(row: Record<string, unknown>): string | number | bool
 }
 
 function sessionScopeCte(predicateSql: string): string {
-  return `windowed AS (
+  return `${CANONICAL_EVENT_CTE}, windowed AS (
   SELECT e.analytics_session_id AS session_id,
          e.event_kind AS event_kind,
          e.page_path AS page_path
-  FROM events e
+   FROM canonical_events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
@@ -960,7 +962,7 @@ function renderPresencePredicate(
            AND property.property_key = ? AND (${comparison.sql}))`,
     )
   }
-  const inner = `SELECT 1 FROM events present
+  const inner = `SELECT 1 FROM canonical_events present
      WHERE present.site_id = e.site_id
        AND ${conditions.join(' AND ')}`
   return {

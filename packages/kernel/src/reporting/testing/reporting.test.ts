@@ -24,6 +24,8 @@ import {
   type ReportingStatisticsPort,
   type RetentionCoverage,
   type ResolvedPeriods,
+  trafficMetricDenominator,
+  trafficMetricValue,
 } from '../../index.ts'
 
 const siteId = createSiteId('ste-1')
@@ -300,6 +302,64 @@ describe('reporting period resolution', () => {
         bucket: { granularity: 'hour', maxStarts: 47 },
       }),
     ).toThrowError(ReportingAdmissionError)
+  })
+
+  it('uses actual local starts for DST-sensitive bucket bounds', () => {
+    expect(() =>
+      periodsFor({
+        fromDate: '2026-11-01',
+        toDate: '2026-11-02',
+        timeZone: 'America/New_York',
+        bucket: { granularity: 'hour', maxStarts: 48 },
+      }),
+    ).toThrowError(ReportingAdmissionError)
+
+    expect(
+      periodsFor({
+        fromDate: '2026-03-08',
+        toDate: '2026-03-08',
+        timeZone: 'America/New_York',
+        bucket: { granularity: 'hour', maxStarts: 24 },
+      }).current.bucketStarts,
+    ).toHaveLength(23)
+  })
+
+  it('counts the local month bucket containing a partial calendar range', () => {
+    expect(() =>
+      periodsFor({
+        fromDate: '2026-01-31',
+        toDate: '2026-02-01',
+        bucket: { granularity: 'month', maxStarts: 1 },
+      }),
+    ).toThrowError(ReportingAdmissionError)
+  })
+})
+
+describe('traffic metric catalog', () => {
+  const facts = {
+    visitors: 7,
+    sessions: 4,
+    pageviews: 10,
+    eligibleSessions: 5,
+    sessionsWithValidDuration: 2,
+    bouncedSessions: 1,
+    totalSessionDurationMs: 9_000,
+  } as const
+
+  it('keeps raw facts separate from canonical formulas and denominators', () => {
+    expect(trafficMetricValue('bounce_rate', facts)).toBe(1 / 5)
+    expect(trafficMetricDenominator('bounce_rate', facts)).toBe(5)
+    expect(trafficMetricValue('pages_per_session', facts)).toBe(10 / 4)
+    expect(trafficMetricDenominator('pages_per_session', facts)).toBe(4)
+    expect(trafficMetricValue('average_session_duration_seconds', facts)).toBe(4.5)
+    expect(trafficMetricDenominator('average_session_duration_seconds', facts)).toBe(2)
+  })
+
+  it('returns zero for every zero-denominator formula', () => {
+    const empty = { ...facts, eligibleSessions: 0, sessions: 0, sessionsWithValidDuration: 0 }
+    expect(trafficMetricValue('bounce_rate', empty)).toBe(0)
+    expect(trafficMetricValue('pages_per_session', empty)).toBe(0)
+    expect(trafficMetricValue('average_session_duration_seconds', empty)).toBe(0)
   })
 })
 

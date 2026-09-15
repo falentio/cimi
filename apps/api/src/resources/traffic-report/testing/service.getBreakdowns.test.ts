@@ -186,6 +186,22 @@ describe('TrafficReportService.getBreakdowns', () => {
     expect(body.totalCount).toBe(2)
   })
 
+  it('sorts percentage breakdowns by count because the denominator is shared', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
+      'report-breakdown-percentage@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      breakdownPath(siteId, 'page', '&sort=percentage&direction=asc'),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body.items.map((item: { value: string }) => item.value)).toEqual(['/b', '/a'])
+  })
+
   it('paginates breakdown rows deterministically with a value tie-break', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-page2@example.com',

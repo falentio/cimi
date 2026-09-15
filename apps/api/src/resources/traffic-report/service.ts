@@ -25,7 +25,7 @@ import {
   type ResolvedPeriod,
   type SiteId,
   type TrafficBreakdownDimension,
-  type TrafficMetricsFacts,
+  trafficMetricValue,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from '../../errors.ts'
@@ -203,9 +203,9 @@ export class TrafficReportService {
       eligibleSessions: facts.eligibleSessions,
       sessionsWithValidDuration: facts.sessionsWithValidDuration,
       pageviews: facts.pageviews,
-      bounceRate: bounceRate(facts),
-      pagesPerSession: facts.sessions === 0 ? 0 : facts.pageviews / facts.sessions,
-      averageSessionDurationSeconds: averageSessionDurationSeconds(facts),
+      bounceRate: trafficMetricValue('bounce_rate', facts),
+      pagesPerSession: trafficMetricValue('pages_per_session', facts),
+      averageSessionDurationSeconds: trafficMetricValue('average_session_duration_seconds', facts),
       trend: filled.map((bucket) => ({
         at: new Date(bucket.at).toISOString(),
         value: bucket.value,
@@ -272,16 +272,6 @@ function breakdownPercentage(count: number, denominator: number): number {
     throw new Error(`Traffic breakdown count ${count} exceeds denominator ${denominator}`)
   }
   return rate
-}
-
-function bounceRate(facts: TrafficMetricsFacts): number {
-  return facts.eligibleSessions === 0 ? 0 : facts.bouncedSessions / facts.eligibleSessions
-}
-
-function averageSessionDurationSeconds(facts: TrafficMetricsFacts): number {
-  return facts.sessionsWithValidDuration === 0
-    ? 0
-    : facts.totalSessionDurationMs / 1000 / facts.sessionsWithValidDuration
 }
 
 function readCompleteThrough(freshness: FreshnessEvidence) {

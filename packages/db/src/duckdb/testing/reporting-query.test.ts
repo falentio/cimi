@@ -626,6 +626,50 @@ describe('DuckDbReportingQuery.eventOverview', () => {
       closeDb(controlDb)
     }
   })
+
+  it('applies every predicate with AND semantics and values within a predicate with OR semantics', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const matchingPages = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: {
+          ...emptyPlan,
+          event: [
+            {
+              target: 'event.pagePath',
+              propertyKey: null,
+              operator: 'eq',
+              bind: ['/a', '/b'],
+            },
+          ],
+        },
+      })
+      expect(matchingPages.total).toBe(2)
+
+      const onlyNullReferrerOnB = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: {
+          ...emptyPlan,
+          event: [
+            { target: 'event.pagePath', propertyKey: null, operator: 'eq', bind: ['/b'] },
+            { target: 'event.referrer', propertyKey: null, operator: 'eq', bind: [null] },
+          ],
+        },
+      })
+      expect(onlyNullReferrerOnB.total).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
 })
 
 describe('DuckDbReportingQuery.eventBuckets', () => {
@@ -759,6 +803,84 @@ describe('DuckDbReportingQuery.eventRows', () => {
       expect(second.rows.map((row) => row.eventId)).toEqual(['evt-2'])
       expect(second.hasMore).toBe(false)
       expect(second.nextOffset).toBeNull()
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('orders equal-time and late events by occurrence time and Event ID, not receipt time', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+      await analytics.readWindowed(async (reader) => {
+        await reader.read(
+          `UPDATE events SET occurrence_time = CAST(? AS TIMESTAMP) WHERE event_id IN (?, ?)`,
+          ['2026-09-05T10:00:00.000Z', 'evt-6', 'evt-7'],
+        )
+        return reader.read(
+          `UPDATE events
+           SET receipt_time = CAST(? AS TIMESTAMP)
+           WHERE event_id = ?`,
+          ['2026-09-06T10:00:00.000Z', 'evt-7'],
+        )
+      })
+
+      const result = await createQuery(analytics).eventRows({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'error',
+        filterPlan: emptyPlan,
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+      })
+
+      expect(result.rows.map((row) => row.eventId)).toEqual(['evt-6', 'evt-7'])
+      expect(result.rows[1]?.createdAt).toBe(createInstantMs(DAY_TWO + 10 * 60 * 60 * 1000))
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('deduplicates the canonical Event ID before applying the period and kind filters', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+      await analytics.readWindowed(async (reader) => {
+        return reader.read(
+          `CREATE OR REPLACE TABLE events AS
+           WITH original AS (SELECT * FROM events)
+           SELECT * FROM original
+           UNION ALL
+           SELECT * REPLACE (
+             event_pk + 100 AS event_pk,
+             'custom_event' AS event_kind,
+             TIMESTAMP '2026-09-07 00:00:00' AS occurrence_time,
+             TIMESTAMP '2026-09-07 00:00:00' AS receipt_time,
+             999 AS replay_sequence
+           )
+           FROM original WHERE event_id = ?`,
+          ['evt-1'],
+        )
+      })
+
+      const result = await createQuery(analytics).eventRows({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: emptyPlan,
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+      })
+      expect(result.rows.map((row) => row.eventId)).toEqual(['evt-2'])
+      expect(result.totalCount).toBe(1)
     } finally {
       await analytics.close()
       closeDb(controlDb)
