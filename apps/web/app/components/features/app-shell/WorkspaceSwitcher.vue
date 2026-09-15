@@ -26,6 +26,7 @@ import {
   type WorkspaceTeam,
 } from './workspace'
 import CreateOrganizationDialog from './CreateOrganizationDialog.vue'
+import type { Organization } from '@/components/features/organization-settings/organization-settings.types'
 
 const props = defineProps<{
   teams: readonly WorkspaceTeam[]
@@ -67,6 +68,10 @@ function selectSite(siteId: string): void {
 function openCreateOrganization(): void {
   searchOpen.value = false
   createOrganizationOpen.value = true
+}
+
+function selectCreatedOrganization(organization: Organization): void {
+  selectTeam(organization.id)
 }
 </script>
 
@@ -171,7 +176,10 @@ function openCreateOrganization(): void {
           </Command>
         </PopoverContent>
       </Popover>
-      <CreateOrganizationDialog v-model:open="createOrganizationOpen" />
+      <CreateOrganizationDialog
+        v-model:open="createOrganizationOpen"
+        @created="selectCreatedOrganization"
+      />
     </SidebarMenuItem>
   </SidebarMenu>
 </template>
