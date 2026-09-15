@@ -1234,6 +1234,110 @@ describe('presence filters', () => {
     }
   })
 
+  it('does not match visitor has_not_done for an event without a visitor', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEvents(controlDb)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          12,
+          SITE,
+          'evt-null-visitor',
+          'page_view',
+          DAY_ONE + 4_000,
+          DAY_ONE + 4_000,
+          null,
+          's-null-visitor',
+          'pol-1',
+          12,
+          'fp-null-visitor',
+          'pending',
+          DAY_ONE + 4_000,
+        )
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: periods().current,
+        includeTrend: false,
+        filterPlan: {
+          ...emptyPlan,
+          sessionPresence: [
+            {
+              scope: 'visitor',
+              withinPeriod: false,
+              action: 'custom_event',
+              name: null,
+              propertyFilters: [],
+              negated: true,
+            },
+          ],
+        },
+      })
+
+      expect(result.metrics.sessions).toBe(5)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('does not match session has_not_done for an event without a session', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEvents(controlDb)
+      controlDb.$client
+        .prepare(
+          'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          12,
+          SITE,
+          'evt-null-session',
+          'page_view',
+          DAY_ONE + 4_000,
+          DAY_ONE + 4_000,
+          'v-null-session',
+          null,
+          'pol-1',
+          12,
+          'fp-null-session',
+          'pending',
+          DAY_ONE + 4_000,
+        )
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: periods().current,
+        eventKind: 'page_view',
+        filterPlan: {
+          ...emptyPlan,
+          sessionPresence: [
+            {
+              scope: 'session',
+              withinPeriod: true,
+              action: 'custom_event',
+              name: null,
+              propertyFilters: [],
+              negated: true,
+            },
+          ],
+        },
+      })
+
+      expect(result.total).toBe(7)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
   it('bounds a session same_range presence filter to the report window', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()

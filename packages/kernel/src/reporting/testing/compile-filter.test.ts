@@ -183,6 +183,7 @@ describe('compileEventFilterPlan', () => {
   it('maps an event field filter to the event group', () => {
     const plan = expectOk(
       compileEventFilterPlan({
+        eventKind: 'error',
         filters: [{ scope: 'event', field: 'code', operator: 'equals', values: ['E1'] }],
         profileFilterKeys: noTraits,
       }),
@@ -195,6 +196,7 @@ describe('compileEventFilterPlan', () => {
   it('builds a property predicate with the extracted property key', () => {
     const plan = expectOk(
       compileEventFilterPlan({
+        eventKind: 'page_view',
         filters: [{ scope: 'event', field: 'property.total', operator: 'equals', values: [12] }],
         profileFilterKeys: noTraits,
       }),
@@ -207,6 +209,7 @@ describe('compileEventFilterPlan', () => {
   it('builds a presence predicate with nested property filters', () => {
     const plan = expectOk(
       compileEventFilterPlan({
+        eventKind: 'page_view',
         filters: [
           {
             scope: 'session',
@@ -235,6 +238,7 @@ describe('compileEventFilterPlan', () => {
 
   it('rejects contains on a property with a numeric value', () => {
     const result = compileEventFilterPlan({
+      eventKind: 'page_view',
       filters: [{ scope: 'event', field: 'property.total', operator: 'contains', values: [5] }],
       profileFilterKeys: noTraits,
     })
@@ -243,6 +247,7 @@ describe('compileEventFilterPlan', () => {
 
   it('rejects greater_than on a property with a string value', () => {
     const result = compileEventFilterPlan({
+      eventKind: 'page_view',
       filters: [
         { scope: 'event', field: 'property.total', operator: 'greater_than', values: ['5'] },
       ],
@@ -253,15 +258,36 @@ describe('compileEventFilterPlan', () => {
 
   it('rejects an unknown event field', () => {
     const result = compileEventFilterPlan({
+      eventKind: 'page_view',
       filters: [{ scope: 'event', field: 'device', operator: 'equals', values: ['mobile'] }],
       profileFilterKeys: noTraits,
     })
     expectFail(result, 'unsupported-field')
   })
 
+  it('rejects event fields that the selected kind does not define', () => {
+    const cases = [
+      ['page_view', 'destination'],
+      ['custom_event', 'unit'],
+      ['outbound', 'unit'],
+      ['performance', 'destination'],
+      ['error', 'destination'],
+    ] as const
+
+    for (const [eventKind, field] of cases) {
+      const result = compileEventFilterPlan({
+        eventKind,
+        filters: [{ scope: 'event', field, operator: 'equals', values: ['value'] }],
+        profileFilterKeys: noTraits,
+      })
+      expectFail(result, 'unsupported-field')
+    }
+  })
+
   it('accepts explicit null equality for a nullable Event field', () => {
     const plan = expectOk(
       compileEventFilterPlan({
+        eventKind: 'page_view',
         filters: [{ scope: 'event', field: 'referrer', operator: 'equals', values: [null] }],
         profileFilterKeys: noTraits,
       }),
@@ -271,8 +297,27 @@ describe('compileEventFilterPlan', () => {
     ])
   })
 
+  it('rejects null for an event not_equals filter', () => {
+    const result = compileEventFilterPlan({
+      eventKind: 'page_view',
+      filters: [{ scope: 'event', field: 'referrer', operator: 'not_equals', values: [null] }],
+      profileFilterKeys: noTraits,
+    })
+    expectFail(result, 'incompatible-value')
+  })
+
+  it('rejects null equality for a non-nullable Event field', () => {
+    const result = compileEventFilterPlan({
+      eventKind: 'page_view',
+      filters: [{ scope: 'event', field: 'pagePath', operator: 'equals', values: [null] }],
+      profileFilterKeys: noTraits,
+    })
+    expectFail(result, 'incompatible-value')
+  })
+
   it('rejects contains with a null value', () => {
     const result = compileEventFilterPlan({
+      eventKind: 'page_view',
       filters: [{ scope: 'event', field: 'referrer', operator: 'contains', values: [null] }],
       profileFilterKeys: noTraits,
     })

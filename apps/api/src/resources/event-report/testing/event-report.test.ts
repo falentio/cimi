@@ -327,6 +327,19 @@ test('rejects an unsupported event filter as BAD_REQUEST', async () => {
   await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
 })
 
+test('rejects a field unavailable for the selected event kind as BAD_REQUEST', async () => {
+  const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-kind-filter@example.com')
+  await using _ = fixture
+  const response = await apiTestRequest(
+    fixture.app,
+    `${overviewPath(siteId, 'page_view')}&filters[0][scope]=event&filters[0][field]=destination&filters[0][operator]=equals&filters[0][values][0]=https%3A%2F%2Fout.example`,
+    cookie,
+  )
+
+  expect(response.status).toBe(400)
+  await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
+})
+
 test('applies a typed event property filter to an event overview', async () => {
   const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-filter@example.com')
   await using _ = fixture

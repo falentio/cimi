@@ -69,6 +69,7 @@ export interface CompileTrafficFilterInput {
 }
 
 export interface CompileEventFilterInput {
+  readonly eventKind: EventKind
   readonly filters: readonly EventFilterInput[]
   readonly profileFilterKeys: readonly string[]
 }
@@ -120,14 +121,48 @@ const TRAFFIC_SESSION_TARGETS: Readonly<Record<string, PredicateTarget>> = {
   utmCampaign: 'session.utmCampaign',
 }
 
-const EVENT_TARGETS: Readonly<Record<string, PredicateTarget>> = {
-  kind: 'event.kind',
-  name: 'event.name',
-  pagePath: 'event.pagePath',
-  referrer: 'event.referrer',
-  destination: 'event.destination',
-  unit: 'event.unit',
-  code: 'event.code',
+type EventFieldDefinition = Readonly<{
+  target: PredicateTarget
+  nullable: boolean
+}>
+
+type EventFieldRegistry = Readonly<
+  Record<EventKind, Readonly<Record<string, EventFieldDefinition>>>
+>
+
+const EVENT_FIELDS_BY_KIND: EventFieldRegistry = {
+  page_view: {
+    kind: { target: 'event.kind', nullable: false },
+    pagePath: { target: 'event.pagePath', nullable: false },
+    referrer: { target: 'event.referrer', nullable: true },
+  },
+  custom_event: {
+    kind: { target: 'event.kind', nullable: false },
+    name: { target: 'event.name', nullable: false },
+    pagePath: { target: 'event.pagePath', nullable: true },
+    referrer: { target: 'event.referrer', nullable: true },
+  },
+  outbound: {
+    kind: { target: 'event.kind', nullable: false },
+    name: { target: 'event.name', nullable: true },
+    pagePath: { target: 'event.pagePath', nullable: true },
+    referrer: { target: 'event.referrer', nullable: true },
+    destination: { target: 'event.destination', nullable: false },
+  },
+  performance: {
+    kind: { target: 'event.kind', nullable: false },
+    name: { target: 'event.name', nullable: false },
+    pagePath: { target: 'event.pagePath', nullable: true },
+    referrer: { target: 'event.referrer', nullable: true },
+    unit: { target: 'event.unit', nullable: true },
+  },
+  error: {
+    kind: { target: 'event.kind', nullable: false },
+    name: { target: 'event.name', nullable: false },
+    pagePath: { target: 'event.pagePath', nullable: true },
+    referrer: { target: 'event.referrer', nullable: true },
+    code: { target: 'event.code', nullable: true },
+  },
 }
 
 const TRAIT_KEY_PATTERN = /^trait\.([A-Za-z0-9_.-]{1,63})$/
@@ -180,12 +215,13 @@ function isCompatiblePropertyValue(
 }
 
 /**
- * Event value filters mirror the event-report contract: `eq`/`neq` accept a string or an explicit
- * null for a nullable Event field, while `contains` and the ordering operators narrow the type.
+ * Event value filters mirror the event-report contract: `eq` accepts an explicit null only for a
+ * nullable Event field, while the other operators require strings or numbers as appropriate.
  */
 function isCompatibleEventValue(
   operator: ContractOperator,
   values: readonly PredicateValue[],
+  nullable: boolean,
 ): boolean {
   if (operator === 'contains') {
     return values.every((value) => typeof value === 'string')
@@ -193,7 +229,10 @@ function isCompatibleEventValue(
   if (operator === 'greater_than' || operator === 'less_than') {
     return values.every(isFiniteNumber)
   }
-  return values.every((value) => typeof value === 'string' || value === null)
+  if (operator === 'equals') {
+    return values.every((value) => typeof value === 'string' || (nullable && value === null))
+  }
+  return values.every((value) => typeof value === 'string')
 }
 
 function emptyPlan(): ReportFilterPlan {
@@ -345,14 +384,19 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
       })
       continue
     }
-    const target = EVENT_TARGETS[field]
-    if (target === undefined) return { ok: false, reason: 'unsupported-field' }
+    const fieldDefinition = EVENT_FIELDS_BY_KIND[input.eventKind][field]
+    if (fieldDefinition === undefined) return { ok: false, reason: 'unsupported-field' }
     if (field === 'kind') {
       if (!values.every(isKindValue)) return { ok: false, reason: 'incompatible-value' }
-    } else if (!isCompatibleEventValue(operator, values)) {
+    } else if (!isCompatibleEventValue(operator, values, fieldDefinition.nullable)) {
       return { ok: false, reason: 'incompatible-value' }
     }
-    event.push({ target, propertyKey: null, operator: predicateOperator, bind: values })
+    event.push({
+      target: fieldDefinition.target,
+      propertyKey: null,
+      operator: predicateOperator,
+      bind: values,
+    })
   }
 
   const plan: ReportFilterPlan = { ...emptyPlan(), event, sessionPresence }

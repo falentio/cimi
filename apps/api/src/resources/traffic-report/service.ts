@@ -43,7 +43,7 @@ const DEFAULT_BREAKDOWN_LIMIT = 50
  */
 const DISTINCT_COUNT_OPERATIONS: Readonly<Record<TrafficReportFamily, number>> = {
   aggregate: 2,
-  breakdown: 2,
+  breakdown: 3,
 }
 
 export interface TrafficReportServiceDependencies {

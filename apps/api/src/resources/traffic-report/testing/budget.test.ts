@@ -93,6 +93,8 @@ it('requests the breakdown Fact-Work budget for a breakdown', async () => {
   )
 
   expect(owner.admit).toHaveBeenCalledWith(
-    expect.objectContaining({ work: expect.objectContaining({ budget: 10_000_000 }) }),
+    expect.objectContaining({
+      work: expect.objectContaining({ budget: 10_000_000, distinctCountOperations: 3 }),
+    }),
   )
 })

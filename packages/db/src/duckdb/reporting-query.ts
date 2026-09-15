@@ -937,6 +937,7 @@ function renderPresencePredicate(
 ): RenderedFragment {
   const args: BoundValue[] = [presence.action]
   const conditions = ['present.event_kind = ?']
+  const actorColumn = presence.scope === 'visitor' ? 'e.visitor_id' : 'e.analytics_session_id'
   if (presence.name !== null) {
     conditions.push('present.name = ?')
     args.push(presence.name)
@@ -964,7 +965,7 @@ function renderPresencePredicate(
      WHERE present.site_id = e.site_id
        AND ${conditions.join(' AND ')}`
   return {
-    sql: presence.negated ? `NOT EXISTS (${inner})` : `EXISTS (${inner})`,
+    sql: `${actorColumn} IS NOT NULL AND ${presence.negated ? `NOT EXISTS (${inner})` : `EXISTS (${inner})`}`,
     args,
   }
 }
