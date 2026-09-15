@@ -55,9 +55,7 @@ import { BadgeCheckIcon } from '@lucide/vue'
 ```vue
 <!-- Numeric count badge -->
 <template>
-  <UIBadge class="h-5 min-w-5 rounded-full px-1 font-mono tabular-nums">
-    8
-  </UIBadge>
+  <UIBadge class="h-5 min-w-5 rounded-full px-1 font-mono tabular-nums"> 8 </UIBadge>
 </template>
 ```
 

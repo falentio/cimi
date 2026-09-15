@@ -17,9 +17,7 @@ Reach for `Alert Dialog` when the user must confirm or reject a consequential ac
     <UIAlertDialogContent>
       <UIAlertDialogHeader>
         <UIAlertDialogTitle>Are you absolutely sure?</UIAlertDialogTitle>
-        <UIAlertDialogDescription>
-          This action cannot be undone.
-        </UIAlertDialogDescription>
+        <UIAlertDialogDescription> This action cannot be undone. </UIAlertDialogDescription>
       </UIAlertDialogHeader>
       <UIAlertDialogFooter>
         <UIAlertDialogCancel>Cancel</UIAlertDialogCancel>
@@ -63,8 +61,7 @@ Reach for `Alert Dialog` when the user must confirm or reject a consequential ac
       <UIAlertDialogHeader>
         <UIAlertDialogTitle>Are you absolutely sure?</UIAlertDialogTitle>
         <UIAlertDialogDescription>
-          This action cannot be undone. This will permanently delete your
-          account.
+          This action cannot be undone. This will permanently delete your account.
         </UIAlertDialogDescription>
       </UIAlertDialogHeader>
       <UIAlertDialogFooter>
@@ -119,9 +116,7 @@ import { TriangleAlertIcon } from '@lucide/vue'
           <TriangleAlertIcon />
         </UIAlertDialogMedia>
         <UIAlertDialogTitle>Discard changes?</UIAlertDialogTitle>
-        <UIAlertDialogDescription>
-          Your edits will be lost.
-        </UIAlertDialogDescription>
+        <UIAlertDialogDescription> Your edits will be lost. </UIAlertDialogDescription>
       </UIAlertDialogHeader>
       <UIAlertDialogFooter>
         <UIAlertDialogCancel>Keep editing</UIAlertDialogCancel>

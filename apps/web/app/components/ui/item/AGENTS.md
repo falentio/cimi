@@ -98,7 +98,7 @@ import { ShieldAlertIcon } from '@lucide/vue'
     </UIItem>
     <UIItem variant="outline" size="sm">
       <UIItemMedia variant="image">
-        <img src="https://avatar.vercel.sh/Example" alt="Example" width="32" height="32">
+        <img src="https://avatar.vercel.sh/Example" alt="Example" width="32" height="32" />
       </UIItemMedia>
       <UIItemContent>
         <UIItemTitle>Example image</UIItemTitle>

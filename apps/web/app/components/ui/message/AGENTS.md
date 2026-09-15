@@ -125,9 +125,7 @@ Put message actions in the footer. An icon-only action needs an accessible name.
       </UIBubble>
       <UIMessageFooter class="gap-2">
         <UIButton variant="ghost" size="sm">Copy</UIButton>
-        <UIButton variant="ghost" size="icon" aria-label="Retry" title="Retry">
-          +
-        </UIButton>
+        <UIButton variant="ghost" size="icon" aria-label="Retry" title="Retry"> + </UIButton>
       </UIMessageFooter>
     </UIMessageContent>
   </UIMessage>

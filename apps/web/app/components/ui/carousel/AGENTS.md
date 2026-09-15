@@ -131,7 +131,12 @@ const plugin = Autoplay({ delay: 2000, stopOnMouseEnter: true, stopOnInteraction
 </script>
 
 <template>
-  <UICarousel class="relative w-full max-w-xs" :plugins="[plugin]" @mouseenter="plugin.stop" @mouseleave="plugin.play()">
+  <UICarousel
+    class="relative w-full max-w-xs"
+    :plugins="[plugin]"
+    @mouseenter="plugin.stop"
+    @mouseleave="plugin.play()"
+  >
     <UICarouselContent>
       <UICarouselItem v-for="index in 5" :key="index">...</UICarouselItem>
     </UICarouselContent>
@@ -170,7 +175,9 @@ function setApi(val: CarouselApi) {
       <UICarouselPrevious />
       <UICarouselNext />
     </UICarousel>
-    <div class="py-2 text-center text-sm text-muted-foreground">Slide {{ current }} of {{ totalCount }}</div>
+    <div class="py-2 text-center text-sm text-muted-foreground">
+      Slide {{ current }} of {{ totalCount }}
+    </div>
   </div>
 </template>
 ```

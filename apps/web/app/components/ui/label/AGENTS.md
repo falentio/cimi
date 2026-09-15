@@ -10,10 +10,10 @@ Use `<UILabel>` for visible text that names a native or custom form control. Pai
 
 ```vue
 <template>
-	<div class="flex items-center gap-2">
-		<input id="email" type="email" />
-		<UILabel for="email">Email address</UILabel>
-	</div>
+  <div class="flex items-center gap-2">
+    <input id="email" type="email" />
+    <UILabel for="email">Email address</UILabel>
+  </div>
 </template>
 ```
 
@@ -23,12 +23,12 @@ Use `<UILabel>` for visible text that names a native or custom form control. Pai
 - The local export is `Label` from `apps/web/app/components/ui/label/index.ts`. The implementation is `Label.vue`. The index exports no helper or type for consumers to import.
 - The complete explicit prop surface is:
 
-  | Prop | Type | Default | Meaning |
-  | --- | --- | --- | --- |
-  | `as` | `AsTag \| Component` | `"label"` | Changes the rendered element or Vue component. |
-  | `asChild` | `boolean` | `false` | Merges the label props and behavior into one child element or component. |
-  | `for` | `string` | unset | Sets the `for` attribute that associates the label with a control id. |
-  | `class` | `HTMLAttributes['class']` | unset | Adds classes to the local label styles through `cn`. |
+  | Prop      | Type                      | Default   | Meaning                                                                  |
+  | --------- | ------------------------- | --------- | ------------------------------------------------------------------------ |
+  | `as`      | `AsTag \| Component`      | `"label"` | Changes the rendered element or Vue component.                           |
+  | `asChild` | `boolean`                 | `false`   | Merges the label props and behavior into one child element or component. |
+  | `for`     | `string`                  | unset     | Sets the `for` attribute that associates the label with a control id.    |
+  | `class`   | `HTMLAttributes['class']` | unset     | Adds classes to the local label styles through `cn`.                     |
 
 - The default slot is the label content. It accepts text, inline markup, and a nested control. The slot has no slot props and the component has no named slots.
 - The default render is one Reka UI `Label` primitive with `data-slot="label"`. That primitive renders a native `<label>` unless `as` or `asChild` changes it.
@@ -51,10 +51,10 @@ Use `<UILabel>` for visible text that names a native or custom form control. Pai
 
 ```vue
 <template>
-	<div class="grid w-full max-w-sm items-center gap-1.5">
-		<UILabel for="username">Username</UILabel>
-		<input id="username" type="text" autocomplete="username" />
-	</div>
+  <div class="grid w-full max-w-sm items-center gap-1.5">
+    <UILabel for="username">Username</UILabel>
+    <input id="username" type="text" autocomplete="username" />
+  </div>
 </template>
 ```
 
@@ -62,10 +62,10 @@ Use `<UILabel>` for visible text that names a native or custom form control. Pai
 
 ```vue
 <template>
-	<UILabel>
-		<input type="checkbox" />
-		Subscribe to updates
-	</UILabel>
+  <UILabel>
+    <input type="checkbox" />
+    Subscribe to updates
+  </UILabel>
 </template>
 ```
 
@@ -73,15 +73,10 @@ Use `<UILabel>` for visible text that names a native or custom form control. Pai
 
 ```vue
 <template>
-	<UILabel
-		id="email-label"
-		for="email"
-		class="text-base"
-		data-testid="email-label"
-	>
-		Email address
-	</UILabel>
-	<input id="email" type="email" aria-labelledby="email-label" />
+  <UILabel id="email-label" for="email" class="text-base" data-testid="email-label">
+    Email address
+  </UILabel>
+  <input id="email" type="email" aria-labelledby="email-label" />
 </template>
 ```
 
@@ -89,10 +84,10 @@ Use `<UILabel>` for visible text that names a native or custom form control. Pai
 
 ```vue
 <template>
-	<UILabel as-child>
-		<label for="terms" class="font-semibold">Accept terms and conditions</label>
-	</UILabel>
-	<input id="terms" type="checkbox" />
+  <UILabel as-child>
+    <label for="terms" class="font-semibold">Accept terms and conditions</label>
+  </UILabel>
+  <input id="terms" type="checkbox" />
 </template>
 ```
 

@@ -31,7 +31,12 @@ Chart is a thin shell, not an abstraction. `ChartContainer` plus `ChartConfig` w
 ```ts
 import type { ChartConfig } from '@/components/ui/chart'
 import { VisGroupedBar, VisXYContainer } from '@unovis/vue'
-import { ChartContainer, ChartTooltip, ChartCrosshair, componentToString } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartCrosshair,
+  componentToString,
+} from '@/components/ui/chart'
 
 const chartData = [
   { date: new Date('2024-01-01'), desktop: 186, mobile: 80 },
@@ -73,7 +78,14 @@ const chartConfig = {
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/ui/chart'
 import { VisAxis, VisGroupedBar, VisXYContainer } from '@unovis/vue'
-import { ChartContainer, ChartCrosshair, ChartLegendContent, ChartTooltip, ChartTooltipContent, componentToString } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartCrosshair,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  componentToString,
+} from '@/components/ui/chart'
 
 const chartData = [
   { date: new Date('2024-01-01'), desktop: 186, mobile: 80 },
@@ -106,16 +118,24 @@ const chartConfig = {
         :domain-line="false"
         :grid-line="false"
         :tick-format="(d: number) => new Date(d).toLocaleDateString('en-US', { month: 'short' })"
-        :tick-values="chartData.map(d => d.date)"
+        :tick-values="chartData.map((d) => d.date)"
       />
-      <VisAxis type="y" :tick-format="() => ''" :tick-line="false" :domain-line="false" :grid-line="true" />
+      <VisAxis
+        type="y"
+        :tick-format="() => ''"
+        :tick-line="false"
+        :domain-line="false"
+        :grid-line="true"
+      />
       <UIChartTooltip />
       <UIChartCrosshair
-        :template="componentToString(chartConfig, UIChartTooltipContent, {
-          labelFormatter(d) {
-            return new Date(d).toLocaleDateString('en-US', { month: 'long' })
-          },
-        })"
+        :template="
+          componentToString(chartConfig, UIChartTooltipContent, {
+            labelFormatter(d) {
+              return new Date(d).toLocaleDateString('en-US', { month: 'long' })
+            },
+          })
+        "
         :color="[chartConfig.desktop.color, chartConfig.mobile.color]"
       />
     </VisXYContainer>
@@ -129,7 +149,13 @@ const chartConfig = {
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/ui/chart'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
-import { ChartContainer, ChartCrosshair, ChartTooltip, ChartTooltipContent, componentToString } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartCrosshair,
+  ChartTooltip,
+  ChartTooltipContent,
+  componentToString,
+} from '@/components/ui/chart'
 
 const chartData = [
   { date: new Date('2024-01-01'), desktop: 186 },
@@ -162,7 +188,13 @@ const chartConfig = {
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/ui/chart'
 import { VisSingleContainer, VisDonut } from '@unovis/vue'
-import { ChartContainer, ChartCrosshair, ChartTooltip, ChartTooltipContent, componentToString } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartCrosshair,
+  ChartTooltip,
+  ChartTooltipContent,
+  componentToString,
+} from '@/components/ui/chart'
 
 const chartData = [
   { browser: 'chrome', visitors: 275, fill: 'var(--color-chrome)' },
@@ -182,7 +214,12 @@ const chartConfig = {
       <VisDonut :value="(d: any) => d.visitors" :color="(d: any) => d.fill" />
       <UIChartTooltip />
       <UIChartCrosshair
-        :template="componentToString(chartConfig, UIChartTooltipContent, { labelKey: 'visitors', nameKey: 'browser' })"
+        :template="
+          componentToString(chartConfig, UIChartTooltipContent, {
+            labelKey: 'visitors',
+            nameKey: 'browser',
+          })
+        "
       />
     </VisSingleContainer>
   </UIChartContainer>
@@ -201,7 +238,10 @@ const chartConfig = {
 <template>
   <UIChartContainer :config="chartConfig" class="min-h-[200px] w-full">
     <VisXYContainer :data="chartData">
-      <VisGroupedBar :x="(d: Data) => d.date" :y="[(d: Data) => d.desktop, (d: Data) => d.mobile]" />
+      <VisGroupedBar
+        :x="(d: Data) => d.date"
+        :y="[(d: Data) => d.desktop, (d: Data) => d.mobile]"
+      />
     </VisXYContainer>
     <UIChartLegendContent vertical-align="top" hide-icon />
   </UIChartContainer>

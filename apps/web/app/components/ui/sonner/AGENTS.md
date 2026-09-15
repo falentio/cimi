@@ -83,12 +83,8 @@ function createEvent() {
 
 <template>
   <div>
-    <button type="button" @click="toast.success('The event is ready')">
-      Show success
-    </button>
-    <button type="button" @click="toast.error('The event failed')">
-      Show error
-    </button>
+    <button type="button" @click="toast.success('The event is ready')">Show success</button>
+    <button type="button" @click="toast.error('The event failed')">Show error</button>
     <button type="button" @click="createEvent">Create event</button>
     <UIToaster position="top-center" theme="system" rich-colors />
   </div>

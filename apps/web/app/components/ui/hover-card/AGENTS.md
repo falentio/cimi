@@ -14,9 +14,7 @@ Compose `UIHoverCard` wrapping a `UIHoverCardTrigger` and a `UIHoverCardContent`
     <UIHoverCardTrigger as-child>
       <UIButton variant="link">@nuxt</UIButton>
     </UIHoverCardTrigger>
-    <UIHoverCardContent class="w-80">
-      The Vue Framework.
-    </UIHoverCardContent>
+    <UIHoverCardContent class="w-80"> The Vue Framework. </UIHoverCardContent>
   </UIHoverCard>
 </template>
 ```
@@ -87,7 +85,9 @@ Compose `UIHoverCard` wrapping a `UIHoverCardTrigger` and a `UIHoverCardContent`
 <template>
   <UIHoverCard>
     <UIHoverCardTrigger>Hover</UIHoverCardTrigger>
-    <UIHoverCardContent class="w-(--reka-hover-card-trigger-width) max-h-(--reka-hover-card-content-available-height)">
+    <UIHoverCardContent
+      class="w-(--reka-hover-card-trigger-width) max-h-(--reka-hover-card-content-available-height)"
+    >
       Sized to the trigger.
     </UIHoverCardContent>
   </UIHoverCard>

@@ -10,15 +10,13 @@ Use `<UIInputGroup>` as the wrapper. Use `<UIInputGroupInput>` for single-line c
 
 ```vue
 <template>
-	<UIInputGroup>
-		<UIInputGroupInput placeholder="Search..." aria-label="Search" />
-		<UIInputGroupAddon>
-			Search
-		</UIInputGroupAddon>
-		<UIInputGroupAddon align="inline-end">
-			<UIInputGroupButton>Submit</UIInputGroupButton>
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup>
+    <UIInputGroupInput placeholder="Search..." aria-label="Search" />
+    <UIInputGroupAddon> Search </UIInputGroupAddon>
+    <UIInputGroupAddon align="inline-end">
+      <UIInputGroupButton>Submit</UIInputGroupButton>
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 
@@ -55,15 +53,15 @@ Use `<UIInputGroup>` as the wrapper. Use `<UIInputGroupInput>` for single-line c
 
 ```vue
 <template>
-	<UIInputGroup>
-		<UIInputGroupInput placeholder="0.00" aria-label="Amount" />
-		<UIInputGroupAddon>
-			<UIInputGroupText>$</UIInputGroupText>
-		</UIInputGroupAddon>
-		<UIInputGroupAddon align="inline-end">
-			<UIInputGroupText>USD</UIInputGroupText>
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup>
+    <UIInputGroupInput placeholder="0.00" aria-label="Amount" />
+    <UIInputGroupAddon>
+      <UIInputGroupText>$</UIInputGroupText>
+    </UIInputGroupAddon>
+    <UIInputGroupAddon align="inline-end">
+      <UIInputGroupText>USD</UIInputGroupText>
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 
@@ -77,14 +75,12 @@ const query = ref('')
 </script>
 
 <template>
-	<UIInputGroup>
-		<UIInputGroupInput v-model="query" placeholder="Search..." aria-label="Search" />
-		<UIInputGroupAddon align="inline-end">
-			<UIInputGroupButton size="sm" @click="query = ''">
-				Clear
-			</UIInputGroupButton>
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup>
+    <UIInputGroupInput v-model="query" placeholder="Search..." aria-label="Search" />
+    <UIInputGroupAddon align="inline-end">
+      <UIInputGroupButton size="sm" @click="query = ''"> Clear </UIInputGroupButton>
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 
@@ -92,15 +88,13 @@ const query = ref('')
 
 ```vue
 <template>
-	<UIInputGroup>
-		<UIInputGroupTextarea placeholder="Enter your message" aria-label="Message" />
-		<UIInputGroupAddon align="block-end">
-			<UIInputGroupText>120 characters left</UIInputGroupText>
-			<UIInputGroupButton class="ml-auto" size="sm" variant="default">
-				Send
-			</UIInputGroupButton>
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup>
+    <UIInputGroupTextarea placeholder="Enter your message" aria-label="Message" />
+    <UIInputGroupAddon align="block-end">
+      <UIInputGroupText>120 characters left</UIInputGroupText>
+      <UIInputGroupButton class="ml-auto" size="sm" variant="default"> Send </UIInputGroupButton>
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 
@@ -112,14 +106,14 @@ import { CopyIcon } from '@lucide/vue'
 </script>
 
 <template>
-	<UIInputGroup>
-		<UIInputGroupInput value="https://example.com" readonly aria-label="URL" />
-		<UIInputGroupAddon align="inline-end">
-			<UIInputGroupButton size="icon-xs" aria-label="Copy URL" title="Copy URL">
-				<CopyIcon />
-			</UIInputGroupButton>
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup>
+    <UIInputGroupInput value="https://example.com" readonly aria-label="URL" />
+    <UIInputGroupAddon align="inline-end">
+      <UIInputGroupButton size="icon-xs" aria-label="Copy URL" title="Copy URL">
+        <CopyIcon />
+      </UIInputGroupButton>
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 
@@ -127,12 +121,12 @@ import { CopyIcon } from '@lucide/vue'
 
 ```vue
 <template>
-	<UIInputGroup>
-		<UIInputGroupInput id="email" type="email" placeholder="shadcn" />
-		<UIInputGroupAddon>
-			<UILabel for="email">@</UILabel>
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup>
+    <UIInputGroupInput id="email" type="email" placeholder="shadcn" />
+    <UIInputGroupAddon>
+      <UILabel for="email">@</UILabel>
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 

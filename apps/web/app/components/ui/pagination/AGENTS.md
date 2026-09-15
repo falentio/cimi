@@ -205,11 +205,7 @@ const currentPage = ref(1)
 <template>
   <UIPagination :items-per-page="10" :total="30" aria-label="Reports pages">
     <UIPaginationContent>
-      <UIPaginationLink
-        href="/reports?page=1"
-        aria-label="Go to page 1"
-        :is-active="true"
-      >
+      <UIPaginationLink href="/reports?page=1" aria-label="Go to page 1" :is-active="true">
         1
       </UIPaginationLink>
       <UIPaginationLink href="/reports?page=2" aria-label="Go to page 2">2</UIPaginationLink>

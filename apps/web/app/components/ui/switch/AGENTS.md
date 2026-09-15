@@ -22,21 +22,21 @@ Use `<UISwitch>` for one binary setting. The component wraps Reka UI's `SwitchRo
 - `Switch.vue` renders one Reka `SwitchRoot` and one internal `SwitchThumb`. The root renders a native `button` by default. The thumb renders a `span` by default.
 - The component's generic value type is `T`, which defaults to `boolean`. With the defaults, `v-model` reads and writes `true` or `false`.
 
-  | Prop | Type | Default | Meaning |
-  | --- | --- | --- | --- |
-  | `modelValue` | `null \| T` | unset | Controlled value used by `v-model`. |
-  | `defaultValue` | `T` | `falseValue` | Initial value for uncontrolled use. |
-  | `trueValue` | `T` | `true` | Value stored when the switch is checked. |
-  | `falseValue` | `T` | `false` | Value stored when the switch is unchecked. |
-  | `name` | `string` | unset | Name for the hidden form input. |
-  | `value` | `string` | `"on"` | Submitted value for a checked switch with a `name`. |
-  | `required` | `boolean` | unset | Marks the switch as required and sets `aria-required`. |
-  | `disabled` | `boolean` | unset | Prevents pointer and keyboard interaction. |
-  | `id` | `string` | unset | Identifies the root and enables label pairing. |
-  | `as` | `AsTag \| Component` | `"button"` | Changes the root element or component. |
-  | `asChild` | `boolean` | unset | Merges the root behavior into its first child. |
-  | `class` | `HTMLAttributes['class']` | unset | Adds classes to the styled root through `cn`. |
-  | `size` | `"default" \| "sm"` | `"default"` | Selects the local root and thumb size styles. |
+  | Prop           | Type                      | Default      | Meaning                                                |
+  | -------------- | ------------------------- | ------------ | ------------------------------------------------------ |
+  | `modelValue`   | `null \| T`               | unset        | Controlled value used by `v-model`.                    |
+  | `defaultValue` | `T`                       | `falseValue` | Initial value for uncontrolled use.                    |
+  | `trueValue`    | `T`                       | `true`       | Value stored when the switch is checked.               |
+  | `falseValue`   | `T`                       | `false`      | Value stored when the switch is unchecked.             |
+  | `name`         | `string`                  | unset        | Name for the hidden form input.                        |
+  | `value`        | `string`                  | `"on"`       | Submitted value for a checked switch with a `name`.    |
+  | `required`     | `boolean`                 | unset        | Marks the switch as required and sets `aria-required`. |
+  | `disabled`     | `boolean`                 | unset        | Prevents pointer and keyboard interaction.             |
+  | `id`           | `string`                  | unset        | Identifies the root and enables label pairing.         |
+  | `as`           | `AsTag \| Component`      | `"button"`   | Changes the root element or component.                 |
+  | `asChild`      | `boolean`                 | unset        | Merges the root behavior into its first child.         |
+  | `class`        | `HTMLAttributes['class']` | unset        | Adds classes to the styled root through `cn`.          |
+  | `size`         | `"default" \| "sm"`       | `"default"`  | Selects the local root and thumb size styles.          |
 
 - The root is checked when its current value strictly equals `trueValue`. It is unchecked for every other value. The root and thumb expose `data-state="checked"` or `data-state="unchecked"`.
 - `defaultValue` selects the initial value without making the switch controlled. If it is omitted, the initial value is `falseValue`. Use `v-model` when parent state must stay in sync.

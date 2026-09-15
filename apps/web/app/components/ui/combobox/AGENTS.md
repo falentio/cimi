@@ -14,7 +14,7 @@ The parts follow reka-ui's Combobox anatomy, but this wrapper renames the popup 
     <UIComboboxAnchor as-child>
       <UIComboboxTrigger as-child>
         <UIButton variant="outline" class="w-[200px] justify-between">
-          {{ selected?.label ?? "Select framework..." }}
+          {{ selected?.label ?? 'Select framework...' }}
         </UIButton>
       </UIComboboxTrigger>
     </UIComboboxAnchor>
@@ -63,7 +63,7 @@ The parts follow reka-ui's Combobox anatomy, but this wrapper renames the popup 
     <UIComboboxAnchor as-child>
       <UIComboboxTrigger as-child>
         <UIButton variant="outline" class="w-[200px] justify-between">
-          {{ selected?.label ?? "Select framework..." }}
+          {{ selected?.label ?? 'Select framework...' }}
           <HugeiconsIcon :icon="ChevronsUpDownIcon" class="opacity-50" />
         </UIButton>
       </UIComboboxTrigger>
@@ -102,7 +102,11 @@ const selected = ref<(typeof frameworks)[number]>()
       <UIComboboxTrigger as-child>
         <UIButton variant="outline" class="w-[280px] justify-between">
           <span class="truncate">
-            {{ selectedFrameworks.length ? selectedFrameworks.map(f => f.label).join(", ") : "Select frameworks..." }}
+            {{
+              selectedFrameworks.length
+                ? selectedFrameworks.map((f) => f.label).join(', ')
+                : 'Select frameworks...'
+            }}
           </span>
         </UIButton>
       </UIComboboxTrigger>
@@ -137,7 +141,7 @@ const selectedFrameworks = ref<typeof frameworks>([])
     <UIComboboxAnchor as-child>
       <UIComboboxTrigger as-child>
         <UIButton variant="outline" class="h-12 w-[200px] justify-between px-2.5">
-          {{ selectedTimezone?.label ?? "Select timezone" }}
+          {{ selectedTimezone?.label ?? 'Select timezone' }}
         </UIButton>
       </UIComboboxTrigger>
     </UIComboboxAnchor>
@@ -177,7 +181,7 @@ const selectedTimezone = ref<(typeof regions)[number]['timezones'][number]>()
   <UICombobox v-model="selected" :ignore-filter="true">
     <UIComboboxAnchor as-child>
       <UIComboboxTrigger as-child>
-        <UIButton variant="outline">{{ selected?.label ?? "Select..." }}</UIButton>
+        <UIButton variant="outline">{{ selected?.label ?? 'Select...' }}</UIButton>
       </UIComboboxTrigger>
     </UIComboboxAnchor>
     <UIComboboxList>
@@ -201,7 +205,7 @@ const people = [
 ]
 const { startsWith } = useFilter({ sensitivity: 'base' })
 const searchTerm = ref('')
-const filtered = computed(() => people.filter(p => startsWith(p.label, searchTerm.value)))
+const filtered = computed(() => people.filter((p) => startsWith(p.label, searchTerm.value)))
 const selected = ref<(typeof people)[number]>()
 </script>
 ```

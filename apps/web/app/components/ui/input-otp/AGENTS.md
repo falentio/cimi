@@ -16,21 +16,16 @@ const code = ref('')
 </script>
 
 <template>
-	<UIInputOTP
-		id="verification-code"
-		v-model="code"
-		:maxlength="6"
-		aria-label="Verification code"
-	>
-		<UIInputOTPGroup>
-			<UIInputOTPSlot :index="0" />
-			<UIInputOTPSlot :index="1" />
-			<UIInputOTPSlot :index="2" />
-			<UIInputOTPSlot :index="3" />
-			<UIInputOTPSlot :index="4" />
-			<UIInputOTPSlot :index="5" />
-		</UIInputOTPGroup>
-	</UIInputOTP>
+  <UIInputOTP id="verification-code" v-model="code" :maxlength="6" aria-label="Verification code">
+    <UIInputOTPGroup>
+      <UIInputOTPSlot :index="0" />
+      <UIInputOTPSlot :index="1" />
+      <UIInputOTPSlot :index="2" />
+      <UIInputOTPSlot :index="3" />
+      <UIInputOTPSlot :index="4" />
+      <UIInputOTPSlot :index="5" />
+    </UIInputOTPGroup>
+  </UIInputOTP>
 </template>
 ```
 
@@ -54,22 +49,22 @@ const code = ref('')
 
 ### Root props and value
 
-| Prop | Type or default | Behavior |
-| --- | --- | --- |
-| `maxlength` | `number`, required | Sets the number of slot states and caps the string value. |
-| `modelValue` | `string` | Binds through `v-model`. The value contains the complete code typed so far. |
-| `defaultValue` | `any`, default `''` | Seeds an uncontrolled value. Pass a string even though the upstream declaration uses `any`. |
-| `pattern` | `string` | Tests the whole prospective value on typing and paste. The component rejects the whole change when the pattern fails. There is no default pattern. |
-| `placeholder` | `string` | Forwards to the real input and exposes per-position `placeholderChar` values to the root slot. The built-in `UIInputOTPSlot` does not render those values. |
-| `inputmode` | `'numeric' \| 'text'`, default `'numeric'` | Selects the mobile keyboard. Use `inputmode="text"` for alphanumeric codes. This Vue prop is lowercase. |
-| `textAlign` | `'left' \| 'center' \| 'right'`, default `'left'` | Aligns the invisible input text. It affects tap and selection placement, not the visible slot row. Use `text-align` in a template. |
-| `pushPasswordManagerStrategy` | `'increase-width' \| 'none'`, default `'increase-width'` | Reserves clipped input width so password manager badges sit beside the last slot. Set it to `none` to disable detection and the extra width. |
-| `pasteTransformer` | `(pasted: string \| undefined) => string` | Rewrites clipboard text before validation and insertion. Supplying it enables the manual paste path on every platform. |
-| `disabled` | `boolean` | Disables the real input and adds the local disabled styling to the container. |
-| `autocomplete` | `string`, default `'one-time-code'` | Enables SMS one-time-code suggestions unless you override it. |
-| `noScriptCssFallback` | `string \| null`, default built-in CSS | Controls the stylesheet that makes the hidden input usable when JavaScript is disabled. Pass `null` to remove it. |
-| `nonce` | `string` | Adds a CSP nonce to the injected stylesheet. |
-| `class` | `HTMLAttributes['class']` | Merges into the visible root container. Use this for local layout changes. |
+| Prop                          | Type or default                                          | Behavior                                                                                                                                                   |
+| ----------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxlength`                   | `number`, required                                       | Sets the number of slot states and caps the string value.                                                                                                  |
+| `modelValue`                  | `string`                                                 | Binds through `v-model`. The value contains the complete code typed so far.                                                                                |
+| `defaultValue`                | `any`, default `''`                                      | Seeds an uncontrolled value. Pass a string even though the upstream declaration uses `any`.                                                                |
+| `pattern`                     | `string`                                                 | Tests the whole prospective value on typing and paste. The component rejects the whole change when the pattern fails. There is no default pattern.         |
+| `placeholder`                 | `string`                                                 | Forwards to the real input and exposes per-position `placeholderChar` values to the root slot. The built-in `UIInputOTPSlot` does not render those values. |
+| `inputmode`                   | `'numeric' \| 'text'`, default `'numeric'`               | Selects the mobile keyboard. Use `inputmode="text"` for alphanumeric codes. This Vue prop is lowercase.                                                    |
+| `textAlign`                   | `'left' \| 'center' \| 'right'`, default `'left'`        | Aligns the invisible input text. It affects tap and selection placement, not the visible slot row. Use `text-align` in a template.                         |
+| `pushPasswordManagerStrategy` | `'increase-width' \| 'none'`, default `'increase-width'` | Reserves clipped input width so password manager badges sit beside the last slot. Set it to `none` to disable detection and the extra width.               |
+| `pasteTransformer`            | `(pasted: string \| undefined) => string`                | Rewrites clipboard text before validation and insertion. Supplying it enables the manual paste path on every platform.                                     |
+| `disabled`                    | `boolean`                                                | Disables the real input and adds the local disabled styling to the container.                                                                              |
+| `autocomplete`                | `string`, default `'one-time-code'`                      | Enables SMS one-time-code suggestions unless you override it.                                                                                              |
+| `noScriptCssFallback`         | `string \| null`, default built-in CSS                   | Controls the stylesheet that makes the hidden input usable when JavaScript is disabled. Pass `null` to remove it.                                          |
+| `nonce`                       | `string`                                                 | Adds a CSP nonce to the injected stylesheet.                                                                                                               |
+| `class`                       | `HTMLAttributes['class']`                                | Merges into the visible root container. Use this for local layout changes.                                                                                 |
 
 The root also accepts native input attributes such as `id`, `name`, `required`, `autofocus`, `readonly`, `type`, `aria-*`, and `data-*`. The wrapper forwards them to the real input. Use `v-model` or `defaultValue` for the value instead of relying on the native `value` attribute.
 
@@ -77,18 +72,18 @@ The root also accepts native input attributes such as `id`, `name`, `required`, 
 
 ### Events
 
-| Event | Payload | Behavior |
-| --- | --- | --- |
-| `update:modelValue` | `string \| undefined` in the generated declaration | Drives `v-model`. Runtime value changes are strings. |
-| `input` | `string` | Fires with the new code after typing, deletion, cutting, or accepted paste. This is a value event, not an `InputEvent`. |
-| `complete` | `string` | Fires when the value changes from shorter than `maxlength` to exactly `maxlength`. Use it to verify or submit the code. |
-| `focus` | `FocusEvent` | Fires when the real input receives focus. |
-| `blur` | `FocusEvent` | Fires when the real input loses focus. |
-| `mouseover` | `MouseEvent` | Fires when the pointer enters the real input. |
-| `mouseleave` | `MouseEvent` | Fires when the pointer leaves the real input. |
-| `paste` | `ClipboardEvent` | Fires for paste attempts. The primitive handles the paste manually on iOS and whenever `pasteTransformer` is set. |
-| `change` | `Event` in the type declaration | Declared by `OTPInputEmits`, but `vue-input-otp@0.4.0` does not emit it. Use `input` for value changes. |
-| `select` | `Event` in the type declaration | Declared by `OTPInputEmits`, but `vue-input-otp@0.4.0` does not emit it. |
+| Event               | Payload                                            | Behavior                                                                                                                |
+| ------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `update:modelValue` | `string \| undefined` in the generated declaration | Drives `v-model`. Runtime value changes are strings.                                                                    |
+| `input`             | `string`                                           | Fires with the new code after typing, deletion, cutting, or accepted paste. This is a value event, not an `InputEvent`. |
+| `complete`          | `string`                                           | Fires when the value changes from shorter than `maxlength` to exactly `maxlength`. Use it to verify or submit the code. |
+| `focus`             | `FocusEvent`                                       | Fires when the real input receives focus.                                                                               |
+| `blur`              | `FocusEvent`                                       | Fires when the real input loses focus.                                                                                  |
+| `mouseover`         | `MouseEvent`                                       | Fires when the pointer enters the real input.                                                                           |
+| `mouseleave`        | `MouseEvent`                                       | Fires when the pointer leaves the real input.                                                                           |
+| `paste`             | `ClipboardEvent`                                   | Fires for paste attempts. The primitive handles the paste manually on iOS and whenever `pasteTransformer` is set.       |
+| `change`            | `Event` in the type declaration                    | Declared by `OTPInputEmits`, but `vue-input-otp@0.4.0` does not emit it. Use `input` for value changes.                 |
+| `select`            | `Event` in the type declaration                    | Declared by `OTPInputEmits`, but `vue-input-otp@0.4.0` does not emit it.                                                |
 
 Unrecognized attributes and listeners such as `@keydown` fall through to the real input. The wrapper uses Reka UI's `useForwardPropsEmits` to pass declared props and events to the underlying component.
 
@@ -133,21 +128,21 @@ import { REGEXP_ONLY_DIGITS_AND_CHARS } from 'vue-input-otp'
 </script>
 
 <template>
-	<UIInputOTP
-		:maxlength="6"
-		:pattern="REGEXP_ONLY_DIGITS_AND_CHARS"
-		inputmode="text"
-		aria-label="Alphanumeric verification code"
-	>
-		<UIInputOTPGroup>
-			<UIInputOTPSlot :index="0" />
-			<UIInputOTPSlot :index="1" />
-			<UIInputOTPSlot :index="2" />
-			<UIInputOTPSlot :index="3" />
-			<UIInputOTPSlot :index="4" />
-			<UIInputOTPSlot :index="5" />
-		</UIInputOTPGroup>
-	</UIInputOTP>
+  <UIInputOTP
+    :maxlength="6"
+    :pattern="REGEXP_ONLY_DIGITS_AND_CHARS"
+    inputmode="text"
+    aria-label="Alphanumeric verification code"
+  >
+    <UIInputOTPGroup>
+      <UIInputOTPSlot :index="0" />
+      <UIInputOTPSlot :index="1" />
+      <UIInputOTPSlot :index="2" />
+      <UIInputOTPSlot :index="3" />
+      <UIInputOTPSlot :index="4" />
+      <UIInputOTPSlot :index="5" />
+    </UIInputOTPGroup>
+  </UIInputOTP>
 </template>
 ```
 
@@ -155,22 +150,22 @@ import { REGEXP_ONLY_DIGITS_AND_CHARS } from 'vue-input-otp'
 
 ```vue
 <template>
-	<UIInputOTP :maxlength="6" aria-label="Verification code">
-		<UIInputOTPGroup>
-			<UIInputOTPSlot :index="0" />
-			<UIInputOTPSlot :index="1" />
-		</UIInputOTPGroup>
-		<UIInputOTPSeparator aria-hidden="true" />
-		<UIInputOTPGroup>
-			<UIInputOTPSlot :index="2" />
-			<UIInputOTPSlot :index="3" />
-		</UIInputOTPGroup>
-		<UIInputOTPSeparator aria-hidden="true" />
-		<UIInputOTPGroup>
-			<UIInputOTPSlot :index="4" />
-			<UIInputOTPSlot :index="5" />
-		</UIInputOTPGroup>
-	</UIInputOTP>
+  <UIInputOTP :maxlength="6" aria-label="Verification code">
+    <UIInputOTPGroup>
+      <UIInputOTPSlot :index="0" />
+      <UIInputOTPSlot :index="1" />
+    </UIInputOTPGroup>
+    <UIInputOTPSeparator aria-hidden="true" />
+    <UIInputOTPGroup>
+      <UIInputOTPSlot :index="2" />
+      <UIInputOTPSlot :index="3" />
+    </UIInputOTPGroup>
+    <UIInputOTPSeparator aria-hidden="true" />
+    <UIInputOTPGroup>
+      <UIInputOTPSlot :index="4" />
+      <UIInputOTPSlot :index="5" />
+    </UIInputOTPGroup>
+  </UIInputOTP>
 </template>
 ```
 
@@ -184,30 +179,30 @@ const code = ref('')
 const completedCode = ref('')
 
 function handleComplete(value: string) {
-	completedCode.value = value
+  completedCode.value = value
 }
 </script>
 
 <template>
-	<div class="flex flex-col gap-2">
-		<UIInputOTP
-			id="otp-completion"
-			v-model="code"
-			:maxlength="6"
-			aria-label="Verification code"
-			@complete="handleComplete"
-		>
-			<UIInputOTPGroup>
-				<UIInputOTPSlot :index="0" />
-				<UIInputOTPSlot :index="1" />
-				<UIInputOTPSlot :index="2" />
-				<UIInputOTPSlot :index="3" />
-				<UIInputOTPSlot :index="4" />
-				<UIInputOTPSlot :index="5" />
-			</UIInputOTPGroup>
-		</UIInputOTP>
-		<p v-if="completedCode">Code received: {{ completedCode }}</p>
-	</div>
+  <div class="flex flex-col gap-2">
+    <UIInputOTP
+      id="otp-completion"
+      v-model="code"
+      :maxlength="6"
+      aria-label="Verification code"
+      @complete="handleComplete"
+    >
+      <UIInputOTPGroup>
+        <UIInputOTPSlot :index="0" />
+        <UIInputOTPSlot :index="1" />
+        <UIInputOTPSlot :index="2" />
+        <UIInputOTPSlot :index="3" />
+        <UIInputOTPSlot :index="4" />
+        <UIInputOTPSlot :index="5" />
+      </UIInputOTPGroup>
+    </UIInputOTP>
+    <p v-if="completedCode">Code received: {{ completedCode }}</p>
+  </div>
 </template>
 ```
 
@@ -215,18 +210,18 @@ function handleComplete(value: string) {
 
 ```vue
 <template>
-	<UIInputOTP
-		v-slot="{ slots, isFocused }"
-		:maxlength="6"
-		placeholder="______"
-		aria-label="Verification code"
-	>
-		<div class="flex gap-2" :data-focused="isFocused">
-			<div v-for="(slot, index) in slots" :key="index">
-				{{ slot.char ?? slot.placeholderChar }}
-			</div>
-		</div>
-	</UIInputOTP>
+  <UIInputOTP
+    v-slot="{ slots, isFocused }"
+    :maxlength="6"
+    placeholder="______"
+    aria-label="Verification code"
+  >
+    <div class="flex gap-2" :data-focused="isFocused">
+      <div v-for="(slot, index) in slots" :key="index">
+        {{ slot.char ?? slot.placeholderChar }}
+      </div>
+    </div>
+  </UIInputOTP>
 </template>
 ```
 

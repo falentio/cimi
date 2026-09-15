@@ -18,19 +18,15 @@ const pin = ref<string[]>([])
 </script>
 
 <template>
-	<label for="account-pin">Account PIN</label>
-	<UIPinInput
-		id="account-pin"
-		v-model="pin"
-		:required="true"
-	>
-		<UIPinInputGroup>
-			<UIPinInputSlot :index="0" />
-			<UIPinInputSlot :index="1" />
-			<UIPinInputSlot :index="2" />
-			<UIPinInputSlot :index="3" />
-		</UIPinInputGroup>
-	</UIPinInput>
+  <label for="account-pin">Account PIN</label>
+  <UIPinInput id="account-pin" v-model="pin" :required="true">
+    <UIPinInputGroup>
+      <UIPinInputSlot :index="0" />
+      <UIPinInputSlot :index="1" />
+      <UIPinInputSlot :index="2" />
+      <UIPinInputSlot :index="3" />
+    </UIPinInputGroup>
+  </UIPinInput>
 </template>
 ```
 
@@ -59,22 +55,22 @@ const pin = ref<string[]>([])
 
 `UIPinInput` uses the generic `Type extends 'text' | 'number'` with `'text'` as the default. The generic controls the array element type.
 
-| Prop | Type or default | Behavior |
-| --- | --- | --- |
-| `modelValue` | `string[] \| null` for text, `(number \| undefined)[] \| null` for number | Controlled value for `v-model`. The array position matches the slot `index`. |
-| `defaultValue` | `string[]` for text, `(number \| undefined)[]` for number | Initial value for an uncontrolled field. |
-| `type` | `'text' \| 'number'`, default `'text'` | Selects text mode or numeric mode. Numeric mode filters non-digits and emits numbers. |
-| `placeholder` | `string`, default `''` | Placeholder character for empty slots. The focused empty slot hides its placeholder while it is active. |
-| `mask` | `boolean`, default false | Uses password inputs for the visible slots. It does not change the `v-model` or form value. |
-| `otp` | `boolean`, local default `true` | Enables one-time-code autocomplete and mobile OTP detection. It also prevents focus from skipping an earlier empty slot. |
-| `disabled` | `boolean` | Prevents interaction with the root and its slots. The hidden form input is disabled too. |
-| `required` | `boolean` | Marks the hidden form input as required. Use it for native form validation. |
-| `name` | `string` | Sets the name of the hidden form input used for form submission. |
-| `id` | `string` | Sets the id of the hidden form input. A label can target this id. |
-| `dir` | `'ltr' \| 'rtl'` | Sets the reading direction used by horizontal keyboard navigation. |
-| `class` | `HTMLAttributes['class']` | Merges into the local root container. |
-| `as` | `AsTag \| Component` | Changes the element rendered by the Reka UI root primitive. |
-| `asChild` | `boolean` | Composes the root primitive with a child element. |
+| Prop           | Type or default                                                           | Behavior                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `modelValue`   | `string[] \| null` for text, `(number \| undefined)[] \| null` for number | Controlled value for `v-model`. The array position matches the slot `index`.                                             |
+| `defaultValue` | `string[]` for text, `(number \| undefined)[]` for number                 | Initial value for an uncontrolled field.                                                                                 |
+| `type`         | `'text' \| 'number'`, default `'text'`                                    | Selects text mode or numeric mode. Numeric mode filters non-digits and emits numbers.                                    |
+| `placeholder`  | `string`, default `''`                                                    | Placeholder character for empty slots. The focused empty slot hides its placeholder while it is active.                  |
+| `mask`         | `boolean`, default false                                                  | Uses password inputs for the visible slots. It does not change the `v-model` or form value.                              |
+| `otp`          | `boolean`, local default `true`                                           | Enables one-time-code autocomplete and mobile OTP detection. It also prevents focus from skipping an earlier empty slot. |
+| `disabled`     | `boolean`                                                                 | Prevents interaction with the root and its slots. The hidden form input is disabled too.                                 |
+| `required`     | `boolean`                                                                 | Marks the hidden form input as required. Use it for native form validation.                                              |
+| `name`         | `string`                                                                  | Sets the name of the hidden form input used for form submission.                                                         |
+| `id`           | `string`                                                                  | Sets the id of the hidden form input. A label can target this id.                                                        |
+| `dir`          | `'ltr' \| 'rtl'`                                                          | Sets the reading direction used by horizontal keyboard navigation.                                                       |
+| `class`        | `HTMLAttributes['class']`                                                 | Merges into the local root container.                                                                                    |
+| `as`           | `AsTag \| Component`                                                      | Changes the element rendered by the Reka UI root primitive.                                                              |
+| `asChild`      | `boolean`                                                                 | Composes the root primitive with a child element.                                                                        |
 
 There is no `length` prop. The number of mounted `<UIPinInputSlot>` components determines the input count and the completion condition. The model is not guaranteed to contain one value for every empty position while the field is incomplete.
 
@@ -86,10 +82,10 @@ The root accepts the Reka UI form props and native attributes that fall through 
 
 `UIPinInput` declares two root events.
 
-| Event | Payload | Behavior |
-| --- | --- | --- |
-| `update:modelValue` | `string[]` in text mode or `(number \| undefined)[]` in numeric mode | Fires when a slot value changes and drives `v-model`. |
-| `complete` | `string[]` in text mode or `(number \| undefined)[]` in numeric mode | Fires after the current model satisfies every rendered slot. It reports that the PIN is filled, not that the PIN is valid on the server. |
+| Event               | Payload                                                              | Behavior                                                                                                                                 |
+| ------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `update:modelValue` | `string[]` in text mode or `(number \| undefined)[]` in numeric mode | Fires when a slot value changes and drives `v-model`.                                                                                    |
+| `complete`          | `string[]` in text mode or `(number \| undefined)[]` in numeric mode | Fires after the current model satisfies every rendered slot. It reports that the PIN is filled, not that the PIN is valid on the server. |
 
 The visible slots handle native `input`, `keydown`, `focus`, `blur`, `paste`, and composition events internally. Use the root value events for model changes.
 
@@ -146,28 +142,28 @@ import { ref } from 'vue'
 const pin = ref<Array<number | undefined>>([])
 
 function handleComplete(value: Array<number | undefined>) {
-	console.log(value.filter((digit): digit is number => digit !== undefined).join(''))
+  console.log(value.filter((digit): digit is number => digit !== undefined).join(''))
 }
 </script>
 
 <template>
-	<UIPinInput
-		v-model="pin"
-		type="number"
-		mask
-		placeholder="•"
-		aria-label="Six-digit PIN"
-		@complete="handleComplete"
-	>
-		<UIPinInputGroup>
-			<UIPinInputSlot :index="0" />
-			<UIPinInputSlot :index="1" />
-			<UIPinInputSlot :index="2" />
-			<UIPinInputSlot :index="3" />
-			<UIPinInputSlot :index="4" />
-			<UIPinInputSlot :index="5" />
-		</UIPinInputGroup>
-	</UIPinInput>
+  <UIPinInput
+    v-model="pin"
+    type="number"
+    mask
+    placeholder="•"
+    aria-label="Six-digit PIN"
+    @complete="handleComplete"
+  >
+    <UIPinInputGroup>
+      <UIPinInputSlot :index="0" />
+      <UIPinInputSlot :index="1" />
+      <UIPinInputSlot :index="2" />
+      <UIPinInputSlot :index="3" />
+      <UIPinInputSlot :index="4" />
+      <UIPinInputSlot :index="5" />
+    </UIPinInputGroup>
+  </UIPinInput>
 </template>
 ```
 
@@ -175,19 +171,19 @@ function handleComplete(value: Array<number | undefined>) {
 
 ```vue
 <template>
-	<UIPinInput aria-label="Recovery code">
-		<UIPinInputGroup>
-			<UIPinInputSlot :index="0" />
-			<UIPinInputSlot :index="1" />
-			<UIPinInputSlot :index="2" />
-		</UIPinInputGroup>
-		<UIPinInputSeparator aria-hidden="true" />
-		<UIPinInputGroup>
-			<UIPinInputSlot :index="3" />
-			<UIPinInputSlot :index="4" />
-			<UIPinInputSlot :index="5" />
-		</UIPinInputGroup>
-	</UIPinInput>
+  <UIPinInput aria-label="Recovery code">
+    <UIPinInputGroup>
+      <UIPinInputSlot :index="0" />
+      <UIPinInputSlot :index="1" />
+      <UIPinInputSlot :index="2" />
+    </UIPinInputGroup>
+    <UIPinInputSeparator aria-hidden="true" />
+    <UIPinInputGroup>
+      <UIPinInputSlot :index="3" />
+      <UIPinInputSlot :index="4" />
+      <UIPinInputSlot :index="5" />
+    </UIPinInputGroup>
+  </UIPinInput>
 </template>
 ```
 
@@ -195,22 +191,17 @@ function handleComplete(value: Array<number | undefined>) {
 
 ```vue
 <template>
-	<UIPinInput
-		name="invite-code"
-		:required="true"
-		:disabled="true"
-		aria-label="Invite code"
-	>
-		<UIPinInputGroup>
-			<UIPinInputSlot :index="0" />
-			<UIPinInputSlot :index="1" />
-		</UIPinInputGroup>
-		<UIPinInputSeparator aria-hidden="true">/</UIPinInputSeparator>
-		<UIPinInputGroup>
-			<UIPinInputSlot :index="2" />
-			<UIPinInputSlot :index="3" />
-		</UIPinInputGroup>
-	</UIPinInput>
+  <UIPinInput name="invite-code" :required="true" :disabled="true" aria-label="Invite code">
+    <UIPinInputGroup>
+      <UIPinInputSlot :index="0" />
+      <UIPinInputSlot :index="1" />
+    </UIPinInputGroup>
+    <UIPinInputSeparator aria-hidden="true">/</UIPinInputSeparator>
+    <UIPinInputGroup>
+      <UIPinInputSlot :index="2" />
+      <UIPinInputSlot :index="3" />
+    </UIPinInputGroup>
+  </UIPinInput>
 </template>
 ```
 

@@ -10,7 +10,7 @@ Use `<UITextarea>` for multiline text. `shadcn-nuxt` auto-imports the local `Tex
 
 ```vue
 <template>
-	<UITextarea placeholder="Type your message here." />
+  <UITextarea placeholder="Type your message here." />
 </template>
 ```
 
@@ -21,24 +21,24 @@ This is the official Textarea usage example adapted to the app's Nuxt auto-impor
 - `index.ts` exports only `Textarea` from `Textarea.vue`. Use `<UITextarea>` in templates. Import lowercase helpers, refs, icons, and type-only exports explicitly when a consumer needs them.
 - The explicit props are:
 
-  | Prop | Type | Default | Meaning |
-  | --- | --- | --- | --- |
-  | `class` | `HTMLAttributes['class']` | unset | Merges consumer classes with the component classes through `cn`. |
-  | `defaultValue` | `string \| number` | unset | Supplies the initial value when `modelValue` is not provided. |
-  | `modelValue` | `string \| number` | unset | Holds the value used by `v-model`. |
+  | Prop           | Type                      | Default | Meaning                                                          |
+  | -------------- | ------------------------- | ------- | ---------------------------------------------------------------- |
+  | `class`        | `HTMLAttributes['class']` | unset   | Merges consumer classes with the component classes through `cn`. |
+  | `defaultValue` | `string \| number`        | unset   | Supplies the initial value when `modelValue` is not provided.    |
+  | `modelValue`   | `string \| number`        | unset   | Holds the value used by `v-model`.                               |
 
 - `v-model` binds to `modelValue` and listens for `update:modelValue`. The component emits that event with a `string | number` payload. Native textarea input normally produces a string even though the prop type also permits a number.
 - `useVModel` configures passive updates and uses `defaultValue` as the initial value. The component does not parse, debounce, validate, submit, or format the value.
 - `Textarea.vue` has one root element, a native `<textarea>`. Undeclared attributes fall through to that element. This includes `id`, `name`, `rows`, `placeholder`, `disabled`, `required`, `readonly`, `maxlength`, `aria-*`, and `data-*` attributes.
 - The common native attributes have these effects:
 
-  | Attribute | Effect |
-  | --- | --- |
-  | `rows` | Sets the native preferred row count. The default content-based sizing can override this in browsers that support `field-sizing: content`. |
-  | `placeholder` | Shows a hint while the value is empty. It is not an accessible name. |
-  | `disabled` | Prevents focus and editing. The browser excludes the control from form submission. The component adds disabled opacity and cursor styles. |
-  | `required` | Enables the browser's native constraint validation when the control belongs to a form. |
-  | `name` | Supplies the key used for native form submission. A control without `name` contributes no form field value. |
+  | Attribute     | Effect                                                                                                                                    |
+  | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+  | `rows`        | Sets the native preferred row count. The default content-based sizing can override this in browsers that support `field-sizing: content`. |
+  | `placeholder` | Shows a hint while the value is empty. It is not an accessible name.                                                                      |
+  | `disabled`    | Prevents focus and editing. The browser excludes the control from form submission. The component adds disabled opacity and cursor styles. |
+  | `required`    | Enables the browser's native constraint validation when the control belongs to a form.                                                    |
+  | `name`        | Supplies the key used for native form submission. A control without `name` contributes no form field value.                               |
 
 - Other native listeners also fall through. Use `@input` for the native `InputEvent`, or use `@change`, `@focus`, `@blur`, and `@keydown` when those DOM events fit the use case. Use `@update:modelValue` when you need the component model event.
 - The component has no slots. Child content between `<UITextarea>` tags does not render. Put initial text in `defaultValue` or `v-model`, and use `placeholder` for a hint.
@@ -58,7 +58,7 @@ The official Textarea page has Installation and Usage sections. It does not prov
 
 ```vue
 <template>
-	<UITextarea placeholder="Type your message here." aria-label="Message" />
+  <UITextarea placeholder="Type your message here." aria-label="Message" />
 </template>
 ```
 
@@ -66,7 +66,7 @@ The official Textarea page has Installation and Usage sections. It does not prov
 
 ```vue
 <template>
-	<UITextarea disabled placeholder="This message cannot be edited." aria-label="Disabled message" />
+  <UITextarea disabled placeholder="This message cannot be edited." aria-label="Disabled message" />
 </template>
 ```
 
@@ -74,17 +74,17 @@ The official Textarea page has Installation and Usage sections. It does not prov
 
 ```vue
 <template>
-	<form class="grid w-full max-w-sm gap-2">
-		<UILabel for="feedback">Feedback</UILabel>
-		<UITextarea
-			id="feedback"
-			name="feedback"
-			rows="4"
-			placeholder="Tell us what you think."
-			required
-		/>
-		<button type="submit">Send feedback</button>
-	</form>
+  <form class="grid w-full max-w-sm gap-2">
+    <UILabel for="feedback">Feedback</UILabel>
+    <UITextarea
+      id="feedback"
+      name="feedback"
+      rows="4"
+      placeholder="Tell us what you think."
+      required
+    />
+    <button type="submit">Send feedback</button>
+  </form>
 </template>
 ```
 
@@ -92,20 +92,18 @@ The official Textarea page has Installation and Usage sections. It does not prov
 
 ```vue
 <template>
-	<UIInputGroup class="w-full max-w-md">
-		<UIInputGroupTextarea
-			id="message"
-			name="message"
-			placeholder="Enter your message"
-			aria-label="Message"
-		/>
-		<UIInputGroupAddon align="block-end">
-			<UIInputGroupText>120 characters left</UIInputGroupText>
-			<UIInputGroupButton class="ml-auto" size="sm" variant="default">
-				Send
-			</UIInputGroupButton>
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup class="w-full max-w-md">
+    <UIInputGroupTextarea
+      id="message"
+      name="message"
+      placeholder="Enter your message"
+      aria-label="Message"
+    />
+    <UIInputGroupAddon align="block-end">
+      <UIInputGroupText>120 characters left</UIInputGroupText>
+      <UIInputGroupButton class="ml-auto" size="sm" variant="default"> Send </UIInputGroupButton>
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 

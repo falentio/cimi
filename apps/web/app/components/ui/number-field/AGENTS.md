@@ -16,14 +16,14 @@ const age = ref<number | null>(18)
 </script>
 
 <template>
-	<UINumberField id="age" v-model="age" :min="0" :max="120">
-		<UILabel for="age">Age</UILabel>
-		<UINumberFieldContent>
-			<UINumberFieldDecrement />
-			<UINumberFieldInput />
-			<UINumberFieldIncrement />
-		</UINumberFieldContent>
-	</UINumberField>
+  <UINumberField id="age" v-model="age" :min="0" :max="120">
+    <UILabel for="age">Age</UILabel>
+    <UINumberFieldContent>
+      <UINumberFieldDecrement />
+      <UINumberFieldInput />
+      <UINumberFieldIncrement />
+    </UINumberFieldContent>
+  </UINumberField>
 </template>
 ```
 
@@ -33,13 +33,13 @@ const age = ref<number | null>(18)
 
 - `apps/web/app/components/ui/number-field/index.ts` exports exactly five components.
 
-  | Export | Auto-imported template tag | Role |
-  | --- | --- | --- |
-  | `NumberField` | `<UINumberField>` | Root that owns value state, constraints, formatting, form behavior, and emitted updates. |
-  | `NumberFieldContent` | `<UINumberFieldContent>` | Relative layout wrapper for the input and stepper controls. |
-  | `NumberFieldInput` | `<UINumberFieldInput>` | Styled Reka UI input that displays and edits the number. |
-  | `NumberFieldIncrement` | `<UINumberFieldIncrement>` | Button that increases the value. |
-  | `NumberFieldDecrement` | `<UINumberFieldDecrement>` | Button that decreases the value. |
+  | Export                 | Auto-imported template tag | Role                                                                                     |
+  | ---------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
+  | `NumberField`          | `<UINumberField>`          | Root that owns value state, constraints, formatting, form behavior, and emitted updates. |
+  | `NumberFieldContent`   | `<UINumberFieldContent>`   | Relative layout wrapper for the input and stepper controls.                              |
+  | `NumberFieldInput`     | `<UINumberFieldInput>`     | Styled Reka UI input that displays and edits the number.                                 |
+  | `NumberFieldIncrement` | `<UINumberFieldIncrement>` | Button that increases the value.                                                         |
+  | `NumberFieldDecrement` | `<UINumberFieldDecrement>` | Button that decreases the value.                                                         |
 
 - `shadcn-nuxt` auto-imports these tags from `@/components/ui` with the `UI` prefix configured in `apps/web/nuxt.config.ts`. Do not import these components in a template.
 - The standard composition is `<UINumberField>` containing a label and `<UINumberFieldContent>`. Put `<UINumberFieldDecrement>`, `<UINumberFieldInput>`, and `<UINumberFieldIncrement>` inside the content wrapper in that order.
@@ -55,27 +55,27 @@ const age = ref<number | null>(18)
 
 `<UINumberField>` forwards `NumberFieldRootProps` and `NumberFieldRootEmits` from Reka UI. The local component adds `class`.
 
-| Template prop | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `as` | `AsTag \| Component` | `div` | Changes the root element or component. |
-| `as-child` | `boolean` | `false` | Merges root behavior into one child. Use this only when the child forwards attributes and events. |
-| `default-value` | `number` | unset | Sets the initial value for uncontrolled usage. |
-| `model-value` | `number \| null` | unset | Supplies the controlled numeric value used by `v-model`. |
-| `min` | `number` | unset | Sets the smallest allowed value. |
-| `max` | `number` | unset | Sets the largest allowed value. |
-| `step` | `number` | `1` | Sets the amount added or subtracted per stepper tick and keyboard increment. |
-| `step-snapping` | `boolean` | `true` | Snaps values to the nearest step increment when true. Set it to false to preserve values that are not aligned to the step. |
-| `format-options` | `Intl.NumberFormatOptions` | unset | Controls displayed formatting and the characters the user can type. |
-| `locale` | `string` | unset | Selects the locale used for formatting and currencies. |
-| `disabled` | `boolean` | `false` | Prevents interaction with the number field. |
-| `readonly` | `boolean` | `false` | Makes the number field read-only. |
-| `required` | `boolean` | `false` | Requires a value before the owning form can submit. |
-| `id` | `string` | unset | Sets the field id used by its label association. |
-| `name` | `string` | unset | Supplies the form name used for name and value submission. |
-| `disable-wheel-change` | `boolean` | `false` | Prevents wheel scrolling from changing the value. |
-| `invert-wheel-change` | `boolean` | `false` | Reverses the direction of wheel changes. |
-| `focus-on-change` | `boolean` | `true` | Focuses the input when the value changes. |
-| `class` | `HTMLAttributes['class']` | unset | Adds classes to the styled root. |
+| Template prop          | Type                       | Default | Meaning                                                                                                                    |
+| ---------------------- | -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `as`                   | `AsTag \| Component`       | `div`   | Changes the root element or component.                                                                                     |
+| `as-child`             | `boolean`                  | `false` | Merges root behavior into one child. Use this only when the child forwards attributes and events.                          |
+| `default-value`        | `number`                   | unset   | Sets the initial value for uncontrolled usage.                                                                             |
+| `model-value`          | `number \| null`           | unset   | Supplies the controlled numeric value used by `v-model`.                                                                   |
+| `min`                  | `number`                   | unset   | Sets the smallest allowed value.                                                                                           |
+| `max`                  | `number`                   | unset   | Sets the largest allowed value.                                                                                            |
+| `step`                 | `number`                   | `1`     | Sets the amount added or subtracted per stepper tick and keyboard increment.                                               |
+| `step-snapping`        | `boolean`                  | `true`  | Snaps values to the nearest step increment when true. Set it to false to preserve values that are not aligned to the step. |
+| `format-options`       | `Intl.NumberFormatOptions` | unset   | Controls displayed formatting and the characters the user can type.                                                        |
+| `locale`               | `string`                   | unset   | Selects the locale used for formatting and currencies.                                                                     |
+| `disabled`             | `boolean`                  | `false` | Prevents interaction with the number field.                                                                                |
+| `readonly`             | `boolean`                  | `false` | Makes the number field read-only.                                                                                          |
+| `required`             | `boolean`                  | `false` | Requires a value before the owning form can submit.                                                                        |
+| `id`                   | `string`                   | unset   | Sets the field id used by its label association.                                                                           |
+| `name`                 | `string`                   | unset   | Supplies the form name used for name and value submission.                                                                 |
+| `disable-wheel-change` | `boolean`                  | `false` | Prevents wheel scrolling from changing the value.                                                                          |
+| `invert-wheel-change`  | `boolean`                  | `false` | Reverses the direction of wheel changes.                                                                                   |
+| `focus-on-change`      | `boolean`                  | `true`  | Focuses the input when the value changes.                                                                                  |
+| `class`                | `HTMLAttributes['class']`  | unset   | Adds classes to the styled root.                                                                                           |
 
 The `as` and `as-child` props are also available on the input and stepper parts through their Reka UI primitives. `disabled` is available on the increment and decrement parts so one control can be disabled independently. The content wrapper accepts only `class`.
 
@@ -132,14 +132,14 @@ The `as` and `as-child` props are also available on the input and stepper parts 
 
 ```vue
 <template>
-	<UINumberField id="quantity" :default-value="1" :min="1" :max="99">
-		<UILabel for="quantity">Quantity</UILabel>
-		<UINumberFieldContent>
-			<UINumberFieldDecrement />
-			<UINumberFieldInput />
-			<UINumberFieldIncrement />
-		</UINumberFieldContent>
-	</UINumberField>
+  <UINumberField id="quantity" :default-value="1" :min="1" :max="99">
+    <UILabel for="quantity">Quantity</UILabel>
+    <UINumberFieldContent>
+      <UINumberFieldDecrement />
+      <UINumberFieldInput />
+      <UINumberFieldIncrement />
+    </UINumberFieldContent>
+  </UINumberField>
 </template>
 ```
 
@@ -154,21 +154,21 @@ const lastPayment = ref<number | null>(payment.value)
 </script>
 
 <template>
-	<UINumberField
-		id="payment"
-		v-model="payment"
-		:min="10"
-		:max="5000"
-		@update:model-value="lastPayment = $event"
-	>
-		<UILabel for="payment">Payment</UILabel>
-		<UINumberFieldContent>
-			<UINumberFieldDecrement />
-			<UINumberFieldInput aria-describedby="payment-help" />
-			<UINumberFieldIncrement />
-		</UINumberFieldContent>
-	</UINumberField>
-	<p id="payment-help">Last changed value {{ lastPayment }}</p>
+  <UINumberField
+    id="payment"
+    v-model="payment"
+    :min="10"
+    :max="5000"
+    @update:model-value="lastPayment = $event"
+  >
+    <UILabel for="payment">Payment</UILabel>
+    <UINumberFieldContent>
+      <UINumberFieldDecrement />
+      <UINumberFieldInput aria-describedby="payment-help" />
+      <UINumberFieldIncrement />
+    </UINumberFieldContent>
+  </UINumberField>
+  <p id="payment-help">Last changed value {{ lastPayment }}</p>
 </template>
 ```
 
@@ -176,19 +176,19 @@ const lastPayment = ref<number | null>(payment.value)
 
 ```vue
 <template>
-	<UINumberField
-		id="percent"
-		:default-value="0.05"
-		:step="0.01"
-		:format-options="{ style: 'percent' }"
-	>
-		<UILabel for="percent">Percent</UILabel>
-		<UINumberFieldContent>
-			<UINumberFieldDecrement />
-			<UINumberFieldInput />
-			<UINumberFieldIncrement />
-		</UINumberFieldContent>
-	</UINumberField>
+  <UINumberField
+    id="percent"
+    :default-value="0.05"
+    :step="0.01"
+    :format-options="{ style: 'percent' }"
+  >
+    <UILabel for="percent">Percent</UILabel>
+    <UINumberFieldContent>
+      <UINumberFieldDecrement />
+      <UINumberFieldInput />
+      <UINumberFieldIncrement />
+    </UINumberFieldContent>
+  </UINumberField>
 </template>
 ```
 
@@ -196,24 +196,24 @@ const lastPayment = ref<number | null>(payment.value)
 
 ```vue
 <template>
-	<UINumberField
-		id="balance"
-		locale="de-DE"
-		:default-value="1500"
-		:format-options="{
-			style: 'currency',
-			currency: 'EUR',
-			currencyDisplay: 'code',
-			currencySign: 'accounting',
-		}"
-	>
-		<UILabel for="balance">Balance</UILabel>
-		<UINumberFieldContent>
-			<UINumberFieldDecrement />
-			<UINumberFieldInput />
-			<UINumberFieldIncrement />
-		</UINumberFieldContent>
-	</UINumberField>
+  <UINumberField
+    id="balance"
+    locale="de-DE"
+    :default-value="1500"
+    :format-options="{
+      style: 'currency',
+      currency: 'EUR',
+      currencyDisplay: 'code',
+      currencySign: 'accounting',
+    }"
+  >
+    <UILabel for="balance">Balance</UILabel>
+    <UINumberFieldContent>
+      <UINumberFieldDecrement />
+      <UINumberFieldInput />
+      <UINumberFieldIncrement />
+    </UINumberFieldContent>
+  </UINumberField>
 </template>
 ```
 
@@ -221,14 +221,14 @@ const lastPayment = ref<number | null>(payment.value)
 
 ```vue
 <template>
-	<UINumberField id="seats" :default-value="2" :min="1">
-		<UILabel for="seats">Seats</UILabel>
-		<UINumberFieldContent>
-			<UINumberFieldDecrement aria-label="Remove a seat">-</UINumberFieldDecrement>
-			<UINumberFieldInput />
-			<UINumberFieldIncrement aria-label="Add a seat">+</UINumberFieldIncrement>
-		</UINumberFieldContent>
-	</UINumberField>
+  <UINumberField id="seats" :default-value="2" :min="1">
+    <UILabel for="seats">Seats</UILabel>
+    <UINumberFieldContent>
+      <UINumberFieldDecrement aria-label="Remove a seat">-</UINumberFieldDecrement>
+      <UINumberFieldInput />
+      <UINumberFieldIncrement aria-label="Add a seat">+</UINumberFieldIncrement>
+    </UINumberFieldContent>
+  </UINumberField>
 </template>
 ```
 

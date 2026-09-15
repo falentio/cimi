@@ -49,6 +49,7 @@ Displays a file or image with media, name, metadata, upload state, and actions.
 ## Examples
 
 <!-- Single file with icon media and a remove action -->
+
 ```vue
 <template>
   <UIAttachment>
@@ -69,18 +70,17 @@ Displays a file or image with media, name, metadata, upload state, and actions.
 ```
 
 <!-- Image preview, stacked vertically, inside a scrollable group -->
+
 ```vue
 <script setup lang="ts">
-const images = [
-  { name: 'workspace.png', meta: 'PNG · 820 KB', src: '/workspace.png' },
-]
+const images = [{ name: 'workspace.png', meta: 'PNG · 820 KB', src: '/workspace.png' }]
 </script>
 
 <template>
   <UIAttachmentGroup class="w-full">
     <UIAttachment v-for="image in images" :key="image.name" orientation="vertical">
       <UIAttachmentMedia variant="image">
-        <img :src="image.src" :alt="image.name">
+        <img :src="image.src" :alt="image.name" />
       </UIAttachmentMedia>
       <UIAttachmentContent>
         <UIAttachmentTitle>{{ image.name }}</UIAttachmentTitle>
@@ -92,6 +92,7 @@ const images = [
 ```
 
 <!-- Upload lifecycle states -->
+
 ```vue
 <template>
   <UIAttachment state="uploading" class="w-full">
@@ -112,6 +113,7 @@ const images = [
 ```
 
 <!-- Sizes -->
+
 ```vue
 <template>
   <UIAttachment size="xs" class="w-full">
@@ -126,11 +128,12 @@ const images = [
 ```
 
 <!-- Trigger as an external link that keeps actions clickable -->
+
 ```vue
 <template>
   <UIAttachment class="w-full">
     <UIAttachmentMedia variant="image">
-      <img :src="src" alt="workspace.png">
+      <img :src="src" alt="workspace.png" />
     </UIAttachmentMedia>
     <UIAttachmentContent>
       <UIAttachmentTitle>workspace.png</UIAttachmentTitle>
@@ -149,6 +152,7 @@ const images = [
 ```
 
 <!-- Trigger that opens a dialog -->
+
 ```vue
 <template>
   <UIDialog>

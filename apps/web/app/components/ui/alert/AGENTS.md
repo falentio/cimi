@@ -45,9 +45,7 @@ import { CheckCircle2Icon } from '@lucide/vue'
   <UIAlert>
     <CheckCircle2Icon />
     <UIAlertTitle>Success! Your changes have been saved</UIAlertTitle>
-    <UIAlertDescription>
-      This is an alert with icon, title and description.
-    </UIAlertDescription>
+    <UIAlertDescription> This is an alert with icon, title and description. </UIAlertDescription>
   </UIAlert>
 </template>
 ```

@@ -11,7 +11,7 @@ Reach for `UIAspectRatio` whenever a media element must keep a stable proportion
 ```vue
 <template>
   <UIAspectRatio :ratio="16 / 9">
-    <img src="..." alt="Image" class="rounded-md object-cover">
+    <img src="..." alt="Image" class="rounded-md object-cover" />
   </UIAspectRatio>
 </template>
 ```

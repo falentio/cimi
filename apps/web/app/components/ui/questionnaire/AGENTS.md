@@ -65,61 +65,61 @@ Use `import { injectQuestionnaireItemContext, injectQuestionnaireRootContext } f
 
 The barrel also re-exports the lowercase composables `injectQuestionnaireItemContext` and `injectQuestionnaireRootContext`. It re-exports these types for explicit type-only imports:
 
-| Export | Exact definition or fields |
-| --- | --- |
-| `QuestionnaireItemStatus` | `'unanswered' \| 'answered' \| 'skipped'` |
-| `QuestionnaireShortcutMode` | `'letters' \| 'numbers'` |
-| `QuestionnaireInputType` | `'date' \| 'datetime-local' \| 'email' \| 'month' \| 'number' \| 'password' \| 'search' \| 'tel' \| 'text' \| 'time' \| 'url' \| 'week'` |
-| `QuestionnaireChoiceDefinition` | `value: string` and optional `disabled: boolean` |
-| `QuestionnaireItemDefinition` | `name: string`, optional readonly `choices: QuestionnaireChoiceDefinition[]`, optional `disabled: boolean`, and optional `required: boolean` |
+| Export                          | Exact definition or fields                                                                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `QuestionnaireItemStatus`       | `'unanswered' \| 'answered' \| 'skipped'`                                                                                                    |
+| `QuestionnaireShortcutMode`     | `'letters' \| 'numbers'`                                                                                                                     |
+| `QuestionnaireInputType`        | `'date' \| 'datetime-local' \| 'email' \| 'month' \| 'number' \| 'password' \| 'search' \| 'tel' \| 'text' \| 'time' \| 'url' \| 'week'`     |
+| `QuestionnaireChoiceDefinition` | `value: string` and optional `disabled: boolean`                                                                                             |
+| `QuestionnaireItemDefinition`   | `name: string`, optional readonly `choices: QuestionnaireChoiceDefinition[]`, optional `disabled: boolean`, and optional `required: boolean` |
 
 `Questionnaire` renders a real `<form>` and provides the root context.
 
-| Prop or event | Type and default | Behavior |
-| --- | --- | --- |
-| `class` | `HTMLAttributes['class']` | Adds classes to the form. |
-| `defaultItem` | `string`, no default | Sets the first item for uncontrolled use. It is ignored when `item` is provided. |
-| `item` | `string`, no default | Controls the active item. Use `v-model:item`. |
-| `items` | `readonly QuestionnaireItemDefinition[]`, no default | Declares logical item order, item metadata, conditional items, and choice order for shortcuts. |
-| `noValidate` | `boolean`, `true` | Keeps native constraint validation disabled by default. Set it to `false` to validate answered controls with the browser. |
-| `shortcuts` | `QuestionnaireShortcutMode`, no default | Assigns letter or number shortcuts to choices. |
-| `update:item` | `string` | Fires when navigation selects another item. |
-| `submit` | `Event` | Fires after every enabled item validates. The handler can prevent the native submission. |
-| `reset` | `Event` | Fires before the questionnaire restores defaults. Prevent it to keep the current state. |
+| Prop or event | Type and default                                     | Behavior                                                                                                                  |
+| ------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `class`       | `HTMLAttributes['class']`                            | Adds classes to the form.                                                                                                 |
+| `defaultItem` | `string`, no default                                 | Sets the first item for uncontrolled use. It is ignored when `item` is provided.                                          |
+| `item`        | `string`, no default                                 | Controls the active item. Use `v-model:item`.                                                                             |
+| `items`       | `readonly QuestionnaireItemDefinition[]`, no default | Declares logical item order, item metadata, conditional items, and choice order for shortcuts.                            |
+| `noValidate`  | `boolean`, `true`                                    | Keeps native constraint validation disabled by default. Set it to `false` to validate answered controls with the browser. |
+| `shortcuts`   | `QuestionnaireShortcutMode`, no default              | Assigns letter or number shortcuts to choices.                                                                            |
+| `update:item` | `string`                                             | Fires when navigation selects another item.                                                                               |
+| `submit`      | `Event`                                              | Fires after every enabled item validates. The handler can prevent the native submission.                                  |
+| `reset`       | `Event`                                              | Fires before the questionnaire restores defaults. Prevent it to keep the current state.                                   |
 
 The root slot exposes `current`, `total`, `first`, and `last`. `current` is one-based. When `items` is absent, the root uses enabled item registrations in rendered document order. When `items` is present, its enabled definitions are authoritative, even before the item components mount.
 
 `QuestionnaireItem` renders an active question as a `<fieldset>`. Inactive items are `hidden` and `inert`, and remain mounted so controlled state and default state can persist.
 
-| Prop or event | Type and default | Behavior |
-| --- | --- | --- |
-| `name` | `string`, required | Names the item, selects it for navigation, and names its submitted answers. |
-| `required` | `boolean`, `false` | Requires an answer before the item can continue. An optional item still needs an answer or an explicit skip. |
-| `multiple` | `boolean`, `false` | Renders choices as checkboxes and retains every selected answer. The default renders choices as radios. |
-| `disabled` | `boolean`, `false` | Excludes the item from navigation and validation without unmounting it. |
-| `invalid` | `boolean`, `false` | Marks the item invalid from host validation. The host must clear it after the answer changes. |
-| `class` | `HTMLAttributes['class']` | Adds classes to the fieldset. |
-| `update:status` | `QuestionnaireItemStatus` | Reports `unanswered`, `answered`, or `skipped`. |
+| Prop or event   | Type and default          | Behavior                                                                                                     |
+| --------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `name`          | `string`, required        | Names the item, selects it for navigation, and names its submitted answers.                                  |
+| `required`      | `boolean`, `false`        | Requires an answer before the item can continue. An optional item still needs an answer or an explicit skip. |
+| `multiple`      | `boolean`, `false`        | Renders choices as checkboxes and retains every selected answer. The default renders choices as radios.      |
+| `disabled`      | `boolean`, `false`        | Excludes the item from navigation and validation without unmounting it.                                      |
+| `invalid`       | `boolean`, `false`        | Marks the item invalid from host validation. The host must clear it after the answer changes.                |
+| `class`         | `HTMLAttributes['class']` | Adds classes to the fieldset.                                                                                |
+| `update:status` | `QuestionnaireItemStatus` | Reports `unanswered`, `answered`, or `skipped`.                                                              |
 
 The item slot exposes `active`, `invalid`, and `status`. Keep an item definition's `disabled` state aligned with the matching `QuestionnaireItem` prop. Do the same for disabled choice definitions and rendered choices when shortcuts are enabled.
 
 The remaining components have these contracts:
 
-| Component | Props, slots, and behavior |
-| --- | --- |
-| `QuestionnaireTitle` | Renders a `legend` by default. Accepts `class`, `id`, `as`, and `asChild`. A non-`legend` child is registered with the item as its accessible label. |
-| `QuestionnaireDescription` | Renders a `p` by default and registers its generated or supplied `id` through `aria-describedby`. Accepts `class`, `id`, `as`, and `asChild`. |
-| `QuestionnaireChoices` | Renders a `div` by default. Accepts `class`, `as`, and `asChild`. Its slot exposes the active `shortcuts` mode. |
-| `QuestionnaireChoice` | Renders a labelled native `radio` or `checkbox`. `value` is required. Accepts `checked`, `defaultChecked`, `disabled`, and `class`. `checked` is controlled with `v-model:checked`; `defaultChecked` participates in mount and reset defaults. Emits `update:checked` with a boolean and `change` with the native `Event`. Its slot exposes `checked`, `disabled`, `shortcut`, and `type`. |
-| `QuestionnaireChoiceDescription` | Renders secondary choice text as a `span`. Accepts `class` and has a default slot. |
-| `QuestionnaireInput` | Renders a native `input` with type `text` by default. Accepts `modelValue`, `defaultValue`, `type`, `disabled`, and `class`. `type` uses `QuestionnaireInputType`. Use `v-model` for controlled state. It emits `update:modelValue` with a string. All other attributes, including `aria-label`, `placeholder`, `min`, `max`, `pattern`, and `autocomplete`, pass to the native input. |
-| `QuestionnaireError` | Renders a hidden `p` by default. Accepts `class`, `id`, `as`, and `asChild`. It becomes visible with `role="alert"` when the item is invalid. Its slot exposes `invalid`. Without slot content, it uses `Choose an answer to continue.` for required items and `Choose an answer or skip this question.` for optional items. |
-| `QuestionnaireProgress` | Renders a named live `progressbar` as a `div` by default. Accepts `class`, `as`, and `asChild`. Its slot exposes `current`, `total`, `first`, and `last`. |
-| `QuestionnaireActions` | Renders a three-column `div` action row by default. Accepts `class`, `as`, and `asChild`. Place previous, skip, and next or submit parts inside it. |
-| `QuestionnairePrevious` | Renders an outline button by default. It is visible after the first item and calls `goPrevious` on click. |
-| `QuestionnaireSkip` | Renders an outline button by default. It is visible only for an optional active item. It clears that item, marks it `skipped`, and moves forward or submits on the last item. |
-| `QuestionnaireNext` | Renders a default-variant button by default. It is visible before the last item and calls `goNext`. It has the `Enter` shortcut when enabled. Invalid answers keep the item active and focus the first invalid control. |
-| `QuestionnaireSubmit` | Renders a default-variant submit button by default. It is visible only on the last item and has the `Enter` shortcut when enabled. The root still validates every enabled item before emitting `submit`. |
+| Component                        | Props, slots, and behavior                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `QuestionnaireTitle`             | Renders a `legend` by default. Accepts `class`, `id`, `as`, and `asChild`. A non-`legend` child is registered with the item as its accessible label.                                                                                                                                                                                                                                       |
+| `QuestionnaireDescription`       | Renders a `p` by default and registers its generated or supplied `id` through `aria-describedby`. Accepts `class`, `id`, `as`, and `asChild`.                                                                                                                                                                                                                                              |
+| `QuestionnaireChoices`           | Renders a `div` by default. Accepts `class`, `as`, and `asChild`. Its slot exposes the active `shortcuts` mode.                                                                                                                                                                                                                                                                            |
+| `QuestionnaireChoice`            | Renders a labelled native `radio` or `checkbox`. `value` is required. Accepts `checked`, `defaultChecked`, `disabled`, and `class`. `checked` is controlled with `v-model:checked`; `defaultChecked` participates in mount and reset defaults. Emits `update:checked` with a boolean and `change` with the native `Event`. Its slot exposes `checked`, `disabled`, `shortcut`, and `type`. |
+| `QuestionnaireChoiceDescription` | Renders secondary choice text as a `span`. Accepts `class` and has a default slot.                                                                                                                                                                                                                                                                                                         |
+| `QuestionnaireInput`             | Renders a native `input` with type `text` by default. Accepts `modelValue`, `defaultValue`, `type`, `disabled`, and `class`. `type` uses `QuestionnaireInputType`. Use `v-model` for controlled state. It emits `update:modelValue` with a string. All other attributes, including `aria-label`, `placeholder`, `min`, `max`, `pattern`, and `autocomplete`, pass to the native input.     |
+| `QuestionnaireError`             | Renders a hidden `p` by default. Accepts `class`, `id`, `as`, and `asChild`. It becomes visible with `role="alert"` when the item is invalid. Its slot exposes `invalid`. Without slot content, it uses `Choose an answer to continue.` for required items and `Choose an answer or skip this question.` for optional items.                                                               |
+| `QuestionnaireProgress`          | Renders a named live `progressbar` as a `div` by default. Accepts `class`, `as`, and `asChild`. Its slot exposes `current`, `total`, `first`, and `last`.                                                                                                                                                                                                                                  |
+| `QuestionnaireActions`           | Renders a three-column `div` action row by default. Accepts `class`, `as`, and `asChild`. Place previous, skip, and next or submit parts inside it.                                                                                                                                                                                                                                        |
+| `QuestionnairePrevious`          | Renders an outline button by default. It is visible after the first item and calls `goPrevious` on click.                                                                                                                                                                                                                                                                                  |
+| `QuestionnaireSkip`              | Renders an outline button by default. It is visible only for an optional active item. It clears that item, marks it `skipped`, and moves forward or submits on the last item.                                                                                                                                                                                                              |
+| `QuestionnaireNext`              | Renders a default-variant button by default. It is visible before the last item and calls `goNext`. It has the `Enter` shortcut when enabled. Invalid answers keep the item active and focus the first invalid control.                                                                                                                                                                    |
+| `QuestionnaireSubmit`            | Renders a default-variant submit button by default. It is visible only on the last item and has the `Enter` shortcut when enabled. The root still validates every enabled item before emitting `submit`.                                                                                                                                                                                   |
 
 `QuestionnairePrevious`, `QuestionnaireSkip`, `QuestionnaireNext`, and `QuestionnaireSubmit` accept `variant`, `size`, `disabled`, `class`, `as`, and `asChild`. Their defaults are `outline` for `Previous` and `Skip`, `default` for `Next` and `Submit`, `default` for `size`, and `button` for `as`. The `variant` and `size` values come from the local button component.
 
@@ -131,16 +131,16 @@ Use `v-model:checked` on `QuestionnaireChoice` when the host owns selection. Use
 
 Keyboard behavior is handled by the root form:
 
-| Key | Behavior |
-| --- | --- |
-| `ArrowDown` | Moves to the next answer. Empty navigable text inputs can move. Non-empty text entry stays in the input. |
-| `ArrowUp` | Moves to the previous answer under the same rule. |
-| `ArrowRight` | Moves to the next item when the active item is not `unanswered`. Text entry and radio targets keep their native behavior. |
-| `ArrowLeft` | Moves to the previous item outside text entry and radio targets. |
-| `Enter` | Confirms a filled focused answer. It advances or submits on the last item. An empty answer does not confirm. |
-| `Meta+Enter` or `Ctrl+Enter` | Confirms the active item from anywhere in the form. Repeated keydown events do not repeat the action. |
-| `A` through `Z` | Selects the matching choice when `shortcuts="letters"`. Letter matching is case-insensitive. |
-| `1` through `9` | Selects the matching choice when `shortcuts="numbers"`. |
+| Key                          | Behavior                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `ArrowDown`                  | Moves to the next answer. Empty navigable text inputs can move. Non-empty text entry stays in the input.                  |
+| `ArrowUp`                    | Moves to the previous answer under the same rule.                                                                         |
+| `ArrowRight`                 | Moves to the next item when the active item is not `unanswered`. Text entry and radio targets keep their native behavior. |
+| `ArrowLeft`                  | Moves to the previous item outside text entry and radio targets.                                                          |
+| `Enter`                      | Confirms a filled focused answer. It advances or submits on the last item. An empty answer does not confirm.              |
+| `Meta+Enter` or `Ctrl+Enter` | Confirms the active item from anywhere in the form. Repeated keydown events do not repeat the action.                     |
+| `A` through `Z`              | Selects the matching choice when `shortcuts="letters"`. Letter matching is case-insensitive.                              |
+| `1` through `9`              | Selects the matching choice when `shortcuts="numbers"`.                                                                   |
 
 Shortcut assignment uses enabled choices from `items` in definition order. Letters provide `A` through `Z`. Numbers provide `1` through `9`. Without `items`, enabled rendered choices receive shortcuts in document order. Choices beyond the available keys have no shortcut. Text entry, modifier-key combinations, IME composition, and repeated shortcut events do not trigger selection.
 
@@ -171,40 +171,42 @@ Choice question with stable letter shortcuts and native `FormData` submission:
 ```vue
 <script setup lang="ts">
 const items = [
-	{
-		choices: [{ value: 'tests' }, { value: 'docs' }, { value: 'history' }],
-		name: 'context',
-		required: true,
-	},
+  {
+    choices: [{ value: 'tests' }, { value: 'docs' }, { value: 'history' }],
+    name: 'context',
+    required: true,
+  },
 ] as const
 
 function handleSubmit(event: Event) {
-	event.preventDefault()
-	const formData = new FormData(event.target as HTMLFormElement)
-	console.log(formData.get('context'))
+  event.preventDefault()
+  const formData = new FormData(event.target as HTMLFormElement)
+  console.log(formData.get('context'))
 }
 </script>
 
 <template>
-	<UIQuestionnaire :items="items" shortcuts="letters" @submit="handleSubmit">
-		<UIQuestionnaireProgress />
-		<UIQuestionnaireItem name="context" required>
-			<UIQuestionnaireTitle>What context should the agent inspect?</UIQuestionnaireTitle>
-			<UIQuestionnaireDescription>Select one source.</UIQuestionnaireDescription>
-			<UIQuestionnaireChoices>
-				<UIQuestionnaireChoice value="tests">
-					<span>Existing tests</span>
-					<UIQuestionnaireChoiceDescription>Check current behavior.</UIQuestionnaireChoiceDescription>
-				</UIQuestionnaireChoice>
-				<UIQuestionnaireChoice value="docs">Architecture documentation</UIQuestionnaireChoice>
-				<UIQuestionnaireChoice value="history">Recent commit history</UIQuestionnaireChoice>
-			</UIQuestionnaireChoices>
-			<UIQuestionnaireError />
-		</UIQuestionnaireItem>
-		<UIQuestionnaireActions>
-			<UIQuestionnaireSubmit>Save context</UIQuestionnaireSubmit>
-		</UIQuestionnaireActions>
-	</UIQuestionnaire>
+  <UIQuestionnaire :items="items" shortcuts="letters" @submit="handleSubmit">
+    <UIQuestionnaireProgress />
+    <UIQuestionnaireItem name="context" required>
+      <UIQuestionnaireTitle>What context should the agent inspect?</UIQuestionnaireTitle>
+      <UIQuestionnaireDescription>Select one source.</UIQuestionnaireDescription>
+      <UIQuestionnaireChoices>
+        <UIQuestionnaireChoice value="tests">
+          <span>Existing tests</span>
+          <UIQuestionnaireChoiceDescription
+            >Check current behavior.</UIQuestionnaireChoiceDescription
+          >
+        </UIQuestionnaireChoice>
+        <UIQuestionnaireChoice value="docs">Architecture documentation</UIQuestionnaireChoice>
+        <UIQuestionnaireChoice value="history">Recent commit history</UIQuestionnaireChoice>
+      </UIQuestionnaireChoices>
+      <UIQuestionnaireError />
+    </UIQuestionnaireItem>
+    <UIQuestionnaireActions>
+      <UIQuestionnaireSubmit>Save context</UIQuestionnaireSubmit>
+    </UIQuestionnaireActions>
+  </UIQuestionnaire>
 </template>
 ```
 
@@ -218,31 +220,31 @@ const instruction = ref('')
 const items = [{ name: 'instruction', required: true }] as const
 
 function handleSubmit(event: Event) {
-	event.preventDefault()
-	const formData = new FormData(event.target as HTMLFormElement)
-	console.log(formData.get('instruction'))
+  event.preventDefault()
+  const formData = new FormData(event.target as HTMLFormElement)
+  console.log(formData.get('instruction'))
 }
 </script>
 
 <template>
-	<UIQuestionnaire :items="items" @submit="handleSubmit">
-		<UIQuestionnaireItem name="instruction" required>
-			<UIQuestionnaireTitle>What should the agent remember?</UIQuestionnaireTitle>
-			<UIQuestionnaireDescription>Enter a short instruction.</UIQuestionnaireDescription>
-			<UIQuestionnaireChoices>
-				<UIQuestionnaireInput
-					v-model="instruction"
-					aria-label="Agent instruction"
-					placeholder="Keep the public API stable"
-					type="text"
-				/>
-			</UIQuestionnaireChoices>
-			<UIQuestionnaireError />
-		</UIQuestionnaireItem>
-		<UIQuestionnaireActions>
-			<UIQuestionnaireSubmit>Save instruction</UIQuestionnaireSubmit>
-		</UIQuestionnaireActions>
-	</UIQuestionnaire>
+  <UIQuestionnaire :items="items" @submit="handleSubmit">
+    <UIQuestionnaireItem name="instruction" required>
+      <UIQuestionnaireTitle>What should the agent remember?</UIQuestionnaireTitle>
+      <UIQuestionnaireDescription>Enter a short instruction.</UIQuestionnaireDescription>
+      <UIQuestionnaireChoices>
+        <UIQuestionnaireInput
+          v-model="instruction"
+          aria-label="Agent instruction"
+          placeholder="Keep the public API stable"
+          type="text"
+        />
+      </UIQuestionnaireChoices>
+      <UIQuestionnaireError />
+    </UIQuestionnaireItem>
+    <UIQuestionnaireActions>
+      <UIQuestionnaireSubmit>Save instruction</UIQuestionnaireSubmit>
+    </UIQuestionnaireActions>
+  </UIQuestionnaire>
 </template>
 ```
 

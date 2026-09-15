@@ -95,7 +95,14 @@ Everything renders through the `UICommand` root, which is a reka-ui `ListboxRoot
 </template>
 
 <script setup lang="ts">
-import { CalculatorIcon, CalendarIcon, CreditCardIcon, SettingsIcon, SmileIcon, UserIcon } from '@hugeicons/core-free-icons'
+import {
+  CalculatorIcon,
+  CalendarIcon,
+  CreditCardIcon,
+  SettingsIcon,
+  SmileIcon,
+  UserIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 </script>
 ```

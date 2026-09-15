@@ -16,14 +16,14 @@ const tags = ref(['Apple', 'Banana'])
 </script>
 
 <template>
-	<label for="fruits">Fruits</label>
-	<UITagsInput id="fruits" v-model="tags" class="w-[300px]">
-		<UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
-			<UITagsInputItemText />
-			<UITagsInputItemDelete />
-		</UITagsInputItem>
-		<UITagsInputInput placeholder="Add a fruit" />
-	</UITagsInput>
+  <label for="fruits">Fruits</label>
+  <UITagsInput id="fruits" v-model="tags" class="w-[300px]">
+    <UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
+      <UITagsInputItemText />
+      <UITagsInputItemDelete />
+    </UITagsInputItem>
+    <UITagsInputInput placeholder="Add a fruit" />
+  </UITagsInput>
 </template>
 ```
 
@@ -79,14 +79,14 @@ const tags = ref(['Vue', 'Nuxt'])
 </script>
 
 <template>
-	<label for="technologies">Technologies</label>
-	<UITagsInput id="technologies" v-model="tags">
-		<UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
-			<UITagsInputItemText />
-			<UITagsInputItemDelete />
-		</UITagsInputItem>
-		<UITagsInputInput placeholder="Add a technology" />
-	</UITagsInput>
+  <label for="technologies">Technologies</label>
+  <UITagsInput id="technologies" v-model="tags">
+    <UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
+      <UITagsInputItemText />
+      <UITagsInputItemDelete />
+    </UITagsInputItem>
+    <UITagsInputInput placeholder="Add a technology" />
+  </UITagsInput>
 </template>
 ```
 
@@ -101,14 +101,14 @@ const delimiter = /[ ,;\t\n\r]+/
 </script>
 
 <template>
-	<label for="keywords">Keywords</label>
-	<UITagsInput id="keywords" v-model="tags" :delimiter="delimiter" add-on-paste>
-		<UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
-			<UITagsInputItemText />
-			<UITagsInputItemDelete />
-		</UITagsInputItem>
-		<UITagsInputInput placeholder="Type or paste keywords" />
-	</UITagsInput>
+  <label for="keywords">Keywords</label>
+  <UITagsInput id="keywords" v-model="tags" :delimiter="delimiter" add-on-paste>
+    <UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
+      <UITagsInputItemText />
+      <UITagsInputItemDelete />
+    </UITagsInputItem>
+    <UITagsInputInput placeholder="Type or paste keywords" />
+  </UITagsInput>
 </template>
 ```
 
@@ -122,14 +122,14 @@ const tags = ref<string[]>([])
 </script>
 
 <template>
-	<label for="topics">Topics</label>
-	<UITagsInput id="topics" v-model="tags" :max="3">
-		<UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
-			<UITagsInputItemText />
-			<UITagsInputItemDelete />
-		</UITagsInputItem>
-		<UITagsInputInput placeholder="Up to three topics" />
-	</UITagsInput>
+  <label for="topics">Topics</label>
+  <UITagsInput id="topics" v-model="tags" :max="3">
+    <UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
+      <UITagsInputItemText />
+      <UITagsInputItemDelete />
+    </UITagsInputItem>
+    <UITagsInputInput placeholder="Up to three topics" />
+  </UITagsInput>
 </template>
 ```
 
@@ -143,39 +143,39 @@ const tags = ref<string[]>([])
 const invalidTag = ref<string | null>(null)
 
 function handleInvalid(value: string) {
-	invalidTag.value = value
+  invalidTag.value = value
 }
 
 function handleAdd() {
-	invalidTag.value = null
+  invalidTag.value = null
 }
 </script>
 
 <template>
-	<div>
-		<label for="validated-tags">Topics</label>
-		<UITagsInput
-			id="validated-tags"
-			v-model="tags"
-			:max="3"
-			:aria-invalid="invalidTag !== null"
-			@invalid="handleInvalid"
-			@add-tag="handleAdd"
-		>
-			<UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
-				<UITagsInputItemText />
-				<UITagsInputItemDelete />
-			</UITagsInputItem>
-			<UITagsInputInput
-				:aria-invalid="invalidTag !== null"
-				aria-describedby="tags-error"
-				placeholder="Add a topic"
-			/>
-		</UITagsInput>
-		<p v-if="invalidTag !== null" id="tags-error">
-			{{ invalidTag }} was not added because the limit is three tags.
-		</p>
-	</div>
+  <div>
+    <label for="validated-tags">Topics</label>
+    <UITagsInput
+      id="validated-tags"
+      v-model="tags"
+      :max="3"
+      :aria-invalid="invalidTag !== null"
+      @invalid="handleInvalid"
+      @add-tag="handleAdd"
+    >
+      <UITagsInputItem v-for="tag in tags" :key="tag" :value="tag">
+        <UITagsInputItemText />
+        <UITagsInputItemDelete />
+      </UITagsInputItem>
+      <UITagsInputInput
+        :aria-invalid="invalidTag !== null"
+        aria-describedby="tags-error"
+        placeholder="Add a topic"
+      />
+    </UITagsInput>
+    <p v-if="invalidTag !== null" id="tags-error">
+      {{ invalidTag }} was not added because the limit is three tags.
+    </p>
+  </div>
 </template>
 ```
 

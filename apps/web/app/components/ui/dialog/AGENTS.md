@@ -17,9 +17,7 @@ Reach for `Dialog` when you need a dismissible modal: it traps focus, closes on 
     <UIDialogContent>
       <UIDialogHeader>
         <UIDialogTitle>Are you absolutely sure?</UIDialogTitle>
-        <UIDialogDescription>
-          This action cannot be undone.
-        </UIDialogDescription>
+        <UIDialogDescription> This action cannot be undone. </UIDialogDescription>
       </UIDialogHeader>
       <UIDialogFooter>
         <UIDialogClose as-child>
@@ -65,9 +63,7 @@ Reach for `Dialog` when you need a dismissible modal: it traps focus, closes on 
     <UIDialogContent>
       <UIDialogHeader>
         <UIDialogTitle>Are you absolutely sure?</UIDialogTitle>
-        <UIDialogDescription>
-          This action cannot be undone.
-        </UIDialogDescription>
+        <UIDialogDescription> This action cannot be undone. </UIDialogDescription>
       </UIDialogHeader>
     </UIDialogContent>
   </UIDialog>
@@ -85,9 +81,7 @@ Reach for `Dialog` when you need a dismissible modal: it traps focus, closes on 
       <UIDialogContent class="sm:max-w-[425px]">
         <UIDialogHeader>
           <UIDialogTitle>Edit profile</UIDialogTitle>
-          <UIDialogDescription>
-            Make changes to your profile here.
-          </UIDialogDescription>
+          <UIDialogDescription> Make changes to your profile here. </UIDialogDescription>
         </UIDialogHeader>
         <div class="grid gap-4">
           <div class="grid gap-3">
@@ -145,13 +139,9 @@ Reach for `Dialog` when you need a dismissible modal: it traps focus, closes on 
     <UIDialogScrollContent class="sm:max-w-lg">
       <UIDialogHeader>
         <UIDialogTitle>Terms of service</UIDialogTitle>
-        <UIDialogDescription>
-          Review the full agreement before continuing.
-        </UIDialogDescription>
+        <UIDialogDescription> Review the full agreement before continuing. </UIDialogDescription>
       </UIDialogHeader>
-      <p v-for="n in 40" :key="n">
-        Paragraph {{ n }} of the agreement.
-      </p>
+      <p v-for="n in 40" :key="n">Paragraph {{ n }} of the agreement.</p>
       <UIDialogFooter>
         <UIDialogClose as-child>
           <UIButton variant="outline">Close</UIButton>
@@ -207,9 +197,7 @@ const wait = () => new Promise((resolve) => setTimeout(resolve, 1000))
     <UIDialogContent>
       <UIDialogHeader>
         <UIDialogTitle>Are you absolutely sure?</UIDialogTitle>
-        <UIDialogDescription>
-          This will permanently delete the file.
-        </UIDialogDescription>
+        <UIDialogDescription> This will permanently delete the file. </UIDialogDescription>
       </UIDialogHeader>
       <UIDialogFooter>
         <UIButton type="submit">Confirm</UIButton>

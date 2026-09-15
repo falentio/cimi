@@ -63,9 +63,7 @@ This composition covers groups, labels, separators, shortcuts, a disabled item, 
             New window
             <UIMenubarShortcut>⌘N</UIMenubarShortcut>
           </UIMenubarItem>
-          <UIMenubarItem inset disabled>
-            New private window
-          </UIMenubarItem>
+          <UIMenubarItem inset disabled> New private window </UIMenubarItem>
         </UIMenubarGroup>
         <UIMenubarSeparator />
         <UIMenubarSub>
@@ -98,9 +96,7 @@ const profile = ref('benoit')
     <UIMenubarMenu value="view">
       <UIMenubarTrigger>View</UIMenubarTrigger>
       <UIMenubarContent>
-        <UIMenubarCheckboxItem v-model="showBookmarks">
-          Show bookmarks
-        </UIMenubarCheckboxItem>
+        <UIMenubarCheckboxItem v-model="showBookmarks"> Show bookmarks </UIMenubarCheckboxItem>
         <UIMenubarSeparator />
         <UIMenubarRadioGroup v-model="profile">
           <UIMenubarLabel>Profile</UIMenubarLabel>

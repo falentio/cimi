@@ -11,7 +11,9 @@ A menu that opens where the pointer right-clicks; reach for it when an element n
 ```vue
 <template>
   <UIContextMenu>
-    <UIContextMenuTrigger class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+    <UIContextMenuTrigger
+      class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm"
+    >
       Right click here
     </UIContextMenuTrigger>
     <UIContextMenuContent>
@@ -50,7 +52,9 @@ A menu that opens where the pointer right-clicks; reach for it when an element n
 <!-- Full menu: submenu, checkbox item, radio group, shortcuts, destructive item -->
 <template>
   <UIContextMenu>
-    <UIContextMenuTrigger class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+    <UIContextMenuTrigger
+      class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm"
+    >
       Right click here
     </UIContextMenuTrigger>
     <UIContextMenuContent class="w-52">
@@ -67,18 +71,14 @@ A menu that opens where the pointer right-clicks; reach for it when an element n
         <UIContextMenuShortcut>⌘R</UIContextMenuShortcut>
       </UIContextMenuItem>
       <UIContextMenuSub>
-        <UIContextMenuSubTrigger inset>
-          More Tools
-        </UIContextMenuSubTrigger>
+        <UIContextMenuSubTrigger inset> More Tools </UIContextMenuSubTrigger>
         <UIContextMenuSubContent class="w-44">
           <UIContextMenuItem inset>
             Save Page...
             <UIContextMenuShortcut>⇧⌘S</UIContextMenuShortcut>
           </UIContextMenuItem>
           <UIContextMenuSeparator />
-          <UIContextMenuItem variant="destructive">
-            Delete
-          </UIContextMenuItem>
+          <UIContextMenuItem variant="destructive"> Delete </UIContextMenuItem>
         </UIContextMenuSubContent>
       </UIContextMenuSub>
       <UIContextMenuSeparator />
@@ -88,15 +88,9 @@ A menu that opens where the pointer right-clicks; reach for it when an element n
       </UIContextMenuCheckboxItem>
       <UIContextMenuSeparator />
       <UIContextMenuRadioGroup model-value="pedro">
-        <UIContextMenuLabel inset>
-          People
-        </UIContextMenuLabel>
-        <UIContextMenuRadioItem value="pedro">
-          Pedro Duarte
-        </UIContextMenuRadioItem>
-        <UIContextMenuRadioItem value="colm">
-          Colm Tuite
-        </UIContextMenuRadioItem>
+        <UIContextMenuLabel inset> People </UIContextMenuLabel>
+        <UIContextMenuRadioItem value="pedro"> Pedro Duarte </UIContextMenuRadioItem>
+        <UIContextMenuRadioItem value="colm"> Colm Tuite </UIContextMenuRadioItem>
       </UIContextMenuRadioGroup>
     </UIContextMenuContent>
   </UIContextMenu>

@@ -10,7 +10,7 @@ Use `<UISlider>` as a self-closing component. Bind `v-model` to a `number[]` whe
 
 ```vue
 <template>
-	<UISlider :default-value="[33]" :max="100" :step="1" aria-label="Progress" />
+  <UISlider :default-value="[33]" :max="100" :step="1" aria-label="Progress" />
 </template>
 ```
 
@@ -28,24 +28,24 @@ Use `<UISlider>` as a self-closing component. Bind `v-model` to a `number[]` whe
 
 `<UISlider>` forwards `SliderRootProps` from Reka UI and adds the local `class` prop.
 
-| Template prop | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `as` | `AsTag \| Component` | `"span"` | Changes the root element or component. |
-| `as-child` | `boolean` | `false` | Merges the slider behavior into one child element. |
-| `default-value` | `number[]` | `[0]` | Sets the initial value for uncontrolled usage. The array length sets the initial thumb count. |
-| `dir` | `"ltr" \| "rtl"` | Inherited or `"ltr"` | Sets the reading direction. Horizontal keyboard and visual direction follow this setting. |
-| `disabled` | `boolean` | `false` | Prevents user interaction and marks the slider disabled. |
-| `inverted` | `boolean` | `false` | Visually inverts the slider and the orientation-specific keyboard behavior. |
-| `max` | `number` | `100` | Sets the largest allowed value. |
-| `min` | `number` | `0` | Sets the smallest allowed value. |
-| `min-steps-between-thumbs` | `number` | `0` | Sets the minimum number of step intervals between multiple thumbs. |
-| `model-value` | `number[] \| null` | Unset | Supplies the controlled value used by `v-model`. |
-| `name` | `string` | Unset | Names the form value. Reka UI renders an input for each thumb inside a form. |
-| `orientation` | `"vertical" \| "horizontal"` | `"horizontal"` | Sets the slider orientation. |
-| `required` | `boolean` | Unset | Marks the slider value as required for its owning form. |
-| `step` | `number` | `1` | Sets the increment used by pointer and keyboard changes. |
-| `thumb-alignment` | `"contain" \| "overflow"` | `"contain"` | Controls whether thumbs stay within the track bounds or can overflow them. |
-| `class` | `HTMLAttributes['class']` | Unset | Adds classes to the styled root. The wrapper merges them with its local root classes. |
+| Template prop              | Type                         | Default              | Meaning                                                                                       |
+| -------------------------- | ---------------------------- | -------------------- | --------------------------------------------------------------------------------------------- |
+| `as`                       | `AsTag \| Component`         | `"span"`             | Changes the root element or component.                                                        |
+| `as-child`                 | `boolean`                    | `false`              | Merges the slider behavior into one child element.                                            |
+| `default-value`            | `number[]`                   | `[0]`                | Sets the initial value for uncontrolled usage. The array length sets the initial thumb count. |
+| `dir`                      | `"ltr" \| "rtl"`             | Inherited or `"ltr"` | Sets the reading direction. Horizontal keyboard and visual direction follow this setting.     |
+| `disabled`                 | `boolean`                    | `false`              | Prevents user interaction and marks the slider disabled.                                      |
+| `inverted`                 | `boolean`                    | `false`              | Visually inverts the slider and the orientation-specific keyboard behavior.                   |
+| `max`                      | `number`                     | `100`                | Sets the largest allowed value.                                                               |
+| `min`                      | `number`                     | `0`                  | Sets the smallest allowed value.                                                              |
+| `min-steps-between-thumbs` | `number`                     | `0`                  | Sets the minimum number of step intervals between multiple thumbs.                            |
+| `model-value`              | `number[] \| null`           | Unset                | Supplies the controlled value used by `v-model`.                                              |
+| `name`                     | `string`                     | Unset                | Names the form value. Reka UI renders an input for each thumb inside a form.                  |
+| `orientation`              | `"vertical" \| "horizontal"` | `"horizontal"`       | Sets the slider orientation.                                                                  |
+| `required`                 | `boolean`                    | Unset                | Marks the slider value as required for its owning form.                                       |
+| `step`                     | `number`                     | `1`                  | Sets the increment used by pointer and keyboard changes.                                      |
+| `thumb-alignment`          | `"contain" \| "overflow"`    | `"contain"`          | Controls whether thumbs stay within the track bounds or can overflow them.                    |
+| `class`                    | `HTMLAttributes['class']`    | Unset                | Adds classes to the styled root. The wrapper merges them with its local root classes.         |
 
 The component does not support a `readonly` prop. Use `disabled` when the slider must not accept input. A read-only enabled slider needs a separate display or a wrapper change because `readonly` does not change this component's behavior.
 
@@ -80,18 +80,18 @@ The component does not support a `readonly` prop. Use `disabled` when the slider
 
 Reka UI follows the [WAI-ARIA slider pattern](https://www.w3.org/WAI/ARIA/apg/patterns/slidertwothumb). Focus a thumb before using these keys.
 
-| Key | Result |
-| --- | --- |
-| `ArrowRight` | Increases the value by `step`. |
-| `ArrowLeft` | Decreases the value by `step`. |
-| `ArrowUp` | Increases the value by `step`. |
-| `ArrowDown` | Decreases the value by `step`. |
-| `PageUp` | Increases the value by a larger step. |
-| `PageDown` | Decreases the value by a larger step. |
-| `Shift + ArrowUp` | Increases the value by a larger step. |
+| Key                 | Result                                |
+| ------------------- | ------------------------------------- |
+| `ArrowRight`        | Increases the value by `step`.        |
+| `ArrowLeft`         | Decreases the value by `step`.        |
+| `ArrowUp`           | Increases the value by `step`.        |
+| `ArrowDown`         | Decreases the value by `step`.        |
+| `PageUp`            | Increases the value by a larger step. |
+| `PageDown`          | Decreases the value by a larger step. |
+| `Shift + ArrowUp`   | Increases the value by a larger step. |
 | `Shift + ArrowDown` | Decreases the value by a larger step. |
-| `Home` | Sets the value to `min`. |
-| `End` | Sets the value to `max`. |
+| `Home`              | Sets the value to `min`.              |
+| `End`               | Sets the value to `max`.              |
 
 - `dir="rtl"` changes the horizontal reading direction. `inverted` also changes keyboard direction. For a horizontal inverted slider, `ArrowRight`, `ArrowLeft`, `Home`, and `End` are inverted. For a vertical inverted slider, `ArrowUp`, `ArrowDown`, `PageUp`, `PageDown`, `Shift + ArrowUp`, and `Shift + ArrowDown` are inverted.
 - Give the slider an accessible name with `aria-label` or `aria-labelledby`. Describe the value's meaning in the label, especially when a range has two thumbs.
@@ -118,7 +118,7 @@ const volume = ref<number[]>([50])
 </script>
 
 <template>
-	<UISlider v-model="volume" :max="100" :step="1" aria-label="Volume" />
+  <UISlider v-model="volume" :max="100" :step="1" aria-label="Volume" />
 </template>
 ```
 
@@ -132,14 +132,14 @@ const priceRange = ref<number[]>([25, 75])
 </script>
 
 <template>
-	<UISlider
-		v-model="priceRange"
-		:min="0"
-		:max="100"
-		:step="5"
-		:min-steps-between-thumbs="1"
-		aria-label="Price range"
-	/>
+  <UISlider
+    v-model="priceRange"
+    :min="0"
+    :max="100"
+    :step="5"
+    :min-steps-between-thumbs="1"
+    aria-label="Price range"
+  />
 </template>
 ```
 
@@ -147,12 +147,7 @@ const priceRange = ref<number[]>([25, 75])
 
 ```vue
 <template>
-	<UISlider
-		:default-value="[50]"
-		orientation="vertical"
-		class="h-48"
-		aria-label="Vertical level"
-	/>
+  <UISlider :default-value="[50]" orientation="vertical" class="h-48" aria-label="Vertical level" />
 </template>
 ```
 
@@ -160,7 +155,7 @@ const priceRange = ref<number[]>([25, 75])
 
 ```vue
 <template>
-	<UISlider :default-value="[25]" disabled aria-label="Locked level" />
+  <UISlider :default-value="[25]" disabled aria-label="Locked level" />
 </template>
 ```
 

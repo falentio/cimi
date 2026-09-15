@@ -140,9 +140,7 @@ import { markerVariants } from '@/components/ui/marker'
 </script>
 
 <template>
-  <div :class="markerVariants({ variant: 'border' })">
-    Custom bordered marker
-  </div>
+  <div :class="markerVariants({ variant: 'border' })">Custom bordered marker</div>
 </template>
 ```
 

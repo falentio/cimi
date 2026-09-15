@@ -35,6 +35,7 @@ Renders a user or entity image with a text fallback, plus optional badge and sta
 ## Examples
 
 <!-- Basic avatar with fallback -->
+
 ```vue
 <template>
   <UIAvatar>
@@ -45,6 +46,7 @@ Renders a user or entity image with a text fallback, plus optional badge and sta
 ```
 
 <!-- Sized avatar -->
+
 ```vue
 <template>
   <UIAvatar size="lg">
@@ -55,6 +57,7 @@ Renders a user or entity image with a text fallback, plus optional badge and sta
 ```
 
 <!-- Overlapping group with overflow count -->
+
 ```vue
 <template>
   <UIAvatarGroup>
@@ -72,6 +75,7 @@ Renders a user or entity image with a text fallback, plus optional badge and sta
 ```
 
 <!-- Avatar with a status badge -->
+
 ```vue
 <template>
   <UIAvatar>
@@ -83,6 +87,7 @@ Renders a user or entity image with a text fallback, plus optional badge and sta
 ```
 
 <!-- Delayed fallback to avoid a flash on fast connections -->
+
 ```vue
 <template>
   <UIAvatar>

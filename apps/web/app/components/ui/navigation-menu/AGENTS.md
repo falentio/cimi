@@ -126,11 +126,7 @@ import { navigationMenuTriggerStyle } from '@/components/ui/navigation-menu'
         </UINavigationMenuContent>
       </UINavigationMenuItem>
       <UINavigationMenuItem>
-        <UINavigationMenuLink
-          as-child
-          active
-          :class="navigationMenuTriggerStyle()"
-        >
+        <UINavigationMenuLink as-child active :class="navigationMenuTriggerStyle()">
           <a href="/docs">Docs</a>
         </UINavigationMenuLink>
       </UINavigationMenuItem>

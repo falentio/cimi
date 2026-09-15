@@ -18,11 +18,11 @@ const status = ref('')
 </script>
 
 <template>
-	<UINativeSelect v-model="status" name="status" aria-label="Status">
-		<UINativeSelectOption value="">Select status</UINativeSelectOption>
-		<UINativeSelectOption value="todo">Todo</UINativeSelectOption>
-		<UINativeSelectOption value="done">Done</UINativeSelectOption>
-	</UINativeSelect>
+  <UINativeSelect v-model="status" name="status" aria-label="Status">
+    <UINativeSelectOption value="">Select status</UINativeSelectOption>
+    <UINativeSelectOption value="todo">Todo</UINativeSelectOption>
+    <UINativeSelectOption value="done">Done</UINativeSelectOption>
+  </UINativeSelect>
 </template>
 ```
 
@@ -66,13 +66,13 @@ const changed = ref(false)
 </script>
 
 <template>
-	<UINativeSelect v-model="fruit" aria-label="Fruit" @change="changed = true">
-		<UINativeSelectOption value="">Select a fruit</UINativeSelectOption>
-		<UINativeSelectOption value="apple">Apple</UINativeSelectOption>
-		<UINativeSelectOption value="banana">Banana</UINativeSelectOption>
-		<UINativeSelectOption value="grapes" disabled>Grapes</UINativeSelectOption>
-	</UINativeSelect>
-	<p v-if="changed">Selected fruit: {{ fruit }}</p>
+  <UINativeSelect v-model="fruit" aria-label="Fruit" @change="changed = true">
+    <UINativeSelectOption value="">Select a fruit</UINativeSelectOption>
+    <UINativeSelectOption value="apple">Apple</UINativeSelectOption>
+    <UINativeSelectOption value="banana">Banana</UINativeSelectOption>
+    <UINativeSelectOption value="grapes" disabled>Grapes</UINativeSelectOption>
+  </UINativeSelect>
+  <p v-if="changed">Selected fruit: {{ fruit }}</p>
 </template>
 ```
 
@@ -80,18 +80,18 @@ const changed = ref(false)
 
 ```vue
 <template>
-	<UINativeSelect aria-label="Department">
-		<UINativeSelectOption value="">Select department</UINativeSelectOption>
-		<UINativeSelectOptGroup label="Engineering">
-			<UINativeSelectOption value="frontend">Frontend</UINativeSelectOption>
-			<UINativeSelectOption value="backend">Backend</UINativeSelectOption>
-			<UINativeSelectOption value="devops">DevOps</UINativeSelectOption>
-		</UINativeSelectOptGroup>
-		<UINativeSelectOptGroup label="Sales">
-			<UINativeSelectOption value="sales-rep">Sales Rep</UINativeSelectOption>
-			<UINativeSelectOption value="account-manager">Account Manager</UINativeSelectOption>
-		</UINativeSelectOptGroup>
-	</UINativeSelect>
+  <UINativeSelect aria-label="Department">
+    <UINativeSelectOption value="">Select department</UINativeSelectOption>
+    <UINativeSelectOptGroup label="Engineering">
+      <UINativeSelectOption value="frontend">Frontend</UINativeSelectOption>
+      <UINativeSelectOption value="backend">Backend</UINativeSelectOption>
+      <UINativeSelectOption value="devops">DevOps</UINativeSelectOption>
+    </UINativeSelectOptGroup>
+    <UINativeSelectOptGroup label="Sales">
+      <UINativeSelectOption value="sales-rep">Sales Rep</UINativeSelectOption>
+      <UINativeSelectOption value="account-manager">Account Manager</UINativeSelectOption>
+    </UINativeSelectOptGroup>
+  </UINativeSelect>
 </template>
 ```
 
@@ -105,28 +105,28 @@ const country = ref('')
 const submitted = ref('')
 
 function submit() {
-	submitted.value = country.value
+  submitted.value = country.value
 }
 </script>
 
 <template>
-	<form class="grid max-w-sm gap-2" @submit.prevent="submit">
-		<label for="country">Country</label>
-		<UINativeSelect
-			id="country"
-			v-model="country"
-			name="country"
-			required
-			aria-describedby="country-help"
-		>
-			<UINativeSelectOption value="">Select a country</UINativeSelectOption>
-			<UINativeSelectOption value="us">United States</UINativeSelectOption>
-			<UINativeSelectOption value="uk">United Kingdom</UINativeSelectOption>
-		</UINativeSelect>
-		<p id="country-help">Choose the country for this order.</p>
-		<button type="submit">Submit</button>
-		<p v-if="submitted">Submitted country: {{ submitted }}</p>
-	</form>
+  <form class="grid max-w-sm gap-2" @submit.prevent="submit">
+    <label for="country">Country</label>
+    <UINativeSelect
+      id="country"
+      v-model="country"
+      name="country"
+      required
+      aria-describedby="country-help"
+    >
+      <UINativeSelectOption value="">Select a country</UINativeSelectOption>
+      <UINativeSelectOption value="us">United States</UINativeSelectOption>
+      <UINativeSelectOption value="uk">United Kingdom</UINativeSelectOption>
+    </UINativeSelect>
+    <p id="country-help">Choose the country for this order.</p>
+    <button type="submit">Submit</button>
+    <p v-if="submitted">Submitted country: {{ submitted }}</p>
+  </form>
 </template>
 ```
 
@@ -134,11 +134,11 @@ function submit() {
 
 ```vue
 <template>
-	<UINativeSelect size="sm" aria-invalid="true" aria-label="Role">
-		<UINativeSelectOption value="">Select a role</UINativeSelectOption>
-		<UINativeSelectOption value="admin">Admin</UINativeSelectOption>
-		<UINativeSelectOption value="editor">Editor</UINativeSelectOption>
-	</UINativeSelect>
+  <UINativeSelect size="sm" aria-invalid="true" aria-label="Role">
+    <UINativeSelectOption value="">Select a role</UINativeSelectOption>
+    <UINativeSelectOption value="admin">Admin</UINativeSelectOption>
+    <UINativeSelectOption value="editor">Editor</UINativeSelectOption>
+  </UINativeSelect>
 </template>
 ```
 

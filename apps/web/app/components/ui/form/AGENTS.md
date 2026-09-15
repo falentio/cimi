@@ -51,9 +51,11 @@ import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
 
-const formSchema = toTypedSchema(z.object({
-  username: z.string().min(2, 'Username must be at least 2 characters.').max(50),
-}))
+const formSchema = toTypedSchema(
+  z.object({
+    username: z.string().min(2, 'Username must be at least 2 characters.').max(50),
+  }),
+)
 
 const form = useForm({ validationSchema: formSchema, initialValues: { username: '' } })
 const onSubmit = form.handleSubmit((values) => {
@@ -90,9 +92,11 @@ const tasks = [
   { id: 'email', label: 'Email notifications' },
 ] as const
 
-const formSchema = toTypedSchema(z.object({
-  tasks: z.array(z.string()).min(1, 'Please select at least one notification type.'),
-}))
+const formSchema = toTypedSchema(
+  z.object({
+    tasks: z.array(z.string()).min(1, 'Please select at least one notification type.'),
+  }),
+)
 
 const form = useForm({ validationSchema: formSchema, initialValues: { tasks: [] } })
 const onSubmit = form.handleSubmit((values) => {
@@ -109,11 +113,15 @@ const onSubmit = form.handleSubmit((values) => {
           <UIFormControl>
             <UICheckbox
               :model-value="value?.includes(task.id)"
-              @update:model-value="(checked: boolean | 'indeterminate') => {
-                handleChange(checked
-                  ? [...(value || []), task.id]
-                  : (value || []).filter((id: string) => id !== task.id))
-              }"
+              @update:model-value="
+                (checked: boolean | 'indeterminate') => {
+                  handleChange(
+                    checked
+                      ? [...(value || []), task.id]
+                      : (value || []).filter((id: string) => id !== task.id),
+                  )
+                }
+              "
             />
           </UIFormControl>
           <UIFormLabel class="font-normal">{{ task.label }}</UIFormLabel>

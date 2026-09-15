@@ -12,16 +12,16 @@ Use `UISelect` as the root, put `UISelectValue` inside `UISelectTrigger`, and pu
 
 ```vue
 <template>
-	<UISelect>
-		<UISelectTrigger class="w-[180px]">
-			<UISelectValue placeholder="Select a fruit" />
-		</UISelectTrigger>
-		<UISelectContent>
-			<UISelectItem value="apple">Apple</UISelectItem>
-			<UISelectItem value="banana">Banana</UISelectItem>
-			<UISelectItem value="blueberry">Blueberry</UISelectItem>
-		</UISelectContent>
-	</UISelect>
+  <UISelect>
+    <UISelectTrigger class="w-[180px]">
+      <UISelectValue placeholder="Select a fruit" />
+    </UISelectTrigger>
+    <UISelectContent>
+      <UISelectItem value="apple">Apple</UISelectItem>
+      <UISelectItem value="banana">Banana</UISelectItem>
+      <UISelectItem value="blueberry">Blueberry</UISelectItem>
+    </UISelectContent>
+  </UISelect>
 </template>
 ```
 
@@ -31,19 +31,19 @@ Use `UISelect` as the root, put `UISelectValue` inside `UISelectTrigger`, and pu
 
 `index.ts` exports exactly these components.
 
-| Export | Purpose and local behavior |
-| --- | --- |
-| `Select` | Wraps Reka UI `SelectRoot` and forwards root props and root events. |
-| `SelectContent` | Wraps content in a portal, renders the scroll-up button, viewport, and scroll-down button, and forwards Reka UI content props and events. |
-| `SelectGroup` | Wraps a group and forwards group props. Use it with `SelectLabel` for a labeled section. |
-| `SelectItem` | Wraps an item, forwards item props, places the default slot inside internal `SelectItemText`, and renders an internal selection indicator with a Hugeicons tick icon. |
-| `SelectItemText` | Wraps Reka UI `SelectItemText`. The normal `SelectItem` path already renders this primitive internally. |
-| `SelectLabel` | Renders a styled group label. The local wrapper consumes its declared props and forwards only its class and slot content. |
+| Export                   | Purpose and local behavior                                                                                                                                              |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Select`                 | Wraps Reka UI `SelectRoot` and forwards root props and root events.                                                                                                     |
+| `SelectContent`          | Wraps content in a portal, renders the scroll-up button, viewport, and scroll-down button, and forwards Reka UI content props and events.                               |
+| `SelectGroup`            | Wraps a group and forwards group props. Use it with `SelectLabel` for a labeled section.                                                                                |
+| `SelectItem`             | Wraps an item, forwards item props, places the default slot inside internal `SelectItemText`, and renders an internal selection indicator with a Hugeicons tick icon.   |
+| `SelectItemText`         | Wraps Reka UI `SelectItemText`. The normal `SelectItem` path already renders this primitive internally.                                                                 |
+| `SelectLabel`            | Renders a styled group label. The local wrapper consumes its declared props and forwards only its class and slot content.                                               |
 | `SelectScrollDownButton` | Wraps the Reka UI down-scroll affordance and supplies a Hugeicons down-arrow fallback. Its default slot can replace the fallback. `SelectContent` already includes one. |
-| `SelectScrollUpButton` | Wraps the Reka UI up-scroll affordance and supplies a Hugeicons up-arrow fallback. Its default slot can replace the fallback. `SelectContent` already includes one. |
-| `SelectSeparator` | Renders a non-interactive visual separator between items or groups. |
-| `SelectTrigger` | Wraps the trigger, adds the Hugeicons down-arrow icon, and adds the local `size` prop with `"default"` and `"sm"` values. |
-| `SelectValue` | Renders the selected item text or its `placeholder` when no value exists. |
+| `SelectScrollUpButton`   | Wraps the Reka UI up-scroll affordance and supplies a Hugeicons up-arrow fallback. Its default slot can replace the fallback. `SelectContent` already includes one.     |
+| `SelectSeparator`        | Renders a non-interactive visual separator between items or groups.                                                                                                     |
+| `SelectTrigger`          | Wraps the trigger, adds the Hugeicons down-arrow icon, and adds the local `size` prop with `"default"` and `"sm"` values.                                               |
+| `SelectValue`            | Renders the selected item text or its `placeholder` when no value exists.                                                                                               |
 
 Nuxt auto-imports these PascalCase exports with the `UI` prefix because `apps/web/nuxt.config.ts` sets `prefix: 'UI'` and `componentDir: '@/components/ui'`. Use the exact template tags `<UISelect>`, `<UISelectTrigger>`, `<UISelectValue>`, `<UISelectContent>`, `<UISelectGroup>`, `<UISelectItem>`, `<UISelectItemText>`, `<UISelectLabel>`, `<UISelectSeparator>`, `<UISelectScrollUpButton>`, and `<UISelectScrollDownButton>`. Do not import these components in a template. Import lowercase helpers such as `ref` and all type-only symbols explicitly.
 
@@ -60,19 +60,19 @@ The index exports no `SelectIcon`, `SelectPortal`, `SelectViewport`, `SelectItem
 
 ### Values and root state
 
-| Prop or binding | Template form | Meaning |
-| --- | --- | --- |
-| `defaultValue` | `default-value` | Sets the initial value for an uncontrolled select. Changing it after mount does not control later selection. |
-| `modelValue` | `v-model` | Controls the selected value and updates the parent through `update:modelValue`. |
-| `multiple` | `multiple` or `:multiple="true"` | Allows several selected items. Use an array with `default-value` or `v-model`. |
-| `defaultOpen` | `default-open` | Sets the initial open state without controlling later changes. |
-| `open` | `v-model:open` | Controls whether the list is open and updates through `update:open`. |
-| `disabled` | `disabled` | Prevents interaction with the whole select. |
-| `required` | `required` | Requires a value before the owning native form can submit. |
-| `name` | `name="fruit"` | Supplies the form field name for the selected value. |
-| `dir` | `dir="rtl"` | Sets `ltr` or `rtl` reading direction for directional behavior. |
-| `by` | `:by="'id'"` or a comparison function | Controls how object values are compared. |
-| `nullableValue` | `nullable-value` | Sets the submitted hidden option value when the model is nullish. It defaults to an empty string. |
+| Prop or binding | Template form                         | Meaning                                                                                                      |
+| --------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `defaultValue`  | `default-value`                       | Sets the initial value for an uncontrolled select. Changing it after mount does not control later selection. |
+| `modelValue`    | `v-model`                             | Controls the selected value and updates the parent through `update:modelValue`.                              |
+| `multiple`      | `multiple` or `:multiple="true"`      | Allows several selected items. Use an array with `default-value` or `v-model`.                               |
+| `defaultOpen`   | `default-open`                        | Sets the initial open state without controlling later changes.                                               |
+| `open`          | `v-model:open`                        | Controls whether the list is open and updates through `update:open`.                                         |
+| `disabled`      | `disabled`                            | Prevents interaction with the whole select.                                                                  |
+| `required`      | `required`                            | Requires a value before the owning native form can submit.                                                   |
+| `name`          | `name="fruit"`                        | Supplies the form field name for the selected value.                                                         |
+| `dir`           | `dir="rtl"`                           | Sets `ltr` or `rtl` reading direction for directional behavior.                                              |
+| `by`            | `:by="'id'"` or a comparison function | Controls how object values are compared.                                                                     |
+| `nullableValue` | `nullable-value`                      | Sets the submitted hidden option value when the model is nullish. It defaults to an empty string.            |
 
 Use a unique `value` on every `UISelectItem`. Literal `value="20"` is the string `"20"`. Bind a number or another non-string value with `:value`, such as `:value="20"`. In multiple mode, the model contains the selected values as an array.
 
@@ -98,14 +98,14 @@ For `position="item-aligned"`, the content follows the active item in a menu-lik
 
 ### Events
 
-| Component | Event | Behavior |
-| --- | --- | --- |
-| `UISelect` | `update:modelValue` | Emits the selected value. In multiple mode, the value is an array. |
-| `UISelect` | `update:open` | Emits the new open state. |
-| `UISelectItem` | `select` | Fires when an item is selected. Prevent the default event to stop selection. |
-| `UISelectContent` | `escapeKeyDown` | Fires when Escape is pressed and can prevent the close behavior. |
+| Component         | Event                | Behavior                                                                         |
+| ----------------- | -------------------- | -------------------------------------------------------------------------------- |
+| `UISelect`        | `update:modelValue`  | Emits the selected value. In multiple mode, the value is an array.               |
+| `UISelect`        | `update:open`        | Emits the new open state.                                                        |
+| `UISelectItem`    | `select`             | Fires when an item is selected. Prevent the default event to stop selection.     |
+| `UISelectContent` | `escapeKeyDown`      | Fires when Escape is pressed and can prevent the close behavior.                 |
 | `UISelectContent` | `pointerDownOutside` | Fires when a pointer-down happens outside the content and can prevent dismissal. |
-| `UISelectContent` | `closeAutoFocus` | Fires before focus returns to the trigger and can prevent that focus change. |
+| `UISelectContent` | `closeAutoFocus`     | Fires before focus returns to the trigger and can prevent that focus change.     |
 
 Use Vue's kebab-case event names in templates, such as `@update:model-value`, `@update:open`, and `@pointer-down-outside`.
 
@@ -142,24 +142,24 @@ The implementation follows Reka UI's select primitive and the WAI-ARIA listbox p
 
 ```vue
 <template>
-	<UISelect>
-		<UISelectTrigger class="w-[220px]">
-			<UISelectValue placeholder="Choose a timezone" />
-		</UISelectTrigger>
-		<UISelectContent>
-			<UISelectGroup>
-				<UISelectLabel>North America</UISelectLabel>
-				<UISelectItem value="est">Eastern Standard Time</UISelectItem>
-				<UISelectItem value="pst">Pacific Standard Time</UISelectItem>
-			</UISelectGroup>
-			<UISelectSeparator />
-			<UISelectGroup>
-				<UISelectLabel>Europe</UISelectLabel>
-				<UISelectItem value="gmt">Greenwich Mean Time</UISelectItem>
-				<UISelectItem value="cet">Central European Time</UISelectItem>
-			</UISelectGroup>
-		</UISelectContent>
-	</UISelect>
+  <UISelect>
+    <UISelectTrigger class="w-[220px]">
+      <UISelectValue placeholder="Choose a timezone" />
+    </UISelectTrigger>
+    <UISelectContent>
+      <UISelectGroup>
+        <UISelectLabel>North America</UISelectLabel>
+        <UISelectItem value="est">Eastern Standard Time</UISelectItem>
+        <UISelectItem value="pst">Pacific Standard Time</UISelectItem>
+      </UISelectGroup>
+      <UISelectSeparator />
+      <UISelectGroup>
+        <UISelectLabel>Europe</UISelectLabel>
+        <UISelectItem value="gmt">Greenwich Mean Time</UISelectItem>
+        <UISelectItem value="cet">Central European Time</UISelectItem>
+      </UISelectGroup>
+    </UISelectContent>
+  </UISelect>
 </template>
 ```
 
@@ -174,19 +174,19 @@ const open = ref(false)
 </script>
 
 <template>
-	<div class="flex flex-col gap-2">
-		<label for="controlled-fruit">Fruit</label>
-		<UISelect v-model="fruit" v-model:open="open" name="fruit">
-			<UISelectTrigger id="controlled-fruit" class="w-[180px]">
-				<UISelectValue />
-			</UISelectTrigger>
-			<UISelectContent>
-				<UISelectItem value="apple">Apple</UISelectItem>
-				<UISelectItem value="banana">Banana</UISelectItem>
-			</UISelectContent>
-		</UISelect>
-		<output>Selected {{ fruit }}. {{ open ? 'Open' : 'Closed' }}.</output>
-	</div>
+  <div class="flex flex-col gap-2">
+    <label for="controlled-fruit">Fruit</label>
+    <UISelect v-model="fruit" v-model:open="open" name="fruit">
+      <UISelectTrigger id="controlled-fruit" class="w-[180px]">
+        <UISelectValue />
+      </UISelectTrigger>
+      <UISelectContent>
+        <UISelectItem value="apple">Apple</UISelectItem>
+        <UISelectItem value="banana">Banana</UISelectItem>
+      </UISelectContent>
+    </UISelect>
+    <output>Selected {{ fruit }}. {{ open ? 'Open' : 'Closed' }}.</output>
+  </div>
 </template>
 ```
 
@@ -196,16 +196,16 @@ Use `v-model="fruits"` with `multiple` when the controlled value is an array. Us
 
 ```vue
 <template>
-	<UISelect>
-		<UISelectTrigger class="w-[180px]">
-			<UISelectValue placeholder="Choose a plan" />
-		</UISelectTrigger>
-		<UISelectContent>
-			<UISelectItem value="free">Free</UISelectItem>
-			<UISelectItem value="pro">Pro</UISelectItem>
-			<UISelectItem value="enterprise" disabled>Enterprise</UISelectItem>
-		</UISelectContent>
-	</UISelect>
+  <UISelect>
+    <UISelectTrigger class="w-[180px]">
+      <UISelectValue placeholder="Choose a plan" />
+    </UISelectTrigger>
+    <UISelectContent>
+      <UISelectItem value="free">Free</UISelectItem>
+      <UISelectItem value="pro">Pro</UISelectItem>
+      <UISelectItem value="enterprise" disabled>Enterprise</UISelectItem>
+    </UISelectContent>
+  </UISelect>
 </template>
 ```
 

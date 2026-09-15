@@ -10,7 +10,7 @@ Use `<UIKbd>` for one key or a compact shortcut label. Use `<UIKbdGroup>` for ad
 
 ```vue
 <template>
-	<UIKbd>Ctrl</UIKbd>
+  <UIKbd>Ctrl</UIKbd>
 </template>
 ```
 
@@ -36,63 +36,57 @@ Use `<UIKbd>` for one key or a compact shortcut label. Use `<UIKbdGroup>` for ad
 
 ```vue
 <template>
-	<div class="flex flex-col items-center gap-4">
-		<UIKbdGroup>
-			<UIKbd>⌘</UIKbd>
-			<UIKbd>⇧</UIKbd>
-			<UIKbd>⌥</UIKbd>
-			<UIKbd>⌃</UIKbd>
-		</UIKbdGroup>
-		<UIKbdGroup>
-			<UIKbd>Ctrl</UIKbd>
-			<span>+</span>
-			<UIKbd>B</UIKbd>
-		</UIKbdGroup>
-	</div>
+  <div class="flex flex-col items-center gap-4">
+    <UIKbdGroup>
+      <UIKbd>⌘</UIKbd>
+      <UIKbd>⇧</UIKbd>
+      <UIKbd>⌥</UIKbd>
+      <UIKbd>⌃</UIKbd>
+    </UIKbdGroup>
+    <UIKbdGroup>
+      <UIKbd>Ctrl</UIKbd>
+      <span>+</span>
+      <UIKbd>B</UIKbd>
+    </UIKbdGroup>
+  </div>
 </template>
 ```
 
 ```vue
 <template>
-	<div class="flex flex-wrap items-center gap-4">
-		<UIButton variant="outline" size="sm" class="pr-2">
-			Accept <UIKbd>⏎</UIKbd>
-		</UIButton>
-		<UIButton variant="outline" size="sm" class="pr-2">
-			Cancel <UIKbd>Esc</UIKbd>
-		</UIButton>
-	</div>
+  <div class="flex flex-wrap items-center gap-4">
+    <UIButton variant="outline" size="sm" class="pr-2"> Accept <UIKbd>⏎</UIKbd> </UIButton>
+    <UIButton variant="outline" size="sm" class="pr-2"> Cancel <UIKbd>Esc</UIKbd> </UIButton>
+  </div>
 </template>
 ```
 
 ```vue
 <template>
-	<UITooltipProvider>
-		<UITooltip>
-			<UITooltipTrigger as-child>
-				<UIButton size="sm" variant="outline">Save</UIButton>
-			</UITooltipTrigger>
-			<UITooltipContent>
-				<div class="flex items-center gap-2">
-					Save Changes <UIKbd>S</UIKbd>
-				</div>
-			</UITooltipContent>
-		</UITooltip>
-	</UITooltipProvider>
+  <UITooltipProvider>
+    <UITooltip>
+      <UITooltipTrigger as-child>
+        <UIButton size="sm" variant="outline">Save</UIButton>
+      </UITooltipTrigger>
+      <UITooltipContent>
+        <div class="flex items-center gap-2">Save Changes <UIKbd>S</UIKbd></div>
+      </UITooltipContent>
+    </UITooltip>
+  </UITooltipProvider>
 </template>
 ```
 
 ```vue
 <template>
-	<div class="flex w-full max-w-xs flex-col gap-6">
-		<UIInputGroup>
-			<UIInputGroupInput placeholder="Search..." aria-label="Search" />
-			<UIInputGroupAddon align="inline-end">
-				<UIKbd>⌘</UIKbd>
-				<UIKbd>K</UIKbd>
-			</UIInputGroupAddon>
-		</UIInputGroup>
-	</div>
+  <div class="flex w-full max-w-xs flex-col gap-6">
+    <UIInputGroup>
+      <UIInputGroupInput placeholder="Search..." aria-label="Search" />
+      <UIInputGroupAddon align="inline-end">
+        <UIKbd>⌘</UIKbd>
+        <UIKbd>K</UIKbd>
+      </UIInputGroupAddon>
+    </UIInputGroup>
+  </div>
 </template>
 ```
 

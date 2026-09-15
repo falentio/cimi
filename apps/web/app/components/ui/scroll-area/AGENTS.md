@@ -38,14 +38,14 @@ Keep an added horizontal `<UIScrollBar>` inside the `<UIScrollArea>` template. T
 
 `ScrollArea` forwards these Reka UI root props.
 
-| Prop | Values or type | Default | Use |
-| --- | --- | --- | --- |
-| `type` | `"scroll"`, `"always"`, `"hover"`, `"auto"`, or `"glimpse"` | `"hover"` | Controls when an overflowing scrollbar is visible. |
-| `scrollHideDelay` | `number` in milliseconds | `600` | Sets the hide delay for `scroll` and `hover` visibility. |
-| `dir` | `"ltr"` or `"rtl"` | Inherited, otherwise LTR | Sets the reading direction for the scroll area. |
-| `as` | Reka UI element or component | `"div"` | Changes the root element. |
-| `asChild` | `boolean` | Unset | Merges root behavior into the supplied child element. |
-| `class` | Vue `HTMLAttributes['class']` | Unset | Adds classes to the root. |
+| Prop              | Values or type                                              | Default                  | Use                                                      |
+| ----------------- | ----------------------------------------------------------- | ------------------------ | -------------------------------------------------------- |
+| `type`            | `"scroll"`, `"always"`, `"hover"`, `"auto"`, or `"glimpse"` | `"hover"`                | Controls when an overflowing scrollbar is visible.       |
+| `scrollHideDelay` | `number` in milliseconds                                    | `600`                    | Sets the hide delay for `scroll` and `hover` visibility. |
+| `dir`             | `"ltr"` or `"rtl"`                                          | Inherited, otherwise LTR | Sets the reading direction for the scroll area.          |
+| `as`              | Reka UI element or component                                | `"div"`                  | Changes the root element.                                |
+| `asChild`         | `boolean`                                                   | Unset                    | Merges root behavior into the supplied child element.    |
+| `class`           | Vue `HTMLAttributes['class']`                               | Unset                    | Adds classes to the root.                                |
 
 `type="auto"` shows a scrollbar when content overflows. `type="always"` keeps it visible. `type="scroll"` shows it while the user scrolls. `type="hover"` shows it while the user scrolls or hovers. `type="glimpse"` briefly shows it when the user enters the area, then hides it until another interaction.
 
@@ -53,13 +53,13 @@ Keep an added horizontal `<UIScrollBar>` inside the `<UIScrollArea>` template. T
 
 `ScrollBar` forwards `ScrollAreaScrollbarProps` and accepts a local `class` prop.
 
-| Prop | Values or type | Default | Use |
-| --- | --- | --- | --- |
-| `orientation` | `"vertical"` or `"horizontal"` | `"vertical"` | Selects the scroll axis. |
-| `forceMount` | `boolean` | Unset | Keeps the scrollbar mounted for custom animation control. |
-| `as` | Reka UI element or component | `"div"` | Changes the scrollbar element. |
-| `asChild` | `boolean` | Unset | Merges scrollbar behavior into the supplied child element. |
-| `class` | Vue `HTMLAttributes['class']` | Unset | Adds classes to the scrollbar. |
+| Prop          | Values or type                 | Default      | Use                                                        |
+| ------------- | ------------------------------ | ------------ | ---------------------------------------------------------- |
+| `orientation` | `"vertical"` or `"horizontal"` | `"vertical"` | Selects the scroll axis.                                   |
+| `forceMount`  | `boolean`                      | Unset        | Keeps the scrollbar mounted for custom animation control.  |
+| `as`          | Reka UI element or component   | `"div"`      | Changes the scrollbar element.                             |
+| `asChild`     | `boolean`                      | Unset        | Merges scrollbar behavior into the supplied child element. |
+| `class`       | Vue `HTMLAttributes['class']`  | Unset        | Adds classes to the scrollbar.                             |
 
 The local `ScrollArea` always adds one vertical scrollbar. Add exactly one horizontal scrollbar for horizontal overflow. Adding another vertical scrollbar creates duplicate controls.
 
@@ -105,19 +105,19 @@ The built-in vertical scrollbar handles this case.
 ```vue
 <script setup lang="ts">
 const paragraphs = [
-	'The first paragraph has enough text to establish the scroll region.',
-	'The second paragraph adds more content than the viewport can show at once.',
-	'The third paragraph confirms that the viewport keeps the root size fixed.',
-	'The fourth paragraph gives the user more content to reach with native scrolling.',
+  'The first paragraph has enough text to establish the scroll region.',
+  'The second paragraph adds more content than the viewport can show at once.',
+  'The third paragraph confirms that the viewport keeps the root size fixed.',
+  'The fourth paragraph gives the user more content to reach with native scrolling.',
 ]
 </script>
 
 <template>
-	<UIScrollArea class="h-40 w-full max-w-sm rounded-md border">
-		<div class="flex flex-col gap-4 p-4">
-			<p v-for="paragraph in paragraphs" :key="paragraph">{{ paragraph }}</p>
-		</div>
-	</UIScrollArea>
+  <UIScrollArea class="h-40 w-full max-w-sm rounded-md border">
+    <div class="flex flex-col gap-4 p-4">
+      <p v-for="paragraph in paragraphs" :key="paragraph">{{ paragraph }}</p>
+    </div>
+  </UIScrollArea>
 </template>
 ```
 
@@ -127,14 +127,14 @@ Add the horizontal scrollbar and keep the content wider than the viewport.
 
 ```vue
 <template>
-	<UIScrollArea class="w-full max-w-md whitespace-nowrap rounded-md border">
-		<div class="flex w-max gap-4 p-4">
-			<div class="w-48 shrink-0 rounded-md border p-4">First panel</div>
-			<div class="w-48 shrink-0 rounded-md border p-4">Second panel</div>
-			<div class="w-48 shrink-0 rounded-md border p-4">Third panel</div>
-		</div>
-		<UIScrollBar orientation="horizontal" />
-	</UIScrollArea>
+  <UIScrollArea class="w-full max-w-md whitespace-nowrap rounded-md border">
+    <div class="flex w-max gap-4 p-4">
+      <div class="w-48 shrink-0 rounded-md border p-4">First panel</div>
+      <div class="w-48 shrink-0 rounded-md border p-4">Second panel</div>
+      <div class="w-48 shrink-0 rounded-md border p-4">Third panel</div>
+    </div>
+    <UIScrollBar orientation="horizontal" />
+  </UIScrollArea>
 </template>
 ```
 
@@ -144,17 +144,17 @@ Give the content a minimum width and height, then add the horizontal scrollbar.
 
 ```vue
 <template>
-	<UIScrollArea class="h-48 w-full max-w-md rounded-md border">
-		<div class="min-h-[32rem] min-w-[48rem] p-4">
-			<div class="grid grid-cols-4 gap-4">
-				<div class="h-24 rounded-md border p-4">Top-left</div>
-				<div class="h-24 rounded-md border p-4">Top-right</div>
-				<div class="h-24 rounded-md border p-4">Bottom-left</div>
-				<div class="h-24 rounded-md border p-4">Bottom-right</div>
-			</div>
-		</div>
-		<UIScrollBar orientation="horizontal" />
-	</UIScrollArea>
+  <UIScrollArea class="h-48 w-full max-w-md rounded-md border">
+    <div class="min-h-[32rem] min-w-[48rem] p-4">
+      <div class="grid grid-cols-4 gap-4">
+        <div class="h-24 rounded-md border p-4">Top-left</div>
+        <div class="h-24 rounded-md border p-4">Top-right</div>
+        <div class="h-24 rounded-md border p-4">Bottom-left</div>
+        <div class="h-24 rounded-md border p-4">Bottom-right</div>
+      </div>
+    </div>
+    <UIScrollBar orientation="horizontal" />
+  </UIScrollArea>
 </template>
 ```
 

@@ -131,13 +131,9 @@ const layout = useCookie<number[]>('resizable-layout', {
 
 <template>
   <UIResizablePanelGroup id="resizable-group" direction="horizontal" @layout="layout = $event">
-    <UIResizablePanel id="resizable-editor" :default-size="layout[0]">
-      Editor
-    </UIResizablePanel>
+    <UIResizablePanel id="resizable-editor" :default-size="layout[0]"> Editor </UIResizablePanel>
     <UIResizableHandle id="resizable-handle" />
-    <UIResizablePanel id="resizable-preview" :default-size="layout[1]">
-      Preview
-    </UIResizablePanel>
+    <UIResizablePanel id="resizable-preview" :default-size="layout[1]"> Preview </UIResizablePanel>
   </UIResizablePanelGroup>
 </template>
 ```

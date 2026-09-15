@@ -78,9 +78,7 @@ Displays a grouped block of related content with an optional header, content, an
           <div class="flex flex-col space-y-1.5">
             <div class="flex items-center">
               <UILabel for="password">Password</UILabel>
-              <a href="#" class="ml-auto inline-block text-sm underline">
-                Forgot your password?
-              </a>
+              <a href="#" class="ml-auto inline-block text-sm underline"> Forgot your password? </a>
             </div>
             <UIInput id="password" type="password" />
           </div>

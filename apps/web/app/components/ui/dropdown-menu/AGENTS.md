@@ -82,7 +82,9 @@ A menu of actions or functions that opens from a button trigger; reach for it wh
     </UIDropdownMenuTrigger>
     <UIDropdownMenuContent class="w-56">
       <UIDropdownMenuCheckboxItem v-model="showStatusBar">Status Bar</UIDropdownMenuCheckboxItem>
-      <UIDropdownMenuCheckboxItem v-model="showActivityBar">Activity Bar</UIDropdownMenuCheckboxItem>
+      <UIDropdownMenuCheckboxItem v-model="showActivityBar"
+        >Activity Bar</UIDropdownMenuCheckboxItem
+      >
       <UIDropdownMenuCheckboxItem v-model="showPanel">Panel</UIDropdownMenuCheckboxItem>
     </UIDropdownMenuContent>
   </UIDropdownMenu>

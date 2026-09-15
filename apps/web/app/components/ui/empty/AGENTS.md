@@ -68,9 +68,7 @@ import { FolderCode } from '@lucide/vue'
         <FolderCode />
       </UIEmptyMedia>
       <UIEmptyTitle>No projects yet</UIEmptyTitle>
-      <UIEmptyDescription>
-        Get started by creating your first project.
-      </UIEmptyDescription>
+      <UIEmptyDescription> Get started by creating your first project. </UIEmptyDescription>
     </UIEmptyHeader>
     <UIEmptyContent>
       <UIButton size="sm">Create Project</UIButton>

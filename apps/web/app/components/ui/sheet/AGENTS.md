@@ -19,9 +19,7 @@ Use the `UI`-prefixed auto-imports in Nuxt templates. The common composition is:
     <UISheetContent>
       <UISheetHeader>
         <UISheetTitle>Edit profile</UISheetTitle>
-        <UISheetDescription>
-          Make changes to your profile here.
-        </UISheetDescription>
+        <UISheetDescription> Make changes to your profile here. </UISheetDescription>
       </UISheetHeader>
       <UISheetFooter>
         <UISheetClose as-child>

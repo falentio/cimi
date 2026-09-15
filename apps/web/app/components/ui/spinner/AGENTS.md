@@ -12,7 +12,7 @@ Use the auto-imported `<UISpinner>` tag in Nuxt templates.
 
 ```vue
 <template>
-	<UISpinner />
+  <UISpinner />
 </template>
 ```
 
@@ -39,7 +39,7 @@ Use the auto-imported `<UISpinner>` tag in Nuxt templates.
 
 ```vue
 <template>
-	<UISpinner />
+  <UISpinner />
 </template>
 ```
 
@@ -49,10 +49,10 @@ Disable the action while it is pending and keep the visible button label.
 
 ```vue
 <template>
-	<UIButton disabled>
-		<UISpinner aria-hidden="true" />
-		Processing payment
-	</UIButton>
+  <UIButton disabled>
+    <UISpinner aria-hidden="true" />
+    Processing payment
+  </UIButton>
 </template>
 ```
 
@@ -62,16 +62,12 @@ The official Input Group example places the spinner in an end-aligned addon whil
 
 ```vue
 <template>
-	<UIInputGroup>
-		<UIInputGroupInput
-			placeholder="Send a message..."
-			disabled
-			aria-label="Message"
-		/>
-		<UIInputGroupAddon align="inline-end">
-			<UISpinner aria-hidden="true" />
-		</UIInputGroupAddon>
-	</UIInputGroup>
+  <UIInputGroup>
+    <UIInputGroupInput placeholder="Send a message..." disabled aria-label="Message" />
+    <UIInputGroupAddon align="inline-end">
+      <UISpinner aria-hidden="true" />
+    </UIInputGroupAddon>
+  </UIInputGroup>
 </template>
 ```
 

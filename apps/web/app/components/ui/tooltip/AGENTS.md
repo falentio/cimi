@@ -17,9 +17,7 @@ Use the `UI` prefix in templates. `shadcn-nuxt` auto-imports these components, s
       <UITooltipTrigger as-child>
         <UIButton variant="outline">Hover me</UIButton>
       </UITooltipTrigger>
-      <UITooltipContent>
-        Add to library
-      </UITooltipContent>
+      <UITooltipContent> Add to library </UITooltipContent>
     </UITooltip>
   </UITooltipProvider>
 </template>
@@ -62,10 +60,7 @@ Use the `UI` prefix in templates. `shadcn-nuxt` auto-imports these components, s
 
 ```vue
 <template>
-  <UITooltipProvider
-    :delay-duration="600"
-    :skip-delay-duration="300"
-  >
+  <UITooltipProvider :delay-duration="600" :skip-delay-duration="300">
     <div class="flex gap-2">
       <UITooltip>
         <UITooltipTrigger as-child>
@@ -91,11 +86,7 @@ Use the `UI` prefix in templates. `shadcn-nuxt` auto-imports these components, s
   <UITooltipProvider>
     <UITooltip>
       <UITooltipTrigger as-child>
-        <UIButton
-          size="icon"
-          variant="outline"
-          aria-label="Copy link"
-        >
+        <UIButton size="icon" variant="outline" aria-label="Copy link">
           <span aria-hidden="true">⧉</span>
         </UIButton>
       </UITooltipTrigger>
@@ -112,11 +103,7 @@ Use the `UI` prefix in templates. `shadcn-nuxt` auto-imports these components, s
   <UITooltipProvider>
     <UITooltip :delay-duration="250">
       <UITooltipTrigger>Hover for details</UITooltipTrigger>
-      <UITooltipContent
-        side="right"
-        align="start"
-        :side-offset="8"
-      >
+      <UITooltipContent side="right" align="start" :side-offset="8">
         Shown on the preferred right side.
       </UITooltipContent>
     </UITooltip>

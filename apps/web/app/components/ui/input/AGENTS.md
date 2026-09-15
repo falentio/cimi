@@ -16,7 +16,7 @@ const email = ref('')
 </script>
 
 <template>
-	<UIInput v-model="email" type="email" placeholder="Email" />
+  <UIInput v-model="email" type="email" placeholder="Email" />
 </template>
 ```
 
@@ -49,7 +49,7 @@ const email = ref('')
 
 ```vue
 <template>
-	<UIInput type="email" placeholder="Email" />
+  <UIInput type="email" placeholder="Email" />
 </template>
 ```
 
@@ -57,10 +57,10 @@ const email = ref('')
 
 ```vue
 <template>
-	<div class="grid w-full max-w-sm items-center gap-1.5">
-		<UILabel for="picture">Picture</UILabel>
-		<UIInput id="picture" type="file" />
-	</div>
+  <div class="grid w-full max-w-sm items-center gap-1.5">
+    <UILabel for="picture">Picture</UILabel>
+    <UIInput id="picture" type="file" />
+  </div>
 </template>
 ```
 
@@ -68,7 +68,7 @@ const email = ref('')
 
 ```vue
 <template>
-	<UIInput disabled type="email" placeholder="Email" />
+  <UIInput disabled type="email" placeholder="Email" />
 </template>
 ```
 
@@ -76,10 +76,10 @@ const email = ref('')
 
 ```vue
 <template>
-	<div class="grid w-full max-w-sm items-center gap-1.5">
-		<UILabel for="email">Email</UILabel>
-		<UIInput id="email" type="email" placeholder="Email" />
-	</div>
+  <div class="grid w-full max-w-sm items-center gap-1.5">
+    <UILabel for="email">Email</UILabel>
+    <UIInput id="email" type="email" placeholder="Email" />
+  </div>
 </template>
 ```
 
@@ -87,10 +87,10 @@ const email = ref('')
 
 ```vue
 <template>
-	<form class="flex w-full max-w-sm items-center space-x-2">
-		<UIInput type="email" placeholder="Email" />
-		<UIButton type="submit">Subscribe</UIButton>
-	</form>
+  <form class="flex w-full max-w-sm items-center space-x-2">
+    <UIInput type="email" placeholder="Email" />
+    <UIButton type="submit">Subscribe</UIButton>
+  </form>
 </template>
 ```
 
@@ -105,12 +105,8 @@ const touched = ref(false)
 </script>
 
 <template>
-	<UIInput
-		v-model="query"
-		aria-label="Search"
-		@blur="touched = true"
-	/>
-	<p v-if="touched">Searching for {{ query }}</p>
+  <UIInput v-model="query" aria-label="Search" @blur="touched = true" />
+  <p v-if="touched">Searching for {{ query }}</p>
 </template>
 ```
 

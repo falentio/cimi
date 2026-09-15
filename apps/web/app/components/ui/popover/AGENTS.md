@@ -19,9 +19,7 @@ Compose `<UIPopover>` with `<UIPopoverTrigger>` and `<UIPopoverContent>`. Add `<
     <UIPopoverContent class="w-80">
       <UIPopoverHeader>
         <UIPopoverTitle>Dimensions</UIPopoverTitle>
-        <UIPopoverDescription>
-          Set the dimensions for the layer.
-        </UIPopoverDescription>
+        <UIPopoverDescription> Set the dimensions for the layer. </UIPopoverDescription>
       </UIPopoverHeader>
       <p>Content goes here.</p>
     </UIPopoverContent>
@@ -90,10 +88,7 @@ Compose `<UIPopover>` with `<UIPopoverTrigger>` and `<UIPopoverContent>`. Add `<
     <UIPopoverTrigger as-child>
       <button type="button">Open settings</button>
     </UIPopoverTrigger>
-    <UIPopoverContent
-      aria-labelledby="settings-title"
-      aria-describedby="settings-description"
-    >
+    <UIPopoverContent aria-labelledby="settings-title" aria-describedby="settings-description">
       <UIPopoverHeader>
         <UIPopoverTitle id="settings-title">Settings</UIPopoverTitle>
         <UIPopoverDescription id="settings-description">
@@ -161,9 +156,7 @@ const open = ref(false)
         </UIPopoverTrigger>
       </div>
     </UIPopoverAnchor>
-    <UIPopoverContent>
-      Content positions against the wrapper above the trigger.
-    </UIPopoverContent>
+    <UIPopoverContent> Content positions against the wrapper above the trigger. </UIPopoverContent>
   </UIPopover>
 </template>
 ```

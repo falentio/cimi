@@ -10,20 +10,20 @@ Use `<UIRadioGroup>` as the parent and place one or more `<UIRadioGroupItem>` co
 
 ```vue
 <template>
-	<UIRadioGroup default-value="comfortable" aria-label="Density">
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="density-default" value="default" />
-			<UILabel for="density-default">Default</UILabel>
-		</div>
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="density-comfortable" value="comfortable" />
-			<UILabel for="density-comfortable">Comfortable</UILabel>
-		</div>
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="density-compact" value="compact" />
-			<UILabel for="density-compact">Compact</UILabel>
-		</div>
-	</UIRadioGroup>
+  <UIRadioGroup default-value="comfortable" aria-label="Density">
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="density-default" value="default" />
+      <UILabel for="density-default">Default</UILabel>
+    </div>
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="density-comfortable" value="comfortable" />
+      <UILabel for="density-comfortable">Comfortable</UILabel>
+    </div>
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="density-compact" value="compact" />
+      <UILabel for="density-compact">Compact</UILabel>
+    </div>
+  </UIRadioGroup>
 </template>
 ```
 
@@ -41,32 +41,32 @@ Use `<UIRadioGroup>` as the parent and place one or more `<UIRadioGroupItem>` co
 
 ### Group props
 
-| Prop | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `as` | `AsTag \| Component` | `"div"` | Changes the rendered group element or component. |
-| `asChild` | `boolean` | `false` | Merges the group behavior into one child element or component. |
-| `class` | `HTMLAttributes['class']` | unset | Merges classes with the local `grid gap-2 w-full` styles. |
-| `defaultValue` | `AcceptableValue` | unset | Sets the initial selected item for uncontrolled use. |
-| `dir` | `"ltr" \| "rtl"` | inherited or LTR | Sets reading direction for directional keyboard navigation. |
-| `disabled` | `boolean` | `false` | Prevents interaction with every item in the group. |
-| `loop` | `boolean` | `true` | Wraps arrow-key navigation from the last item to the first item and back. |
-| `modelValue` | `AcceptableValue` | unset | Controls the selected item and binds through `v-model`. |
-| `name` | `string` | unset | Names the form field submitted with the selected value. |
-| `orientation` | `"vertical" \| "horizontal"` | unset | Sets the group's orientation for layout and keyboard navigation. |
-| `required` | `boolean` | `false` | Requires a selection before the owning form can submit. |
+| Prop           | Type                         | Default          | Meaning                                                                   |
+| -------------- | ---------------------------- | ---------------- | ------------------------------------------------------------------------- |
+| `as`           | `AsTag \| Component`         | `"div"`          | Changes the rendered group element or component.                          |
+| `asChild`      | `boolean`                    | `false`          | Merges the group behavior into one child element or component.            |
+| `class`        | `HTMLAttributes['class']`    | unset            | Merges classes with the local `grid gap-2 w-full` styles.                 |
+| `defaultValue` | `AcceptableValue`            | unset            | Sets the initial selected item for uncontrolled use.                      |
+| `dir`          | `"ltr" \| "rtl"`             | inherited or LTR | Sets reading direction for directional keyboard navigation.               |
+| `disabled`     | `boolean`                    | `false`          | Prevents interaction with every item in the group.                        |
+| `loop`         | `boolean`                    | `true`           | Wraps arrow-key navigation from the last item to the first item and back. |
+| `modelValue`   | `AcceptableValue`            | unset            | Controls the selected item and binds through `v-model`.                   |
+| `name`         | `string`                     | unset            | Names the form field submitted with the selected value.                   |
+| `orientation`  | `"vertical" \| "horizontal"` | unset            | Sets the group's orientation for layout and keyboard navigation.          |
+| `required`     | `boolean`                    | `false`          | Requires a selection before the owning form can submit.                   |
 
 ### Item props
 
-| Prop | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `as` | `AsTag \| Component` | `"button"` | Changes the rendered item element or component. |
-| `asChild` | `boolean` | `false` | Merges the item behavior into one child element or component. |
-| `class` | `HTMLAttributes['class']` | unset | Merges classes with the local radio item styles. |
-| `disabled` | `boolean` | `false` | Prevents interaction with this item. |
-| `id` | `string` | unset | Identifies the item for its associated label. |
-| `name` | `string` | unset | Sets the form field name for this item when needed. The group `name` is usually enough. |
-| `required` | `boolean` | unset | Marks the item as required for form behavior. Set `required` on the group for the usual group-level constraint. |
-| `value` | `AcceptableValue` | unset | Stores this item's value and identifies it as the selected item. |
+| Prop       | Type                      | Default    | Meaning                                                                                                         |
+| ---------- | ------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------- |
+| `as`       | `AsTag \| Component`      | `"button"` | Changes the rendered item element or component.                                                                 |
+| `asChild`  | `boolean`                 | `false`    | Merges the item behavior into one child element or component.                                                   |
+| `class`    | `HTMLAttributes['class']` | unset      | Merges classes with the local radio item styles.                                                                |
+| `disabled` | `boolean`                 | `false`    | Prevents interaction with this item.                                                                            |
+| `id`       | `string`                  | unset      | Identifies the item for its associated label.                                                                   |
+| `name`     | `string`                  | unset      | Sets the form field name for this item when needed. The group `name` is usually enough.                         |
+| `required` | `boolean`                 | unset      | Marks the item as required for form behavior. Set `required` on the group for the usual group-level constraint. |
+| `value`    | `AcceptableValue`         | unset      | Stores this item's value and identifies it as the selected item.                                                |
 
 ### Values and state
 
@@ -81,12 +81,12 @@ Use `<UIRadioGroup>` as the parent and place one or more `<UIRadioGroupItem>` co
 
 ### Events and slots
 
-| Component | Event or slot | Payload or behavior |
-| --- | --- | --- |
-| `RadioGroup` | `update:modelValue` | Emits the selected `AcceptableValue` when the selection changes. Use `@update:model-value` when handling the event directly. |
-| `RadioGroup` | Default slot | Renders the items and receives the Reka UI root slot props, including the current `modelValue`. |
-| `RadioGroupItem` | `select` | The Reka UI item selection event is available as `@select`. |
-| `RadioGroupItem` | Default slot | Replaces the built-in circle inside the internal indicator. The local wrapper does not provide slot props. |
+| Component        | Event or slot       | Payload or behavior                                                                                                          |
+| ---------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `RadioGroup`     | `update:modelValue` | Emits the selected `AcceptableValue` when the selection changes. Use `@update:model-value` when handling the event directly. |
+| `RadioGroup`     | Default slot        | Renders the items and receives the Reka UI root slot props, including the current `modelValue`.                              |
+| `RadioGroupItem` | `select`            | The Reka UI item selection event is available as `@select`.                                                                  |
+| `RadioGroupItem` | Default slot        | Replaces the built-in circle inside the internal indicator. The local wrapper does not provide slot props.                   |
 
 ### Focus and accessibility
 
@@ -123,20 +123,20 @@ const density = ref('comfortable')
 </script>
 
 <template>
-	<UIRadioGroup v-model="density" aria-label="Density">
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="controlled-default" value="default" />
-			<UILabel for="controlled-default">Default</UILabel>
-		</div>
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="controlled-comfortable" value="comfortable" />
-			<UILabel for="controlled-comfortable">Comfortable</UILabel>
-		</div>
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="controlled-compact" value="compact" />
-			<UILabel for="controlled-compact">Compact</UILabel>
-		</div>
-	</UIRadioGroup>
+  <UIRadioGroup v-model="density" aria-label="Density">
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="controlled-default" value="default" />
+      <UILabel for="controlled-default">Default</UILabel>
+    </div>
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="controlled-comfortable" value="comfortable" />
+      <UILabel for="controlled-comfortable">Comfortable</UILabel>
+    </div>
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="controlled-compact" value="compact" />
+      <UILabel for="controlled-compact">Compact</UILabel>
+    </div>
+  </UIRadioGroup>
 </template>
 ```
 
@@ -150,16 +150,16 @@ const pageSize = ref(20)
 </script>
 
 <template>
-	<UIRadioGroup v-model="pageSize" aria-label="Rows per page">
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="rows-20" :value="20" />
-			<UILabel for="rows-20">20</UILabel>
-		</div>
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="rows-50" :value="50" />
-			<UILabel for="rows-50">50</UILabel>
-		</div>
-	</UIRadioGroup>
+  <UIRadioGroup v-model="pageSize" aria-label="Rows per page">
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="rows-20" :value="20" />
+      <UILabel for="rows-20">20</UILabel>
+    </div>
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="rows-50" :value="50" />
+      <UILabel for="rows-50">50</UILabel>
+    </div>
+  </UIRadioGroup>
 </template>
 ```
 
@@ -167,27 +167,27 @@ const pageSize = ref(20)
 
 ```vue
 <template>
-	<form>
-		<fieldset class="flex flex-col gap-3">
-			<legend id="billing-cycle-label">Billing cycle</legend>
-			<UIRadioGroup
-				name="billing-cycle"
-				required
-				orientation="horizontal"
-				aria-labelledby="billing-cycle-label"
-			>
-				<div class="flex items-center gap-2">
-					<UIRadioGroupItem id="billing-monthly" value="monthly" />
-					<UILabel for="billing-monthly">Monthly</UILabel>
-				</div>
-				<div class="flex items-center gap-2">
-					<UIRadioGroupItem id="billing-yearly" value="yearly" />
-					<UILabel for="billing-yearly">Yearly</UILabel>
-				</div>
-			</UIRadioGroup>
-		</fieldset>
-		<button type="submit">Continue</button>
-	</form>
+  <form>
+    <fieldset class="flex flex-col gap-3">
+      <legend id="billing-cycle-label">Billing cycle</legend>
+      <UIRadioGroup
+        name="billing-cycle"
+        required
+        orientation="horizontal"
+        aria-labelledby="billing-cycle-label"
+      >
+        <div class="flex items-center gap-2">
+          <UIRadioGroupItem id="billing-monthly" value="monthly" />
+          <UILabel for="billing-monthly">Monthly</UILabel>
+        </div>
+        <div class="flex items-center gap-2">
+          <UIRadioGroupItem id="billing-yearly" value="yearly" />
+          <UILabel for="billing-yearly">Yearly</UILabel>
+        </div>
+      </UIRadioGroup>
+    </fieldset>
+    <button type="submit">Continue</button>
+  </form>
 </template>
 ```
 
@@ -195,20 +195,20 @@ const pageSize = ref(20)
 
 ```vue
 <template>
-	<UIRadioGroup orientation="horizontal" :loop="false" aria-label="Layout">
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="layout-list" value="list" />
-			<UILabel for="layout-list">List</UILabel>
-		</div>
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="layout-grid" value="grid" />
-			<UILabel for="layout-grid">Grid</UILabel>
-		</div>
-		<div class="flex items-center gap-2">
-			<UIRadioGroupItem id="layout-table" value="table" disabled />
-			<UILabel for="layout-table">Table</UILabel>
-		</div>
-	</UIRadioGroup>
+  <UIRadioGroup orientation="horizontal" :loop="false" aria-label="Layout">
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="layout-list" value="list" />
+      <UILabel for="layout-list">List</UILabel>
+    </div>
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="layout-grid" value="grid" />
+      <UILabel for="layout-grid">Grid</UILabel>
+    </div>
+    <div class="flex items-center gap-2">
+      <UIRadioGroupItem id="layout-table" value="table" disabled />
+      <UILabel for="layout-table">Table</UILabel>
+    </div>
+  </UIRadioGroup>
 </template>
 ```
 

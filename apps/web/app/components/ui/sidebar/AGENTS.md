@@ -126,9 +126,7 @@ const open = ref(false)
           <UISidebarGroupContent>
             <UISidebarMenu>
               <UISidebarMenuItem>
-                <UISidebarMenuButton tooltip="Dashboard">
-                  Dashboard
-                </UISidebarMenuButton>
+                <UISidebarMenuButton tooltip="Dashboard"> Dashboard </UISidebarMenuButton>
               </UISidebarMenuItem>
             </UISidebarMenu>
           </UISidebarGroupContent>
@@ -158,9 +156,7 @@ const open = ref(false)
                   <a href="/projects">All projects</a>
                 </UISidebarMenuButton>
                 <UISidebarMenuBadge>4</UISidebarMenuBadge>
-                <UISidebarMenuAction aria-label="Project actions">
-                  More
-                </UISidebarMenuAction>
+                <UISidebarMenuAction aria-label="Project actions"> More </UISidebarMenuAction>
                 <UISidebarMenuSub>
                   <UISidebarMenuSubItem>
                     <UISidebarMenuSubButton as-child>

@@ -10,7 +10,7 @@ Displays the completion state of a task as an accessible horizontal progress bar
 
 ```vue
 <template>
-	<UIProgress :model-value="33" aria-label="Upload progress" />
+  <UIProgress :model-value="33" aria-label="Upload progress" />
 </template>
 ```
 
@@ -19,15 +19,15 @@ Displays the completion state of a task as an accessible horizontal progress bar
 - `index.ts` exports `Progress` from `Progress.vue`. The `shadcn-nuxt` configuration maps that export to `<UIProgress>` because `apps/web/nuxt.config.ts` sets the prefix to `UI` and the component directory to `@/components/ui`.
 - `ProgressRootProps` provides these props through `Progress.vue`.
 
-  | Prop | Type | Default | Behavior |
-  | --- | --- | --- | --- |
-  | `modelValue` | `number \| null` | `0` in this wrapper | The current progress value. Use `null` for an indeterminate bar. |
-  | `max` | `number` | `100` from Reka UI | The maximum progress value. It must be greater than `0`. |
-  | `getValueLabel` | `(value: number \| null \| undefined, max: number) => string \| undefined` | A rounded percentage for numeric values | Supplies the accessible `aria-label` text. |
-  | `getValueText` | `(value: number \| null \| undefined, max: number) => string \| undefined` | None | Supplies the accessible `aria-valuetext` text. |
-  | `as` | `AsTag \| Component` | `"div"` | Changes the root element or component. |
-  | `asChild` | `boolean` | `false` | Merges the root behavior into the child element. |
-  | `class` | `HTMLAttributes['class']` | None | Merges extra classes into the progress root. |
+  | Prop            | Type                                                                       | Default                                 | Behavior                                                         |
+  | --------------- | -------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------- |
+  | `modelValue`    | `number \| null`                                                           | `0` in this wrapper                     | The current progress value. Use `null` for an indeterminate bar. |
+  | `max`           | `number`                                                                   | `100` from Reka UI                      | The maximum progress value. It must be greater than `0`.         |
+  | `getValueLabel` | `(value: number \| null \| undefined, max: number) => string \| undefined` | A rounded percentage for numeric values | Supplies the accessible `aria-label` text.                       |
+  | `getValueText`  | `(value: number \| null \| undefined, max: number) => string \| undefined` | None                                    | Supplies the accessible `aria-valuetext` text.                   |
+  | `as`            | `AsTag \| Component`                                                       | `"div"`                                 | Changes the root element or component.                           |
+  | `asChild`       | `boolean`                                                                  | `false`                                 | Merges the root behavior into the child element.                 |
+  | `class`         | `HTMLAttributes['class']`                                                  | None                                    | Merges extra classes into the progress root.                     |
 
 - Numeric `modelValue` values must satisfy `0 <= modelValue <= max` and must not be `NaN`. `null` and `undefined` are valid indeterminate values in Reka UI, but this wrapper's default changes an omitted or undefined value to `0`. Pass `:model-value="null"` to request indeterminate state.
 - `max` must be a number greater than `0` and must not be `NaN`. Reka UI logs invalid values to the console and corrects an invalid progress value to `null` or an invalid maximum to `100`.
@@ -46,7 +46,7 @@ Displays the completion state of a task as an accessible horizontal progress bar
 
 ```vue
 <template>
-	<UIProgress :model-value="66" class="w-[60%]" aria-label="Upload progress" />
+  <UIProgress :model-value="66" class="w-[60%]" aria-label="Upload progress" />
 </template>
 ```
 
@@ -58,7 +58,7 @@ const progress = ref<number | null>(13)
 </script>
 
 <template>
-	<UIProgress v-model="progress" class="w-[60%]" aria-label="Upload progress" />
+  <UIProgress v-model="progress" class="w-[60%]" aria-label="Upload progress" />
 </template>
 ```
 
@@ -68,17 +68,13 @@ import { ref } from 'vue'
 
 const progress = ref<number | null>(null)
 const getValueLabel = (value: number | null | undefined, max: number) =>
-	value == null ? 'Preparing your workspace' : `Workspace progress, ${value} of ${max}`
+  value == null ? 'Preparing your workspace' : `Workspace progress, ${value} of ${max}`
 const getValueText = (value: number | null | undefined, max: number) =>
-	value == null ? 'Preparing' : `${value} of ${max} complete`
+  value == null ? 'Preparing' : `${value} of ${max} complete`
 </script>
 
 <template>
-	<UIProgress
-		v-model="progress"
-		:get-value-label="getValueLabel"
-		:get-value-text="getValueText"
-	/>
+  <UIProgress v-model="progress" :get-value-label="getValueLabel" :get-value-text="getValueText" />
 </template>
 ```
 
