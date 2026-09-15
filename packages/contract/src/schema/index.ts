@@ -268,13 +268,6 @@ const dateToDay = (date: string) => Date.parse(`${date}T00:00:00Z`)
 const day = 86_400_000
 const isOrderedDateRange = (fromDate: string, toDate: string) =>
   dateToDay(fromDate) <= dateToDay(toDate)
-const isRangeWithinGranularity = (fromDate: string, toDate: string, granularity: string) => {
-  if (!isOrderedDateRange(fromDate, toDate)) return false
-  const days = (dateToDay(toDate) - dateToDay(fromDate)) / 86_400_000 + 1
-  if (granularity === 'minute') return days <= 1
-  if (granularity === 'hour') return days <= 30
-  return true
-}
 export const isValidReportRange = (input: {
   fromDate: string
   toDate: string
@@ -294,16 +287,7 @@ export const isValidGranularReportRange = (input: {
   comparison?: { fromDate: string; toDate: string } | undefined
   [key: string]: unknown
 }) => {
-  if (!isValidReportRange(input)) return false
-  return (
-    isRangeWithinGranularity(input.fromDate, input.toDate, input.granularity) &&
-    (input.comparison === undefined ||
-      isRangeWithinGranularity(
-        input.comparison.fromDate,
-        input.comparison.toDate,
-        input.granularity,
-      ))
-  )
+  return isValidReportRange(input)
 }
 export const SReportInput = v.pipe(
   SReportFieldsSchema,

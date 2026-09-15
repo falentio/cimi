@@ -173,12 +173,12 @@ describe('shared report schemas', () => {
     }).not.toEqual(expect.schemaMatching(SReportInput))
   })
 
-  it('rejects granular ranges beyond procedure limits', () => {
+  it('accepts syntactically valid granular ranges for site-local admission', () => {
     expect({
       fromDate: '2026-08-01',
       toDate: '2026-08-31',
       granularity: 'hour',
-    }).not.toEqual(expect.schemaMatching(SGranularReportInput))
+    }).toEqual(expect.schemaMatching(SGranularReportInput))
     expect({
       fromDate: '2026-08-01',
       toDate: '2026-08-01',
@@ -188,7 +188,7 @@ describe('shared report schemas', () => {
       fromDate: '2026-08-01',
       toDate: '2026-08-02',
       granularity: 'minute',
-    }).not.toEqual(expect.schemaMatching(SGranularReportInput))
+    }).toEqual(expect.schemaMatching(SGranularReportInput))
   })
 
   it('bounds minute report output to the shared one-day response ceiling', () => {

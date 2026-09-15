@@ -6,11 +6,7 @@ import {
   SSortDirection,
   isValidGranularReportRange,
 } from '../../../schema/index.ts'
-import {
-  STrafficBreakdown,
-  STrafficBreakdownFields,
-  isWithinAuthenticatedReportBucketLimit,
-} from '../schema.ts'
+import { STrafficBreakdown, STrafficBreakdownFields } from '../schema.ts'
 
 export const STrafficBreakdownsInput = v.pipe(
   v.strictObject(
@@ -25,7 +21,7 @@ export const STrafficBreakdownsInput = v.pipe(
     ]),
   ),
   v.check(
-    (input) => isValidGranularReportRange(input) && isWithinAuthenticatedReportBucketLimit(input),
+    (input) => isValidGranularReportRange(input),
     'Report range is invalid for its granularity.',
   ),
 )
