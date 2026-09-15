@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DuckDbReportingQuery } from '@cimi/db'
 import { ReportingAdmissionService } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../../site/scope.ts'
@@ -63,36 +63,38 @@ async function buildOwner() {
   return { fixture, service, admit, siteId, userId: owner.userId }
 }
 
-it('requests the aggregate Fact-Work budget for an overview', async () => {
-  const owner = await buildOwner()
-  await using _ = owner.fixture
+describe('TrafficReportService.factWorkBudget', () => {
+  it('requests the aggregate Fact-Work budget for an overview', async () => {
+    const owner = await buildOwner()
+    await using _ = owner.fixture
 
-  await owner.service.getOverview(
-    { siteId: owner.siteId, fromDate: DAY_ONE, toDate: DAY_TWO, granularity: 'day' },
-    { id: owner.userId },
-  )
+    await owner.service.getOverview(
+      { siteId: owner.siteId, fromDate: DAY_ONE, toDate: DAY_TWO, granularity: 'day' },
+      { id: owner.userId },
+    )
 
-  expect(owner.admit).toHaveBeenCalledWith(
-    expect.objectContaining({ work: expect.objectContaining({ budget: 25_000_000 }) }),
-  )
-})
+    expect(owner.admit).toHaveBeenCalledWith(
+      expect.objectContaining({ work: expect.objectContaining({ budget: 25_000_000 }) }),
+    )
+  })
 
-it('requests the breakdown Fact-Work budget for a breakdown', async () => {
-  const owner = await buildOwner()
-  await using _ = owner.fixture
+  it('requests the breakdown Fact-Work budget for a breakdown', async () => {
+    const owner = await buildOwner()
+    await using _ = owner.fixture
 
-  await owner.service.getBreakdowns(
-    {
-      siteId: owner.siteId,
-      fromDate: DAY_ONE,
-      toDate: DAY_TWO,
-      granularity: 'day',
-      dimension: 'page',
-    },
-    { id: owner.userId },
-  )
+    await owner.service.getBreakdowns(
+      {
+        siteId: owner.siteId,
+        fromDate: DAY_ONE,
+        toDate: DAY_TWO,
+        granularity: 'day',
+        dimension: 'page',
+      },
+      { id: owner.userId },
+    )
 
-  expect(owner.admit).toHaveBeenCalledWith(
-    expect.objectContaining({ work: expect.objectContaining({ budget: 10_000_000 }) }),
-  )
+    expect(owner.admit).toHaveBeenCalledWith(
+      expect.objectContaining({ work: expect.objectContaining({ budget: 10_000_000 }) }),
+    )
+  })
 })

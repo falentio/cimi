@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { schema as contractSchema } from '@cimi/contract'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
 import {
@@ -61,50 +61,53 @@ async function projectedSiteWithTrait(email: string, keys: readonly string[]) {
   return { fixture, cookie, siteId }
 }
 
-test('passes an approved profile trait filter through the gate, then reports it unsupported', async () => {
-  const { fixture, cookie, siteId } = await projectedSiteWithTrait('trait-approved@example.com', [
-    'plan',
-  ])
-  await using _ = fixture
+describe('TrafficReportService.profileFilter', () => {
+  it('passes an approved profile trait filter through the gate, then reports it unsupported', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithTrait('trait-approved@example.com', [
+      'plan',
+    ])
+    await using _ = fixture
 
-  const response = await apiTestRequest(
-    fixture.app,
-    overviewPath(siteId, traitFilter('trait.plan', 'pro')),
-    cookie,
-  )
+    const response = await apiTestRequest(
+      fixture.app,
+      overviewPath(siteId, traitFilter('trait.plan', 'pro')),
+      cookie,
+    )
 
-  // The gate approves trait.plan, so it is not rejected as unapproved. The projection carries no
-  // trait dimension yet, so the adapter reports the filter unsupported rather than a transient 503.
-  expect(response.status).toBe(400)
-  await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
-})
+    // The gate approves trait.plan, so it is not rejected as unapproved. The projection carries no
+    // trait dimension yet, so the adapter reports the filter unsupported rather than a transient 503.
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
+  })
 
-test('rejects an unapproved profile trait filter as BAD_REQUEST', async () => {
-  const { fixture, cookie, siteId } = await projectedSiteWithTrait('trait-unapproved@example.com', [
-    'plan',
-  ])
-  await using _ = fixture
+  it('rejects an unapproved profile trait filter as BAD_REQUEST', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithTrait(
+      'trait-unapproved@example.com',
+      ['plan'],
+    )
+    await using _ = fixture
 
-  const response = await apiTestRequest(
-    fixture.app,
-    overviewPath(siteId, traitFilter('trait.secret', 'x')),
-    cookie,
-  )
+    const response = await apiTestRequest(
+      fixture.app,
+      overviewPath(siteId, traitFilter('trait.secret', 'x')),
+      cookie,
+    )
 
-  expect(response.status).toBe(400)
-  await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
-})
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
+  })
 
-test('rejects any profile trait filter when the Site policy approves none', async () => {
-  const { fixture, cookie, siteId } = await projectedSiteWithTrait('trait-none@example.com', [])
-  await using _ = fixture
+  it('rejects any profile trait filter when the Site policy approves none', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithTrait('trait-none@example.com', [])
+    await using _ = fixture
 
-  const response = await apiTestRequest(
-    fixture.app,
-    overviewPath(siteId, traitFilter('trait.plan', 'pro')),
-    cookie,
-  )
+    const response = await apiTestRequest(
+      fixture.app,
+      overviewPath(siteId, traitFilter('trait.plan', 'pro')),
+      cookie,
+    )
 
-  expect(response.status).toBe(400)
-  await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ code: 'BAD_REQUEST', status: 400 })
+  })
 })

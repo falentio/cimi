@@ -30,7 +30,7 @@ function createAdapter(factCardinality: number, projectedFactCardinality: number
   return new ReportingEvidenceDrizzleDuckDb({ db, analytics })
 }
 
-describe('reporting evidence statistics alignment', () => {
+describe('ReportingEvidenceDrizzleDuckDb.read', () => {
   it('reports aligned only when the count matches the published cardinality', async () => {
     const evidence = await createAdapter(100, 100).read({
       siteId: createSiteId('ste-1'),
