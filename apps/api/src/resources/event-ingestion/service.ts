@@ -1,6 +1,6 @@
 import { schema } from '@cimi/contract'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
-import { isRecord, resolveSiteLocalCutoff } from '@cimi/utils'
+import { isRecord, redactDiagnosticMessage, resolveSiteLocalCutoff } from '@cimi/utils'
 import { createHash } from 'node:crypto'
 import { ORPCError } from '@orpc/server'
 import { safeParse, type InferOutput } from 'valibot'
@@ -749,7 +749,10 @@ function normalizeEvent(
         kind: input.kind,
         name: input.name,
         code: input.code ?? null,
-        message: input.message ?? null,
+        message:
+          input.message === undefined || input.message === null
+            ? null
+            : redactDiagnosticMessage(input.message),
       }
     default: {
       const exhaustive: never = input
