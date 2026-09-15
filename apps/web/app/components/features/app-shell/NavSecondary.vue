@@ -21,7 +21,7 @@ const route = useRoute()
     <SidebarGroupContent>
       <SidebarMenu>
         <SidebarMenuItem v-for="item in group.items" :key="item.to">
-          <SidebarMenuButton as-child size="sm" :is-active="isNavItemActive(route.path, item.to)">
+          <SidebarMenuButton as-child size="sm" :is-active="isNavItemActive(route.path, item)">
             <NuxtLink :to="item.to">
               <HugeiconsIcon :icon="item.icon" :size="16" aria-hidden="true" />
               <span>{{ item.title }}</span>
