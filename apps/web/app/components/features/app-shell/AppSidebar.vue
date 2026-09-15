@@ -19,6 +19,7 @@ const { session } = useAuth()
 const route = useRoute()
 const router = useRouter()
 const { teams, sites, isLoading, error, refresh } = useWorkspaceData()
+const { selectOrganization: selectWorkspaceOrganization } = useWorkspaceSelection()
 
 const routeSiteId = computed<string | undefined>(() => {
   const value = route.params.siteId
@@ -65,8 +66,7 @@ const siteSectionNav = computed<NavGroup | undefined>(() => {
 })
 
 function selectOrganization(organizationId: string): void {
-  const siteId = sites.value.find((site) => site.teamId === organizationId)?.id
-  if (siteId !== undefined) void router.push(`/sites/${siteId}`)
+  selectWorkspaceOrganization(organizationId)
 }
 
 function selectSite(siteId: string): void {

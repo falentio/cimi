@@ -12,8 +12,9 @@ declare module '#app' {
 
 export default defineNuxtPlugin(() => {
   const cookie = import.meta.server ? useRequestHeaders(['cookie']).cookie : undefined
+  const baseUrl = import.meta.server ? useRequestURL().origin : globalThis.location.origin
   const client = createClient({
-    baseUrl: import.meta.server ? useRequestURL().origin : '',
+    baseUrl,
     ...(cookie === undefined ? {} : { headers: { cookie } }),
   })
   const orpc = createORPCVueColadaUtils(client)
