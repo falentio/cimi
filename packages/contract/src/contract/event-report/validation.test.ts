@@ -27,6 +27,21 @@ describe('event report contract', () => {
     }).not.toEqual(expect.schemaMatching(SEventReportFilter))
   })
 
+  it('accepts null only for equality against an Event field', () => {
+    expect({
+      scope: 'event',
+      field: 'referrer',
+      operator: 'equals',
+      values: [null],
+    }).toEqual(expect.schemaMatching(SEventReportFilter))
+    expect({
+      scope: 'event',
+      field: 'referrer',
+      operator: 'not_equals',
+      values: [null],
+    }).not.toEqual(expect.schemaMatching(SEventReportFilter))
+  })
+
   it('represents authenticated same-range has_done and has_not_done filters', () => {
     expect({
       scope: 'session',

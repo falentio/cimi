@@ -76,7 +76,10 @@ const isCompatibleEventFilterValue = (input: {
   if (input.operator === 'contains') {
     return input.values.every((value) => typeof value === 'string')
   }
-  return input.values.every((value) => typeof value === 'string' || value === null)
+  if (input.operator === 'equals') {
+    return input.values.every((value) => typeof value === 'string' || value === null)
+  }
+  return input.values.every((value) => typeof value === 'string')
 }
 
 const SEventValueFilter = v.pipe(

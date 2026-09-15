@@ -271,6 +271,14 @@ describe('compileEventFilterPlan', () => {
     ])
   })
 
+  it('rejects explicit null for event inequality', () => {
+    const result = compileEventFilterPlan({
+      filters: [{ scope: 'event', field: 'referrer', operator: 'not_equals', values: [null] }],
+      profileFilterKeys: noTraits,
+    })
+    expectFail(result, 'incompatible-value')
+  })
+
   it('rejects contains with a null value', () => {
     const result = compileEventFilterPlan({
       filters: [{ scope: 'event', field: 'referrer', operator: 'contains', values: [null] }],
