@@ -7,6 +7,7 @@ import NavMain from './NavMain.vue'
 import NavProjects from './NavProjects.vue'
 import NavSecondary from './NavSecondary.vue'
 import NavUser from './NavUser.vue'
+import { createSiteSectionNav } from './site-nav-config'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 
 const props = withDefaults(defineProps<SidebarProps>(), {
@@ -18,6 +19,11 @@ const { session } = useAuth()
 const route = useRoute()
 const router = useRouter()
 const { teams, sites, isLoading, error, refresh } = useWorkspaceData()
+
+const routeSiteId = computed<string | undefined>(() => {
+  const value = route.params.siteId
+  return typeof value === 'string' ? value : undefined
+})
 
 const isAdmin = computed(() => {
   const state = session.value
@@ -49,6 +55,14 @@ const siteNav = computed<NavGroup>(() => ({
     icon: Globe02Icon,
   })),
 }))
+
+const siteSectionNav = computed<NavGroup | undefined>(() => {
+  const siteId = routeSiteId.value
+  if (siteId === undefined) return undefined
+
+  const site = sites.value.find((candidate) => candidate.id === siteId)
+  return createSiteSectionNav({ siteId, label: site?.name ?? siteId })
+})
 
 function selectOrganization(organizationId: string): void {
   const siteId = sites.value.find((site) => site.teamId === organizationId)?.id
@@ -93,6 +107,7 @@ const user = computed(() => {
     <SidebarContent>
       <NavMain :group="NAV_REGISTRY.main" />
       <NavProjects v-if="siteNav.items.length > 0" :group="siteNav" />
+      <NavProjects v-if="siteSectionNav !== undefined" :group="siteSectionNav" />
       <NavSecondary :group="secondary" class="mt-auto" />
     </SidebarContent>
     <SidebarFooter>

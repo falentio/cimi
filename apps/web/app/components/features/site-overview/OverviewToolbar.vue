@@ -39,19 +39,15 @@ function handleRangeChange(value: unknown): void {
 <template>
   <section
     aria-labelledby="site-overview-title"
-    class="flex flex-col gap-4 border-border/70 border-b pb-5 lg:flex-row lg:items-end lg:justify-between"
+    class="flex flex-col gap-3 border-border/70 border-b pb-5 lg:flex-row lg:items-center lg:justify-between"
   >
-    <div class="flex min-w-0 flex-col gap-1">
-      <p class="text-muted-foreground text-sm font-medium">Overview</p>
-      <h2 id="site-overview-title" class="text-2xl font-semibold tracking-tight text-balance">
-        Site analytics
-      </h2>
-      <p class="text-muted-foreground max-w-xl text-sm text-pretty">
-        See how visitors find and use this site.
-      </p>
+    <h2 id="site-overview-title" class="sr-only">Site analytics</h2>
+
+    <div class="min-w-0 flex-1">
+      <slot name="filters" />
     </div>
 
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="flex shrink-0 flex-wrap items-center gap-2">
       <label for="overview-range" class="sr-only">Time range</label>
       <Select :model-value="props.selectedRange" @update:model-value="handleRangeChange">
         <SelectTrigger id="overview-range" class="min-w-36" aria-label="Time range">

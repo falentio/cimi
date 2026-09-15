@@ -1,56 +1,42 @@
 <script setup lang="ts">
-import { HugeiconsIcon } from '@hugeicons/vue'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { BreakdownId, BreakdownTabId, VisibleBreakdownSection } from './site-overview.types'
+import { cn } from '@/lib/utils'
+import { Card, CardContent } from '@/components/ui/card'
+import BreakdownSectionHeader from './BreakdownSectionHeader.vue'
+import { hasOverviewFilterValue } from './site-overview-filters'
+import type {
+  BreakdownTabChange,
+  OverviewFilter,
+  RankingRow,
+  VisibleBreakdownSection,
+} from './site-overview.types'
 
 const props = defineProps<{
   readonly sections: readonly VisibleBreakdownSection[]
+  readonly selectedFilters: readonly OverviewFilter[]
 }>()
 
 const emit = defineEmits<{
-  tabChange: [payload: { sectionId: BreakdownId; tabId: BreakdownTabId }]
+  tabChange: [payload: BreakdownTabChange]
+  rowSelect: [filter: OverviewFilter]
 }>()
 
-function selectTab(sectionId: BreakdownId, tabId: BreakdownTabId): void {
-  emit('tabChange', { sectionId, tabId })
+function isRowSelected(row: RankingRow): boolean {
+  return row.filter !== undefined && hasOverviewFilterValue(props.selectedFilters, row.filter)
+}
+
+function rowAriaLabel(section: VisibleBreakdownSection, row: RankingRow): string {
+  return `Toggle ${section.title} filter for ${row.label}, ${row.value}, ${row.share}% share`
+}
+
+function handleRowSelect(row: RankingRow): void {
+  if (row.filter !== undefined) emit('rowSelect', row.filter)
 }
 </script>
 
 <template>
   <div class="grid gap-4 sm:grid-cols-2">
     <Card v-for="section in props.sections" :key="section.id" size="sm" class="min-w-0">
-      <CardHeader class="gap-3">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex min-w-0 items-start gap-2.5">
-            <span
-              class="bg-muted text-muted-foreground mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md"
-            >
-              <HugeiconsIcon :icon="section.icon" :size="15" aria-hidden="true" />
-            </span>
-            <div class="min-w-0">
-              <CardTitle class="truncate text-sm">{{ section.title }}</CardTitle>
-              <CardDescription class="mt-0.5 text-xs">{{ section.subtitle }}</CardDescription>
-            </div>
-          </div>
-        </div>
-        <div role="group" :aria-label="`${section.title} views`" class="flex flex-wrap gap-1">
-          <Button
-            v-for="tab in section.tabs"
-            :key="tab.id"
-            type="button"
-            size="xs"
-            variant="ghost"
-            :aria-pressed="section.activeTab === tab.id"
-            :class="
-              section.activeTab === tab.id ? 'bg-muted text-foreground' : 'text-muted-foreground'
-            "
-            @click="selectTab(section.id, tab.id)"
-          >
-            {{ tab.label }}
-          </Button>
-        </div>
-      </CardHeader>
+      <BreakdownSectionHeader :section="section" @tab-change="emit('tabChange', $event)" />
       <CardContent class="pt-0">
         <p v-if="section.rows.length === 0" class="text-muted-foreground py-4 text-sm">
           No data for this view.
@@ -63,7 +49,27 @@ function selectTab(sectionId: BreakdownId, tabId: BreakdownTabId): void {
                 :style="{ width: `${row.share}%` }"
                 aria-hidden="true"
               />
+              <button
+                v-if="row.filter !== undefined"
+                type="button"
+                :aria-pressed="isRowSelected(row)"
+                :aria-label="rowAriaLabel(section, row)"
+                :class="
+                  cn(
+                    'relative flex w-full min-w-0 items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                    isRowSelected(row) ? 'bg-primary/10' : 'hover:bg-muted/30',
+                  )
+                "
+                @click="handleRowSelect(row)"
+              >
+                <span class="min-w-0 truncate">{{ row.label }}</span>
+                <span class="flex shrink-0 items-center gap-2 tabular-nums">
+                  <span class="text-muted-foreground text-xs">{{ row.share }}%</span>
+                  <span class="font-medium">{{ row.value }}</span>
+                </span>
+              </button>
               <div
+                v-else
                 class="relative flex min-w-0 items-center justify-between gap-3 px-3 py-2 text-sm"
               >
                 <span class="min-w-0 truncate">{{ row.label }}</span>

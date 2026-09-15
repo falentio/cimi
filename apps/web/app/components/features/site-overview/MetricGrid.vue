@@ -75,7 +75,7 @@ const hasSelection = computed(() => activeId.value !== null)
 <template>
   <section aria-label="Key metrics" class="min-w-0">
     <Card class="min-w-0 gap-0 p-0">
-      <CardContent class="bg-muted p-1">
+      <CardContent class="bg-muted p-0">
         <ul class="grid min-w-0 list-none grid-cols-2 gap-1 bg-muted md:grid-cols-3 xl:grid-cols-6">
           <li
             v-for="{ metric, sparklineData: data } in metricCells"

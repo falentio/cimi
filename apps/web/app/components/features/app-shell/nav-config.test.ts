@@ -29,13 +29,18 @@ describe('NAV_REGISTRY', () => {
 
 describe('isNavItemActive', () => {
   it('matches the home target exactly', () => {
-    expect(isNavItemActive('/', '/')).toBe(true)
-    expect(isNavItemActive('/sites/ste_1', '/')).toBe(false)
+    expect(isNavItemActive('/', { to: '/' })).toBe(true)
+    expect(isNavItemActive('/sites/ste_1', { to: '/' })).toBe(false)
   })
 
   it('matches section targets by path prefix', () => {
-    expect(isNavItemActive('/settings/general', '/settings')).toBe(true)
-    expect(isNavItemActive('/settings-elsewhere', '/settings')).toBe(false)
+    expect(isNavItemActive('/settings/general', { to: '/settings' })).toBe(true)
+    expect(isNavItemActive('/settings-elsewhere', { to: '/settings' })).toBe(false)
+  })
+
+  it('supports exact targets', () => {
+    expect(isNavItemActive('/sites/ste_1/events', { to: '/sites/ste_1', exact: true })).toBe(false)
+    expect(isNavItemActive('/sites/ste_1', { to: '/sites/ste_1', exact: true })).toBe(true)
   })
 })
 
