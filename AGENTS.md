@@ -11,6 +11,7 @@
 - Always parallel subagents whenver the tasks are READ only, sequence otherwise.
 - all pnpm/vp/npm scripts must be run-ed in sequence rather than parallel.
 - specs, and docs are token expensive, it drain out context window so fast, so use subagents for specs and docs reading that output the narrowed summary wit file references.
+- If you create new worktree for apps/web related works, spun up dev server, read apps/web/AGENTS.md
 
 ## Tooling
 
