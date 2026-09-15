@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import Unimplemented from '@/components/features/unimplemented/Unimplemented.vue'
+import EventReportPlaceholder from '@/components/features/event-report/EventReportPlaceholder.vue'
 </script>
 
 <template>
-  <Unimplemented />
+  <EventReportPlaceholder />
 </template>
