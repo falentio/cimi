@@ -1,4 +1,5 @@
 import { Home01Icon } from '@hugeicons/core-free-icons'
+import type { Client } from '@cimi/client'
 
 export type OverviewIcon = typeof Home01Icon
 
@@ -37,7 +38,41 @@ export interface RankingRow {
   readonly label: string
   readonly value: string
   readonly share: number
+  readonly filter?: OverviewFilter
 }
+
+export type OverviewFilterValues = readonly [string, ...string[]]
+
+export type OverviewEventFilterField = 'pagePath' | 'referrer'
+
+export type OverviewSessionFilterField = 'country' | 'region' | 'device' | 'browser'
+
+type OverviewReportFilter = NonNullable<
+  Parameters<Client['trafficReport']['getTrafficOverview']>[0]['filters']
+>[number]
+
+export type OverviewFilterOperator = Exclude<
+  OverviewReportFilter['operator'],
+  'has_done' | 'has_not_done'
+>
+
+export type OverviewFilter =
+  | (Omit<
+      Extract<OverviewReportFilter, { readonly scope: 'event' }>,
+      'field' | 'operator' | 'values'
+    > & {
+      readonly field: OverviewEventFilterField
+      readonly operator: OverviewFilterOperator
+      readonly values: OverviewFilterValues
+    })
+  | (Omit<
+      Extract<OverviewReportFilter, { readonly scope: 'session' }>,
+      'field' | 'operator' | 'values'
+    > & {
+      readonly field: OverviewSessionFilterField
+      readonly operator: OverviewFilterOperator
+      readonly values: OverviewFilterValues
+    })
 
 export type BreakdownTabId =
   | 'pages'

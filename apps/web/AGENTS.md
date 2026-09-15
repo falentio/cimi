@@ -14,7 +14,8 @@
 - Components placement "components/features/{feature-name}/*.vue"
 - Utils placement "components/features/{feature-name}/utils.ts"
 - ALWAYS fetch docs from "https://www.shadcn-vue.com/llms.txt" before working with "components/ui"
-- Use webfetch tool, dont use tinyfish whenever fetching "httpswww.shadcn-vue.com/*"
+- Use webfetch tool, dont use tinyfish whenever fetching "https://www.shadcn-vue.com/*"
+- Reuse components/ui/* as much as possible, dont invent any component without explicit signal.
 - Component should rely on type from "packages/contract" rather than inline
 - Always smoke-test using agent-browser cli (run `agent-browser skills get core` first before any agent-browser operations)
 - Run smoke-test inside subagents/task tool.

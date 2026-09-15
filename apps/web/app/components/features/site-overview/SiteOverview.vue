@@ -22,6 +22,7 @@ import type {
   OverviewFixture,
   OverviewMetric,
   OverviewMetricId,
+  OverviewFilter,
   OverviewRange,
   OverviewRangeOption,
   OverviewTrend,
@@ -31,7 +32,15 @@ import type {
 import BreakdownGrid from './BreakdownGrid.vue'
 import MetricGrid from './MetricGrid.vue'
 import OverviewChart from './OverviewChart.vue'
+import OverviewFilterBar from './OverviewFilterBar.vue'
 import OverviewToolbar from './OverviewToolbar.vue'
+import {
+  hasOverviewFilterValue,
+  normalizeOverviewFilters,
+  removeOverviewFilterValue,
+  replaceOverviewFilterValue,
+  toggleOverviewFilterValue,
+} from './site-overview-filters'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,6 +49,7 @@ const router = useRouter()
 const METRIC_PARAM = 'metric'
 
 const selectedMetricIds = shallowRef<readonly OverviewMetricId[]>([])
+const activeFilters = shallowRef<readonly OverviewFilter[]>([])
 
 function handleMetricToggle(id: OverviewMetricId): void {
   const next = selectedMetricIds.value.includes(id) ? [] : [id]
@@ -343,13 +353,25 @@ const rangeDates: Readonly<Record<OverviewRange, readonly string[]>> = {
   ],
 }
 
-function rows(items: readonly [string, string, number][]): readonly RankingRow[] {
-  return items.map(([label, value, share], index) => ({
-    id: `${label}-${index}`,
-    label,
-    value,
-    share,
-  }))
+function rows(
+  items: readonly (readonly [string, string, number, OverviewFilter?])[],
+): readonly RankingRow[] {
+  return items.map(([label, value, share, filter], index) =>
+    filter === undefined
+      ? {
+          id: `${label}-${index}`,
+          label,
+          value,
+          share,
+        }
+      : {
+          id: `${label}-${index}`,
+          label,
+          value,
+          share,
+          filter,
+        },
+  )
 }
 
 const breakdowns: readonly BreakdownSection[] = [
@@ -365,11 +387,41 @@ const breakdowns: readonly BreakdownSection[] = [
     activeTab: 'pages',
     rows: {
       pages: rows([
-        ['/', '12,840', 78],
-        ['/pricing', '8,214', 51],
-        ['/docs/getting-started', '5,968', 37],
-        ['/blog/roadmap', '3,742', 23],
-        ['/contact', '2,106', 13],
+        [
+          '/',
+          '12,840',
+          78,
+          { scope: 'event', field: 'pagePath', operator: 'equals', values: ['/'] },
+        ],
+        [
+          '/pricing',
+          '8,214',
+          51,
+          { scope: 'event', field: 'pagePath', operator: 'equals', values: ['/pricing'] },
+        ],
+        [
+          '/docs/getting-started',
+          '5,968',
+          37,
+          {
+            scope: 'event',
+            field: 'pagePath',
+            operator: 'equals',
+            values: ['/docs/getting-started'],
+          },
+        ],
+        [
+          '/blog/roadmap',
+          '3,742',
+          23,
+          { scope: 'event', field: 'pagePath', operator: 'equals', values: ['/blog/roadmap'] },
+        ],
+        [
+          '/contact',
+          '2,106',
+          13,
+          { scope: 'event', field: 'pagePath', operator: 'equals', values: ['/contact'] },
+        ],
       ]),
       titles: rows([
         ['Home', '12,840', 78],
@@ -392,11 +444,26 @@ const breakdowns: readonly BreakdownSection[] = [
     activeTab: 'referrers',
     rows: {
       referrers: rows([
-        ['Google', '7,420', 42],
+        [
+          'Google',
+          '7,420',
+          42,
+          { scope: 'event', field: 'referrer', operator: 'equals', values: ['Google'] },
+        ],
         ['Direct / none', '4,882', 28],
-        ['Hacker News', '2,946', 17],
-        ['X', '1,328', 8],
-        ['GitHub', '944', 5],
+        [
+          'Hacker News',
+          '2,946',
+          17,
+          { scope: 'event', field: 'referrer', operator: 'equals', values: ['Hacker News'] },
+        ],
+        ['X', '1,328', 8, { scope: 'event', field: 'referrer', operator: 'equals', values: ['X'] }],
+        [
+          'GitHub',
+          '944',
+          5,
+          { scope: 'event', field: 'referrer', operator: 'equals', values: ['GitHub'] },
+        ],
       ]),
       channels: rows([
         ['Organic search', '7,420', 42],
@@ -419,17 +486,62 @@ const breakdowns: readonly BreakdownSection[] = [
     activeTab: 'countries',
     rows: {
       countries: rows([
-        ['United States', '8,214', 33],
-        ['Germany', '4,982', 20],
-        ['United Kingdom', '3,746', 15],
-        ['Canada', '2,518', 10],
-        ['Netherlands', '1,842', 7],
+        [
+          'United States',
+          '8,214',
+          33,
+          { scope: 'session', field: 'country', operator: 'equals', values: ['United States'] },
+        ],
+        [
+          'Germany',
+          '4,982',
+          20,
+          { scope: 'session', field: 'country', operator: 'equals', values: ['Germany'] },
+        ],
+        [
+          'United Kingdom',
+          '3,746',
+          15,
+          { scope: 'session', field: 'country', operator: 'equals', values: ['United Kingdom'] },
+        ],
+        [
+          'Canada',
+          '2,518',
+          10,
+          { scope: 'session', field: 'country', operator: 'equals', values: ['Canada'] },
+        ],
+        [
+          'Netherlands',
+          '1,842',
+          7,
+          { scope: 'session', field: 'country', operator: 'equals', values: ['Netherlands'] },
+        ],
       ]),
       regions: rows([
-        ['North America', '11,842', 48],
-        ['Europe', '9,418', 38],
-        ['Asia Pacific', '2,144', 9],
-        ['Other', '1,456', 5],
+        [
+          'North America',
+          '11,842',
+          48,
+          { scope: 'session', field: 'region', operator: 'equals', values: ['North America'] },
+        ],
+        [
+          'Europe',
+          '9,418',
+          38,
+          { scope: 'session', field: 'region', operator: 'equals', values: ['Europe'] },
+        ],
+        [
+          'Asia Pacific',
+          '2,144',
+          9,
+          { scope: 'session', field: 'region', operator: 'equals', values: ['Asia Pacific'] },
+        ],
+        [
+          'Other',
+          '1,456',
+          5,
+          { scope: 'session', field: 'region', operator: 'equals', values: ['Other'] },
+        ],
       ]),
     },
   },
@@ -445,17 +557,62 @@ const breakdowns: readonly BreakdownSection[] = [
     activeTab: 'devices',
     rows: {
       devices: rows([
-        ['Desktop', '15,624', 63],
-        ['Mobile', '7,218', 29],
-        ['Tablet', '1,494', 6],
-        ['Other', '524', 2],
+        [
+          'Desktop',
+          '15,624',
+          63,
+          { scope: 'session', field: 'device', operator: 'equals', values: ['Desktop'] },
+        ],
+        [
+          'Mobile',
+          '7,218',
+          29,
+          { scope: 'session', field: 'device', operator: 'equals', values: ['Mobile'] },
+        ],
+        [
+          'Tablet',
+          '1,494',
+          6,
+          { scope: 'session', field: 'device', operator: 'equals', values: ['Tablet'] },
+        ],
+        [
+          'Other',
+          '524',
+          2,
+          { scope: 'session', field: 'device', operator: 'equals', values: ['Other'] },
+        ],
       ]),
       browsers: rows([
-        ['Chrome', '13,178', 53],
-        ['Safari', '7,964', 32],
-        ['Firefox', '1,986', 8],
-        ['Edge', '1,234', 5],
-        ['Other', '498', 2],
+        [
+          'Chrome',
+          '13,178',
+          53,
+          { scope: 'session', field: 'browser', operator: 'equals', values: ['Chrome'] },
+        ],
+        [
+          'Safari',
+          '7,964',
+          32,
+          { scope: 'session', field: 'browser', operator: 'equals', values: ['Safari'] },
+        ],
+        [
+          'Firefox',
+          '1,986',
+          8,
+          { scope: 'session', field: 'browser', operator: 'equals', values: ['Firefox'] },
+        ],
+        [
+          'Edge',
+          '1,234',
+          5,
+          { scope: 'session', field: 'browser', operator: 'equals', values: ['Edge'] },
+        ],
+        [
+          'Other',
+          '498',
+          2,
+          { scope: 'session', field: 'browser', operator: 'equals', values: ['Other'] },
+        ],
       ]),
     },
   },
@@ -536,6 +693,44 @@ function handleBreakdownTabChange(payload: {
     [payload.sectionId]: payload.tabId,
   }
 }
+
+function filterCountLabel(filters: readonly OverviewFilter[]): string {
+  const count = filters.reduce((total, filter) => total + filter.values.length, 0)
+  return `${count} active filter${count === 1 ? '' : 's'}`
+}
+
+function commitFilters(next: readonly OverviewFilter[], message: string): void {
+  activeFilters.value = next
+  statusText.value = next.length === 0 ? message : `${message} ${filterCountLabel(next)}.`
+}
+
+function handleRowSelect(filter: OverviewFilter): void {
+  const wasSelected = hasOverviewFilterValue(activeFilters.value, filter)
+  const next = toggleOverviewFilterValue(activeFilters.value, filter)
+  commitFilters(next, wasSelected ? 'Filter removed.' : 'Filter added.')
+}
+
+function handleFilterAdd(filter: OverviewFilter): void {
+  const next = normalizeOverviewFilters([...activeFilters.value, filter])
+  commitFilters(next, 'Filter added.')
+}
+
+function handleFilterReplace(payload: {
+  current: OverviewFilter
+  replacement: OverviewFilter
+}): void {
+  const next = replaceOverviewFilterValue(activeFilters.value, payload.current, payload.replacement)
+  commitFilters(next, 'Filter updated.')
+}
+
+function handleFilterRemove(filter: OverviewFilter): void {
+  const next = removeOverviewFilterValue(activeFilters.value, filter)
+  commitFilters(next, 'Filter removed.')
+}
+
+function handleFilterClear(): void {
+  commitFilters([], 'All filters cleared.')
+}
 </script>
 
 <template>
@@ -546,7 +741,17 @@ function handleBreakdownTabChange(payload: {
       :status-text="statusText"
       @range-change="handleRangeChange"
       @refresh="handleRefresh"
-    />
+    >
+      <template #filters>
+        <OverviewFilterBar
+          :filters="activeFilters"
+          @add-filter="handleFilterAdd"
+          @replace-filter="handleFilterReplace"
+          @remove-filter="handleFilterRemove"
+          @clear-filters="handleFilterClear"
+        />
+      </template>
+    </OverviewToolbar>
 
     <div
       v-if="viewState === 'loading'"
@@ -594,7 +799,12 @@ function handleBreakdownTabChange(payload: {
         :range="selectedRange"
         :range-label="selectedRangeLabel"
       />
-      <BreakdownGrid :sections="visibleBreakdowns" @tab-change="handleBreakdownTabChange" />
+      <BreakdownGrid
+        :sections="visibleBreakdowns"
+        :selected-filters="activeFilters"
+        @tab-change="handleBreakdownTabChange"
+        @row-select="handleRowSelect"
+      />
     </template>
   </section>
 </template>
