@@ -32,6 +32,24 @@ vp install                       # only when deps change
 - Dependency versions are pinned in the `pnpm-workspace.yaml` catalog; add new versions there rather than inline.
 - **Vite Plus** (`vite-plus`) owns dev, build, test, format, and lint. It resolves to Vite via the `vite` → `@voidzero-dev/vite-plus-core` override, and its config, ignore patterns, and `fmt`/`lint` rules live in `vite.config.ts`.
 
+## Tooling
+
+pnpm workspace of `apps/*` and `packages/*`, driven by Vite Plus.
+
+Run Vite Plus directly, never through a package manager wrapper:
+
+```bash
+vp check --fix path/to/file.ts   # format + lint + typecheck
+vp test
+vp run <script>                  # package.json scripts, e.g. db:push
+vp run --filter ./apps/web <script>
+vp install                       # only when deps change
+```
+
+- **pnpm** is the only package manager (`pnpm@11.18.0`, pinned via `packageManager`). Never npm or yarn.
+- Dependency versions are pinned in the `pnpm-workspace.yaml` catalog; add new versions there rather than inline.
+- **Vite Plus** (`vite-plus`) owns dev, build, test, format, and lint. It resolves to Vite via the `vite` → `@voidzero-dev/vite-plus-core` override, and its config, ignore patterns, and `fmt`/`lint` rules live in `vite.config.ts`.
+
 ### Implementation Conventions
 
 - The API module owns one reusable aggregate oRPC implementer for server-supported resources: create it with `implement({ ... }).$context<ApiContext>()`, define resource handlers from its branches, return implemented resource routers from `create<Resource>()`, and let the API composition root assemble those routers.
