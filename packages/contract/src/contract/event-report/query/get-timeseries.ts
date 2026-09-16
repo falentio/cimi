@@ -1,10 +1,19 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
 import { isValidGranularReportRange } from '../../../schema/index.ts'
-import { SEventGranularReportFieldsSchema, SEventSiteFields, SEventTimeseries } from '../schema.ts'
+import {
+  areEventFiltersCompatibleWithKind,
+  SEventGranularReportFieldsSchema,
+  SEventSiteFields,
+  SEventTimeseries,
+} from '../schema.ts'
 
 export const SEventTimeseriesInput = v.pipe(
   v.strictObject(v.entriesFromObjects([SEventSiteFields, SEventGranularReportFieldsSchema])),
+  v.check(
+    (input) => areEventFiltersCompatibleWithKind(input),
+    'Event filters are incompatible with the selected Event Kind.',
+  ),
   v.check(
     (input) => isValidGranularReportRange(input),
     'Report range is invalid for its granularity.',

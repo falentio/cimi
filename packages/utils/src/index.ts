@@ -79,6 +79,24 @@ export {
 } from './event/index.ts'
 export { canonicalJsonString, isRecord, sortedRecord } from './canonical-json/index.ts'
 export { redactDiagnosticMessage } from './diagnostic-message/index.ts'
+export {
+  EVENT_FIELD_STATES,
+  EVENT_FIELDS,
+  EVENT_KINDS,
+  isCompatibleDirectEventFilter,
+  isCompatibleEventFilterForKind,
+  isCompatiblePropertyFilter,
+  isEventKind,
+  isEventField,
+  type EventField,
+  type EventFieldState,
+  type EventFilterCompatibilityInput,
+  type EventFilterOperator,
+  type EventFilterValue,
+  type EventKind,
+  type EventKindFilterCompatibilityInput,
+  type PropertyFilterCompatibilityInput,
+} from './event-filter/index.ts'
 export { getNestedMapValue, nestedMapValues, setNestedMapValue } from './nested-map/index.ts'
 export {
   mergeEventAttribution,

@@ -1,10 +1,10 @@
-const STACK_FRAME = /\s*at\s+[^\s(]+(?:\s+\([^)]*\))?/g
+const STACK_FRAME = /\s*at\s+(?:async\s+)?[^\s(]+(?:\s+\([^)]*\))?/g
 /**
  * Matches a URL-ish token and captures everything before its query string or fragment, so only the
  * `?...` or `#...` tail is dropped. The token must look like a path or URL (it carries a `/`, a
  * scheme `:`, or starts the string), which keeps prose punctuation such as "issue #42" intact.
  */
-const URL_QUERY_OR_FRAGMENT = /(^|[^\s?#"'`]*[:/][^\s?#"'`]*)[?#][^\s"'`]+/g
+const URL_QUERY_OR_FRAGMENT = /(^|[^\s?#"`]*[:/][^\s?#"`]*)[?#][^\s"`]+/g
 
 /**
  * Redacts a diagnostic message accepted from a caller before it reaches a report reader. The

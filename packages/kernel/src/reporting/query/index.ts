@@ -39,7 +39,9 @@ export {
   trafficMetricDenominator,
   trafficMetricValue,
   type TrafficMetric,
+  type TrafficMetricAdditivity,
   type TrafficMetricDefinition,
+  type TrafficMetricFilterScope,
   type TrafficMetricGrain,
   type TrafficMetricUnit,
 } from './metric-catalog.ts'

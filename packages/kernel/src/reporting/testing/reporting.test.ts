@@ -24,6 +24,7 @@ import {
   type ReportingStatisticsPort,
   type RetentionCoverage,
   type ResolvedPeriods,
+  TRAFFIC_METRIC_CATALOG,
   trafficMetricDenominator,
   trafficMetricValue,
 } from '../../index.ts'
@@ -353,6 +354,21 @@ describe('traffic metric catalog', () => {
     expect(trafficMetricDenominator('pages_per_session', facts)).toBe(4)
     expect(trafficMetricValue('average_session_duration_seconds', facts)).toBe(4.5)
     expect(trafficMetricDenominator('average_session_duration_seconds', facts)).toBe(2)
+  })
+
+  it('publishes the catalog additivity and filter scope metadata', () => {
+    expect(TRAFFIC_METRIC_CATALOG.pageviews).toMatchObject({
+      additivity: 'additive',
+      filterScopes: ['event'],
+    })
+    expect(TRAFFIC_METRIC_CATALOG.bounce_rate).toMatchObject({
+      additivity: 'non_additive',
+      filterScopes: ['event', 'session', 'visitor', 'profile'],
+    })
+    expect(TRAFFIC_METRIC_CATALOG.average_session_duration_seconds).toMatchObject({
+      additivity: 'non_additive',
+      filterScopes: ['event', 'session', 'visitor', 'profile'],
+    })
   })
 
   it('returns zero for every zero-denominator formula', () => {

@@ -1,5 +1,10 @@
+import {
+  isCompatibleDirectEventFilter,
+  isCompatibleEventFilterForKind,
+  isCompatiblePropertyFilter,
+} from '@cimi/utils'
+import type { EventFilterOperator, EventKind } from '@cimi/utils'
 import type {
-  EventKind,
   Predicate,
   PredicateOperator,
   PredicateTarget,
@@ -9,7 +14,7 @@ import type {
   ReportFilterPlan,
 } from './types.ts'
 
-type ContractOperator = 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than'
+type ContractOperator = EventFilterOperator
 
 interface TrafficAttributeFilter {
   readonly scope: 'event' | 'session' | 'visitor' | 'profile'
@@ -69,6 +74,7 @@ export interface CompileTrafficFilterInput {
 }
 
 export interface CompileEventFilterInput {
+  readonly eventKind: EventKind
   readonly filters: readonly EventFilterInput[]
   readonly profileFilterKeys: readonly string[]
 }
@@ -80,14 +86,6 @@ export type CompileFilterResult =
   | { readonly ok: false; readonly reason: CompileFailureReason }
 
 const PROPERTY_KEY_PATTERN = /^property\.([A-Za-z0-9_.-]{1,63})$/
-const EVENT_KINDS: readonly EventKind[] = [
-  'page_view',
-  'custom_event',
-  'outbound',
-  'performance',
-  'error',
-]
-
 const OPERATOR_MAP: Readonly<Record<ContractOperator, PredicateOperator>> = {
   equals: 'eq',
   not_equals: 'neq',
@@ -132,19 +130,6 @@ const EVENT_TARGETS: Readonly<Record<string, PredicateTarget>> = {
 
 const TRAIT_KEY_PATTERN = /^trait\.([A-Za-z0-9_.-]{1,63})$/
 
-function isFiniteNumber(value: PredicateValue): boolean {
-  return typeof value === 'number' && Number.isFinite(value)
-}
-
-function isKindValue(value: PredicateValue): boolean {
-  return EVENT_KINDS.includes(value as EventKind)
-}
-
-/**
- * Mirrors the contract's compatibility rules per field family. A boolean is a legitimate `eq`/`neq`
- * bind for a string column, so those operators accept any non-null scalar; only `contains` and the
- * ordering operators narrow the value type.
- */
 function isCompatibleValue(
   family: 'event' | 'session' | 'visitor',
   operator: ContractOperator,
@@ -154,43 +139,10 @@ function isCompatibleValue(
     return values.every((value) => typeof value === 'string')
   }
   if (operator === 'greater_than' || operator === 'less_than') {
-    return values.every(isFiniteNumber)
+    return values.every((value) => typeof value === 'number' && Number.isFinite(value))
   }
   if (family === 'visitor') {
     return values.every((value) => value === 'visitor' || value === 'identified_user')
-  }
-  return values.every((value) => typeof value === 'string')
-}
-
-/**
- * Property filters accept any scalar for `eq`/`neq` because a json property is untyped; only the
- * narrowing operators constrain the value.
- */
-function isCompatiblePropertyValue(
-  operator: ContractOperator,
-  values: readonly PredicateValue[],
-): boolean {
-  if (operator === 'contains') {
-    return values.every((value) => typeof value === 'string')
-  }
-  if (operator === 'greater_than' || operator === 'less_than') {
-    return values.every(isFiniteNumber)
-  }
-  return true
-}
-
-function isCompatibleEventValue(
-  operator: ContractOperator,
-  values: readonly PredicateValue[],
-): boolean {
-  if (operator === 'contains') {
-    return values.every((value) => typeof value === 'string')
-  }
-  if (operator === 'greater_than' || operator === 'less_than') {
-    return values.every(isFiniteNumber)
-  }
-  if (operator === 'equals') {
-    return values.every((value) => typeof value === 'string' || value === null)
   }
   return values.every((value) => typeof value === 'string')
 }
@@ -236,7 +188,7 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
       if (match === null) return { ok: false, reason: 'unsupported-field' }
       const key = match[1] ?? ''
       if (!input.profileFilterKeys.includes(key)) return { ok: false, reason: 'unapproved-trait' }
-      if (!isCompatiblePropertyValue(operator, values)) {
+      if (!isCompatiblePropertyFilter({ operator, values })) {
         return { ok: false, reason: 'incompatible-value' }
       }
       profile.push({
@@ -271,8 +223,10 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
       }
       const target = targets[field]
       if (target === undefined) return { ok: false, reason: 'unsupported-field' }
-      if (field === 'kind') {
-        if (!values.every(isKindValue)) return { ok: false, reason: 'incompatible-value' }
+      if (scope === 'event') {
+        if (!isCompatibleDirectEventFilter({ field, operator, values })) {
+          return { ok: false, reason: 'incompatible-value' }
+        }
       } else if (!isCompatibleValue(scope, operator, values)) {
         return { ok: false, reason: 'incompatible-value' }
       }
@@ -309,7 +263,7 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
     if ('scope' in filter && filter.scope === 'session') {
       const propertyFilters: PropertyFilter[] = []
       for (const property of filter.action.propertyFilters ?? []) {
-        if (!isCompatiblePropertyValue(property.operator, property.values)) {
+        if (!isCompatiblePropertyFilter(property)) {
           return { ok: false, reason: 'incompatible-value' }
         }
         propertyFilters.push({
@@ -333,7 +287,7 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
     const predicateOperator = OPERATOR_MAP[operator]
     const propertyMatch = PROPERTY_KEY_PATTERN.exec(field)
     if (propertyMatch !== null) {
-      if (!isCompatiblePropertyValue(operator, values)) {
+      if (!isCompatiblePropertyFilter({ operator, values })) {
         return { ok: false, reason: 'incompatible-value' }
       }
       event.push({
@@ -346,9 +300,7 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
     }
     const target = EVENT_TARGETS[field]
     if (target === undefined) return { ok: false, reason: 'unsupported-field' }
-    if (field === 'kind') {
-      if (!values.every(isKindValue)) return { ok: false, reason: 'incompatible-value' }
-    } else if (!isCompatibleEventValue(operator, values)) {
+    if (!isCompatibleEventFilterForKind({ eventKind: input.eventKind, field, operator, values })) {
       return { ok: false, reason: 'incompatible-value' }
     }
     event.push({ target, propertyKey: null, operator: predicateOperator, bind: values })

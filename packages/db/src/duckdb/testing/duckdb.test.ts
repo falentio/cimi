@@ -464,6 +464,10 @@ describe('createAnalyticsDb', () => {
           projection_checkpoints: 2,
           projection_gaps: 1,
         })
+        const duplicateEvents = await inspectionConnection.runAndReadAll(
+          'SELECT site_id, event_id FROM events GROUP BY site_id, event_id HAVING count(*) > 1',
+        )
+        expect(duplicateEvents.getRowObjects()).toEqual([])
         const redactedEvent = await inspectionConnection.runAndReadAll(
           "SELECT identified_user_id FROM events WHERE event_id = 'evt-1'",
         )

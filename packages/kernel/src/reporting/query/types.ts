@@ -1,3 +1,7 @@
+import type { EventFilterValue, EventKind } from '@cimi/utils'
+
+export type { EventKind } from '@cimi/utils'
+
 export type PredicateTarget =
   | 'event.kind'
   | 'event.name'
@@ -23,9 +27,7 @@ export type PredicateTarget =
 
 export type PredicateOperator = 'eq' | 'neq' | 'contains' | 'gt' | 'lt'
 
-export type PredicateValue = string | number | boolean | null
-
-export type EventKind = 'page_view' | 'custom_event' | 'outbound' | 'performance' | 'error'
+export type PredicateValue = EventFilterValue
 
 /**
  * One allowlisted filter over a semantic column or json property.

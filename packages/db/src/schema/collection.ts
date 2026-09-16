@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import { EVENT_KINDS } from '@cimi/utils'
 import {
   check,
   foreignKey,
@@ -70,7 +71,7 @@ export const TAcceptedEvent = sqliteTable(
       .references(() => TSite.id, { onDelete: 'restrict' }),
     eventId: text('event_id').notNull(),
     eventKind: text('event_kind', {
-      enum: ['page_view', 'custom_event', 'outbound', 'performance', 'error'],
+      enum: EVENT_KINDS,
     }).notNull(),
     anonymousIdentityId: text('anonymous_identity_id'),
     pageViewId: text('page_view_id'),

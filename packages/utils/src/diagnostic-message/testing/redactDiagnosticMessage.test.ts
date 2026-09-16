@@ -28,6 +28,18 @@ describe('redactDiagnosticMessage', () => {
     expect(redactDiagnosticMessage('boom at handler (/app/a.ts:1:2) after')).toBe('boom after')
   })
 
+  it('removes an async stack frame including its path', () => {
+    expect(redactDiagnosticMessage('boom at async handler (/app/secret.ts:1:2) after')).toBe(
+      'boom after',
+    )
+  })
+
+  it('redacts the complete query when a value contains an apostrophe', () => {
+    expect(redactDiagnosticMessage("Request failed for /search?q=O'Reilly&token=secret")).toBe(
+      'Request failed for /search',
+    )
+  })
+
   it('returns an empty string for an empty message', () => {
     expect(redactDiagnosticMessage('')).toBe('')
   })

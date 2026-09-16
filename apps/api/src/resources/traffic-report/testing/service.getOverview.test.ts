@@ -132,8 +132,23 @@ describe('TrafficReportService.getOverview', () => {
     expect(body.bounceRate).toBeCloseTo(1 / 6)
     expect(body.pagesPerSession).toBeCloseTo(8 / 6)
     expect(body.averageSessionDurationSeconds).toBeCloseTo(29_000 / 1000 / 5)
-    expect(body.trend).toHaveLength(2)
-    expect(body.trend[0]).toMatchObject({ value: 4, complete: true, denominator: null })
-    expect(body.trend[1]).toMatchObject({ value: 2, complete: false })
+    expect(body.trend).toEqual([
+      expect.objectContaining({
+        value: 4,
+        complete: true,
+        metric: 'visitors',
+        grain: 'visitor',
+        unit: 'count',
+        denominator: null,
+      }),
+      expect.objectContaining({
+        value: 2,
+        complete: false,
+        metric: 'visitors',
+        grain: 'visitor',
+        unit: 'count',
+        denominator: null,
+      }),
+    ])
   })
 })

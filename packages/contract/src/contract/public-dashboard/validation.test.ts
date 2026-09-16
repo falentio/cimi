@@ -64,6 +64,21 @@ describe('public dashboard contract', () => {
     }).not.toEqual(expect.schemaMatching(SPublicDashboardFilter))
   })
 
+  it('validates public Event Kind filters against the shared Event registry', () => {
+    expect({
+      scope: 'event',
+      field: 'kind',
+      operator: 'equals',
+      values: ['custom_event'],
+    }).toEqual(expect.schemaMatching(SPublicDashboardFilter))
+    expect({
+      scope: 'event',
+      field: 'kind',
+      operator: 'equals',
+      values: ['unknown'],
+    }).not.toEqual(expect.schemaMatching(SPublicDashboardFilter))
+  })
+
   it('models both rate-limit metadata and adapter headers', () => {
     expect({
       status: 429,

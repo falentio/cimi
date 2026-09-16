@@ -118,6 +118,27 @@ describe('shared report schemas', () => {
     }).not.toEqual(expect.schemaMatching(SAuthenticatedFilter))
   })
 
+  it('uses Event filter compatibility for scoped traffic queries', () => {
+    expect({
+      scope: 'event',
+      field: 'pagePath',
+      operator: 'equals',
+      values: [null],
+    }).toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'event',
+      field: 'kind',
+      operator: 'greater_than',
+      values: ['page_view'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'event',
+      field: 'pagePath',
+      operator: 'greater_than',
+      values: ['42'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+  })
+
   it('allows only current or stale successful report freshness', () => {
     expect({
       projectedAcceptanceSequence: 10,

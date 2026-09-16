@@ -167,7 +167,7 @@ describe('EventIngestionService.collectEvent', () => {
         kind: 'error',
         name: 'TypeError',
         code: 'E1',
-        message: 'GET /checkout?token=secret\n    at handler (/app/src/a.ts:1:2)',
+        message: "GET /search?q=O'Reilly&token=secret at async handler (/app/secret.ts:1:2)",
       }),
     )
     await service.flush()
@@ -175,7 +175,7 @@ describe('EventIngestionService.collectEvent', () => {
     await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
     expect(acceptanceRepository.append).toHaveBeenCalledWith([
       expect.objectContaining({
-        event: expect.objectContaining({ message: 'GET /checkout' }),
+        event: expect.objectContaining({ message: 'GET /search' }),
       }),
     ])
     await service.stop()

@@ -25,7 +25,9 @@ import {
   type ResolvedPeriod,
   type SiteId,
   type TrafficBreakdownDimension,
+  TRAFFIC_METRIC_CATALOG,
   trafficMetricValue,
+  type TrafficMetric,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from '../../errors.ts'
@@ -36,6 +38,7 @@ export type TrafficBreakdownsInput = v.InferOutput<typeof STrafficBreakdownsInpu
 export type TrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOutput>
 
 const DEFAULT_BREAKDOWN_LIMIT = 50
+const TREND_METRIC = 'visitors' satisfies TrafficMetric
 
 /**
  * The distinct counts each report family actually evaluates: the overview reads distinct visitors
@@ -184,6 +187,9 @@ export class TrafficReportService {
       filterPlan,
     })
     const facts = result.metrics
+    const trendDefinition = TRAFFIC_METRIC_CATALOG[TREND_METRIC]
+    const trendDenominator =
+      trendDefinition.denominator === null ? null : facts[trendDefinition.denominator]
     const rows: BucketCount[] = result.trend.map((bucket) => ({
       at: bucket.at,
       count: bucket.visitors,
@@ -210,10 +216,10 @@ export class TrafficReportService {
         at: new Date(bucket.at).toISOString(),
         value: bucket.value,
         complete: bucket.complete,
-        metric: 'visitors' as const,
-        grain: 'visitor' as const,
-        unit: 'count' as const,
-        denominator: null,
+        metric: TREND_METRIC,
+        grain: trendDefinition.grain,
+        unit: trendDefinition.unit,
+        denominator: trendDenominator,
       })),
       ...freshnessOutput(freshness),
     }
