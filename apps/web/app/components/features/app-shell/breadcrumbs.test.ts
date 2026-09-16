@@ -41,6 +41,13 @@ describe('resolveBreadcrumbs', () => {
     ])
   })
 
+  it('uses a static Organization parent for organization Home', () => {
+    expect(resolveBreadcrumbs('/org/org_1/home')).toEqual([
+      { label: 'Organization' },
+      { label: 'Home' },
+    ])
+  })
+
   it('returns nothing for bare and public routes', () => {
     expect(resolveBreadcrumbs('/setup')).toEqual([])
     expect(resolveBreadcrumbs('/public/abc123')).toEqual([])

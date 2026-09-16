@@ -1,4 +1,5 @@
 import { computed, type ComputedRef } from 'vue'
+import { organizationHomePath } from '@/components/features/app-shell/organization-nav-config'
 import type { OrganizationId } from '@/components/features/organization-settings/organization-settings.types'
 import { resolveActiveOrganizationId } from '@/components/features/organization-settings/organization-settings.utils'
 
@@ -38,12 +39,7 @@ export function useWorkspaceSelection(): WorkspaceSelectionApi {
 
   function selectOrganization(organizationId: OrganizationId): void {
     selectedOrganizationId.value = organizationId
-    const site = workspace.sites.value.find((candidate) => candidate.teamId === organizationId)
-    if (site === undefined) {
-      void router.push(`/org/${organizationId}/settings/general`)
-      return
-    }
-    void router.push(`/sites/${site.id}`)
+    void router.push(organizationHomePath(organizationId))
   }
 
   function clearOrganization(organizationId: OrganizationId): void {

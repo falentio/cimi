@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { WorkspaceSite, WorkspaceTeam } from '@/components/features/app-shell/workspace'
 import {
   normalizeOrganizationNameDraft,
+  normalizeSettingsError,
   resolveActiveOrganizationId,
 } from './organization-settings.utils'
 
@@ -38,6 +39,18 @@ describe('organization settings utilities', () => {
     ).toBe('org-first')
   })
 
+  it('keeps an unknown organization route separate from workspace fallbacks', () => {
+    expect(
+      resolveActiveOrganizationId({
+        routeSiteId: undefined,
+        routeOrganizationId: 'missing',
+        selectedOrganizationId: 'org-first',
+        teams,
+        sites,
+      }),
+    ).toBe('missing')
+  })
+
   it('falls back safely when the selected organization is stale', () => {
     expect(
       resolveActiveOrganizationId({
@@ -53,5 +66,11 @@ describe('organization settings utilities', () => {
   it('trims names and rejects blank drafts', () => {
     expect(normalizeOrganizationNameDraft('  Northstar  ')).toBe('Northstar')
     expect(normalizeOrganizationNameDraft('   ')).toBeNull()
+  })
+
+  it('uses a caller-provided fallback for unrecognized errors', () => {
+    expect(normalizeSettingsError('unexpected', 'Workspace data could not be loaded')).toEqual({
+      message: 'Workspace data could not be loaded',
+    })
   })
 })

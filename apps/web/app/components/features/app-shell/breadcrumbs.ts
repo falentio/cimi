@@ -21,6 +21,7 @@ const SITE_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [
 const ORG_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [
   { label: 'Settings', to: '/org/:organizationId/settings' },
 ]
+const ORG_HOME_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Organization' }, { label: 'Home' }]
 const ACCOUNT_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Settings' }]
 
 const ADMIN_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Admin', to: '/admin' }]
@@ -32,6 +33,7 @@ const RULES: readonly BreadcrumbRule[] = [
   { pattern: '/sites/:siteId/goals', segments: [...SITE_TRAIL, { label: 'Goals' }] },
   { pattern: '/sites/:siteId/funnels', segments: [...SITE_TRAIL, { label: 'Funnels' }] },
   { pattern: '/sites/:siteId/cohorts', segments: [...SITE_TRAIL, { label: 'Cohorts' }] },
+  { pattern: '/org/:organizationId/home', segments: ORG_HOME_TRAIL },
   {
     pattern: '/sites/:siteId/settings/general',
     segments: [...SITE_SETTINGS_TRAIL, { label: 'General' }],
