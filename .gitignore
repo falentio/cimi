@@ -9,6 +9,7 @@ dist/
 .env.*
 !.env.example
 .cimi/
+/docs/login.csv
 coverage/
 *.log
 *.sqlite
