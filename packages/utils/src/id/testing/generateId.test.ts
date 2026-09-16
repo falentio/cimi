@@ -29,15 +29,15 @@ describe('generateId', () => {
   })
 
   it('rejects prefixes that cannot safely identify an entity', () => {
-    expect(() => generateId('')).toThrowError(TypeError)
-    expect(() => generateId('site_id')).toThrowError(TypeError)
-    expect(() => generateId('site id')).toThrowError(TypeError)
-    expect(() => generateId('site')).toThrowError(TypeError)
-    expect(() => generateId('organization')).toThrowError(TypeError)
-    expect(() => generateId('site-operation')).toThrowError(TypeError)
-    expect(() => generateId('ste-opn')).toThrowError(TypeError)
-    expect(() => generateId('st')).toThrowError(TypeError)
-    expect(() => generateId('stee')).toThrowError(TypeError)
+    expect(() => generateId('')).toThrow(TypeError)
+    expect(() => generateId('site_id')).toThrow(TypeError)
+    expect(() => generateId('site id')).toThrow(TypeError)
+    expect(() => generateId('site')).toThrow(TypeError)
+    expect(() => generateId('organization')).toThrow(TypeError)
+    expect(() => generateId('site-operation')).toThrow(TypeError)
+    expect(() => generateId('ste-opn')).toThrow(TypeError)
+    expect(() => generateId('st')).toThrow(TypeError)
+    expect(() => generateId('stee')).toThrow(TypeError)
   })
 
   it('keeps different entity id prefixes incompatible', () => {
