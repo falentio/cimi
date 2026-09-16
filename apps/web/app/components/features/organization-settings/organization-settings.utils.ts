@@ -3,7 +3,7 @@ import type { SettingsError } from './organization-settings.types'
 
 export function resolveActiveOrganizationId(input: {
   readonly routeSiteId: string | undefined
-  readonly urlOrganizationId: string | undefined
+  readonly routeOrganizationId: string | undefined
   readonly selectedOrganizationId: string | undefined
   readonly teams: readonly WorkspaceTeam[]
   readonly sites: readonly WorkspaceSite[]
@@ -11,7 +11,7 @@ export function resolveActiveOrganizationId(input: {
   const routeSite = input.sites.find((site) => site.id === input.routeSiteId)
   if (routeSite !== undefined) return routeSite.teamId
 
-  if (isKnownOrganization(input.urlOrganizationId, input.teams)) return input.urlOrganizationId
+  if (input.routeOrganizationId !== undefined) return input.routeOrganizationId
   if (isKnownOrganization(input.selectedOrganizationId, input.teams)) {
     return input.selectedOrganizationId
   }

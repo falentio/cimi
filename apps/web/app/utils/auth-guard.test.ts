@@ -11,9 +11,11 @@ describe('resolveAuthDecision', () => {
   })
 
   it('redirects unauthenticated sessions to login with the return path', () => {
-    expect(resolveAuthDecision(route('/settings/members'), 'unauthenticated', null)).toEqual({
+    expect(
+      resolveAuthDecision(route('/org/org_1/settings/members'), 'unauthenticated', null),
+    ).toEqual({
       path: '/login',
-      query: { redirect: '/settings/members' },
+      query: { redirect: '/org/org_1/settings/members' },
     })
   })
 

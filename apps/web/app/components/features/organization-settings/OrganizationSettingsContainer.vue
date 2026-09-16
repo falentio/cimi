@@ -22,45 +22,38 @@ type SettingsSectionLink = {
   readonly label: string
   readonly icon: typeof AlertCircleIcon
   readonly section: OrganizationSettingsSnapshot['section']
-  readonly to: {
-    readonly path: string
-    readonly query:
-      | {
-          readonly organizationId: NonNullable<OrganizationSettingsSnapshot['activeOrganizationId']>
-        }
-      | undefined
-  }
+  readonly to: string
 }
 
-const sectionLinks = computed(() => {
-  const query =
-    props.snapshot.activeOrganizationId === undefined
-      ? undefined
-      : { organizationId: props.snapshot.activeOrganizationId }
+const sectionLinks = computed<readonly SettingsSectionLink[]>(() => {
+  const organizationId = props.snapshot.activeOrganizationId
+  if (organizationId === undefined) return []
+
+  const basePath = `/org/${organizationId}/settings`
   return [
     {
       label: 'General',
       icon: Settings01Icon,
       section: 'general',
-      to: { path: '/settings/general', query },
+      to: `${basePath}/general`,
     },
     {
       label: 'Members',
       icon: UserGroupIcon,
       section: 'members',
-      to: { path: '/settings/members', query },
+      to: `${basePath}/members`,
     },
     {
       label: 'Danger zone',
       icon: AlertCircleIcon,
       section: 'danger',
-      to: { path: '/settings/danger', query },
+      to: `${basePath}/danger`,
     },
   ] satisfies readonly SettingsSectionLink[]
 })
 
 const activeSection = computed<OrganizationSettingsSnapshot['section']>(
-  () => sectionLinks.value.find((link) => link.to.path === route.path)?.section ?? 'general',
+  () => sectionLinks.value.find((link) => link.to === route.path)?.section ?? 'general',
 )
 
 async function retry(): Promise<void> {

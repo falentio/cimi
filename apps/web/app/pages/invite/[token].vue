@@ -45,10 +45,7 @@ async function acceptInvitation(): Promise<void> {
   try {
     const membership = await orpc.invitation.acceptInvitation.call({ token: token.value })
     state.value = { status: 'accepted', membership }
-    await navigateTo({
-      path: '/settings/members',
-      query: { organizationId: membership.organizationId },
-    })
+    await navigateTo(`/org/${membership.organizationId}/settings/members`)
   } catch (error: unknown) {
     state.value = { status: 'error', message: normalizeSettingsError(error).message }
   }
