@@ -43,7 +43,13 @@ async function projectedSiteWithEvents(email: string) {
       pagePath: '/',
     },
     { sessionId: 's3', visitorId: 'v3', kind: 'page_view', at: at(DAY_TWO, 11), pagePath: '/' },
-    { sessionId: 's3', visitorId: 'v3', kind: 'custom_event', at: at(DAY_TWO, 11, 1_000) },
+    {
+      sessionId: 's3',
+      visitorId: 'v3',
+      kind: 'custom_event',
+      at: at(DAY_TWO, 11, 1_000),
+      name: 'checkout',
+    },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
   return { fixture, cookie, siteId }
@@ -150,5 +156,96 @@ describe('TrafficReportService.getOverview', () => {
         denominator: null,
       }),
     ])
+  })
+
+  it('applies an event filter to the aggregate and every trend bucket', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithEvents(
+      'report-trend-filter@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      overviewPath(
+        siteId,
+        '&filters[0][scope]=event&filters[0][field]=pagePath&filters[0][operator]=equals&filters[0][values][0]=/a',
+      ),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body).toMatchObject({ visitors: 1, sessions: 1, pageviews: 1 })
+    expect(body.trend).toEqual([
+      expect.objectContaining({ value: 1, metric: 'visitors' }),
+      expect.objectContaining({ value: 0, metric: 'visitors' }),
+    ])
+  })
+
+  it('applies a visitor presence filter to the aggregate and trend', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithEvents(
+      'report-presence-filter@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      overviewPath(
+        siteId,
+        '&filters[0][scope]=visitor&filters[0][operator]=has_done&filters[0][action][kind]=custom_event&filters[0][action][name]=checkout',
+      ),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body).toMatchObject({ visitors: 1, sessions: 1, pageviews: 1 })
+    expect(body.trend).toEqual([
+      expect.objectContaining({ value: 0, metric: 'visitors' }),
+      expect.objectContaining({ value: 1, metric: 'visitors' }),
+    ])
+  })
+
+  it('applies a negated visitor presence filter to the aggregate and trend', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithEvents(
+      'report-negated-presence-filter@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      overviewPath(
+        siteId,
+        '&filters[0][scope]=visitor&filters[0][operator]=has_not_done&filters[0][action][kind]=custom_event&filters[0][action][name]=checkout',
+      ),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body).toMatchObject({ visitors: 5, sessions: 5, pageviews: 7 })
+    expect(body.trend).toEqual([
+      expect.objectContaining({ value: 4, metric: 'visitors' }),
+      expect.objectContaining({ value: 1, metric: 'visitors' }),
+    ])
+  })
+
+  it('rejects an hourly range after the authenticated bucket limit', async () => {
+    await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+    const { cookie, siteId } = await createOwnerSite(
+      fixture.app,
+      fixture.db,
+      'traffic-overview-bucket-limit@example.com',
+    )
+    await fixture.analytics.rebuild({ controlDb: fixture.db })
+
+    const path = (toDate: string) =>
+      `/traffic-report/getTrafficOverview?siteId=${encodeURIComponent(siteId)}&fromDate=2026-08-01&toDate=${toDate}&granularity=hour`
+    const accepted = await apiTestRequest(fixture.app, path('2026-08-30'), cookie)
+    expect(accepted.status, await accepted.clone().text()).toBe(200)
+
+    const rejected = await apiTestRequest(fixture.app, path('2026-08-31'), cookie)
+    expect(rejected.status).toBe(422)
+    await expect(rejected.json()).resolves.toMatchObject({
+      code: 'QUERY_LIMIT_EXCEEDED',
+      status: 422,
+    })
   })
 })

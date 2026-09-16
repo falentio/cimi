@@ -295,14 +295,17 @@ describe('reporting period resolution', () => {
     ).toThrowError(ReportingAdmissionError)
   })
 
-  it('rejects an over-limit bucket count instead of clamping it', () => {
-    expect(() =>
-      periodsFor({
-        fromDate: '2026-09-05',
-        toDate: '2026-09-06',
-        bucket: { granularity: 'hour', maxStarts: 47 },
-      }),
-    ).toThrowError(ReportingAdmissionError)
+  it('rejects an over-limit bucket count instead of clamping it', async () => {
+    const error = await expectAdmissionError(
+      async () =>
+        periodsFor({
+          fromDate: '2026-09-05',
+          toDate: '2026-09-06',
+          bucket: { granularity: 'hour', maxStarts: 47 },
+        }),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+    expect(error.reason).toBe('bucket-bound')
   })
 
   it('uses actual local starts for DST-sensitive bucket bounds', () => {
@@ -356,19 +359,57 @@ describe('traffic metric catalog', () => {
     expect(trafficMetricDenominator('average_session_duration_seconds', facts)).toBe(2)
   })
 
-  it('publishes the catalog additivity and filter scope metadata', () => {
-    expect(TRAFFIC_METRIC_CATALOG.pageviews).toMatchObject({
+  it.each([
+    {
+      metric: 'visitors',
+      grain: 'visitor',
+      unit: 'count',
+      denominator: null,
+      additivity: 'non_additive',
+      filterScopes: ['event', 'session', 'visitor', 'profile'],
+    },
+    {
+      metric: 'sessions',
+      grain: 'session',
+      unit: 'count',
+      denominator: null,
+      additivity: 'non_additive',
+      filterScopes: ['event', 'session', 'visitor', 'profile'],
+    },
+    {
+      metric: 'pageviews',
+      grain: 'event',
+      unit: 'count',
+      denominator: null,
       additivity: 'additive',
       filterScopes: ['event'],
-    })
-    expect(TRAFFIC_METRIC_CATALOG.bounce_rate).toMatchObject({
+    },
+    {
+      metric: 'bounce_rate',
+      grain: 'session',
+      unit: 'rate',
+      denominator: 'eligibleSessions',
       additivity: 'non_additive',
       filterScopes: ['event', 'session', 'visitor', 'profile'],
-    })
-    expect(TRAFFIC_METRIC_CATALOG.average_session_duration_seconds).toMatchObject({
+    },
+    {
+      metric: 'pages_per_session',
+      grain: 'session',
+      unit: 'ratio',
+      denominator: 'sessions',
       additivity: 'non_additive',
       filterScopes: ['event', 'session', 'visitor', 'profile'],
-    })
+    },
+    {
+      metric: 'average_session_duration_seconds',
+      grain: 'session',
+      unit: 'seconds',
+      denominator: 'sessionsWithValidDuration',
+      additivity: 'non_additive',
+      filterScopes: ['event', 'session', 'visitor', 'profile'],
+    },
+  ] as const)('publishes complete metadata for $metric', ({ metric, ...expected }) => {
+    expect(TRAFFIC_METRIC_CATALOG[metric]).toMatchObject(expected)
   })
 
   it('returns zero for every zero-denominator formula', () => {

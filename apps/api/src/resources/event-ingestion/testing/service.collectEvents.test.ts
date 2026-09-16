@@ -142,6 +142,13 @@ describe('EventIngestionService.collectEvents', () => {
       ingestionIdentifier: 'ing-1',
       events: [
         event(),
+        event({
+          eventId: 'batch-error',
+          kind: 'error',
+          name: 'TypeError',
+          code: 'E1',
+          message: "GET /search?q=O'Reilly&token=secret at async handler (/app/secret.ts:1:2)",
+        }),
         { eventId: 'bad', kind: 'unknown' },
         {
           eventId: 'refused',
@@ -156,11 +163,18 @@ describe('EventIngestionService.collectEvents', () => {
     await expect(resultPromise).resolves.toEqual({
       results: [
         { status: 'accepted', eventId: 'event-1', receiptTime: now.toISOString() },
+        { status: 'accepted', eventId: 'batch-error', receiptTime: now.toISOString() },
         { status: 'itemError', eventId: 'bad', code: 'BAD_REQUEST' },
         { status: 'rejected', eventId: 'refused', reason: 'policy' },
       ],
     })
     expect(acceptanceRepository.append).toHaveBeenCalledTimes(1)
+    expect(acceptanceRepository.append).toHaveBeenCalledWith([
+      expect.objectContaining({ event: expect.objectContaining({ eventId: 'event-1' }) }),
+      expect.objectContaining({
+        event: expect.objectContaining({ eventId: 'batch-error', message: 'GET /search' }),
+      }),
+    ])
     await service.stop()
   })
 })

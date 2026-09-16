@@ -162,6 +162,67 @@ describe('EventReportService.getOverview', () => {
     await expect(miss.json()).resolves.toMatchObject({ total: 0, uniqueVisitors: 0 })
   })
 
+  it('applies a nested presence property filter to the matching Session', async () => {
+    const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+    await using _ = fixture
+    const { cookie, siteId } = await createOwnerSite(
+      fixture.app,
+      fixture.db,
+      'event-presence-filter@example.com',
+    )
+    seedAcceptedEvents(fixture.db, siteId, [
+      {
+        sessionId: 's1',
+        visitorId: 'v1',
+        kind: 'page_view',
+        at: at(DAY_ONE, 10),
+        pagePath: '/a',
+      },
+      {
+        sessionId: 's1',
+        visitorId: 'v1',
+        kind: 'custom_event',
+        at: at(DAY_ONE, 10, 1_000),
+        name: 'purchase',
+        properties: { label: 'premium' },
+      },
+      {
+        sessionId: 's2',
+        visitorId: 'v1',
+        kind: 'page_view',
+        at: at(DAY_ONE, 10, 2_000),
+        pagePath: '/b',
+      },
+    ])
+    await fixture.analytics.rebuild({ controlDb: fixture.db })
+
+    const presenceFilter = (operator: 'has_done' | 'has_not_done') =>
+      `&filters[0][scope]=session&filters[0][operator]=${operator}&filters[0][range]=same_range&filters[0][action][kind]=custom_event&filters[0][action][name]=purchase&filters[0][action][propertyFilters][0][field]=label&filters[0][action][propertyFilters][0][operator]=equals&filters[0][action][propertyFilters][0][values][0]=premium`
+    const matching = await apiTestRequest(
+      fixture.app,
+      `${overviewPath(siteId, 'page_view')}${presenceFilter('has_done')}`,
+      cookie,
+    )
+    expect(matching.status, await matching.clone().text()).toBe(200)
+    await expect(matching.json()).resolves.toMatchObject({
+      total: 1,
+      uniqueVisitors: 1,
+      uniqueSessions: 1,
+    })
+
+    const nonMatching = await apiTestRequest(
+      fixture.app,
+      `${overviewPath(siteId, 'page_view')}${presenceFilter('has_not_done')}`,
+      cookie,
+    )
+    expect(nonMatching.status, await nonMatching.clone().text()).toBe(200)
+    await expect(nonMatching.json()).resolves.toMatchObject({
+      total: 1,
+      uniqueVisitors: 1,
+      uniqueSessions: 1,
+    })
+  })
+
   it('rejects a range that reaches past Effective Retention instead of clamping it', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-overbound@example.com')
     await using _ = fixture

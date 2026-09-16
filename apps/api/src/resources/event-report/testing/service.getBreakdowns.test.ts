@@ -110,6 +110,30 @@ describe('EventReportService.getBreakdowns', () => {
     expect(body.nextOffset).toBeNull()
   })
 
+  it('applies an event property filter before grouping breakdown rows', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithKinds(
+      'event-breakdown-filter@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      breakdownPath(
+        siteId,
+        'page_view',
+        '&sort=value&direction=asc&filters[0][scope]=event&filters[0][field]=property.plan&filters[0][operator]=equals&filters[0][values][0]=pro',
+      ),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      items: [{ field: 'pagePath', value: '/a', count: 1 }],
+      totalCount: 1,
+      hasMore: false,
+      nextOffset: null,
+    })
+  })
+
   it('paginates an event breakdown page with a value tie-break', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds(
       'event-breakdown-page@example.com',
