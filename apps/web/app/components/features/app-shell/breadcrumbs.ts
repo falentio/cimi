@@ -18,7 +18,10 @@ const SITE_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [
   { label: 'Settings', to: '/sites/:siteId/settings' },
 ]
 
-const ORG_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Settings', to: '/settings' }]
+const ORG_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [
+  { label: 'Settings', to: '/org/:organizationId/settings' },
+]
+const ACCOUNT_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Settings' }]
 
 const ADMIN_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Admin', to: '/admin' }]
 
@@ -49,10 +52,19 @@ const RULES: readonly BreadcrumbRule[] = [
     pattern: '/sites/:siteId/settings/public-dashboard',
     segments: [...SITE_SETTINGS_TRAIL, { label: 'Public Dashboard' }],
   },
-  { pattern: '/settings/general', segments: [...ORG_SETTINGS_TRAIL, { label: 'General' }] },
-  { pattern: '/settings/members', segments: [...ORG_SETTINGS_TRAIL, { label: 'Members' }] },
-  { pattern: '/settings/danger', segments: [...ORG_SETTINGS_TRAIL, { label: 'Danger' }] },
-  { pattern: '/settings/account', segments: [...ORG_SETTINGS_TRAIL, { label: 'Account' }] },
+  {
+    pattern: '/org/:organizationId/settings/general',
+    segments: [...ORG_SETTINGS_TRAIL, { label: 'General' }],
+  },
+  {
+    pattern: '/org/:organizationId/settings/members',
+    segments: [...ORG_SETTINGS_TRAIL, { label: 'Members' }],
+  },
+  {
+    pattern: '/org/:organizationId/settings/danger',
+    segments: [...ORG_SETTINGS_TRAIL, { label: 'Danger' }],
+  },
+  { pattern: '/settings/account', segments: [...ACCOUNT_SETTINGS_TRAIL, { label: 'Account' }] },
   { pattern: '/admin', segments: [{ label: 'Admin' }] },
   { pattern: '/admin/retention', segments: [...ADMIN_TRAIL, { label: 'Retention' }] },
   { pattern: '/admin/backup-restore', segments: [...ADMIN_TRAIL, { label: 'Backup Restore' }] },

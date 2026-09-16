@@ -22,14 +22,14 @@ export function useWorkspaceSelection(): WorkspaceSelectionApi {
     const value = route.params.siteId
     return typeof value === 'string' ? value : undefined
   })
-  const urlOrganizationId = computed(() => {
-    const value = route.query.organizationId
+  const routeOrganizationId = computed(() => {
+    const value = route.params.organizationId
     return typeof value === 'string' ? value : undefined
   })
   const activeOrganizationId = computed(() =>
     resolveActiveOrganizationId({
       routeSiteId: routeSiteId.value,
-      urlOrganizationId: urlOrganizationId.value,
+      routeOrganizationId: routeOrganizationId.value,
       selectedOrganizationId: selectedOrganizationId.value,
       teams: workspace.teams.value,
       sites: workspace.sites.value,
@@ -40,7 +40,7 @@ export function useWorkspaceSelection(): WorkspaceSelectionApi {
     selectedOrganizationId.value = organizationId
     const site = workspace.sites.value.find((candidate) => candidate.teamId === organizationId)
     if (site === undefined) {
-      void router.push({ path: '/settings/general', query: { organizationId } })
+      void router.push(`/org/${organizationId}/settings/general`)
       return
     }
     void router.push(`/sites/${site.id}`)

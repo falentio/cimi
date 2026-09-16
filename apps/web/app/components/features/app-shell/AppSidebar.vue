@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Globe02Icon } from '@hugeicons/core-free-icons'
+import { Globe02Icon, Settings01Icon } from '@hugeicons/core-free-icons'
 import type { SidebarProps } from '@/components/ui/sidebar'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar'
 import { NAV_REGISTRY, type NavGroup } from './nav-config'
@@ -34,7 +34,18 @@ const isAdmin = computed(() => {
 
 const secondary = computed(() => ({
   ...NAV_REGISTRY.secondary,
-  items: NAV_REGISTRY.secondary.items.filter((item) => !item.admin || isAdmin.value),
+  items: [
+    ...(activeOrganizationId.value === undefined
+      ? []
+      : [
+          {
+            title: 'Settings',
+            to: `/org/${activeOrganizationId.value}/settings`,
+            icon: Settings01Icon,
+          },
+        ]),
+    ...NAV_REGISTRY.secondary.items.filter((item) => !item.admin || isAdmin.value),
+  ],
 }))
 
 const activeSiteId = computed(() => {

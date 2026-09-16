@@ -14,11 +14,11 @@ const sites = [
 ] satisfies readonly WorkspaceSite[]
 
 describe('organization settings utilities', () => {
-  it('prefers a valid site route over organization selection', () => {
+  it('prefers a site route over organization selection', () => {
     expect(
       resolveActiveOrganizationId({
         routeSiteId: 'site-second',
-        urlOrganizationId: 'org-first',
+        routeOrganizationId: 'org-first',
         selectedOrganizationId: 'org-first',
         teams,
         sites,
@@ -26,11 +26,11 @@ describe('organization settings utilities', () => {
     ).toBe('org-second')
   })
 
-  it('supports a valid organization query for an organization without sites', () => {
+  it('uses the organization route parameter for an organization without sites', () => {
     expect(
       resolveActiveOrganizationId({
         routeSiteId: undefined,
-        urlOrganizationId: 'org-first',
+        routeOrganizationId: 'org-first',
         selectedOrganizationId: undefined,
         teams,
         sites,
@@ -42,7 +42,7 @@ describe('organization settings utilities', () => {
     expect(
       resolveActiveOrganizationId({
         routeSiteId: undefined,
-        urlOrganizationId: 'missing',
+        routeOrganizationId: undefined,
         selectedOrganizationId: 'missing',
         teams,
         sites,

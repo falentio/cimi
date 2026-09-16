@@ -30,9 +30,9 @@ describe('resolveBreadcrumbs', () => {
     ])
   })
 
-  it('trails Settings and Admin sections', () => {
-    expect(resolveBreadcrumbs('/settings/members')).toEqual([
-      { label: 'Settings', to: '/settings' },
+  it('trails organization Settings and Admin sections', () => {
+    expect(resolveBreadcrumbs('/org/org_1/settings/members')).toEqual([
+      { label: 'Settings', to: '/org/org_1/settings' },
       { label: 'Members' },
     ])
     expect(resolveBreadcrumbs('/admin/backup-restore')).toEqual([
