@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { AlertCircleIcon } from '@hugeicons/core-free-icons'
+import { AlertCircleIcon, Settings01Icon, UserGroupIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ const route = useRoute()
 
 type SettingsSectionLink = {
   readonly label: string
+  readonly icon: typeof AlertCircleIcon
   readonly section: OrganizationSettingsSnapshot['section']
   readonly to: {
     readonly path: string
@@ -37,9 +38,24 @@ const sectionLinks = computed(() => {
       ? undefined
       : { organizationId: props.snapshot.activeOrganizationId }
   return [
-    { label: 'General', section: 'general', to: { path: '/settings/general', query } },
-    { label: 'Members', section: 'members', to: { path: '/settings/members', query } },
-    { label: 'Danger zone', section: 'danger', to: { path: '/settings/danger', query } },
+    {
+      label: 'General',
+      icon: Settings01Icon,
+      section: 'general',
+      to: { path: '/settings/general', query },
+    },
+    {
+      label: 'Members',
+      icon: UserGroupIcon,
+      section: 'members',
+      to: { path: '/settings/members', query },
+    },
+    {
+      label: 'Danger zone',
+      icon: AlertCircleIcon,
+      section: 'danger',
+      to: { path: '/settings/danger', query },
+    },
   ] satisfies readonly SettingsSectionLink[]
 })
 
@@ -86,6 +102,12 @@ async function retry(): Promise<void> {
             as-child
           >
             <NuxtLink :to="link.to" class="shrink-0 px-3 py-2">
+              <HugeiconsIcon
+                :icon="link.icon"
+                :size="16"
+                aria-hidden="true"
+                data-icon="inline-start"
+              />
               {{ link.label }}
             </NuxtLink>
           </UITabsTrigger>
