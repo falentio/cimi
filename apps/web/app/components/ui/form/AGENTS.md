@@ -38,22 +38,26 @@ This directory re-exports `vee-validate` primitives: `Form`, `Field as FormField
 - `FormMessage` renders vee-validate `ErrorMessage` as a `<p>` with the field name and `formMessageId`, and shows nothing when there is no error.
 - `useFormField()` returns `id`, `name`, `formItemId`, `formDescriptionId`, `formMessageId`, `valid`, `isDirty`, `isTouched`, `error`. It throws outside `FormField`, and it is the only source for `FormMessage` errors.
 - Build the form with `useForm({ validationSchema, initialValues })` from `vee-validate`; submit through `handleSubmit`.
-- Validate with any Standard Schema library: wrap a zod schema with `toTypedSchema` from `@vee-validate/zod`, or pass a valibot or yup schema.
+- Validate with any Standard Schema library. For Valibot, compose schemas with functions such as `v.object` and `v.pipe`, then wrap the schema with `toTypedSchema` from `@vee-validate/valibot`, or pass a yup schema.
 - `initialValues` must match the schema keys so typed inputs render their starting values.
 - Accessibility is automatic: `FormControl` sets `aria-invalid` from the error and appends `formMessageId` to `aria-describedby` only when an error exists, and `FormDescription` owns `formDescriptionId`.
 
 ## Examples
 
 ```vue
-<!-- Minimal zod-validated field -->
+<!-- Minimal Valibot-validated field -->
 <script setup lang="ts">
 import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import { z } from 'zod'
+import { toTypedSchema } from '@vee-validate/valibot'
+import * as v from 'valibot'
 
 const formSchema = toTypedSchema(
-  z.object({
-    username: z.string().min(2, 'Username must be at least 2 characters.').max(50),
+  v.object({
+    username: v.pipe(
+      v.string(),
+      v.minLength(2, 'Username must be at least 2 characters.'),
+      v.maxLength(50),
+    ),
   }),
 )
 
@@ -84,8 +88,8 @@ const onSubmit = form.handleSubmit((values) => {
 <!-- Checkbox field holding a string array -->
 <script setup lang="ts">
 import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import { z } from 'zod'
+import { toTypedSchema } from '@vee-validate/valibot'
+import * as v from 'valibot'
 
 const tasks = [
   { id: 'push', label: 'Push notifications' },
@@ -93,8 +97,11 @@ const tasks = [
 ] as const
 
 const formSchema = toTypedSchema(
-  z.object({
-    tasks: z.array(z.string()).min(1, 'Please select at least one notification type.'),
+  v.object({
+    tasks: v.pipe(
+      v.array(v.string()),
+      v.minLength(1, 'Please select at least one notification type.'),
+    ),
   }),
 )
 
@@ -161,7 +168,7 @@ const onSubmit = form.handleSubmit((values) => {
 - [Form component docs](https://shadcn-vue.com/docs/components/form)
 - [VeeValidate forms guide](https://shadcn-vue.com/docs/forms/vee-validate)
 - [vee-validate Field API](https://vee-validate.logaretm.com/v4/api/field)
-- [Zod](https://zod.dev)
+- [Valibot parse data guide](https://valibot.dev/guides/parse-data/)
 - [Form AGENTS.md](/home/kevin/.herdr/worktrees/cimi/feat-agents-md-ui-components/apps/web/app/components/ui/form/AGENTS.md)
 - [Input](../input/AGENTS.md)
 - [Select](../select/AGENTS.md)
