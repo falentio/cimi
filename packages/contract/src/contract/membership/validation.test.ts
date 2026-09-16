@@ -34,8 +34,11 @@ const member = {
   updatedAt: '2026-08-23T00:00:01Z',
 }
 
+const listedOwner = { ...owner, email: 'owner@example.com' }
+const listedMember = { ...member, email: 'member@example.com' }
+
 const page = {
-  items: [owner, member],
+  items: [listedOwner, listedMember],
   nextOffset: null,
   hasMore: false,
   totalCount: 2,
@@ -126,8 +129,8 @@ describe('membership contract', () => {
   })
 
   it('returns complete role-specific and paginated membership shapes', () => {
-    expect(v.parse(SMembership, owner)).toEqual(owner)
-    expect(v.parse(SMembership, member)).toEqual(member)
+    expect(v.parse(SMembership, listedOwner)).toEqual(listedOwner)
+    expect(v.parse(SMembership, listedMember)).toEqual(listedMember)
     expect(v.parse(SMembershipOwner, owner)).toEqual(owner)
     expect(v.parse(SMembershipNonOwner, member)).toEqual(member)
     expect(v.parse(SMembershipChangeRoleOutput, { ...member, role: 'admin' })).toEqual({
@@ -142,6 +145,7 @@ describe('membership contract', () => {
 
   it('rejects malformed membership outputs and owner-sensitive output roles', () => {
     expect(() => v.parse(SMembership, { ...member, role: 'moderator' })).toThrow(v.ValiError)
+    expect(() => v.parse(SMembership, { ...member, email: 'not-an-email' })).toThrow(v.ValiError)
     expect(() => v.parse(SMembership, { ...member, createdAt: 'not-a-date' })).toThrow(v.ValiError)
     expect(() => v.parse(SMembership, { ...member, extra: true })).toThrow(v.ValiError)
     expect(() => v.parse(SMembershipNonOwner, owner)).toThrow(v.ValiError)

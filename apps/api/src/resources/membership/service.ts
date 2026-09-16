@@ -14,7 +14,7 @@ import {
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
-import type { MembershipRecord, MembershipRepository } from './repository.ts'
+import type { MembershipListRecord, MembershipRecord, MembershipRepository } from './repository.ts'
 
 type MembershipAuthorityPort = Pick<
   OrganizationAuthority,
@@ -78,7 +78,7 @@ export class MembershipService {
         limit: input.limit ?? 20,
       })
       return {
-        items: page.items.map(toPublicMembership),
+        items: page.items.map(toPublicListedMembership),
         nextOffset: page.nextOffset,
         hasMore: page.hasMore,
         totalCount: page.totalCount,
@@ -738,6 +738,13 @@ function toPublicMembership(membership: MembershipRecord) {
     role: membership.role,
     createdAt: membership.createdAt.toISOString(),
     updatedAt: membership.updatedAt.toISOString(),
+  }
+}
+
+function toPublicListedMembership(membership: MembershipListRecord) {
+  return {
+    ...toPublicMembership(membership),
+    email: membership.email,
   }
 }
 

@@ -9,7 +9,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandShortcut,
 } from '@/components/ui/command'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -52,8 +51,12 @@ const activeSite = computed(() => props.sites.find((site) => site.id === props.a
 const triggerLabel = computed(() => {
   const teamName = activeTeam.value?.name ?? 'No organization selected'
   const siteName = activeSite.value?.name ?? 'No site selected'
-  return `Switch organization and site. Current organization: ${teamName}. Current site: ${siteName}`
+  return `Switch organization and site. Selected organization: ${teamName}. Selected site: ${siteName}`
 })
+
+function activeTeamClass(teamId: string): string {
+  return teamId === props.activeTeamId ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''
+}
 
 function selectTeam(teamId: string): void {
   searchOpen.value = false
@@ -95,7 +98,7 @@ function selectCreatedOrganization(organization: Organization): void {
               <span class="truncate font-medium">{{
                 activeTeam?.name ?? 'Select an organization'
               }}</span>
-              <span class="truncate text-xs text-sidebar-foreground/60">
+              <span class="truncate text-xs text-sidebar-foreground">
                 {{ activeSite?.hostname ?? 'Choose a site' }}
               </span>
             </span>
@@ -120,6 +123,8 @@ function selectCreatedOrganization(organization: Organization): void {
                   v-for="team in teams"
                   :key="team.id"
                   :value="team.name"
+                  :class="activeTeamClass(team.id)"
+                  :aria-selected="activeTeamId === team.id"
                   @select="selectTeam(team.id)"
                 >
                   <span
@@ -130,11 +135,11 @@ function selectCreatedOrganization(organization: Organization): void {
                   </span>
                   <span class="grid min-w-0 flex-1 leading-tight">
                     <span class="truncate">{{ team.name }}</span>
-                    <span class="truncate text-xs text-muted-foreground">{{
+                    <span class="truncate text-xs text-sidebar-foreground">{{
                       getTeamKindLabel(team)
                     }}</span>
                   </span>
-                  <CommandShortcut v-if="activeTeamId === team.id">Current</CommandShortcut>
+                  <span v-if="activeTeamId === team.id" class="sr-only">Selected organization</span>
                 </CommandItem>
               </CommandGroup>
               <CommandGroup heading="Sites">
@@ -142,6 +147,7 @@ function selectCreatedOrganization(organization: Organization): void {
                   v-for="site in sites"
                   :key="site.id"
                   :value="`${site.name} ${site.hostname} ${teams.find((team) => team.id === site.teamId)?.name ?? ''}`"
+                  :aria-selected="activeSiteId === site.id"
                   @select="selectSite(site.id)"
                 >
                   <HugeiconsIcon :icon="Globe02Icon" :size="16" aria-hidden="true" />
@@ -157,7 +163,7 @@ function selectCreatedOrganization(organization: Organization): void {
                     :icon="Tick02Icon"
                     :size="16"
                     class="text-primary"
-                    aria-label="Current site"
+                    aria-label="Selected site"
                   />
                 </CommandItem>
               </CommandGroup>

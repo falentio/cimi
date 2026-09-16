@@ -52,7 +52,13 @@ const emit = defineEmits<{
       <UIAlertDialogFooter>
         <UIAlertDialogCancel>Cancel</UIAlertDialogCancel>
         <UIAlertDialogAction variant="destructive" :disabled="isMutating" @click="emit('confirm')">
-          Confirm
+          {{
+            confirmation?.kind === 'leave'
+              ? 'Leave organization'
+              : confirmation?.kind === 'transfer'
+                ? 'Transfer ownership'
+                : 'Remove member'
+          }}
         </UIAlertDialogAction>
       </UIAlertDialogFooter>
     </UIAlertDialogContent>

@@ -17,7 +17,9 @@ import type {
   OrganizationInvitation,
   OrganizationId,
   OrganizationMember,
+  OrganizationMemberRoleUpdate,
   OrganizationNameInput,
+  OrganizationOwnershipTransfer,
   OrganizationSettingsContainer,
   OrganizationSettingsOptions,
   OrganizationSettingsSnapshot,
@@ -54,6 +56,7 @@ export function useOrganizationSettings(
   const organizationKey = computed(() => [
     ...SETTINGS_QUERY_KEY,
     'organization',
+    currentUserId.value ?? null,
     activeOrganizationId.value ?? null,
   ])
 
@@ -70,6 +73,7 @@ export function useOrganizationSettings(
   const membersKey = computed(() => [
     ...SETTINGS_QUERY_KEY,
     'members',
+    currentUserId.value ?? null,
     activeOrganizationId.value ?? null,
   ])
   const membersQuery = useQuery<OffsetCollection<OrganizationMember>, unknown>({
@@ -99,6 +103,7 @@ export function useOrganizationSettings(
   const invitationsKey = computed(() => [
     ...SETTINGS_QUERY_KEY,
     'invitations',
+    currentUserId.value ?? null,
     activeOrganizationId.value ?? null,
   ])
   const invitationsQuery = useQuery<OffsetCollection<OrganizationInvitation>, unknown>({
@@ -191,13 +196,15 @@ export function useOrganizationSettings(
     const name = normalizeOrganizationNameDraft(input.name)
     if (name === null) throw new Error('Enter an organization name.')
 
-    updateNameMutation.reset()
+    const organizationId = requireOrganizationId(activeOrganizationId.value)
+    const organizationKeyValue = organizationKey.value
+    resetMutationErrors()
     const organization = await updateNameMutation.mutateAsync({
-      organizationId: requireOrganizationId(activeOrganizationId.value),
+      organizationId,
       name,
     })
     await Promise.all([
-      queryCache.invalidateQueries({ key: organizationKey.value, exact: true }),
+      queryCache.invalidateQueries({ key: organizationKeyValue, exact: true }),
       queryCache.invalidateQueries({ key: WORKSPACE_QUERY_KEY }),
     ])
     return organization
@@ -206,44 +213,54 @@ export function useOrganizationSettings(
   async function changeMemberRole(input: {
     readonly userId: OrganizationMember['userId']
     readonly role: EditableMemberRole
-  }): Promise<OrganizationMember> {
-    changeMemberRoleMutation.reset()
+  }): Promise<OrganizationMemberRoleUpdate> {
+    const organizationId = requireOrganizationId(activeOrganizationId.value)
+    const membersKeyValue = membersKey.value
+    const invitationsKeyValue = invitationsKey.value
+    resetMutationErrors()
     const member = await changeMemberRoleMutation.mutateAsync({
-      organizationId: requireOrganizationId(activeOrganizationId.value),
+      organizationId,
       userId: input.userId,
       role: input.role,
     })
     await invalidateSettingsQueries(queryCache, {
-      membersKey: membersKey.value,
-      invitationsKey: invitationsKey.value,
+      membersKey: membersKeyValue,
+      invitationsKey: invitationsKeyValue,
     })
     return member
   }
 
   async function removeMember(userId: OrganizationMember['userId']): Promise<void> {
-    removeMemberMutation.reset()
+    const organizationId = requireOrganizationId(activeOrganizationId.value)
+    const membersKeyValue = membersKey.value
+    const invitationsKeyValue = invitationsKey.value
+    resetMutationErrors()
     await removeMemberMutation.mutateAsync({
-      organizationId: requireOrganizationId(activeOrganizationId.value),
+      organizationId,
       userId,
     })
     await invalidateSettingsQueries(queryCache, {
-      membersKey: membersKey.value,
-      invitationsKey: invitationsKey.value,
+      membersKey: membersKeyValue,
+      invitationsKey: invitationsKeyValue,
     })
   }
 
   async function transferOwnership(
     userId: OrganizationMember['userId'],
-  ): Promise<OrganizationMember> {
-    transferOwnershipMutation.reset()
+  ): Promise<OrganizationOwnershipTransfer> {
+    const organizationId = requireOrganizationId(activeOrganizationId.value)
+    const organizationKeyValue = organizationKey.value
+    const membersKeyValue = membersKey.value
+    const invitationsKeyValue = invitationsKey.value
+    resetMutationErrors()
     const member = await transferOwnershipMutation.mutateAsync({
-      organizationId: requireOrganizationId(activeOrganizationId.value),
+      organizationId,
       userId,
     })
     await invalidateSettingsQueries(queryCache, {
-      organizationKey: organizationKey.value,
-      membersKey: membersKey.value,
-      invitationsKey: invitationsKey.value,
+      organizationKey: organizationKeyValue,
+      membersKey: membersKeyValue,
+      invitationsKey: invitationsKeyValue,
       workspaceKey: WORKSPACE_QUERY_KEY,
     })
     return member
@@ -251,7 +268,7 @@ export function useOrganizationSettings(
 
   async function leaveOrganization(): Promise<void> {
     const organizationId = requireOrganizationId(activeOrganizationId.value)
-    leaveOrganizationMutation.reset()
+    resetMutationErrors()
     await leaveOrganizationMutation.mutateAsync({ organizationId })
     workspaceSelection?.clearOrganization(organizationId)
     await invalidateSettingsQueries(queryCache, { workspaceKey: WORKSPACE_QUERY_KEY })
@@ -259,24 +276,27 @@ export function useOrganizationSettings(
   }
 
   async function createInvitation(role: EditableMemberRole): Promise<CreatedInvitation> {
-    createInvitationMutation.reset()
+    const organizationId = requireOrganizationId(activeOrganizationId.value)
+    const invitationsKeyValue = invitationsKey.value
+    resetMutationErrors()
     const invitation = await createInvitationMutation.mutateAsync({
-      organizationId: requireOrganizationId(activeOrganizationId.value),
+      organizationId,
       role,
     })
-    await invalidateSettingsQueries(queryCache, { invitationsKey: invitationsKey.value })
+    await invalidateSettingsQueries(queryCache, { invitationsKey: invitationsKeyValue })
     return invitation
   }
 
   async function revokeInvitation(invitationId: OrganizationInvitation['id']): Promise<void> {
-    revokeInvitationMutation.reset()
+    const invitationsKeyValue = invitationsKey.value
+    resetMutationErrors()
     await revokeInvitationMutation.mutateAsync({ invitationId })
-    await invalidateSettingsQueries(queryCache, { invitationsKey: invitationsKey.value })
+    await invalidateSettingsQueries(queryCache, { invitationsKey: invitationsKeyValue })
   }
 
   async function deleteOrganization(): Promise<void> {
     const organizationId = requireOrganizationId(activeOrganizationId.value)
-    deleteOrganizationMutation.reset()
+    resetMutationErrors()
     await deleteOrganizationMutation.mutateAsync({ organizationId })
     workspaceSelection?.clearOrganization(organizationId)
     await invalidateSettingsQueries(queryCache, { workspaceKey: WORKSPACE_QUERY_KEY })
@@ -287,9 +307,22 @@ export function useOrganizationSettings(
     const name = normalizeOrganizationNameDraft(input.name)
     if (name === null) throw new Error('Enter an organization name.')
 
+    resetMutationErrors()
     const organization = await createOrganizationMutation.mutateAsync({ name })
     await queryCache.invalidateQueries({ key: WORKSPACE_QUERY_KEY })
     return organization
+  }
+
+  function resetMutationErrors(): void {
+    updateNameMutation.reset()
+    createOrganizationMutation.reset()
+    changeMemberRoleMutation.reset()
+    removeMemberMutation.reset()
+    transferOwnershipMutation.reset()
+    leaveOrganizationMutation.reset()
+    createInvitationMutation.reset()
+    revokeInvitationMutation.reset()
+    deleteOrganizationMutation.reset()
   }
 
   const settingsContainer: OrganizationSettingsContainer = {

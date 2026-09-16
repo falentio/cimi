@@ -25,7 +25,15 @@ describe('MembershipService.list', () => {
 
     await expect(
       service.list({ organizationId }, { id: memberUserId }, new Headers()),
-    ).resolves.toEqual(expect.objectContaining({ totalCount: 3, hasMore: false }))
+    ).resolves.toEqual(
+      expect.objectContaining({
+        totalCount: 3,
+        hasMore: false,
+        items: expect.arrayContaining([
+          expect.objectContaining({ userId: memberUserId, email: `${memberUserId}@example.com` }),
+        ]),
+      }),
+    )
 
     expect(repository.createMembershipOperation).not.toHaveBeenCalled()
     expect(authority.changeMemberRole).not.toHaveBeenCalled()

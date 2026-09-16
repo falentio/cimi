@@ -23,6 +23,14 @@ const emit = defineEmits<{
 
 const role = shallowRef<EditableMemberRole>('member')
 const copyStatus = shallowRef<string | null>(null)
+const revokeInvitationId = shallowRef<string | undefined>()
+
+const revokeDialogOpen = computed({
+  get: () => revokeInvitationId.value !== undefined,
+  set: (open: boolean) => {
+    if (!open) revokeInvitationId.value = undefined
+  },
+})
 
 const inviteUrl = computed(() => {
   const token = props.createdInvitation?.token
@@ -37,6 +45,16 @@ const pendingInvitations = computed(
 function submitInvitation(): void {
   copyStatus.value = null
   emit('createInvitation', role.value)
+}
+
+function askRevoke(invitationId: string): void {
+  revokeInvitationId.value = invitationId
+}
+
+function confirmRevoke(): void {
+  const invitationId = revokeInvitationId.value
+  revokeInvitationId.value = undefined
+  if (invitationId !== undefined) emit('revokeInvitation', invitationId)
 }
 
 async function copyInviteUrl(): Promise<void> {
@@ -61,14 +79,14 @@ function invitationStatusLabel(status: string): string {
 <template>
   <Card>
     <CardHeader>
-      <CardTitle>Invitations</CardTitle>
+      <CardTitle><h2>Invitations</h2></CardTitle>
       <CardDescription>Invite people with a role-specific, single-use link.</CardDescription>
     </CardHeader>
     <CardContent class="flex flex-col gap-5">
       <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="submitInvitation">
         <div class="flex flex-1 flex-col gap-2">
           <label for="invitation-role" class="text-sm font-medium">Role</label>
-          <UISelect v-model="role" :disabled="isMutating">
+          <UISelect v-model="role" :disabled="isMutating" name="invitationRole">
             <UISelectTrigger id="invitation-role" class="w-full" aria-label="Invitation role">
               <UISelectValue />
             </UISelectTrigger>
@@ -123,16 +141,38 @@ function invitationStatusLabel(status: string): string {
             >
           </div>
           <Button
+            :aria-label="`Revoke ${invitation.role} invitation`"
             :disabled="isMutating"
             size="sm"
             type="button"
             variant="ghost"
-            @click="emit('revokeInvitation', invitation.id)"
+            @click="askRevoke(invitation.id)"
           >
             Revoke
           </Button>
         </li>
       </ul>
+
+      <UIAlertDialog v-model:open="revokeDialogOpen">
+        <UIAlertDialogContent size="sm">
+          <UIAlertDialogHeader>
+            <UIAlertDialogTitle>Revoke invitation?</UIAlertDialogTitle>
+            <UIAlertDialogDescription>
+              Anyone with this link will no longer be able to join the organization.
+            </UIAlertDialogDescription>
+          </UIAlertDialogHeader>
+          <UIAlertDialogFooter>
+            <UIAlertDialogCancel>Keep invitation</UIAlertDialogCancel>
+            <UIAlertDialogAction
+              variant="destructive"
+              :disabled="isMutating"
+              @click="confirmRevoke"
+            >
+              Revoke invitation
+            </UIAlertDialogAction>
+          </UIAlertDialogFooter>
+        </UIAlertDialogContent>
+      </UIAlertDialog>
     </CardContent>
   </Card>
 </template>

@@ -43,7 +43,7 @@ function roleLabel(role: OrganizationMember['role']): string {
   return role === 'admin' ? 'Administrator' : 'Member'
 }
 
-function changeRole(userId: string, value: string): void {
+function changeRole(userId: string, value: unknown): void {
   if (value !== 'admin' && value !== 'member') return
   emit('changeRole', { userId, role: value })
 }
@@ -61,7 +61,7 @@ function changeRole(userId: string, value: string): void {
     <TableCaption>{{ snapshot.members?.totalCount ?? 0 }} organization members.</TableCaption>
     <TableHeader>
       <TableRow>
-        <TableHead scope="col">User ID</TableHead>
+        <TableHead scope="col">Email</TableHead>
         <TableHead scope="col">Role</TableHead>
         <TableHead scope="col">Joined</TableHead>
         <TableHead scope="col" class="text-right">Actions</TableHead>
@@ -72,7 +72,7 @@ function changeRole(userId: string, value: string): void {
       <TableRow v-for="member in members" v-else :key="member.userId">
         <TableCell class="font-medium">
           <span class="flex items-center gap-2">
-            {{ member.userId }}
+            {{ member.email }}
             <Badge v-if="member.userId === snapshot.currentUserId" variant="secondary">You</Badge>
           </span>
         </TableCell>
@@ -82,11 +82,11 @@ function changeRole(userId: string, value: string): void {
           </Badge>
           <UISelect
             v-else
-            :default-value="member.role"
+            :model-value="member.role"
             :disabled="!canManage || isMutating"
             @update:model-value="(value) => changeRole(member.userId, value)"
           >
-            <UISelectTrigger class="w-36" :aria-label="`Role for ${member.userId}`">
+            <UISelectTrigger class="w-36" :aria-label="`Role for ${member.email}`">
               <UISelectValue />
             </UISelectTrigger>
             <UISelectContent>
@@ -97,9 +97,13 @@ function changeRole(userId: string, value: string): void {
         </TableCell>
         <TableCell>{{ formatSettingsDate(member.createdAt) }}</TableCell>
         <TableCell class="text-right">
-          <div v-if="canManage && member.role !== 'owner'" class="flex justify-end gap-1">
+          <div
+            v-if="canManage && member.role !== 'owner' && member.userId !== snapshot.currentUserId"
+            class="flex justify-end gap-1"
+          >
             <Button
               v-if="snapshot.isOwner"
+              :aria-label="`Transfer ownership to ${member.email}`"
               :disabled="isMutating"
               size="sm"
               type="button"
@@ -109,6 +113,7 @@ function changeRole(userId: string, value: string): void {
               Transfer ownership
             </Button>
             <Button
+              :aria-label="`Remove ${member.email} from the organization`"
               :disabled="isMutating"
               size="sm"
               type="button"
