@@ -8,8 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Spinner } from '@/components/ui/spinner'
 import { useSidebar } from '@/components/ui/sidebar'
 import type { OrganizationHomeState } from './organization-home.types'
-import { organizationSettingsPath } from '@/components/features/app-shell/organization-nav-config'
+import {
+  organizationSettingsPath,
+  siteOverviewPath,
+} from '@/components/features/app-shell/organization-nav-config'
+import CreateSiteDialog from './CreateSiteDialog.vue'
 import OrganizationSiteList from './OrganizationSiteList.vue'
+import type { OrganizationSiteCreationResult } from './useOrganizationSiteCreation'
 
 const props = defineProps<{
   state: OrganizationHomeState
@@ -17,7 +22,9 @@ const props = defineProps<{
 }>()
 
 const retrying = shallowRef(false)
+const createSiteOpen = shallowRef(false)
 const { isMobile, setOpen, setOpenMobile } = useSidebar()
+const router = useRouter()
 
 const readyState = computed(() => (props.state.kind === 'ready' ? props.state : undefined))
 
@@ -38,6 +45,17 @@ function switchOrganization(): void {
     return
   }
   setOpen(true)
+}
+
+function addSite(): void {
+  if (readyState.value === undefined) return
+  createSiteOpen.value = true
+}
+
+async function handleSiteCreated(site: OrganizationSiteCreationResult): Promise<void> {
+  await props.refresh().catch(() => undefined)
+  createSiteOpen.value = false
+  await router.push(siteOverviewPath(site.id))
 }
 </script>
 
@@ -123,7 +141,15 @@ function switchOrganization(): void {
       v-else-if="readyState"
       :organization="readyState.organization"
       :sites="readyState.sites"
+      @add-site="addSite"
       @switch-organization="switchOrganization"
+    />
+    <CreateSiteDialog
+      v-if="readyState"
+      v-model:open="createSiteOpen"
+      :organization-id="readyState.organization.id"
+      :organization-name="readyState.organization.name"
+      @created="handleSiteCreated"
     />
   </section>
 </template>

@@ -17,6 +17,19 @@ export function parseOrganizationId(value: unknown): OrganizationId | undefined 
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined
 }
 
+export function getOrganizationSiteDraftError(
+  value: string,
+  submitted: boolean,
+  label: string,
+  maxLength: number,
+): string | null {
+  if (!submitted) return null
+  const normalizedValue = value.trim()
+  if (normalizedValue.length === 0) return `Enter a ${label}.`
+  if (normalizedValue.length <= maxLength) return null
+  return `${label.replace(/^./, (character) => character.toUpperCase())} must be ${maxLength} characters or fewer.`
+}
+
 export function deriveOrganizationHomeState(
   input: DeriveOrganizationHomeStateInput,
 ): OrganizationHomeState {

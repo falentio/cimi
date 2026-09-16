@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkspaceSite, WorkspaceTeam } from '@/components/features/app-shell/workspace'
-import { deriveOrganizationHomeState, parseOrganizationId } from './organization-home.utils'
+import {
+  deriveOrganizationHomeState,
+  getOrganizationSiteDraftError,
+  parseOrganizationId,
+} from './organization-home.utils'
 
 const teams: readonly WorkspaceTeam[] = [
   { id: 'org_1', name: 'North Star', isPersonal: false },
@@ -14,6 +18,14 @@ const sites: readonly [WorkspaceSite, WorkspaceSite, WorkspaceSite] = [
 ]
 
 describe('deriveOrganizationHomeState', () => {
+  it('validates submitted site drafts without duplicating API rules', () => {
+    expect(getOrganizationSiteDraftError(' ', true, 'site name', 256)).toBe('Enter a site name.')
+    expect(getOrganizationSiteDraftError('North Star', false, 'site name', 256)).toBeNull()
+    expect(getOrganizationSiteDraftError('a'.repeat(3), true, 'hostname', 2)).toBe(
+      'Hostname must be 2 characters or fewer.',
+    )
+  })
+
   it('returns invalid-route for a missing or malformed route parameter', () => {
     expect(parseOrganizationId(undefined)).toBeUndefined()
     expect(parseOrganizationId(['org_1'])).toBeUndefined()
