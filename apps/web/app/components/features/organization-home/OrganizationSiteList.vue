@@ -52,11 +52,11 @@ const emit = defineEmits<{
       </EmptyHeader>
       <EmptyContent>
         <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <Button class="w-full sm:w-auto" type="button" @click="emit('addSite')">
+          <Button class="w-full sm:order-2 sm:w-auto" type="button" @click="emit('addSite')">
             Add site
           </Button>
           <Button
-            class="w-full sm:w-auto"
+            class="w-full sm:order-1 sm:w-auto"
             type="button"
             variant="outline"
             @click="emit('switchOrganization')"
