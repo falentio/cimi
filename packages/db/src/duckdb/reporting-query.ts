@@ -30,6 +30,7 @@ import {
   type TrafficTrendBucket,
   type HalfOpenInterval,
 } from '@cimi/kernel'
+import { isEventKind } from '@cimi/utils'
 import type { AnalyticsDb, AnalyticsWindowReader } from './index.ts'
 
 export interface DuckDbReportingQueryDependencies {
@@ -152,7 +153,7 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
       const sql = `WITH windowed AS (
   SELECT e.visitor_id AS visitor_id,
          e.analytics_session_id AS session_id
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -195,7 +196,7 @@ FROM windowed`
 
       const sql = `WITH windowed AS (
   SELECT epoch_ms(e.occurrence_time) AS occurrence_ms
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -268,7 +269,7 @@ ORDER BY buckets.bucket_index`
   ): Promise<number> {
     const sql = `WITH windowed AS (
   SELECT e.event_id AS event_id
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -304,27 +305,17 @@ FROM windowed`
          e.destination AS destination,
          e.value AS value,
          e.unit AS unit,
-         e.code AS code,
-         e.message AS message,
-         e.replay_sequence AS replay_sequence,
-         row_number() OVER (
-           PARTITION BY e.site_id, e.event_id ORDER BY e.replay_sequence DESC
-         ) AS replay_rank
-  FROM events e
+          e.code AS code,
+          e.message AS message
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
     AND e.event_kind = ?${predicate.sql}
-),
-deduplicated AS (
-  SELECT site_id, event_id, event_kind, occurrence_ms, receipt_ms, page_path, referrer,
-         name, destination, value, unit, code, message
-  FROM windowed
-  WHERE replay_rank = 1
-)
+ )
 SELECT event_id, event_kind, occurrence_ms, receipt_ms, page_path, referrer,
        name, destination, value, unit, code, message
-FROM deduplicated
+ FROM windowed
 ORDER BY occurrence_ms ${direction}, event_id ASC
 LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
     const rows = await reader.read(sql, [
@@ -389,7 +380,7 @@ LIMIT ${EVENT_PROPERTIES_MAX_KEYS}`
     const value = eventBreakdownValueExpression(query.field)
     const sql = `WITH windowed AS (
   SELECT ${value} AS value
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -418,7 +409,7 @@ WHERE value IS NOT NULL AND trim(value) <> ''`
     const order = query.sort === 'count' ? `event_count ${direction}` : `value ${direction}`
     const sql = `WITH windowed AS (
   SELECT ${value} AS value
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)
@@ -455,7 +446,7 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
   ): Promise<number> {
     const sql = `WITH windowed AS (
   SELECT e.analytics_session_id AS session_id
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicate.sql}
@@ -535,7 +526,7 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
          e.visitor_id AS visitor_id,
          e.event_kind AS event_kind,
          epoch_ms(e.occurrence_time) AS occurrence_ms
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
@@ -551,7 +542,7 @@ session_events AS (
   SELECT f.analytics_session_id AS session_id,
          f.event_kind AS event_kind,
          epoch_ms(f.occurrence_time) AS occurrence_ms
-  FROM events f
+   FROM events f
   WHERE f.site_id = ?
     AND f.analytics_session_id IN (SELECT session_id FROM scoped_sessions)
 ),
@@ -612,7 +603,7 @@ SELECT
     const sql = `WITH windowed AS (
   SELECT e.visitor_id AS visitor_id,
          epoch_ms(e.occurrence_time) AS occurrence_ms
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
@@ -658,14 +649,6 @@ function clampValue(value: string): string {
     : value
 }
 
-const EVENT_KINDS: readonly EventKind[] = [
-  'page_view',
-  'custom_event',
-  'outbound',
-  'performance',
-  'error',
-]
-
 function eventBreakdownValueExpression(field: EventBreakdownField): string {
   const column = EVENT_BREAKDOWN_COLUMNS[field]
   if (column === undefined) {
@@ -675,9 +658,7 @@ function eventBreakdownValueExpression(field: EventBreakdownField): string {
 }
 
 function readEventKind(value: unknown): EventKind | null {
-  return typeof value === 'string' && (EVENT_KINDS as readonly string[]).includes(value)
-    ? (value as EventKind)
-    : null
+  return typeof value === 'string' && isEventKind(value) ? value : null
 }
 
 function readString(value: unknown): string | null {
@@ -723,7 +704,7 @@ function sessionScopeCte(predicateSql: string): string {
   SELECT e.analytics_session_id AS session_id,
          e.event_kind AS event_kind,
          e.page_path AS page_path
-  FROM events e
+   FROM events e
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
     AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}

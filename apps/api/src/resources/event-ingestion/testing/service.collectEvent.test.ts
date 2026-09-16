@@ -160,6 +160,27 @@ describe('EventIngestionService.collectEvent', () => {
     await service.stop()
   })
 
+  it('sanitizes error diagnostics before the acceptance repository persists them', async () => {
+    const { service, acceptanceRepository } = createFixture()
+    const resultPromise = service.collectEvent(
+      event({
+        kind: 'error',
+        name: 'TypeError',
+        code: 'E1',
+        message: "GET /search?q=O'Reilly&token=secret at async handler (/app/secret.ts:1:2)",
+      }),
+    )
+    await service.flush()
+
+    await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
+    expect(acceptanceRepository.append).toHaveBeenCalledWith([
+      expect.objectContaining({
+        event: expect.objectContaining({ message: 'GET /search' }),
+      }),
+    ])
+    await service.stop()
+  })
+
   it('returns a generic forbidden error for a singular policy refusal', async () => {
     const { service, policyRepository, acceptanceRepository } = createFixture()
     const policy = schema.DEFAULT_COLLECTION_POLICY

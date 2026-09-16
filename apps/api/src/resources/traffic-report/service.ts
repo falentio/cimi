@@ -25,7 +25,9 @@ import {
   type ResolvedPeriod,
   type SiteId,
   type TrafficBreakdownDimension,
-  type TrafficMetricsFacts,
+  TRAFFIC_METRIC_CATALOG,
+  trafficMetricValue,
+  type TrafficMetric,
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from '../../errors.ts'
@@ -36,6 +38,7 @@ export type TrafficBreakdownsInput = v.InferOutput<typeof STrafficBreakdownsInpu
 export type TrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOutput>
 
 const DEFAULT_BREAKDOWN_LIMIT = 50
+const TREND_METRIC = 'visitors' satisfies TrafficMetric
 
 /**
  * The distinct counts each report family actually evaluates: the overview reads distinct visitors
@@ -184,6 +187,9 @@ export class TrafficReportService {
       filterPlan,
     })
     const facts = result.metrics
+    const trendDefinition = TRAFFIC_METRIC_CATALOG[TREND_METRIC]
+    const trendDenominator =
+      trendDefinition.denominator === null ? null : facts[trendDefinition.denominator]
     const rows: BucketCount[] = result.trend.map((bucket) => ({
       at: bucket.at,
       count: bucket.visitors,
@@ -203,17 +209,17 @@ export class TrafficReportService {
       eligibleSessions: facts.eligibleSessions,
       sessionsWithValidDuration: facts.sessionsWithValidDuration,
       pageviews: facts.pageviews,
-      bounceRate: bounceRate(facts),
-      pagesPerSession: facts.sessions === 0 ? 0 : facts.pageviews / facts.sessions,
-      averageSessionDurationSeconds: averageSessionDurationSeconds(facts),
+      bounceRate: trafficMetricValue('bounce_rate', facts),
+      pagesPerSession: trafficMetricValue('pages_per_session', facts),
+      averageSessionDurationSeconds: trafficMetricValue('average_session_duration_seconds', facts),
       trend: filled.map((bucket) => ({
         at: new Date(bucket.at).toISOString(),
         value: bucket.value,
         complete: bucket.complete,
-        metric: 'visitors' as const,
-        grain: 'visitor' as const,
-        unit: 'count' as const,
-        denominator: null,
+        metric: TREND_METRIC,
+        grain: trendDefinition.grain,
+        unit: trendDefinition.unit,
+        denominator: trendDenominator,
       })),
       ...freshnessOutput(freshness),
     }
@@ -272,16 +278,6 @@ function breakdownPercentage(count: number, denominator: number): number {
     throw new Error(`Traffic breakdown count ${count} exceeds denominator ${denominator}`)
   }
   return rate
-}
-
-function bounceRate(facts: TrafficMetricsFacts): number {
-  return facts.eligibleSessions === 0 ? 0 : facts.bouncedSessions / facts.eligibleSessions
-}
-
-function averageSessionDurationSeconds(facts: TrafficMetricsFacts): number {
-  return facts.sessionsWithValidDuration === 0
-    ? 0
-    : facts.totalSessionDurationMs / 1000 / facts.sessionsWithValidDuration
 }
 
 function readCompleteThrough(freshness: FreshnessEvidence) {

@@ -103,4 +103,49 @@ describe('EventReportService.getTimeseries', () => {
     ])
     expect(body.status).toBe('stale')
   })
+
+  it('applies an event property filter to bucket counts', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithKinds(
+      'event-timeseries-filter@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      timeseriesPath(
+        siteId,
+        'page_view',
+        '&filters[0][scope]=event&filters[0][field]=property.plan&filters[0][operator]=equals&filters[0][values][0]=pro',
+      ),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body.buckets).toEqual([
+      { at: '2026-09-05T00:00:00.000Z', count: 1, complete: true },
+      { at: '2026-09-06T00:00:00.000Z', count: 0, complete: false },
+    ])
+  })
+
+  it('rejects an hourly range after the authenticated bucket limit', async () => {
+    await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+    const { cookie, siteId } = await createOwnerSite(
+      fixture.app,
+      fixture.db,
+      'event-timeseries-bucket-limit@example.com',
+    )
+    await fixture.analytics.rebuild({ controlDb: fixture.db })
+
+    const path = (toDate: string) =>
+      `/event-report/getEventTimeseries?siteId=${encodeURIComponent(siteId)}&fromDate=2026-08-01&toDate=${toDate}&eventKind=page_view&granularity=hour`
+    const accepted = await apiTestRequest(fixture.app, path('2026-08-30'), cookie)
+    expect(accepted.status, await accepted.clone().text()).toBe(200)
+
+    const rejected = await apiTestRequest(fixture.app, path('2026-08-31'), cookie)
+    expect(rejected.status).toBe(422)
+    await expect(rejected.json()).resolves.toMatchObject({
+      code: 'QUERY_LIMIT_EXCEEDED',
+      status: 422,
+    })
+  }, 10_000)
 })

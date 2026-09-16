@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ERROR_CATALOG } from '@cimi/contract'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
 import {
@@ -6,6 +6,7 @@ import {
   readyLifecycle,
   seedAcceptedEvents,
 } from '../../../testing/reporting-fixture.ts'
+import { createEventReport } from '../index.ts'
 
 const DAY_ONE = '2026-09-05'
 const DAY_TWO = '2026-09-06'
@@ -179,5 +180,43 @@ describe('EventReportService.admission', () => {
       code: 'QUERY_LIMIT_EXCEEDED',
       status: 422,
     })
+  })
+
+  it('rejects an over-limit timeseries before calling the query port', async () => {
+    const { fixture, siteId } = await projectedSiteWithKinds(
+      'event-bucket-short-circuit@example.com',
+    )
+    await using _ = fixture
+    const owner = fixture.db.$client
+      .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')
+      .get() as { userId: string } | undefined
+    if (owner === undefined) throw new Error('createOwnerSite did not seed an owner membership')
+
+    const report = createEventReport({
+      db: fixture.db,
+      analytics: fixture.analytics,
+      lifecycle: readyLifecycle(),
+      dataDirectoryReady: true,
+      profileFilterKeys: {
+        async getProfileFilterKeys() {
+          return []
+        },
+      },
+    })
+    const eventBuckets = vi.spyOn(report.query, 'eventBuckets')
+
+    await expect(
+      report.service.getTimeseries(
+        {
+          siteId,
+          fromDate: '2026-08-01',
+          toDate: '2026-08-31',
+          eventKind: 'page_view',
+          granularity: 'hour',
+        },
+        { id: owner.userId },
+      ),
+    ).rejects.toMatchObject({ code: 'QUERY_LIMIT_EXCEEDED' })
+    expect(eventBuckets).not.toHaveBeenCalled()
   })
 })

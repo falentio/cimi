@@ -202,6 +202,7 @@ export class EventReportService {
   ): Promise<ReportFilterPlan> {
     const profileFilterKeys = await this.deps.profileFilterKeys.getProfileFilterKeys(siteId)
     const result = compileEventFilterPlan({
+      eventKind: input.eventKind,
       filters: (input.filters ?? []).map(toEventFilterInput),
       profileFilterKeys,
     })

@@ -1,16 +1,12 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
 import { SGranularReportFieldsSchema, isValidGranularReportRange } from '../../../schema/index.ts'
-import {
-  STrafficOverview,
-  STrafficSiteFields,
-  isWithinAuthenticatedReportBucketLimit,
-} from '../schema.ts'
+import { STrafficOverview, STrafficSiteFields } from '../schema.ts'
 
 export const STrafficOverviewInput = v.pipe(
   v.strictObject(v.entriesFromObjects([STrafficSiteFields, SGranularReportFieldsSchema])),
   v.check(
-    (input) => isValidGranularReportRange(input) && isWithinAuthenticatedReportBucketLimit(input),
+    (input) => isValidGranularReportRange(input),
     'Report range is invalid for its granularity.',
   ),
 )

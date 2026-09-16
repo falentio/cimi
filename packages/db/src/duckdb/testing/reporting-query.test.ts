@@ -626,6 +626,133 @@ describe('DuckDbReportingQuery.eventOverview', () => {
       closeDb(controlDb)
     }
   })
+
+  it('applies every predicate with AND semantics and values within a predicate with OR semantics', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+
+      const matchingPages = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: {
+          ...emptyPlan,
+          event: [
+            {
+              target: 'event.pagePath',
+              propertyKey: null,
+              operator: 'eq',
+              bind: ['/a', '/b'],
+            },
+          ],
+        },
+      })
+      expect(matchingPages.total).toBe(2)
+
+      const onlyNullReferrerOnB = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: {
+          ...emptyPlan,
+          event: [
+            { target: 'event.pagePath', propertyKey: null, operator: 'eq', bind: ['/b'] },
+            { target: 'event.referrer', propertyKey: null, operator: 'eq', bind: [null] },
+          ],
+        },
+      })
+      expect(onlyNullReferrerOnB.total).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
+describe('DuckDbReportingQuery.event filters', () => {
+  it('applies an event property filter to every event query model', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+      const filterPlan: ReportFilterPlan = {
+        ...emptyPlan,
+        event: [{ target: 'event.property', propertyKey: 'plan', operator: 'eq', bind: ['pro'] }],
+      }
+      const query = createQuery(analytics)
+
+      await expect(
+        query.eventOverview({
+          siteId: createSiteId(SITE),
+          period: eventPeriod(),
+          eventKind: 'page_view',
+          filterPlan,
+        }),
+      ).resolves.toEqual({ total: 1, uniqueVisitors: 1, uniqueSessions: 1 })
+
+      await expect(
+        query.eventBuckets({
+          siteId: createSiteId(SITE),
+          period: eventPeriod(),
+          eventKind: 'page_view',
+          filterPlan,
+        }),
+      ).resolves.toEqual([{ at: createInstantMs(DAY_ONE), count: 1 }])
+
+      await expect(
+        query.eventRows({
+          siteId: createSiteId(SITE),
+          period: eventPeriod(),
+          eventKind: 'page_view',
+          filterPlan,
+          direction: 'asc',
+          offset: 0,
+          limit: 10,
+        }),
+      ).resolves.toMatchObject({
+        totalCount: 1,
+        rows: [expect.objectContaining({ eventId: 'evt-1' })],
+      })
+
+      await expect(
+        query.eventBreakdown({
+          siteId: createSiteId(SITE),
+          period: eventPeriod(),
+          eventKind: 'page_view',
+          field: 'pagePath',
+          sort: 'value',
+          direction: 'asc',
+          offset: 0,
+          limit: 10,
+          filterPlan,
+        }),
+      ).resolves.toMatchObject({
+        rows: [{ value: '/a', count: 1 }],
+        totalCount: 1,
+      })
+
+      for (const property of [
+        { propertyKey: 'score', operator: 'eq' as const, bind: [5] },
+        { propertyKey: 'active', operator: 'eq' as const, bind: [true] },
+      ]) {
+        await expect(
+          query.eventOverview({
+            siteId: createSiteId(SITE),
+            period: eventPeriod(),
+            eventKind: 'page_view',
+            filterPlan: { ...emptyPlan, event: [{ target: 'event.property', ...property }] },
+          }),
+        ).resolves.toMatchObject({ total: 1, uniqueVisitors: 1, uniqueSessions: 1 })
+      }
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
 })
 
 describe('DuckDbReportingQuery.eventBuckets', () => {
@@ -764,6 +891,43 @@ describe('DuckDbReportingQuery.eventRows', () => {
       closeDb(controlDb)
     }
   })
+
+  it('orders equal-time and late events by occurrence time and Event ID, not receipt time', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, eventKindSeeds())
+      await analytics.rebuild({ controlDb })
+      await analytics.readWindowed(async (reader) => {
+        await reader.read(
+          `UPDATE events SET occurrence_time = CAST(? AS TIMESTAMP) WHERE event_id IN (?, ?)`,
+          ['2026-09-05T10:00:00.000Z', 'evt-6', 'evt-7'],
+        )
+        return reader.read(
+          `UPDATE events
+           SET receipt_time = CAST(? AS TIMESTAMP)
+           WHERE event_id = ?`,
+          ['2026-09-06T10:00:00.000Z', 'evt-7'],
+        )
+      })
+
+      const result = await createQuery(analytics).eventRows({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'error',
+        filterPlan: emptyPlan,
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+      })
+
+      expect(result.rows.map((row) => row.eventId)).toEqual(['evt-6', 'evt-7'])
+      expect(result.rows[1]?.createdAt).toBe(createInstantMs(DAY_TWO + 10 * 60 * 60 * 1000))
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
 })
 
 describe('DuckDbReportingQuery.eventBreakdown', () => {
@@ -814,7 +978,25 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
     try {
-      seedEventKindEvents(controlDb, eventKindSeeds())
+      seedEventKindEvents(controlDb, [
+        ...eventKindSeeds(),
+        {
+          id: 'evt-8',
+          session: 's4',
+          visitor: 'v4',
+          kind: 'page_view',
+          at: EVENT_DAY + 7_000,
+          pagePath: '/b',
+        },
+        {
+          id: 'evt-9',
+          session: 's4',
+          visitor: 'v4',
+          kind: 'page_view',
+          at: EVENT_DAY + 8_000,
+          pagePath: '/c',
+        },
+      ])
       await analytics.rebuild({ controlDb })
 
       const first = await createQuery(analytics).eventBreakdown({
@@ -822,16 +1004,47 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
         period: eventPeriod(),
         eventKind: 'page_view',
         field: 'pagePath',
-        sort: 'value',
+        sort: 'count',
         direction: 'desc',
         offset: 0,
         limit: 1,
         filterPlan: emptyPlan,
       })
-      expect(first.rows).toEqual([{ value: '/b', count: 1 }])
-      expect(first.totalCount).toBe(2)
+      expect(first.rows).toEqual([{ value: '/b', count: 2 }])
+      expect(first.totalCount).toBe(3)
       expect(first.hasMore).toBe(true)
       expect(first.nextOffset).toBe(1)
+
+      const second = await createQuery(analytics).eventBreakdown({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        field: 'pagePath',
+        sort: 'count',
+        direction: 'desc',
+        offset: 1,
+        limit: 1,
+        filterPlan: emptyPlan,
+      })
+      expect(second.rows).toEqual([{ value: '/a', count: 1 }])
+      expect(second.totalCount).toBe(3)
+      expect(second.hasMore).toBe(true)
+      expect(second.nextOffset).toBe(2)
+
+      const third = await createQuery(analytics).eventBreakdown({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        field: 'pagePath',
+        sort: 'count',
+        direction: 'desc',
+        offset: 2,
+        limit: 1,
+        filterPlan: emptyPlan,
+      })
+      expect(third.rows).toEqual([{ value: '/c', count: 1 }])
+      expect(third.hasMore).toBe(false)
+      expect(third.nextOffset).toBeNull()
     } finally {
       await analytics.close()
       closeDb(controlDb)
@@ -866,6 +1079,37 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
       expect(result.denominator).toBe(5)
       expect(result.hasMore).toBe(false)
       expect(result.nextOffset).toBeNull()
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('uses the filtered session population for rows and the denominator', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'page',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: {
+          ...emptyPlan,
+          event: [{ target: 'event.pagePath', propertyKey: null, operator: 'eq', bind: ['/a'] }],
+        },
+      })
+
+      expect(result.rows).toEqual([{ value: '/a', count: 3 }])
+      expect(result.totalCount).toBe(1)
+      expect(result.denominator).toBe(3)
+      expect(result.rows[0]!.count / result.denominator).toBe(1)
     } finally {
       await analytics.close()
       closeDb(controlDb)
@@ -1141,6 +1385,51 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
     }
   })
 
+  it('applies event filters to each distinct trend bucket', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY, pagePath: '/a' },
+        {
+          session: 's1',
+          visitor: 'v1',
+          kind: 'page_view',
+          at: DAY_TWO + 10 * 60 * 60 * 1000,
+          pagePath: '/a',
+        },
+        { session: 's2', visitor: 'v2', kind: 'page_view', at: ATTRIBUTED_DAY + 1, pagePath: '/b' },
+        {
+          session: 's3',
+          visitor: 'v3',
+          kind: 'page_view',
+          at: DAY_TWO + 11 * 60 * 60 * 1000,
+          pagePath: '/b',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: periods().current,
+        includeTrend: true,
+        filterPlan: {
+          ...emptyPlan,
+          event: [{ target: 'event.pagePath', propertyKey: null, operator: 'eq', bind: ['/a'] }],
+        },
+      })
+
+      expect(result.metrics).toMatchObject({ visitors: 1, sessions: 1, pageviews: 2 })
+      expect(result.trend).toEqual([
+        { at: createInstantMs(DAY_ONE), visitors: 1 },
+        { at: createInstantMs(DAY_TWO), visitors: 1 },
+      ])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
   it('rejects a profile filter instead of silently ignoring it', async () => {
     const analytics = await createTestAnalyticsDb()
     try {
@@ -1262,6 +1551,199 @@ describe('presence filters', () => {
 
       expect(scoped.total).toBe(1)
       expect(scoped.uniqueSessions).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('applies nested properties and keeps visitor and session scopes distinct', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, [
+        {
+          id: 'evt-presence-1',
+          session: 's1',
+          visitor: 'v1',
+          kind: 'page_view',
+          at: EVENT_DAY,
+          pagePath: '/a',
+        },
+        {
+          id: 'evt-presence-2',
+          session: 's1',
+          visitor: 'v1',
+          kind: 'custom_event',
+          at: EVENT_DAY + 1_000,
+          name: 'purchase',
+          properties: { total: 150, active: true },
+        },
+        {
+          id: 'evt-presence-3',
+          session: 's2',
+          visitor: 'v1',
+          kind: 'page_view',
+          at: EVENT_DAY + 2_000,
+          pagePath: '/b',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const matchingPresence = {
+        scope: 'session' as const,
+        withinPeriod: true,
+        action: 'custom_event' as const,
+        name: 'purchase',
+        propertyFilters: [
+          { key: 'total', operator: 'gt' as const, bind: [100] },
+          { key: 'active', operator: 'eq' as const, bind: [true] },
+        ],
+        negated: false,
+      }
+      const eventMatch = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: { ...emptyPlan, sessionPresence: [matchingPresence] },
+      })
+      expect(eventMatch).toMatchObject({ total: 1, uniqueSessions: 1, uniqueVisitors: 1 })
+
+      const eventMiss = await createQuery(analytics).eventOverview({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        eventKind: 'page_view',
+        filterPlan: { ...emptyPlan, sessionPresence: [{ ...matchingPresence, negated: true }] },
+      })
+      expect(eventMiss).toMatchObject({ total: 1, uniqueSessions: 1, uniqueVisitors: 1 })
+
+      const visitorMatch = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        includeTrend: false,
+        filterPlan: {
+          ...emptyPlan,
+          sessionPresence: [
+            {
+              scope: 'visitor',
+              withinPeriod: false,
+              action: 'custom_event',
+              name: 'purchase',
+              propertyFilters: matchingPresence.propertyFilters,
+              negated: false,
+            },
+          ],
+        },
+      })
+      expect(visitorMatch.metrics).toMatchObject({ visitors: 1, sessions: 2, pageviews: 2 })
+
+      const visitorMiss = await createQuery(analytics).trafficAggregate({
+        siteId: createSiteId(SITE),
+        period: eventPeriod(),
+        includeTrend: false,
+        filterPlan: {
+          ...emptyPlan,
+          sessionPresence: [
+            {
+              scope: 'visitor',
+              withinPeriod: false,
+              action: 'custom_event',
+              name: 'purchase',
+              propertyFilters: matchingPresence.propertyFilters,
+              negated: true,
+            },
+          ],
+        },
+      })
+      expect(visitorMiss.metrics).toMatchObject({ visitors: 0, sessions: 0, pageviews: 0 })
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
+describe('DuckDbReportingQuery local calendar buckets', () => {
+  it('keeps fall-back buckets distinct and excludes the interval end', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 's1',
+          visitor: 'v1',
+          kind: 'page_view',
+          at: Date.parse('2026-11-01T04:00:00.000Z'),
+          pagePath: '/start',
+        },
+        {
+          session: 's2',
+          visitor: 'v2',
+          kind: 'page_view',
+          at: Date.parse('2026-11-01T05:30:00.000Z'),
+          pagePath: '/first',
+        },
+        {
+          session: 's5',
+          visitor: 'v5',
+          kind: 'page_view',
+          at: Date.parse('2026-11-01T05:00:00.000Z'),
+          pagePath: '/boundary',
+        },
+        {
+          session: 's3',
+          visitor: 'v3',
+          kind: 'page_view',
+          at: Date.parse('2026-11-01T06:30:00.000Z'),
+          pagePath: '/second',
+        },
+        {
+          session: 's4',
+          visitor: 'v4',
+          kind: 'page_view',
+          at: Date.parse('2026-11-02T05:00:00.000Z'),
+          pagePath: '/end',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+      const period = resolveReportPeriods({
+        metadata: {
+          siteId: createSiteId(SITE),
+          reportingTimezone: 'America/New_York',
+          weekStartsOn: 'monday',
+        },
+        current: {
+          fromDate: createCalendarDate('2026-11-01'),
+          toDate: createCalendarDate('2026-11-01'),
+        },
+        bucket: { granularity: 'hour', maxStarts: 25 },
+      }).current
+
+      const query = createQuery(analytics)
+      await expect(
+        query.eventBuckets({
+          siteId: createSiteId(SITE),
+          period,
+          eventKind: 'page_view',
+          filterPlan: emptyPlan,
+        }),
+      ).resolves.toEqual([
+        { at: createInstantMs(Date.parse('2026-11-01T04:00:00.000Z')), count: 1 },
+        { at: createInstantMs(Date.parse('2026-11-01T05:00:00.000Z')), count: 2 },
+        { at: createInstantMs(Date.parse('2026-11-01T06:00:00.000Z')), count: 1 },
+      ])
+
+      const trend = await query.trafficAggregate({
+        siteId: createSiteId(SITE),
+        period,
+        includeTrend: true,
+        filterPlan: emptyPlan,
+      })
+      expect(trend.trend).toEqual([
+        { at: createInstantMs(Date.parse('2026-11-01T04:00:00.000Z')), visitors: 1 },
+        { at: createInstantMs(Date.parse('2026-11-01T05:00:00.000Z')), visitors: 2 },
+        { at: createInstantMs(Date.parse('2026-11-01T06:00:00.000Z')), visitors: 1 },
+      ])
     } finally {
       await analytics.close()
       closeDb(controlDb)

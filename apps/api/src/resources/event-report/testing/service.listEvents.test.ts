@@ -116,6 +116,30 @@ describe('EventReportService.listEvents', () => {
     expect(body.items[1]).toMatchObject({ kind: 'page_view', pagePath: '/b', properties: null })
   })
 
+  it('applies an event property filter to listed rows and totals', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithKinds(
+      'event-list-filter@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      listPath(
+        siteId,
+        'page_view',
+        '&filters[0][scope]=event&filters[0][field]=property.plan&filters[0][operator]=equals&filters[0][values][0]=pro&direction=asc',
+      ),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body.totalCount).toBe(1)
+    expect(body.hasMore).toBe(false)
+    expect(body.nextOffset).toBeNull()
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0]).toMatchObject({ kind: 'page_view', pagePath: '/a' })
+  })
+
   it('lists kind-specific event fields and pages deterministically', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-list-kinds@example.com')
     await using _ = fixture

@@ -1,5 +1,12 @@
 import * as v from 'valibot'
 import {
+  EVENT_FIELDS,
+  isCompatibleDirectEventFilter,
+  isCompatibleEventFilterForKind,
+  isCompatiblePropertyFilter,
+  type EventKind,
+} from '@cimi/utils'
+import {
   SDate,
   SEventKind,
   SFiniteNumber,
@@ -10,22 +17,30 @@ import {
   SReportFreshness,
   SScalar,
   SScalarKey,
-  SPropertyFilter,
+  SFilterOperator,
+  SFilterValues,
   SName,
   isValidReportRange,
 } from '../../schema/index.ts'
 
 export const SEventSiteFields = v.strictObject({ siteId: SId, eventKind: SEventKind })
 const SEventReportFilterCommonFields = {
-  operator: v.picklist(['equals', 'not_equals', 'contains', 'greater_than', 'less_than']),
-  values: v.pipe(v.array(SScalar), v.minLength(1), v.maxLength(20)),
+  operator: SFilterOperator,
+  values: SFilterValues,
 }
 const SEventReportFilterField = v.union([
-  v.picklist(['kind', 'name', 'pagePath', 'referrer', 'destination', 'unit', 'code']),
+  v.picklist(EVENT_FIELDS),
   v.pipe(v.string(), v.regex(/^property\.[A-Za-z0-9_.-]{1,63}$/)),
 ])
+const SEventPropertyFilter = v.pipe(
+  v.strictObject({ field: SScalarKey, operator: SFilterOperator, values: SFilterValues }),
+  v.check(
+    (input) => isCompatiblePropertyFilter(input),
+    'Event property filters require compatible typed values.',
+  ),
+)
 const SEventMatchActionCommonFields = {
-  propertyFilters: v.optional(v.pipe(v.array(SPropertyFilter), v.maxLength(20))),
+  propertyFilters: v.optional(v.pipe(v.array(SEventPropertyFilter), v.maxLength(20))),
 }
 export const SEventMatchAction = v.variant('kind', [
   v.strictObject({ kind: v.literal('page_view'), ...SEventMatchActionCommonFields }),
@@ -51,41 +66,19 @@ export const SEventMatchAction = v.variant('kind', [
   }),
 ])
 
-const isCompatibleEventFilterValue = (input: {
-  scope: 'event'
-  field: string
-  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than'
-  values: Array<string | number | boolean | null>
-}) => {
-  if (input.field === 'kind') {
-    return input.values.every((value) =>
-      ['page_view', 'custom_event', 'outbound', 'performance', 'error'].includes(String(value)),
-    )
-  }
-
-  if (input.field.startsWith('property.')) {
-    if (input.operator === 'contains') {
-      return input.values.every((value) => typeof value === 'string')
-    }
-    if (input.operator === 'greater_than' || input.operator === 'less_than') {
-      return input.values.every((value) => typeof value === 'number' && Number.isFinite(value))
-    }
-    return true
-  }
-
-  if (input.operator === 'contains') {
-    return input.values.every((value) => typeof value === 'string')
-  }
-  return input.values.every((value) => typeof value === 'string' || value === null)
-}
-
 const SEventValueFilter = v.pipe(
   v.strictObject({
     scope: v.literal('event'),
     field: SEventReportFilterField,
     ...SEventReportFilterCommonFields,
   }),
-  v.check(isCompatibleEventFilterValue, 'Event report filters require compatible typed values.'),
+  v.check(
+    (input) =>
+      input.field.startsWith('property.')
+        ? isCompatiblePropertyFilter(input)
+        : isCompatibleDirectEventFilter(input),
+    'Event report filters require compatible typed values.',
+  ),
 )
 const SEventActionPresenceFilter = v.variant('operator', [
   v.strictObject({
@@ -102,6 +95,24 @@ const SEventActionPresenceFilter = v.variant('operator', [
   }),
 ])
 export const SEventReportFilter = v.union([SEventValueFilter, SEventActionPresenceFilter])
+export type EventReportFilter = v.InferOutput<typeof SEventReportFilter>
+
+export function areEventFiltersCompatibleWithKind(input: {
+  readonly eventKind: EventKind
+  readonly filters?: readonly EventReportFilter[] | undefined
+}): boolean {
+  return (input.filters ?? []).every(
+    (filter) =>
+      filter.scope !== 'event' ||
+      filter.field.startsWith('property.') ||
+      isCompatibleEventFilterForKind({
+        eventKind: input.eventKind,
+        field: filter.field,
+        operator: filter.operator,
+        values: filter.values,
+      }),
+  )
+}
 
 export const SEventAbsoluteDateTime = v.pipe(v.string(), v.isoTimestamp())
 export const AUTHENTICATED_EVENT_BUCKET_LIMITS = {
@@ -292,15 +303,7 @@ const SEventBreakdownPage = v.strictObject(
       items: v.pipe(
         v.array(
           v.strictObject({
-            field: v.picklist([
-              'kind',
-              'name',
-              'pagePath',
-              'referrer',
-              'destination',
-              'unit',
-              'code',
-            ]),
+            field: v.picklist(EVENT_FIELDS),
             value: v.pipe(v.string(), v.maxLength(2048)),
             count: SNonNegativeInteger,
           }),

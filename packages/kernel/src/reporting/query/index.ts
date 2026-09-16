@@ -34,6 +34,17 @@ export type {
   TrafficMetricsFacts,
   TrafficTrendBucket,
 } from './traffic-types.ts'
+export {
+  TRAFFIC_METRIC_CATALOG,
+  trafficMetricDenominator,
+  trafficMetricValue,
+  type TrafficMetric,
+  type TrafficMetricAdditivity,
+  type TrafficMetricDefinition,
+  type TrafficMetricFilterScope,
+  type TrafficMetricGrain,
+  type TrafficMetricUnit,
+} from './metric-catalog.ts'
 export { ReportingQueryUnsupportedError } from './types.ts'
 export type {
   EventKind,

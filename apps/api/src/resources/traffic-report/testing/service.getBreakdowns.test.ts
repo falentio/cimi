@@ -152,6 +152,39 @@ describe('TrafficReportService.getBreakdowns', () => {
     expect(body.status).toBe('stale')
   })
 
+  it('uses the filtered session population for breakdown counts and percentages', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
+      'report-breakdown-filter@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      breakdownPath(
+        siteId,
+        'page',
+        '&filters[0][scope]=event&filters[0][field]=pagePath&filters[0][operator]=equals&filters[0][values][0]=/a',
+      ),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      items: [
+        {
+          value: '/a',
+          metric: 'sessions',
+          grain: 'session',
+          count: 4,
+          denominator: 4,
+          percentage: 1,
+        },
+      ],
+      totalCount: 1,
+      hasMore: false,
+      nextOffset: null,
+    })
+  })
+
   it('serves device breakdown rows excluding the NULL device while keeping the denominator', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-device@example.com',
@@ -184,6 +217,22 @@ describe('TrafficReportService.getBreakdowns', () => {
       },
     ])
     expect(body.totalCount).toBe(2)
+  })
+
+  it('sorts percentage breakdowns by count because the denominator is shared', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
+      'report-breakdown-percentage@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(
+      fixture.app,
+      breakdownPath(siteId, 'page', '&sort=percentage&direction=asc'),
+      cookie,
+    )
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body.items.map((item: { value: string }) => item.value)).toEqual(['/b', '/a'])
   })
 
   it('paginates breakdown rows deterministically with a value tie-break', async () => {
@@ -232,5 +281,27 @@ describe('TrafficReportService.getBreakdowns', () => {
     ])
     expect(secondBody.hasMore).toBe(false)
     expect(secondBody.nextOffset).toBeNull()
+  })
+
+  it('rejects an hourly range after the authenticated bucket limit', async () => {
+    await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+    const { cookie, siteId } = await createOwnerSite(
+      fixture.app,
+      fixture.db,
+      'traffic-breakdown-bucket-limit@example.com',
+    )
+    await fixture.analytics.rebuild({ controlDb: fixture.db })
+
+    const path = (toDate: string) =>
+      `/traffic-report/getTrafficBreakdowns?siteId=${encodeURIComponent(siteId)}&fromDate=2026-08-01&toDate=${toDate}&granularity=hour&dimension=page`
+    const accepted = await apiTestRequest(fixture.app, path('2026-08-30'), cookie)
+    expect(accepted.status, await accepted.clone().text()).toBe(200)
+
+    const rejected = await apiTestRequest(fixture.app, path('2026-08-31'), cookie)
+    expect(rejected.status).toBe(422)
+    await expect(rejected.json()).resolves.toMatchObject({
+      code: 'QUERY_LIMIT_EXCEEDED',
+      status: 422,
+    })
   })
 })
