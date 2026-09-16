@@ -38,7 +38,7 @@ export function createXoroshiro128PlusPlus(
   return {
     nextUint64,
     nextDouble() {
-      return Number((nextUint64() >> 11n) & MASK_64) / 2 ** 53
+      return Number(nextUint64() >> 11n) / 2 ** 53
     },
     nextInt(maxExclusive) {
       validateMaxExclusive(maxExclusive)
@@ -61,7 +61,7 @@ function parseOptions(options: unknown): Xoroshiro128PlusPlusState {
   }
 
   if ('seed' in options) {
-    if ('state' in options || typeof options.seed !== 'bigint') {
+    if ('state' in options) {
       throw new TypeError('Options must contain exactly one seed or state')
     }
     return parseState(createSeedState(parseUint64(options.seed)))

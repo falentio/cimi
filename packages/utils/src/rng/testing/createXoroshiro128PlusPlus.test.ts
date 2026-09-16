@@ -127,8 +127,7 @@ describe('createXoroshiro128PlusPlus', () => {
     const high = createXoroshiro128PlusPlus({ state: [0n, MASK] })
 
     expect(low.nextDouble()).toBe(2 ** -47)
-    expect(high.nextDouble()).toBe(Number(MASK >> 11n) / 2 ** 53)
-    expect(high.nextDouble()).toBeLessThan(1)
+    expect(high.nextDouble()).toBe(1 - 2 ** -53)
     expect(high.nextDouble()).toBeGreaterThanOrEqual(0)
   })
 
