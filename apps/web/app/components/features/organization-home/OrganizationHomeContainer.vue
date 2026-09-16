@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { AlertCircleIcon, Building03Icon } from '@hugeicons/core-free-icons'
+import { AlertCircleIcon, Building03Icon, Settings01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -64,7 +64,7 @@ async function handleSiteCreated(site: OrganizationSiteCreationResult): Promise<
     aria-labelledby="organization-home-title"
     class="mx-auto flex w-full max-w-5xl flex-col gap-6"
   >
-    <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <header class="flex items-start justify-between gap-4">
       <div class="min-w-0">
         <p class="text-muted-foreground text-sm font-medium tracking-wide uppercase">
           Organization
@@ -76,10 +76,18 @@ async function handleSiteCreated(site: OrganizationSiteCreationResult): Promise<
           {{ readyState?.organization.name ?? 'Manage sites and settings for this organization.' }}
         </p>
       </div>
-      <Button v-if="readyState" as-child class="shrink-0" variant="outline">
-        <NuxtLink :to="organizationSettingsPath(readyState.organization.id)"
-          >Organization settings</NuxtLink
-        >
+      <Button
+        v-if="readyState"
+        aria-label="Organization settings"
+        as-child
+        class="shrink-0"
+        size="icon"
+        title="Organization settings"
+        variant="outline"
+      >
+        <NuxtLink :to="organizationSettingsPath(readyState.organization.id)">
+          <HugeiconsIcon :icon="Settings01Icon" :size="18" aria-hidden="true" />
+        </NuxtLink>
       </Button>
     </header>
 
