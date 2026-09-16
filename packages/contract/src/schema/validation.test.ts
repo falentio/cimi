@@ -139,6 +139,45 @@ describe('shared report schemas', () => {
     }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
   })
 
+  it('uses shared operator compatibility for every traffic filter scope', () => {
+    expect({
+      scope: 'session',
+      field: 'country',
+      operator: 'contains',
+      values: ['G'],
+    }).toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'session',
+      field: 'country',
+      operator: 'greater_than',
+      values: [1],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'session',
+      field: 'country',
+      operator: 'greater_than',
+      values: ['1'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'profile',
+      field: 'trait.plan',
+      operator: 'greater_than',
+      values: [1],
+    }).toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'profile',
+      field: 'trait.plan',
+      operator: 'greater_than',
+      values: ['pro'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'visitor',
+      field: 'identityKind',
+      operator: 'greater_than',
+      values: ['visitor'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+  })
+
   it('allows only current or stale successful report freshness', () => {
     expect({
       projectedAcceptanceSequence: 10,

@@ -87,14 +87,6 @@ describe('compileTrafficFilterPlan', () => {
         expected: 'contains',
         filter: { scope: 'event', field: 'name', operator: 'contains', values: ['pur'] },
       },
-      {
-        expected: 'gt',
-        filter: { scope: 'session', field: 'country', operator: 'greater_than', values: [5] },
-      },
-      {
-        expected: 'lt',
-        filter: { scope: 'session', field: 'country', operator: 'less_than', values: [5] },
-      },
     ] as const
 
     for (const { expected, filter } of cases) {
@@ -178,9 +170,58 @@ describe('compileTrafficFilterPlan', () => {
     )
   })
 
-  it('rejects greater_than with a non-finite-number value', () => {
+  it('rejects ordering operators for traffic session text fields', () => {
+    expectFail(
+      traffic([{ scope: 'session', field: 'country', operator: 'greater_than', values: [5] }]),
+      'incompatible-value',
+    )
     expectFail(
       traffic([{ scope: 'session', field: 'country', operator: 'greater_than', values: ['x'] }]),
+      'incompatible-value',
+    )
+  })
+
+  it('rejects empty and non-finite property values', () => {
+    expectFail(
+      compileTrafficFilterPlan({
+        filters: [{ scope: 'profile', field: 'trait.plan', operator: 'equals', values: [] }],
+        profileFilterKeys: approvedTraits,
+      }),
+      'incompatible-value',
+    )
+    expectFail(
+      compileTrafficFilterPlan({
+        filters: [
+          { scope: 'profile', field: 'trait.plan', operator: 'equals', values: [Number.NaN] },
+        ],
+        profileFilterKeys: approvedTraits,
+      }),
+      'incompatible-value',
+    )
+    expectFail(
+      compileEventFilterPlan({
+        eventKind: 'error',
+        filters: [{ scope: 'event', field: 'property.plan', operator: 'equals', values: [] }],
+        profileFilterKeys: noTraits,
+      }),
+      'incompatible-value',
+    )
+  })
+
+  it('keeps traffic filter compatibility aligned for profile and visitor fields', () => {
+    expectFail(
+      compileTrafficFilterPlan({
+        filters: [
+          { scope: 'profile', field: 'trait.plan', operator: 'greater_than', values: ['pro'] },
+        ],
+        profileFilterKeys: approvedTraits,
+      }),
+      'incompatible-value',
+    )
+    expectFail(
+      traffic([
+        { scope: 'visitor', field: 'identityKind', operator: 'greater_than', values: ['visitor'] },
+      ]),
       'incompatible-value',
     )
   })

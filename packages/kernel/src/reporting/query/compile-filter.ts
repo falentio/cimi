@@ -1,7 +1,9 @@
 import {
   isCompatibleDirectEventFilter,
   isCompatibleEventFilterForKind,
+  isCompatibleIdentityKindFilter,
   isCompatiblePropertyFilter,
+  isCompatibleSessionFilter,
 } from '@cimi/utils'
 import type { EventFilterOperator, EventKind } from '@cimi/utils'
 import type {
@@ -130,23 +132,6 @@ const EVENT_TARGETS: Readonly<Record<string, PredicateTarget>> = {
 
 const TRAIT_KEY_PATTERN = /^trait\.([A-Za-z0-9_.-]{1,63})$/
 
-function isCompatibleValue(
-  family: 'event' | 'session' | 'visitor',
-  operator: ContractOperator,
-  values: readonly PredicateValue[],
-): boolean {
-  if (operator === 'contains') {
-    return values.every((value) => typeof value === 'string')
-  }
-  if (operator === 'greater_than' || operator === 'less_than') {
-    return values.every((value) => typeof value === 'number' && Number.isFinite(value))
-  }
-  if (family === 'visitor') {
-    return values.every((value) => value === 'visitor' || value === 'identified_user')
-  }
-  return values.every((value) => typeof value === 'string')
-}
-
 function emptyPlan(): ReportFilterPlan {
   return {
     event: [],
@@ -210,7 +195,7 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
             : undefined
       if (targets === undefined) {
         if (field !== 'identityKind') return { ok: false, reason: 'unsupported-field' }
-        if (!isCompatibleValue('visitor', operator, values)) {
+        if (!isCompatibleIdentityKindFilter({ operator, values })) {
           return { ok: false, reason: 'incompatible-value' }
         }
         visitor.push({
@@ -227,7 +212,7 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
         if (!isCompatibleDirectEventFilter({ field, operator, values })) {
           return { ok: false, reason: 'incompatible-value' }
         }
-      } else if (!isCompatibleValue(scope, operator, values)) {
+      } else if (!isCompatibleSessionFilter({ operator, values })) {
         return { ok: false, reason: 'incompatible-value' }
       }
       const predicate: Predicate = {

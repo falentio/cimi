@@ -1,6 +1,14 @@
 import * as v from 'valibot'
 
-import { EVENT_FIELDS, EVENT_KINDS, SName, isCompatibleDirectEventFilter } from '@cimi/utils'
+import {
+  EVENT_FIELDS,
+  EVENT_KINDS,
+  SName,
+  isCompatibleDirectEventFilter,
+  isCompatibleIdentityKindFilter,
+  isCompatiblePropertyFilter,
+  isCompatibleSessionFilter,
+} from '@cimi/utils'
 import { toORPCErrorMap } from './errors.ts'
 
 export {
@@ -212,14 +220,14 @@ export const SScopedQueryFilter = v.pipe(
   v.check((input) => {
     if (input.operator === 'has_done' || input.operator === 'has_not_done') return true
     if (!('values' in input)) return false
-    if (input.scope === 'profile') return true
+    if (input.scope === 'profile') return isCompatiblePropertyFilter(input)
     if (input.scope === 'event') {
       return isCompatibleDirectEventFilter(input)
     }
     if (input.scope === 'visitor') {
-      return input.values.every((value) => value === 'visitor' || value === 'identified_user')
+      return isCompatibleIdentityKindFilter(input)
     }
-    return input.values.every((value) => typeof value === 'string')
+    return isCompatibleSessionFilter(input)
   }, 'Report filters require values compatible with the selected field.'),
 )
 

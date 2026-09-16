@@ -79,6 +79,10 @@ export const EVENT_FIELD_STATES = {
 const EVENT_KIND_SET: ReadonlySet<string> = new Set(EVENT_KINDS)
 const EVENT_FIELD_SET: ReadonlySet<string> = new Set(EVENT_FIELDS)
 
+function isFiniteNumber(value: EventFilterValue): boolean {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
 export function isEventKind(value: string): value is EventKind {
   return EVENT_KIND_SET.has(value)
 }
@@ -103,6 +107,7 @@ export interface EventKindFilterCompatibilityInput extends EventFilterCompatibil
 }
 
 export function isCompatibleDirectEventFilter(input: EventFilterCompatibilityInput): boolean {
+  if (input.values.length === 0) return false
   if (!isEventField(input.field)) return false
   if (input.field === 'kind') {
     if (input.operator !== 'equals' && input.operator !== 'not_equals') return false
@@ -121,13 +126,46 @@ export function isCompatibleDirectEventFilter(input: EventFilterCompatibilityInp
 }
 
 export function isCompatiblePropertyFilter(input: PropertyFilterCompatibilityInput): boolean {
+  if (input.values.length === 0) return false
+  if (
+    !input.values.every(
+      (value) =>
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        isFiniteNumber(value),
+    )
+  ) {
+    return false
+  }
   if (input.operator === 'contains') {
     return input.values.every((value) => typeof value === 'string')
   }
   if (input.operator === 'greater_than' || input.operator === 'less_than') {
-    return input.values.every((value) => typeof value === 'number' && Number.isFinite(value))
+    return input.values.every(isFiniteNumber)
   }
   return input.operator === 'equals' || input.operator === 'not_equals'
+}
+
+export function isCompatibleSessionFilter(input: {
+  readonly operator: EventFilterOperator
+  readonly values: readonly EventFilterValue[]
+}): boolean {
+  if (input.values.length === 0) return false
+  if (input.operator === 'contains') {
+    return input.values.every((value) => typeof value === 'string')
+  }
+  if (input.operator === 'greater_than' || input.operator === 'less_than') return false
+  return input.values.every((value) => typeof value === 'string')
+}
+
+export function isCompatibleIdentityKindFilter(input: {
+  readonly operator: EventFilterOperator
+  readonly values: readonly EventFilterValue[]
+}): boolean {
+  if (input.values.length === 0) return false
+  if (input.operator !== 'equals' && input.operator !== 'not_equals') return false
+  return input.values.every((value) => value === 'visitor' || value === 'identified_user')
 }
 
 export function isCompatibleEventFilterForKind(input: EventKindFilterCompatibilityInput): boolean {

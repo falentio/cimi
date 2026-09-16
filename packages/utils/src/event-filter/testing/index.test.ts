@@ -4,7 +4,9 @@ import {
   EVENT_KINDS,
   isCompatibleDirectEventFilter,
   isCompatibleEventFilterForKind,
+  isCompatibleIdentityKindFilter,
   isCompatiblePropertyFilter,
+  isCompatibleSessionFilter,
 } from '../index.ts'
 
 describe('event filter compatibility', () => {
@@ -129,5 +131,26 @@ describe('event filter compatibility', () => {
     expect(isCompatiblePropertyFilter({ operator: 'contains', values: [1] })).toBe(false)
     expect(isCompatiblePropertyFilter({ operator: 'greater_than', values: [1] })).toBe(true)
     expect(isCompatiblePropertyFilter({ operator: 'less_than', values: ['1'] })).toBe(false)
+    expect(isCompatiblePropertyFilter({ operator: 'equals', values: [Number.NaN] })).toBe(false)
+    expect(
+      isCompatiblePropertyFilter({ operator: 'not_equals', values: [Number.POSITIVE_INFINITY] }),
+    ).toBe(false)
+    expect(isCompatiblePropertyFilter({ operator: 'equals', values: [] })).toBe(false)
+  })
+
+  it('applies shared traffic attribute compatibility rules', () => {
+    expect(isCompatibleSessionFilter({ operator: 'equals', values: ['GB'] })).toBe(true)
+    expect(isCompatibleSessionFilter({ operator: 'equals', values: [null] })).toBe(false)
+    expect(isCompatibleSessionFilter({ operator: 'greater_than', values: [1] })).toBe(false)
+    expect(isCompatibleSessionFilter({ operator: 'greater_than', values: ['1'] })).toBe(false)
+    expect(isCompatibleSessionFilter({ operator: 'equals', values: [] })).toBe(false)
+    expect(isCompatibleIdentityKindFilter({ operator: 'equals', values: ['visitor'] })).toBe(true)
+    expect(isCompatibleIdentityKindFilter({ operator: 'contains', values: ['visitor'] })).toBe(
+      false,
+    )
+    expect(isCompatibleIdentityKindFilter({ operator: 'greater_than', values: ['visitor'] })).toBe(
+      false,
+    )
+    expect(isCompatibleIdentityKindFilter({ operator: 'equals', values: [] })).toBe(false)
   })
 })
