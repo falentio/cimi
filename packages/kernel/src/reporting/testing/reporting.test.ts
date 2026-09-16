@@ -282,14 +282,14 @@ describe('reporting period resolution', () => {
         toDate: '2026-09-09',
         comparison: { fromDate: '2026-09-05', toDate: '2026-09-06' },
       }),
-    ).toThrowError(ReportingAdmissionError)
+    ).toThrow(ReportingAdmissionError)
     expect(() =>
       periodsFor({
         fromDate: '2026-09-08',
         toDate: '2026-09-09',
         comparison: { fromDate: '2026-09-07', toDate: '2026-09-07' },
       }),
-    ).toThrowError(ReportingAdmissionError)
+    ).toThrow(ReportingAdmissionError)
   })
 
   it('rejects an over-limit bucket count instead of clamping it', () => {
@@ -299,7 +299,7 @@ describe('reporting period resolution', () => {
         toDate: '2026-09-06',
         bucket: { granularity: 'hour', maxStarts: 47 },
       }),
-    ).toThrowError(ReportingAdmissionError)
+    ).toThrow(ReportingAdmissionError)
   })
 })
 
@@ -359,14 +359,14 @@ describe('reporting gap and retention policy', () => {
         required: ['event-occurrence', 'profile-activity'],
         periods,
       }),
-    ).toThrowError(ReportingAdmissionError)
+    ).toThrow(ReportingAdmissionError)
     expect(() =>
       checkRetentionCoverage({
         coverage: { ...completeRetention(), replayReceipt: { state: 'unknown' } },
         required: ['replay-receipt'],
         periods,
       }),
-    ).toThrowError(ReportingAdmissionError)
+    ).toThrow(ReportingAdmissionError)
   })
 })
 

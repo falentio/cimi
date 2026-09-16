@@ -183,7 +183,7 @@ describe('InvitationService.accept', () => {
   it('keeps unauthenticated acceptance out via the authenticated middleware without consuming', async () => {
     const { repository } = createInvitationFixture()
 
-    expect(() => assertAuthenticated(undefined)).toThrowError(
+    expect(() => assertAuthenticated(undefined)).toThrow(
       expect.objectContaining({ code: 'UNAUTHORIZED' }),
     )
     expect(repository.consume).not.toHaveBeenCalled()

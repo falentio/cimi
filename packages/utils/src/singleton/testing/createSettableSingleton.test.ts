@@ -6,7 +6,7 @@ describe('createSettableSingleton', () => {
   it('throws when read before set', () => {
     const singleton = createSettableSingleton<number>()
 
-    expect(() => singleton.get()).toThrowError('Singleton has not been set')
+    expect(() => singleton.get()).toThrow('Singleton has not been set')
   })
 
   it('returns the value after it is set', () => {

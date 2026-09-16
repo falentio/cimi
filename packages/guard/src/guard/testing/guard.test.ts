@@ -19,7 +19,7 @@ const normalUser = { id: 'u1', role: 'user' } as unknown as AuthUser
 
 describe('assertIsAdmin', () => {
   it('throws FORBIDDEN for undefined user', () => {
-    expect(() => assertIsAdmin(undefined)).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertIsAdmin(undefined)).toThrow(ORPCError<string, unknown>)
     try {
       assertIsAdmin(undefined)
     } catch (error) {
@@ -29,7 +29,7 @@ describe('assertIsAdmin', () => {
   })
 
   it('throws FORBIDDEN for non-admin user', () => {
-    expect(() => assertIsAdmin(normalUser)).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertIsAdmin(normalUser)).toThrow(ORPCError<string, unknown>)
     try {
       assertIsAdmin(normalUser)
     } catch (error) {
@@ -45,7 +45,7 @@ describe('assertIsAdmin', () => {
 
 describe('assertOwner', () => {
   it('denies when id does not match', () => {
-    expect(() => assertOwner({ id: 'a' }, 'b')).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertOwner({ id: 'a' }, 'b')).toThrow(ORPCError<string, unknown>)
     try {
       assertOwner({ id: 'a' }, 'b')
     } catch (error) {
@@ -59,7 +59,7 @@ describe('assertOwner', () => {
   })
 
   it('fails closed when the owner context has no authenticated user', () => {
-    expect(() => assertOwner(undefined, 'a')).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertOwner(undefined, 'a')).toThrow(ORPCError<string, unknown>)
     try {
       assertOwner(undefined, 'a')
     } catch (error) {
@@ -78,7 +78,7 @@ describe('assertOwnerOrAdmin', () => {
   })
 
   it('denies non-owner non-admin', () => {
-    expect(() => assertOwnerOrAdmin(normalUser, 'other')).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertOwnerOrAdmin(normalUser, 'other')).toThrow(ORPCError<string, unknown>)
     try {
       assertOwnerOrAdmin(normalUser, 'other')
     } catch (error) {
@@ -121,21 +121,21 @@ describe('assertAuthorization', () => {
   it('treats admin as coarse authenticated admission, not installation authority', () => {
     expect(() => assertAuthorization(normalUser, 'admin')).not.toThrow()
     expect(() => assertAuthorization(installationAdmin, 'installation-admin')).not.toThrow()
-    expect(() => assertAuthorization(adminUser, 'installation-admin')).toThrowError(
+    expect(() => assertAuthorization(adminUser, 'installation-admin')).toThrow(
       ORPCError<string, unknown>,
     )
-    expect(() => assertAuthorization(normalUser, 'installation-admin')).toThrowError(
+    expect(() => assertAuthorization(normalUser, 'installation-admin')).toThrow(
       ORPCError<string, unknown>,
     )
   })
 
   it('treats owner as coarse authenticated admission', () => {
     expect(() => assertAuthorization(normalUser, 'owner')).not.toThrow()
-    expect(() => assertAuthorization(undefined, 'owner')).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertAuthorization(undefined, 'owner')).toThrow(ORPCError<string, unknown>)
   })
 
   it('requires an authenticated owner context for an owner-or-admin check', () => {
-    expect(() => assertOwnerOrAdmin(undefined, 'u1')).toThrowError(ORPCError<string, unknown>)
-    expect(() => assertInstallationAdmin(undefined)).toThrowError(ORPCError<string, unknown>)
+    expect(() => assertOwnerOrAdmin(undefined, 'u1')).toThrow(ORPCError<string, unknown>)
+    expect(() => assertInstallationAdmin(undefined)).toThrow(ORPCError<string, unknown>)
   })
 })
