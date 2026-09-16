@@ -19,7 +19,8 @@ const { session } = useAuth()
 const route = useRoute()
 const router = useRouter()
 const { teams, sites, isLoading, error, refresh } = useWorkspaceData()
-const { selectOrganization: selectWorkspaceOrganization } = useWorkspaceSelection()
+const { activeOrganizationId, selectOrganization: selectWorkspaceOrganization } =
+  useWorkspaceSelection()
 
 const routeSiteId = computed<string | undefined>(() => {
   const value = route.params.siteId
@@ -44,6 +45,7 @@ const activeSiteId = computed(() => {
 })
 
 const activeTeamId = computed(() => {
+  if (activeOrganizationId.value !== undefined) return activeOrganizationId.value
   const activeSite = sites.value.find((site) => site.id === activeSiteId.value)
   return activeSite?.teamId ?? teams.value[0]?.id ?? ''
 })

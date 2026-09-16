@@ -15,6 +15,6 @@ const props = defineProps<{
     :icon="Loading03Icon"
     role="status"
     aria-label="Loading"
-    :class="cn('size-4 animate-spin', props.class)"
+    :class="cn('size-4 animate-spin motion-reduce:animate-none', props.class)"
   />
 </template>

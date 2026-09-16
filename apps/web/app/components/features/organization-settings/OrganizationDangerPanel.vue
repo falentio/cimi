@@ -31,7 +31,7 @@ function confirmAction(): void {
   <div class="flex flex-col gap-6">
     <Card>
       <CardHeader>
-        <CardTitle>Danger zone</CardTitle>
+        <CardTitle><h2>Danger zone</h2></CardTitle>
         <CardDescription>These actions change access for the entire organization.</CardDescription>
       </CardHeader>
       <CardContent class="flex flex-col gap-4">

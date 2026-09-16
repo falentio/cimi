@@ -63,7 +63,7 @@ async function submit(): Promise<void> {
 <template>
   <Card>
     <CardHeader>
-      <CardTitle>General</CardTitle>
+      <CardTitle><h2>General</h2></CardTitle>
       <CardDescription>
         Update the name shown in your workspace switcher and organization settings.
       </CardDescription>

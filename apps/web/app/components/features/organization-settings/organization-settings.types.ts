@@ -13,6 +13,12 @@ export type OrganizationCreateInput = Parameters<
 export type OrganizationMember = Awaited<
   ReturnType<CimiOrpc['membership']['listMembers']['call']>
 >['items'][number]
+export type OrganizationMemberRoleUpdate = Awaited<
+  ReturnType<CimiOrpc['membership']['changeMemberRole']['call']>
+>
+export type OrganizationOwnershipTransfer = Awaited<
+  ReturnType<CimiOrpc['membership']['transferOrganizationOwnership']['call']>
+>
 export type OrganizationInvitation = Awaited<
   ReturnType<CimiOrpc['invitation']['listInvitations']['call']>
 >['items'][number]
@@ -63,9 +69,9 @@ export interface OrganizationSettingsContainer {
   changeMemberRole(input: {
     readonly userId: OrganizationMember['userId']
     readonly role: EditableMemberRole
-  }): Promise<OrganizationMember>
+  }): Promise<OrganizationMemberRoleUpdate>
   removeMember(userId: OrganizationMember['userId']): Promise<void>
-  transferOwnership(userId: OrganizationMember['userId']): Promise<OrganizationMember>
+  transferOwnership(userId: OrganizationMember['userId']): Promise<OrganizationOwnershipTransfer>
   leaveOrganization(): Promise<void>
   createInvitation(role: EditableMemberRole): Promise<CreatedInvitation>
   revokeInvitation(invitationId: OrganizationInvitation['id']): Promise<void>

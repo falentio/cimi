@@ -51,6 +51,7 @@ type AuthFormField = keyof AuthFormValues
 
 const props = defineProps<AuthPanelProps>()
 const { pending, signIn, signUp } = useAuth()
+const route = useRoute()
 const feedback = shallowRef<AuthFeedback>(null)
 
 const copyByMode = {
@@ -125,6 +126,7 @@ const submit = handleSubmit(
       submission.mode === 'signup' ? await signUp(submission.input) : await signIn(submission.input)
 
     feedback.value = feedbackForResult(result, submission.mode)
+    await redirectAfterAuthentication(result)
   },
   ({ errors: invalidErrors }) => {
     const firstInvalidField = fieldOrderByMode[props.mode].find(
@@ -179,6 +181,15 @@ function focusFirstInvalidField(field: AuthFormField): void {
   void nextTick(() => {
     document.getElementById(field)?.focus()
   })
+}
+
+async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
+  if (!result.ok || result.session === null) return
+
+  const redirect = route.query.redirect
+  if (typeof redirect !== 'string' || !redirect.startsWith('/') || redirect.startsWith('//')) return
+
+  await navigateTo(redirect)
 }
 </script>
 

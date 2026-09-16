@@ -4,20 +4,37 @@ import OrganizationSettingsContainer from '@/components/features/organization-se
 import { useOrganizationSettings } from '@/components/features/organization-settings/useOrganizationSettings'
 
 const { activeOrganizationId } = useWorkspaceSelection()
-const { snapshot, isMutating, leaveOrganization, deleteOrganization } = useOrganizationSettings({
-  section: 'danger',
-  organizationId: activeOrganizationId,
-})
+const { snapshot, isMutating, refresh, leaveOrganization, deleteOrganization } =
+  useOrganizationSettings({
+    section: 'danger',
+    organizationId: activeOrganizationId,
+  })
+
+async function handleLeave(): Promise<void> {
+  try {
+    await leaveOrganization()
+  } catch {
+    return
+  }
+}
+
+async function handleDelete(): Promise<void> {
+  try {
+    await deleteOrganization()
+  } catch {
+    return
+  }
+}
 </script>
 
 <template>
-  <OrganizationSettingsContainer :snapshot="snapshot">
+  <OrganizationSettingsContainer :refresh="refresh" :snapshot="snapshot">
     <OrganizationDangerPanel
       v-if="snapshot.organization"
       :is-mutating="isMutating"
       :snapshot="snapshot"
-      @delete-organization="deleteOrganization"
-      @leave-organization="leaveOrganization"
+      @delete-organization="handleDelete"
+      @leave-organization="handleLeave"
     />
   </OrganizationSettingsContainer>
 </template>

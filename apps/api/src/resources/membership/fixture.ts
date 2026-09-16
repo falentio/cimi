@@ -58,7 +58,10 @@ export function createMembershipFixture(
       const items = members.slice(offset, offset + limit)
       const hasMore = offset + items.length < members.length
       return {
-        items,
+        items: items.map((member) => ({
+          ...member,
+          email: `${member.userId}@example.com`,
+        })),
         nextOffset: hasMore ? offset + items.length : null,
         hasMore,
         totalCount: members.length,

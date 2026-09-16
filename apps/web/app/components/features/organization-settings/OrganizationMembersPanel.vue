@@ -45,11 +45,11 @@ const canManage = computed(() => {
 })
 
 function askRemove(member: OrganizationMember): void {
-  confirmation.value = { kind: 'remove', userId: member.userId, label: member.userId }
+  confirmation.value = { kind: 'remove', userId: member.userId, label: member.email }
 }
 
 function askTransfer(member: OrganizationMember): void {
-  confirmation.value = { kind: 'transfer', userId: member.userId, label: member.userId }
+  confirmation.value = { kind: 'transfer', userId: member.userId, label: member.email }
 }
 
 function askLeave(): void {
@@ -76,7 +76,7 @@ function confirmAction(): void {
   <div class="flex flex-col gap-6">
     <Card>
       <CardHeader>
-        <CardTitle>Members</CardTitle>
+        <CardTitle><h2>Members</h2></CardTitle>
         <CardDescription>Manage access for {{ snapshot.organization?.name }}.</CardDescription>
       </CardHeader>
       <CardContent class="flex flex-col gap-4">
