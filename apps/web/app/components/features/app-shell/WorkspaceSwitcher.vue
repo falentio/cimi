@@ -43,9 +43,7 @@ const { isMobile } = useSidebar()
 const searchOpen = shallowRef(false)
 const createOrganizationOpen = shallowRef(false)
 
-const activeTeam = computed(
-  () => props.teams.find((team) => team.id === props.activeTeamId) ?? props.teams[0],
-)
+const activeTeam = computed(() => props.teams.find((team) => team.id === props.activeTeamId))
 const activeSite = computed(() => props.sites.find((site) => site.id === props.activeSiteId))
 
 const triggerLabel = computed(() => {

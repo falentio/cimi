@@ -28,9 +28,12 @@ export function formatSettingsDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
 }
 
-export function normalizeSettingsError(value: unknown): SettingsError {
+export function normalizeSettingsError(
+  value: unknown,
+  fallbackMessage = 'Organization settings request failed',
+): SettingsError {
   if (value instanceof Error) {
-    return { message: value.message || 'Organization settings request failed' }
+    return { message: value.message || fallbackMessage }
   }
 
   if (isRecord(value)) {
@@ -39,7 +42,7 @@ export function normalizeSettingsError(value: unknown): SettingsError {
     if (message !== undefined) return code === undefined ? { message } : { code, message }
   }
 
-  return { message: 'Organization settings request failed' }
+  return { message: fallbackMessage }
 }
 
 function isKnownOrganization(
