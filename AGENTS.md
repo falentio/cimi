@@ -4,6 +4,7 @@
 - utilize packages/utils as much as possible, keep it DRY
 - propose new package/utils utils whenever you saw repeatable code that can be shared across apps/resource/domain
 - package/utils are only for utilities that can be shared across apps or packages
+- For local development authentication, read and follow [docs/DEV-LOGIN.md](docs/DEV-LOGIN.md).
 - TDD whenever possible
 - Sociable Unit testing rather than solitaire unit testing. so we only mock repository.
 - Always run test/lint/fmt as a narrow, not broad, so we save much compute.
@@ -13,24 +14,8 @@
 - specs, and docs are token expensive, it drain out context window so fast, so use subagents for specs and docs reading that output the narrowed summary wit file references.
 - If you create new worktree for apps/web related works, spun up dev server, read apps/web/AGENTS.md
 - After a fresh clone or worktree creation, set up the dev environment before running the app. See the "Set up the dev environment" section in README.md.
-
-## Tooling
-
-pnpm workspace of `apps/*` and `packages/*`, driven by Vite Plus.
-
-Run Vite Plus directly, never through a package manager wrapper:
-
-```bash
-vp check --fix path/to/file.ts   # format + lint + typecheck
-vp test
-vp run <script>                  # package.json scripts, e.g. db:push
-vp run --filter ./apps/web <script>
-vp install                       # only when deps change
-```
-
-- **pnpm** is the only package manager (`pnpm@11.18.0`, pinned via `packageManager`). Never npm or yarn.
-- Dependency versions are pinned in the `pnpm-workspace.yaml` catalog; add new versions there rather than inline.
-- **Vite Plus** (`vite-plus`) owns dev, build, test, format, and lint. It resolves to Vite via the `vite` → `@voidzero-dev/vite-plus-core` override, and its config, ignore patterns, and `fmt`/`lint` rules live in `vite.config.ts`.
+- If changes touch different packages or apps, it should changed 1 by 1 vertically until test green or smoke test-ed(if apps/web).
+- Always TDD
 
 ## Tooling
 

@@ -105,3 +105,9 @@ export {
   parseEventAttribution,
   type EventAttribution,
 } from './event-attribution/index.ts'
+export {
+  createXoroshiro128PlusPlus,
+  type Xoroshiro128PlusPlus,
+  type Xoroshiro128PlusPlusOptions,
+  type Xoroshiro128PlusPlusState,
+} from './rng/index.ts'

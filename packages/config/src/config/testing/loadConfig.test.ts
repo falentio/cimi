@@ -15,7 +15,7 @@ describe('loadConfig', () => {
   })
 
   it('treats an empty secret as invalid', () => {
-    expect(() => loadConfig({ BETTER_AUTH_SECRET: '' })).toThrowError(ConfigError)
+    expect(() => loadConfig({ BETTER_AUTH_SECRET: '' })).toThrow(ConfigError)
   })
 
   it('applies defaults', () => {
@@ -45,7 +45,7 @@ describe('loadConfig', () => {
         BETTER_AUTH_SECRET: 's3cret',
         BETTER_AUTH_URL: 'not-a-url',
       }),
-    ).toThrowError(ConfigError)
+    ).toThrow(ConfigError)
   })
 
   it('rejects an unsupported node environment', () => {
@@ -54,7 +54,7 @@ describe('loadConfig', () => {
         BETTER_AUTH_SECRET: 's3cret',
         NODE_ENV: 'staging',
       }),
-    ).toThrowError(ConfigError)
+    ).toThrow(ConfigError)
   })
 
   it('omits event ingestion fields when their env vars are absent', () => {
@@ -86,18 +86,18 @@ describe('loadConfig', () => {
         BETTER_AUTH_SECRET: 's3cret',
         CIMI_EVENT_SITE_RATE_PER_SECOND: 'not-a-number',
       }),
-    ).toThrowError(ConfigError)
+    ).toThrow(ConfigError)
     expect(() =>
       loadConfig({
         BETTER_AUTH_SECRET: 's3cret',
         CIMI_EVENT_SOURCE_IP_BURST: '0',
       }),
-    ).toThrowError(ConfigError)
+    ).toThrow(ConfigError)
     expect(() =>
       loadConfig({
         BETTER_AUTH_SECRET: 's3cret',
         CIMI_EVENT_TRUST_PROXY_HEADERS: 'yes',
       }),
-    ).toThrowError(ConfigError)
+    ).toThrow(ConfigError)
   })
 })

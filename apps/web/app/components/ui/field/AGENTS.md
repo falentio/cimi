@@ -51,7 +51,7 @@ Treat `Field` as the unit for one control: it holds the label, the control itsel
 - Disabled state: `Field` styles its label and title with reduced opacity when an ancestor field carries `data-disabled=true`.
 - Render `FieldError` right after the control or inside `FieldContent` so the message stays aligned with the field.
 - `FieldError` accepts slot content or an `errors` prop typed `Array<string | { message: string | undefined } | undefined>`. It renders a string for a single message and a bulleted list for several, and de-duplicates repeated messages.
-- Pass validator output straight to `FieldError.errors`, including `issues` arrays from Standard Schema validators such as Zod, Valibot, and ArkType. It also works with `vee-validate` error arrays.
+- Pass validator output straight to `FieldError.errors`, including `issues` arrays from Valibot. It also works with `vee-validate` error arrays.
 - `Field` renders `role="group"`, so nested controls inherit labeling from `FieldLabel` and `FieldLegend`.
 - Connect a label to its control with `for` on `FieldLabel` and a matching `id` on the control. This is what ties the two together for assistive tech.
 - Give every control a unique `id`. Checkbox, radio, and switch rows in the docs reuse stable ids across a page for this reason.

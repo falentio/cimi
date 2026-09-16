@@ -11,7 +11,7 @@ const nonMember = { id: 'stranger-1', role: 'user' } as unknown as AuthUser
 describe('authorization guards', () => {
   it('applies coarse admission and installation-admin levels separately', () => {
     expect(() => assertAuthorization(undefined, 'public')).not.toThrow()
-    expect(() => assertAuthorization(undefined, 'authenticated')).toThrowError(ORPCError)
+    expect(() => assertAuthorization(undefined, 'authenticated')).toThrow(ORPCError)
     expect(() => assertAuthorization(user, 'admin')).not.toThrow()
   })
 

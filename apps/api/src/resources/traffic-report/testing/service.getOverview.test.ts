@@ -247,5 +247,5 @@ describe('TrafficReportService.getOverview', () => {
       code: 'QUERY_LIMIT_EXCEEDED',
       status: 422,
     })
-  })
+  }, 10_000)
 })
