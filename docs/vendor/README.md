@@ -17,8 +17,22 @@ docs/vendor/{forge}/{org}/{repo}/{ref}/**
 
 ```bash
 ref=29af6da5c11aff673133f96df029f40345674f0e
-git clone --no-checkout https://github.com/withastro/astro.git docs/vendor/gh/withastro/astro/$ref
-git -C docs/vendor/gh/withastro/astro/$ref checkout $ref
+vendor_path="docs/vendor/gh/withastro/astro/$ref"
+current_worktree="$(git rev-parse --show-toplevel)"
+main_worktree="$(git worktree list --porcelain | awk '
+  /^worktree / { path = substr($0, 10) }
+  /^branch refs\/heads\/main$/ { print path; exit }
+')"
+
+if [ -d "$vendor_path" ]; then
+  : # Reuse the checkout in this worktree.
+elif [ -n "$main_worktree" ] && [ "$current_worktree" != "$main_worktree" ] && [ -d "$main_worktree/$vendor_path" ]; then
+  mkdir -p "$(dirname "$vendor_path")"
+  cp -R "$main_worktree/$vendor_path" "$vendor_path"
+else
+  git clone --no-checkout https://github.com/withastro/astro.git "$vendor_path"
+  git -C "$vendor_path" checkout "$ref"
+fi
 ```
 
 Cite the exact path plus commit in research docs, e.g.
@@ -27,7 +41,8 @@ Delete checkouts when done; they are disposable and re-clonable.
 
 ## Must-Have
 
-Vendor bellow package if not exists
+Vendor the packages below if they do not already exist. From a non-main worktree,
+copy an existing checkout from the main worktree before cloning it.
 
 - https://github.com/rybbit-io/rybbit ref 4a01c7a2bd18ca07cde3501413a339f376967555
 - https://github.com/databuddy-analytics/Databuddy ref 92c15273d9a1e9a25f12be4aab84f2f7bf635d22
