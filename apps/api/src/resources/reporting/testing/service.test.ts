@@ -1,20 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
-import type { AnalyticsDb, Db } from '@cimi/db'
-import {
-  InMemoryLifecycleLock,
-  ReportingAdmissionService,
-  createCalendarDate,
-  createInstantMs,
-  createSiteId,
-  type ReportAdmissionTicket,
-  type ReportAdmissionPreparation,
-  type ReportEvaluationPeriod,
-} from '@cimi/kernel'
-import { createReportQueryKernel } from '../query.ts'
-import type { ReportSnapshot } from '../model.ts'
+import { schema } from '@cimi/db'
+import { createTestAnalyticsDb } from '@cimi/db/testing'
+import { InMemoryLifecycleLock } from '@cimi/kernel'
 import type { GoalRepository } from '../../goal/repository.ts'
 import { GoalService } from '../../goal/service.ts'
+import { createTrafficReport } from '../../traffic-report/index.ts'
+import { AcceptanceRepositoryDrizzle } from '../../event-ingestion/repository.drizzle.ts'
+import type { AcceptanceCandidate } from '../../event-ingestion/repository.ts'
+import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
+import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
+import { RetentionPolicyRepositoryDrizzle } from '../../retention-policy/repository.drizzle.ts'
+import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
+import { createSiteScopeDependencies } from '../../site/scope.ts'
+import type { HealthSnapshot } from '../../../health.ts'
 
 const now = new Date('2026-09-05T00:00:00.000Z')
 
@@ -38,27 +37,10 @@ describe('GoalService reports', () => {
     repository.findById.mockResolvedValue(currentGoal)
     repository.findVersionAt.mockResolvedValue(historicalGoal)
 
-    const admission = mock<ReportingAdmissionService>()
-    admission.prepare.mockResolvedValue(admissionPreparation())
-    admission.admitPrepared.mockResolvedValue(admissionTicket())
-    const lifecycleLock = new InMemoryLifecycleLock()
-    const query = createReportQueryKernel({
-      admission,
-      data: { read: async () => reportSnapshot() },
-      lifecycleLock,
-    })
-    const service = new GoalService({
-      repository,
-      scope: siteScope(),
-      admission,
-      lifecycleLock,
-      analytics: mock<AnalyticsDb>(),
-      db: mock<Db>(),
-      query,
-    })
+    await using fixture = await createReportFixture(repository)
 
     await expect(
-      service.getReport(
+      fixture.service.getReport(
         { goalId: currentGoal.id, fromDate: '2026-09-01', toDate: '2026-09-01' },
         { id: 'user_1' },
       ),
@@ -75,152 +57,126 @@ describe('GoalService reports', () => {
   })
 })
 
-function admissionTicket(): ReportAdmissionTicket {
-  const period = {
-    key: 'current' as const,
-    dates: {
-      fromDate: createCalendarDate('2026-09-01'),
-      toDate: createCalendarDate('2026-09-01'),
-    },
-    interval: {
-      start: createInstantMs(Date.parse('2026-09-01T00:00:00.000Z')),
-      endExclusive: createInstantMs(Date.parse('2026-09-02T00:00:00.000Z')),
-    },
-    calendarDays: 1,
-    bucketStarts: null,
-  }
-  const evaluation: ReportEvaluationPeriod = { period, sequence: null }
-  return {
-    periods: { current: period, comparison: null },
-    evaluation: {
-      current: evaluation,
-      comparison: null,
-      interval: period.interval,
-    },
-    freshness: {
-      current: {
-        status: 'current',
-        projectedAcceptanceSequence: 1,
-        occurrenceTimeCoverageThrough: createInstantMs(Date.parse('2026-09-02T00:00:00.000Z')),
-      },
-      comparison: null,
-    },
-    factWork: {
-      units: 1,
-      budget: 1_000_000,
-      components: {
-        baseFacts: 0,
-        extraMetrics: 0,
-        bucketWork: 0,
-        dimensions: 0,
-        filters: 0,
-        distinctCounts: 0,
-      },
-    },
-  }
-}
+async function createReportFixture(repository: GoalRepository) {
+  const siteFixture = createSiteDrizzleFixture()
+  const analytics = await createTestAnalyticsDb().catch((error) => {
+    siteFixture[Symbol.dispose]()
+    throw error
+  })
 
-function admissionPreparation(): ReportAdmissionPreparation {
-  const ticket = admissionTicket()
-  return {
-    input: {
-      siteId: createSiteId('ste_1'),
-      current: ticket.periods.current.dates,
-    },
-    periods: ticket.periods,
-    evaluation: ticket.evaluation,
-    coveragePeriods: ticket.periods,
-  }
-}
+  try {
+    const db = siteFixture.db
+    await new InstallationRepositoryDrizzle({ db }).insert(createInstallationInsertInput())
+    await new RetentionPolicyRepositoryDrizzle({ db }).refreshDueBoundaries(now)
 
-function reportSnapshot(): ReportSnapshot {
-  return {
-    sessions: [
-      {
-        sessionId: 'ses-visitor',
-        visitorId: 'vis-1',
-        identifiedUserId: null,
-        startedAt: new Date('2026-09-01T10:00:00.000Z'),
-        endedAt: new Date('2026-09-01T10:05:00.000Z'),
-        entryPage: '/',
-        exitPage: '/done',
-        referrer: null,
-        utmSource: null,
-        utmMedium: null,
-        utmCampaign: null,
-        device: null,
-        browser: null,
-        operatingSystem: null,
-        country: null,
-        region: null,
-        city: null,
-      },
-      {
-        sessionId: 'ses-identified',
-        visitorId: 'vis-2',
-        identifiedUserId: 'usr-1',
-        startedAt: new Date('2026-09-01T11:00:00.000Z'),
-        endedAt: new Date('2026-09-01T11:05:00.000Z'),
-        entryPage: '/',
-        exitPage: '/done',
-        referrer: null,
-        utmSource: null,
-        utmMedium: null,
-        utmCampaign: null,
-        device: null,
-        browser: null,
-        operatingSystem: null,
-        country: null,
-        region: null,
-        city: null,
-      },
-    ],
-    events: [
-      {
+    const policyRevision = db
+      .select({ id: schema.TCollectionPolicyRevision.id })
+      .from(schema.TCollectionPolicyRevision)
+      .limit(1)
+      .all()[0]
+    if (policyRevision === undefined) throw new Error('Expected a collection policy revision')
+
+    await new AcceptanceRepositoryDrizzle({ db }).append([
+      customEventCandidate({
         eventId: 'evt-visitor',
-        eventKind: 'custom_event',
-        occurrenceTime: new Date('2026-09-01T10:01:00.000Z'),
+        occurrenceTime: '2026-09-01T10:01:00.000Z',
         visitorId: 'vis-1',
         identifiedUserId: null,
-        sessionId: 'ses-visitor',
-        pagePath: '/',
-        referrer: null,
-        name: 'signup',
-        destination: null,
-        unit: null,
-        code: null,
-        properties: {},
-      },
-      {
+        analyticsSessionId: 'ses-visitor',
+        policyRevisionId: policyRevision.id,
+        replaySequence: 1,
+      }),
+      customEventCandidate({
         eventId: 'evt-identified',
-        eventKind: 'custom_event',
-        occurrenceTime: new Date('2026-09-01T11:01:00.000Z'),
+        occurrenceTime: '2026-09-01T11:01:00.000Z',
         visitorId: 'vis-2',
         identifiedUserId: 'usr-1',
-        sessionId: 'ses-identified',
-        pagePath: '/',
-        referrer: null,
-        name: 'signup',
-        destination: null,
-        unit: null,
-        code: null,
-        properties: {},
+        analyticsSessionId: 'ses-identified',
+        policyRevisionId: policyRevision.id,
+        replaySequence: 2,
+      }),
+    ])
+    await analytics.rebuild({ controlDb: db })
+
+    const scope = createSiteScopeDependencies({ db })
+    const trafficReport = createTrafficReport({
+      db,
+      analytics,
+      lifecycle: {
+        async getSnapshot(): Promise<HealthSnapshot> {
+          return {
+            installationStatus: 'ready',
+            controlStore: 'ready',
+            analyticsStore: 'ready',
+            cleanupPending: false,
+          }
+        },
       },
-    ],
-    activeProfiles: new Map([['usr-1', { identifiedUserId: 'usr-1', traits: {} }]]),
+      dataDirectoryReady: true,
+      scope,
+    })
+
+    return {
+      service: new GoalService({
+        repository,
+        scope,
+        admission: trafficReport.admission,
+        lifecycleLock: new InMemoryLifecycleLock(),
+        analytics,
+        db,
+      }),
+      async [Symbol.asyncDispose]() {
+        try {
+          await analytics.close()
+        } finally {
+          siteFixture[Symbol.dispose]()
+        }
+      },
+    }
+  } catch (error) {
+    try {
+      await analytics.close()
+    } finally {
+      siteFixture[Symbol.dispose]()
+    }
+    throw error
   }
 }
 
-function siteScope() {
+function customEventCandidate(input: {
+  readonly eventId: string
+  readonly occurrenceTime: string
+  readonly visitorId: string
+  readonly identifiedUserId: string | null
+  readonly analyticsSessionId: string
+  readonly policyRevisionId: string
+  readonly replaySequence: number
+}): AcceptanceCandidate {
   return {
-    siteScope: {
-      exists: async () => true,
-      isActive: async () => true,
-      getOrganizationId: async () => 'org_1',
+    siteId: 'ste_1',
+    event: {
+      eventId: input.eventId,
+      occurrenceTime: input.occurrenceTime,
+      identifiedUserId: input.identifiedUserId,
+      anonymousIdentityId: null,
+      properties: {},
+      kind: 'custom_event',
+      name: 'signup',
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
+      deviceType: null,
+      browser: null,
+      os: null,
+      country: null,
+      botPolicyOutcome: 'included',
     },
-    membership: {
-      getRole: () => 'owner' as const,
-      hasPendingGovernanceOperation: () => false,
-    },
+    receiptTime: input.occurrenceTime,
+    late: false,
+    policyRevisionId: input.policyRevisionId,
+    payloadFingerprint: input.eventId,
+    visitorId: input.visitorId,
+    analyticsSessionId: input.analyticsSessionId,
+    replaySequence: input.replaySequence,
   }
 }
