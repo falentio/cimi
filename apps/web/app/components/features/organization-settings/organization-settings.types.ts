@@ -1,5 +1,8 @@
 import type { CimiOrpc } from '~/plugins/orpc'
 import type { ComputedRef, MaybeRefOrGetter } from 'vue'
+import type { SettingsError } from '../../../utils/settings-error'
+
+export type { SettingsError } from '../../../utils/settings-error'
 
 export type Organization = Awaited<ReturnType<CimiOrpc['organization']['getOrganization']['call']>>
 export type OrganizationId = Organization['id']
@@ -30,11 +33,6 @@ export type EditableMemberRole = Exclude<OrganizationMember['role'], 'owner'>
 export interface OffsetCollection<TItem> {
   readonly items: readonly TItem[]
   readonly totalCount: number
-}
-
-export interface SettingsError {
-  readonly code?: string
-  readonly message: string
 }
 
 export interface OrganizationSettingsSnapshot {
