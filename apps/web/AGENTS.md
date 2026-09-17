@@ -1,5 +1,12 @@
 ## Running dev server
 
+- From the repository root, run `bash scripts/setup-dev-env.sh` before starting the server in a fresh clone or worktree. Rerun it when the server reports invalid environment configuration.
+- Start the server from the repository root with `vp run --filter ./apps/web dev --dotenv ../../.env`.
+- If Tailscale is active, add `--host 0.0.0.0` to the command so the server accepts Tailscale connections.
+- Pass Nuxt flags directly after `dev`. Do not insert a standalone `--`. The extra separator can make Nuxt treat `--host` as a project root and serve a generated Nuxt welcome page instead of this app.
+- Wait for the server with `curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-connrefused http://localhost:3000/api/system/health >/dev/null`.
+- The server is ready for authenticated work only when the health check succeeds, `/signup` renders the Cimi form, and a signup or login followed by `GET /api/auth/get-session` returns the expected session. Read and follow [docs/DEV-LOGIN.md](../../docs/DEV-LOGIN.md) for credentials and session verification.
+- If the API reports `Control migration history is incompatible`, stop the server. If the local data is disposable, move `.cimi` to a private backup location, rerun `bash scripts/setup-dev-env.sh`, and restart the server. Preserve `.cimi` and ask before resetting it when local accounts or data matter.
 - If inside herdr worktree, then always make dev server running at tab named "web dev" and inside worktree of workspace
 - If not in main or not working with frontend related work, then dont spawn dev server unless requested
 - If not in main, assign random port to dev server, append it to tab name to "web dev (8080)"
