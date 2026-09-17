@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./level": "./src/level.ts",
     "./node": "./src/node.ts"
   },
   "scripts": {

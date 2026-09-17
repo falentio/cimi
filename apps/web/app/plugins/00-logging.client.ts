@@ -1,5 +1,6 @@
+import { parseLoggingConfig } from '@cimi/config/logging'
 import { configureBrowserLogging } from '@cimi/logging'
 
 export default defineNuxtPlugin(() => {
-  configureBrowserLogging()
+  configureBrowserLogging(parseLoggingConfig(useRuntimeConfig().public.logging))
 })

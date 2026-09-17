@@ -1,5 +1,8 @@
 import path from 'node:path'
 import * as v from 'valibot'
+import { loggingInputSchema, toLoggingConfig } from '../logging.ts'
+import { ConfigError } from '../error.ts'
+import { parseConfig } from '../parse.ts'
 
 const positiveNumberEnv = () =>
   v.pipe(
@@ -9,6 +12,7 @@ const positiveNumberEnv = () =>
   )
 
 const configInputSchema = v.object({
+  ...loggingInputSchema,
   CIMI_DATA_DIR: v.optional(v.pipe(v.string(), v.nonEmpty()), '.cimi'),
   BETTER_AUTH_SECRET: v.pipe(v.string(), v.nonEmpty()),
   BETTER_AUTH_URL: v.optional(v.pipe(v.string(), v.url()), 'http://localhost:4321'),
@@ -27,6 +31,7 @@ export const configSchema = v.pipe(
     authSecret: env.BETTER_AUTH_SECRET,
     baseUrl: env.BETTER_AUTH_URL,
     isDev: env.NODE_ENV !== 'production',
+    logging: toLoggingConfig(env.CIMI_LOG_LEVEL),
     eventIngestion: {
       ...(env.CIMI_EVENT_SITE_RATE_PER_SECOND === undefined
         ? {}
@@ -47,25 +52,10 @@ export const configSchema = v.pipe(
 
 export type AppConfig = v.InferOutput<typeof configSchema>
 
-export class ConfigError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ConfigError'
-  }
-}
+export { ConfigError }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): AppConfig {
-  const result = v.safeParse(configSchema, env)
-  if (!result.success) {
-    const details = result.issues
-      .map((issue) => {
-        const key = issue.path?.map((item) => String(item.key)).join('.') || 'configuration'
-        return `${key}: ${issue.message}`
-      })
-      .join('; ')
-
-    throw new ConfigError(`Invalid environment configuration: ${details}`)
-  }
-
-  return result.output
+  return parseConfig(configSchema, env, 'environment')
 }
+
+export { loadLoggingConfig, parseLoggingConfig } from '../logging.ts'

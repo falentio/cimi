@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ConfigError, loadConfig } from '../index.ts'
+import { ConfigError, loadConfig, loadLoggingConfig, parseLoggingConfig } from '../index.ts'
 
 describe('loadConfig', () => {
   it('throws ConfigError listing BETTER_AUTH_SECRET when secret is absent', () => {
@@ -24,6 +24,7 @@ describe('loadConfig', () => {
     expect(config.authSecret).toBe('s3cret')
     expect(config.baseUrl).toBe('http://localhost:4321')
     expect(config.isDev).toBe(true)
+    expect(config.logging).toEqual({ lowestLevel: 'info' })
   })
 
   it('honors custom env values', () => {
@@ -32,11 +33,24 @@ describe('loadConfig', () => {
       CIMI_DATA_DIR: 'data/custom',
       BETTER_AUTH_URL: 'https://cimi.example.com',
       NODE_ENV: 'production',
+      CIMI_LOG_LEVEL: 'debug',
     })
     expect(config.dataDir).toBe(`${process.cwd()}/data/custom`)
     expect(config.authSecret).toBe('s3cret')
     expect(config.baseUrl).toBe('https://cimi.example.com')
     expect(config.isDev).toBe(false)
+    expect(config.logging).toEqual({ lowestLevel: 'debug' })
+  })
+
+  it('rejects an unsupported logging level and names its environment variable', () => {
+    const invalidConfig = () =>
+      loadConfig({
+        BETTER_AUTH_SECRET: 's3cret',
+        CIMI_LOG_LEVEL: 'verbose',
+      })
+
+    expect(invalidConfig).toThrowError(ConfigError)
+    expect(invalidConfig).toThrowError(/CIMI_LOG_LEVEL/)
   })
 
   it('rejects an invalid auth URL', () => {
@@ -99,5 +113,34 @@ describe('loadConfig', () => {
         CIMI_EVENT_TRUST_PROXY_HEADERS: 'yes',
       }),
     ).toThrow(ConfigError)
+  })
+})
+
+describe('loadLoggingConfig', () => {
+  it('loads a logging setting without requiring the application secret', () => {
+    expect(loadLoggingConfig({ CIMI_LOG_LEVEL: 'warning' })).toEqual({
+      lowestLevel: 'warning',
+    })
+  })
+
+  it('defaults to info when the logging environment variable is absent', () => {
+    expect(loadLoggingConfig({})).toEqual({ lowestLevel: 'info' })
+  })
+
+  it('parses a runtime logging configuration', () => {
+    expect(parseLoggingConfig({ lowestLevel: 'debug' })).toEqual({
+      lowestLevel: 'debug',
+    })
+  })
+
+  it('rejects an invalid runtime logging configuration', () => {
+    expect(() => parseLoggingConfig({ lowestLevel: 'verbose' })).toThrowError(/lowestLevel/)
+  })
+
+  it('rejects an unsupported logging level and names its environment variable', () => {
+    const invalidConfig = () => loadLoggingConfig({ CIMI_LOG_LEVEL: 'verbose' })
+
+    expect(invalidConfig).toThrowError(ConfigError)
+    expect(invalidConfig).toThrowError(/CIMI_LOG_LEVEL/)
   })
 })

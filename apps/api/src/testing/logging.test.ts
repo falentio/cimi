@@ -2,8 +2,10 @@ import { expect, test, vi } from 'vitest'
 import { createApiTestFixture } from './fixture.ts'
 
 test('correlates a supplied request ID in API responses and errors', async () => {
-  await using fixture = await createApiTestFixture()
+  const infoOutput = vi.spyOn(console, 'info').mockImplementation(() => {})
+  await using fixture = await createApiTestFixture({ logging: { lowestLevel: 'warning' } })
   const requestId = 'request-id-123'
+  const infoCallsBeforeRequest = infoOutput.mock.calls.length
   const errorOutput = vi.spyOn(console, 'error').mockImplementation(() => {})
 
   try {
@@ -15,6 +17,7 @@ test('correlates a supplied request ID in API responses and errors', async () =>
 
     expect(response.status).toBe(401)
     expect(response.headers.get('x-request-id')).toBe(requestId)
+    expect(infoOutput.mock.calls.length).toBe(infoCallsBeforeRequest)
 
     const records = errorOutput.mock.calls.map(([line]) => JSON.parse(String(line)))
     const record = records.find(
@@ -28,5 +31,6 @@ test('correlates a supplied request ID in API responses and errors', async () =>
     expect(record.properties).not.toHaveProperty('error')
   } finally {
     errorOutput.mockRestore()
+    infoOutput.mockRestore()
   }
 })

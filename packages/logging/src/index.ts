@@ -1,12 +1,15 @@
 import {
   configureSync,
   getConsoleSink,
+  getConfig,
   getJsonLinesFormatter,
   getLogger,
   type Config,
 } from '@logtape/logtape'
+import { DEFAULT_LOG_LEVEL, type LogLevel, type LoggingConfig } from './level.ts'
 
 export { getLogger }
+export { type LogLevel, type LoggingConfig } from './level.ts'
 
 export interface LogError {
   name: string
@@ -14,7 +17,11 @@ export interface LogError {
   stack?: string
 }
 
-export function createLoggingConfiguration(): Config<'console', string> {
+let configuredBrowserLevel: LogLevel | undefined
+
+export function createLoggingConfiguration(
+  logging: LoggingConfig = { lowestLevel: DEFAULT_LOG_LEVEL },
+): Config<'console', string> {
   return {
     sinks: {
       console: getConsoleSink({ formatter: getJsonLinesFormatter() }),
@@ -22,15 +29,26 @@ export function createLoggingConfiguration(): Config<'console', string> {
     loggers: [
       {
         category: ['cimi'],
-        lowestLevel: 'info',
+        lowestLevel: logging.lowestLevel,
         sinks: ['console'],
       },
     ],
   }
 }
 
-export function configureBrowserLogging(): void {
-  configureSync(createLoggingConfiguration())
+export function configureBrowserLogging(logging?: LoggingConfig): void {
+  const lowestLevel = logging?.lowestLevel ?? DEFAULT_LOG_LEVEL
+  if (configuredBrowserLevel !== undefined && getConfig() !== null) {
+    if (configuredBrowserLevel !== lowestLevel) {
+      throw new Error(
+        `Browser logging is already configured at ${configuredBrowserLevel}, cannot change it to ${lowestLevel}`,
+      )
+    }
+    return
+  }
+
+  configureSync(createLoggingConfiguration(logging))
+  configuredBrowserLevel = lowestLevel
 }
 
 export function toLogError(error: unknown): LogError {

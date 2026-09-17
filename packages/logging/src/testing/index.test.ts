@@ -39,4 +39,14 @@ describe('createLoggingConfiguration', () => {
       { category: ['cimi'], lowestLevel: 'info', sinks: ['console'] },
     ])
   })
+
+  it('uses the configured lowest level for the cimi root logger', () => {
+    const configuration = createLoggingConfiguration({ lowestLevel: 'debug' })
+
+    expect(configuration.loggers[0]).toEqual({
+      category: ['cimi'],
+      lowestLevel: 'debug',
+      sinks: ['console'],
+    })
+  })
 })

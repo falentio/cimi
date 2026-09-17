@@ -8,7 +8,7 @@ import { ERROR_CATALOG, isProfileTraitsPayloadOversized } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
-import { getLogger, toLogError } from '@cimi/logging'
+import { getLogger, toLogError, type LoggingConfig } from '@cimi/logging'
 import { configureNodeLogging } from '@cimi/logging/node'
 import {
   InMemoryLifecycleLock,
@@ -67,6 +67,7 @@ export interface CreateApiAppDependencies {
   db: Db
   auth: Auth
   analytics: AnalyticsDb
+  logging?: LoggingConfig | undefined
   baseUrl?: string | undefined
   lifecycle?: HealthLifecycle | undefined
   lock?: LifecycleLock | undefined
@@ -116,7 +117,7 @@ function combineAcceptanceQuiescence(
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
-  configureNodeLogging()
+  configureNodeLogging(deps.logging)
   const logger = getLogger(['cimi', 'api'])
   const hello = createHello({ db: deps.db })
   const authority = createOrganizationAuthority(deps.auth)
