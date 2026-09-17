@@ -1,4 +1,6 @@
 import { createCacCli, writeHelp, writeVersion } from './cac-adapter.ts'
+import type { AuthLoginInput, AuthLoginResult } from './auth/login.ts'
+import type { CliPrompt } from './auth/prompt.ts'
 
 export interface TextWriter {
   write(text: string): void | boolean
@@ -10,6 +12,8 @@ export interface CreateCliDependencies {
   readonly stdout: TextWriter
   readonly stderr: TextWriter
   readonly exit: (code: number) => void
+  readonly prompt: CliPrompt
+  readonly authLogin: (input: AuthLoginInput) => Promise<AuthLoginResult>
 }
 
 export interface CliInvocationContext {
@@ -17,6 +21,8 @@ export interface CliInvocationContext {
   readonly version: string
   readonly stdout: TextWriter
   readonly stderr: TextWriter
+  readonly prompt: CliPrompt
+  readonly authLogin: (input: AuthLoginInput) => Promise<AuthLoginResult>
 }
 
 export type CliRunner = (argv: readonly string[]) => Promise<number>
@@ -28,6 +34,8 @@ export function createCli(dependencies: CreateCliDependencies): CliRunner {
       version: dependencies.version,
       stdout: dependencies.stdout,
       stderr: dependencies.stderr,
+      prompt: dependencies.prompt,
+      authLogin: dependencies.authLogin,
     }
     const cli = createCacCli(dependencies.name, context)
 

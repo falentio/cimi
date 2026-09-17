@@ -26,6 +26,7 @@ import { Spinner } from '@/components/ui/spinner'
 
 interface AuthPanelProps {
   readonly mode: AuthMode
+  readonly redirect?: string
 }
 
 type AuthRoute = '/login' | '/signup'
@@ -125,6 +126,14 @@ const submit = handleSubmit(
       submission.mode === 'signup' ? await signUp(submission.input) : await signIn(submission.input)
 
     feedback.value = feedbackForResult(result, submission.mode)
+    if (
+      result.ok &&
+      result.session !== null &&
+      props.redirect !== undefined &&
+      isSafeRedirect(props.redirect)
+    ) {
+      await navigateTo(props.redirect)
+    }
   },
   ({ errors: invalidErrors }) => {
     const firstInvalidField = fieldOrderByMode[props.mode].find(
@@ -179,6 +188,10 @@ function focusFirstInvalidField(field: AuthFormField): void {
   void nextTick(() => {
     document.getElementById(field)?.focus()
   })
+}
+
+function isSafeRedirect(value: string): boolean {
+  return value.startsWith('/') && !value.startsWith('//')
 }
 </script>
 

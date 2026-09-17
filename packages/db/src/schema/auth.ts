@@ -1,5 +1,6 @@
 export {
   account as TAccount,
+  deviceCode as TDeviceCode,
   authInvitation as TAuthInvitation,
   authMember as TAuthMember,
   authOrganization as TAuthOrganization,
@@ -10,6 +11,7 @@ export {
 
 import {
   account,
+  deviceCode,
   authInvitation,
   authMember,
   authOrganization,
@@ -22,6 +24,7 @@ export const betterAuthSchema = {
   user,
   session,
   account,
+  deviceCode,
   verification,
   authOrganization,
   authMember,

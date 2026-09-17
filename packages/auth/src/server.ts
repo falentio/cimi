@@ -1,7 +1,8 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import type { DB } from 'better-auth/adapters/drizzle'
-import { admin, organization } from 'better-auth/plugins'
+import { admin, bearer, deviceAuthorization, organization } from 'better-auth/plugins'
+import { CLI_AUTH_CLIENT_ID } from './device.ts'
 import { firstUserAdmin } from './first-user-admin.ts'
 
 export interface CreateAuthDependencies {
@@ -31,6 +32,11 @@ export function createAuth(deps: CreateAuthDependencies) {
           member: { modelName: 'authMember' },
           invitation: { modelName: 'authInvitation' },
         },
+      }),
+      bearer(),
+      deviceAuthorization({
+        verificationUri: '/device',
+        validateClient: (clientId) => clientId === CLI_AUTH_CLIENT_ID,
       }),
       firstUserAdmin(),
     ],

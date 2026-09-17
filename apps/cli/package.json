@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cimi/auth": "workspace:*",
     "cac": "catalog:"
   },
   "devDependencies": {

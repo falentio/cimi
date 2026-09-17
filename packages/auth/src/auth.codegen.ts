@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth'
-import { admin, organization } from 'better-auth/plugins'
+import { admin, bearer, deviceAuthorization, organization } from 'better-auth/plugins'
+import { CLI_AUTH_CLIENT_ID } from './device.ts'
 import { firstUserAdmin } from './first-user-admin.ts'
 
 export const auth = betterAuth({
@@ -13,6 +14,11 @@ export const auth = betterAuth({
         member: { modelName: 'authMember' },
         invitation: { modelName: 'authInvitation' },
       },
+    }),
+    bearer(),
+    deviceAuthorization({
+      verificationUri: '/device',
+      validateClient: (clientId) => clientId === CLI_AUTH_CLIENT_ID,
     }),
     firstUserAdmin(),
   ],

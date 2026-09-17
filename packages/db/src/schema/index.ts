@@ -1,6 +1,7 @@
 export {
   betterAuthSchema,
   TAccount,
+  TDeviceCode,
   TAuthInvitation,
   TAuthMember,
   TAuthOrganization,
