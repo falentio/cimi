@@ -38,6 +38,7 @@ This directory re-exports `vee-validate` primitives: `Form`, `Field as FormField
 - `FormMessage` renders vee-validate `ErrorMessage` as a `<p>` with the field name and `formMessageId`, and shows nothing when there is no error.
 - `useFormField()` returns `id`, `name`, `formItemId`, `formDescriptionId`, `formMessageId`, `valid`, `isDirty`, `isTouched`, `error`. It throws outside `FormField`, and it is the only source for `FormMessage` errors.
 - Build the form with `useForm({ validationSchema, initialValues })` from `vee-validate`; submit through `handleSubmit`.
+- Use `setFieldError` in the `handleSubmit` callback to map a server error to one field. `FormMessage` renders the error, and `FormControl` updates the field's ARIA attributes.
 - Validate with any Standard Schema library. For Valibot, compose schemas with functions such as `v.object` and `v.pipe`, then wrap the schema with `toTypedSchema` from `@vee-validate/valibot`, or pass a yup schema.
 - `initialValues` must match the schema keys so typed inputs render their starting values.
 - Accessibility is automatic: `FormControl` sets `aria-invalid` from the error and appends `formMessageId` to `aria-describedby` only when an error exists, and `FormDescription` owns `formDescriptionId`.
@@ -80,6 +81,47 @@ const onSubmit = form.handleSubmit((values) => {
       </UIFormItem>
     </UIFormField>
     <UIButton type="submit">Submit</UIButton>
+  </form>
+</template>
+```
+
+Use `setFieldError` when an API response rejects one field. This example uses a local condition in place of the API response.
+
+```vue
+<script setup lang="ts">
+import { useForm } from 'vee-validate'
+import { toTypedSchema } from '@vee-validate/valibot'
+import * as v from 'valibot'
+
+const formSchema = toTypedSchema(
+  v.object({
+    username: v.pipe(v.string(), v.minLength(2, 'Username must be at least 2 characters.')),
+  }),
+)
+
+const form = useForm({ validationSchema: formSchema, initialValues: { username: '' } })
+const onSubmit = form.handleSubmit((values, { setFieldError }) => {
+  if (values.username === 'shadcn') {
+    setFieldError('username', 'This username is already taken.')
+    return
+  }
+
+  console.log(values)
+})
+</script>
+
+<template>
+  <form @submit="onSubmit">
+    <UIFormField v-slot="{ componentField }" name="username">
+      <UIFormItem>
+        <UIFormLabel>Username</UIFormLabel>
+        <UIFormControl>
+          <UIInput placeholder="shadcn" v-bind="componentField" />
+        </UIFormControl>
+        <UIFormMessage />
+      </UIFormItem>
+    </UIFormField>
+    <UIButton type="submit">Save</UIButton>
   </form>
 </template>
 ```
