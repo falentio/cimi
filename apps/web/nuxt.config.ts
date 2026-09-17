@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { loadLoggingConfig } from '@cimi/config/logging'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -11,6 +12,11 @@ export default defineNuxtConfig({
   },
   devtools: { enabled: true },
   css: ['~/assets/css/tailwind.css'],
+  runtimeConfig: {
+    public: {
+      logging: loadLoggingConfig(),
+    },
+  },
 
   vite: {
     plugins: [tailwindcss()],

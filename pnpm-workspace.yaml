@@ -44,3 +44,5 @@ catalog:
   '@types/ua-parser-js': ^0.7.39
   ua-parser-js: 1.0.41
   vitest-mock-extended: ^5.1.1
+  '@logtape/logtape': 2.3.5
+  '@logtape/hono': 2.2.8

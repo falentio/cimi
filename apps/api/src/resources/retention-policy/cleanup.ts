@@ -1,7 +1,9 @@
 import type { LifecycleLock } from '@cimi/kernel'
+import { getLogger, toLogError } from '@cimi/logging'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 const DEFAULT_INTERVAL_MS = 1_000
+const logger = getLogger(['cimi', 'api', 'worker', 'retention-cleanup'])
 
 export interface RetentionCleanupBatchResult {
   completed: boolean
@@ -56,7 +58,9 @@ export class RetentionCleanupWorker {
     this.lock = lock
     this.cleanup = cleanup
     this.intervalMs = intervalMs
-    this.onError = onError ?? ((error) => console.error('Retention cleanup worker failed', error))
+    this.onError =
+      onError ??
+      ((error) => logger.error('Retention cleanup worker failed', { error: toLogError(error) }))
   }
 
   setCleanupPort(cleanup: RetentionCleanupPort | undefined): void {

@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { parseLoggingConfig } from '@cimi/config/logging'
 import { createApiServerApp, type ApiServerApp } from '@cimi/api/server'
 
 let apiAppPromise: Promise<ApiServerApp> | undefined
@@ -21,7 +22,10 @@ async function createWebApiApp(): Promise<ApiServerApp> {
   const folder = await materializeMigrations()
   migrationsFolder = folder
   try {
-    return await createApiServerApp({ migrationsFolder: folder })
+    return await createApiServerApp({
+      migrationsFolder: folder,
+      logging: parseLoggingConfig(useRuntimeConfig().public.logging),
+    })
   } catch (error) {
     await rm(folder, { recursive: true, force: true })
     migrationsFolder = undefined

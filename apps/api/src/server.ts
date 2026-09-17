@@ -2,6 +2,7 @@ import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { createAuth } from '@cimi/auth/server'
 import { loadConfig } from '@cimi/config'
+import type { LoggingConfig } from '@cimi/logging'
 import {
   ANALYTICS_DB_FILENAME,
   closeDb,
@@ -21,6 +22,7 @@ export type ApiServerApp = ApiApp & {
 export interface CreateApiServerAppOptions {
   env?: Record<string, string | undefined> | undefined
   migrationsFolder?: string | undefined
+  logging?: LoggingConfig | undefined
 }
 
 export async function createApiServerApp(
@@ -52,6 +54,7 @@ export async function createApiServerApp(
         db,
         auth,
         analytics,
+        logging: options.logging ?? cfg.logging,
         baseUrl: cfg.baseUrl,
         dataDirectoryReady: () => isDirectory(cfg.dataDir),
         controlDatabasePath: controlDbPath,

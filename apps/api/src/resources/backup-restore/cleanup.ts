@@ -1,8 +1,10 @@
 import { generateId } from '@cimi/utils'
 import type { LifecycleLock } from '@cimi/kernel'
+import { getLogger, toLogError } from '@cimi/logging'
 import type { BackupRestoreRepository } from './repository.ts'
 
 const DEFAULT_INTERVAL_MS = 1_000
+const logger = getLogger(['cimi', 'api', 'worker', 'backup-restore-cleanup'])
 
 export interface BackupRestoreCleanupPort {
   runDerived(input: { readonly operationId: string }): Promise<void>
@@ -45,7 +47,9 @@ export class BackupRestoreCleanupWorker {
     this.intervalMs = intervalMs
     this.clock = clock ?? (() => new Date())
     this.ownerToken = ownerToken ?? (() => generateId('own'))
-    this.onError = onError ?? ((error) => console.error('Backup cleanup worker failed', error))
+    this.onError =
+      onError ??
+      ((error) => logger.error('Backup cleanup worker failed', { error: toLogError(error) }))
   }
 
   runOnce(): Promise<void> {

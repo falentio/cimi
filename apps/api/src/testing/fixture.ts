@@ -2,6 +2,7 @@ import { expect } from 'vitest'
 import { closeDb, schema } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
+import type { LoggingConfig } from '@cimi/logging'
 import { createApiApp } from '../index.ts'
 import type { HealthLifecycle } from '../health.ts'
 import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
@@ -13,6 +14,7 @@ export async function createApiTestFixture(
     upgradeExecutor?: UpgradeExecutor
     eventIngestionProtection?: IngestionProtection
     eventIngestionTrustProxyHeaders?: boolean
+    logging?: LoggingConfig
     lifecycle?: HealthLifecycle
   } = {},
 ) {
@@ -34,6 +36,7 @@ export async function createApiTestFixture(
         dataDirectoryReady: true,
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
+        ...(options.logging === undefined ? {} : { logging: options.logging }),
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
         eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
         startRetentionCleanupWorker: false,
