@@ -44,7 +44,9 @@ const breadcrumbs = computed(() => resolveBreadcrumbs(route.path))
         </div>
       </header>
       <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <slot />
+        <div class="mx-auto flex w-full min-w-0 max-w-5xl flex-1 flex-col">
+          <slot />
+        </div>
       </div>
     </SidebarInset>
   </SidebarProvider>
