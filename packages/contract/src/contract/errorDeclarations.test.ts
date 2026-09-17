@@ -1,6 +1,7 @@
 import { isContractProcedure } from '@orpc/contract'
 import { describe, expect, it } from 'vitest'
 import { contract } from '../contract.ts'
+import { SPublicRateLimitAdapterResponse } from './public-dashboard/schema.ts'
 import { oc } from '../orpc/index.ts'
 import { ERROR_CATALOG } from '../schema/errors.ts'
 
@@ -51,6 +52,19 @@ const analyticsReport = catalog(
 )
 const siteCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST', 'CONFLICT')
 const siteLifecycleCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT')
+const publicDashboardQuery = {
+  ...catalog(
+    'BAD_REQUEST',
+    'NOT_FOUND',
+    'SERVICE_UNAVAILABLE',
+    'TOO_MANY_REQUESTS',
+    'QUERY_LIMIT_EXCEEDED',
+  ),
+  TOO_MANY_REQUESTS: {
+    ...catalog('TOO_MANY_REQUESTS')['TOO_MANY_REQUESTS'],
+    data: SPublicRateLimitAdapterResponse,
+  },
+}
 const expectedErrors: Record<string, ErrorMap> = {
   'backupRestore.listBackups': catalog(
     'UNAUTHORIZED',
@@ -267,13 +281,7 @@ const expectedErrors: Record<string, ErrorMap> = {
     'INTERNAL_SERVER_ERROR',
   ),
   'publicDashboard.getPublicDashboardConfig': administratorRead,
-  'publicDashboard.queryPublicDashboard': catalog(
-    'BAD_REQUEST',
-    'NOT_FOUND',
-    'SERVICE_UNAVAILABLE',
-    'TOO_MANY_REQUESTS',
-    'QUERY_LIMIT_EXCEEDED',
-  ),
+  'publicDashboard.queryPublicDashboard': publicDashboardQuery,
   'publicDashboard.enablePublicDashboard': siteLifecycleCommand,
   'publicDashboard.disablePublicDashboard': administratorRead,
   'publicDashboard.rotatePublicDashboardIdentifier': siteLifecycleCommand,

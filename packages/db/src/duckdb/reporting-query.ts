@@ -772,7 +772,10 @@ function timestamp(instant: number): string {
  * ` AND (...)`. Property, session, visitor, and presence predicates correlate on `e`, so they stay
  * inside the same windowed scan and share the caller's bound arguments.
  */
-function renderFilterPlan(plan: ReportFilterPlan, interval: HalfOpenInterval): RenderedFragment {
+export function renderFilterPlan(
+  plan: ReportFilterPlan,
+  interval: HalfOpenInterval,
+): RenderedFragment {
   const fragments: string[] = []
   const args: BoundValue[] = []
 
