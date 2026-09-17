@@ -9,7 +9,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandShortcut,
 } from '@/components/ui/command'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -26,6 +25,7 @@ import {
   type WorkspaceTeam,
 } from './workspace'
 import CreateOrganizationDialog from './CreateOrganizationDialog.vue'
+import type { Organization } from '@/components/features/organization-settings/organization-settings.types'
 
 const props = defineProps<{
   teams: readonly WorkspaceTeam[]
@@ -43,16 +43,18 @@ const { isMobile } = useSidebar()
 const searchOpen = shallowRef(false)
 const createOrganizationOpen = shallowRef(false)
 
-const activeTeam = computed(
-  () => props.teams.find((team) => team.id === props.activeTeamId) ?? props.teams[0],
-)
+const activeTeam = computed(() => props.teams.find((team) => team.id === props.activeTeamId))
 const activeSite = computed(() => props.sites.find((site) => site.id === props.activeSiteId))
 
 const triggerLabel = computed(() => {
   const teamName = activeTeam.value?.name ?? 'No organization selected'
   const siteName = activeSite.value?.name ?? 'No site selected'
-  return `Switch organization and site. Current organization: ${teamName}. Current site: ${siteName}`
+  return `Switch organization and site. Selected organization: ${teamName}. Selected site: ${siteName}`
 })
+
+function activeTeamClass(teamId: string): string {
+  return teamId === props.activeTeamId ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''
+}
 
 function selectTeam(teamId: string): void {
   searchOpen.value = false
@@ -67,6 +69,10 @@ function selectSite(siteId: string): void {
 function openCreateOrganization(): void {
   searchOpen.value = false
   createOrganizationOpen.value = true
+}
+
+function selectCreatedOrganization(organization: Organization): void {
+  selectTeam(organization.id)
 }
 </script>
 
@@ -90,7 +96,7 @@ function openCreateOrganization(): void {
               <span class="truncate font-medium">{{
                 activeTeam?.name ?? 'Select an organization'
               }}</span>
-              <span class="truncate text-xs text-sidebar-foreground/60">
+              <span class="truncate text-xs text-sidebar-foreground">
                 {{ activeSite?.hostname ?? 'Choose a site' }}
               </span>
             </span>
@@ -115,6 +121,8 @@ function openCreateOrganization(): void {
                   v-for="team in teams"
                   :key="team.id"
                   :value="team.name"
+                  :class="activeTeamClass(team.id)"
+                  :aria-selected="activeTeamId === team.id"
                   @select="selectTeam(team.id)"
                 >
                   <span
@@ -125,11 +133,11 @@ function openCreateOrganization(): void {
                   </span>
                   <span class="grid min-w-0 flex-1 leading-tight">
                     <span class="truncate">{{ team.name }}</span>
-                    <span class="truncate text-xs text-muted-foreground">{{
+                    <span class="truncate text-xs text-sidebar-foreground">{{
                       getTeamKindLabel(team)
                     }}</span>
                   </span>
-                  <CommandShortcut v-if="activeTeamId === team.id">Current</CommandShortcut>
+                  <span v-if="activeTeamId === team.id" class="sr-only">Selected organization</span>
                 </CommandItem>
               </CommandGroup>
               <CommandGroup heading="Sites">
@@ -137,6 +145,7 @@ function openCreateOrganization(): void {
                   v-for="site in sites"
                   :key="site.id"
                   :value="`${site.name} ${site.hostname} ${teams.find((team) => team.id === site.teamId)?.name ?? ''}`"
+                  :aria-selected="activeSiteId === site.id"
                   @select="selectSite(site.id)"
                 >
                   <HugeiconsIcon :icon="Globe02Icon" :size="16" aria-hidden="true" />
@@ -152,7 +161,7 @@ function openCreateOrganization(): void {
                     :icon="Tick02Icon"
                     :size="16"
                     class="text-primary"
-                    aria-label="Current site"
+                    aria-label="Selected site"
                   />
                 </CommandItem>
               </CommandGroup>
@@ -171,7 +180,10 @@ function openCreateOrganization(): void {
           </Command>
         </PopoverContent>
       </Popover>
-      <CreateOrganizationDialog v-model:open="createOrganizationOpen" />
+      <CreateOrganizationDialog
+        v-model:open="createOrganizationOpen"
+        @created="selectCreatedOrganization"
+      />
     </SidebarMenuItem>
   </SidebarMenu>
 </template>

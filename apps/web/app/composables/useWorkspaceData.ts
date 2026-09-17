@@ -54,6 +54,7 @@ export function useWorkspaceData() {
 }
 
 async function loadWorkspaceData(orpc: CimiOrpc, signal: AbortSignal): Promise<WorkspaceData> {
+  await orpc.organization.ensurePersonalOrganization.call({}, { signal })
   const organizations = await fetchAllPages((offset) =>
     orpc.organization.listOrganizations.call({ offset, limit: PAGE_SIZE }, { signal }),
   )

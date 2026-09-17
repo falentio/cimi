@@ -8,6 +8,10 @@ export interface MembershipRecord {
   readonly updatedAt: Date
 }
 
+export interface MembershipListRecord extends MembershipRecord {
+  readonly email: string
+}
+
 export interface MembershipRepository {
   findMany(options: {
     organizationId: string
@@ -79,7 +83,7 @@ export interface MembershipRepository {
 
 export namespace MembershipRepository {
   export interface Page {
-    readonly items: MembershipRecord[]
+    readonly items: MembershipListRecord[]
     readonly nextOffset: number | null
     readonly hasMore: boolean
     readonly totalCount: number

@@ -3,6 +3,7 @@ import { Globe02Icon } from '@hugeicons/core-free-icons'
 import type { SidebarProps } from '@/components/ui/sidebar'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar'
 import { NAV_REGISTRY, type NavGroup } from './nav-config'
+import { createOrganizationNav, siteOverviewPath } from './organization-nav-config'
 import NavMain from './NavMain.vue'
 import NavProjects from './NavProjects.vue'
 import NavSecondary from './NavSecondary.vue'
@@ -19,11 +20,20 @@ const { session } = useAuth()
 const route = useRoute()
 const router = useRouter()
 const { teams, sites, isLoading, error, refresh } = useWorkspaceData()
+const { activeOrganizationId, selectOrganization: selectWorkspaceOrganization } =
+  useWorkspaceSelection()
 
 const routeSiteId = computed<string | undefined>(() => {
   const value = route.params.siteId
   return typeof value === 'string' ? value : undefined
 })
+
+const routeOrganizationId = computed<string | undefined>(() => {
+  const value = route.params.organizationId
+  return typeof value === 'string' ? value : undefined
+})
+
+const isOrganizationRoute = computed(() => route.path === '/org' || route.path.startsWith('/org/'))
 
 const isAdmin = computed(() => {
   const state = session.value
@@ -36,22 +46,41 @@ const secondary = computed(() => ({
 }))
 
 const activeSiteId = computed(() => {
-  const routeSiteId = route.params.siteId
-  if (typeof routeSiteId === 'string' && sites.value.some((site) => site.id === routeSiteId))
-    return routeSiteId
+  if (isOrganizationRoute.value) return undefined
+  if (
+    routeSiteId.value !== undefined &&
+    sites.value.some((site) => site.id === routeSiteId.value)
+  ) {
+    return routeSiteId.value
+  }
   return sites.value[0]?.id
 })
 
 const activeTeamId = computed(() => {
+  if (isOrganizationRoute.value) return routeOrganizationId.value ?? ''
+  if (activeOrganizationId.value !== undefined) return activeOrganizationId.value
   const activeSite = sites.value.find((site) => site.id === activeSiteId.value)
   return activeSite?.teamId ?? teams.value[0]?.id ?? ''
+})
+
+const activeOrganization = computed(() => {
+  const organizationId = isOrganizationRoute.value
+    ? routeOrganizationId.value
+    : activeOrganizationId.value
+  return teams.value.find((team) => team.id === organizationId)
+})
+
+const organizationNav = computed<NavGroup | undefined>(() => {
+  const organization = activeOrganization.value
+  if (organization === undefined) return undefined
+  return createOrganizationNav({ organizationId: organization.id, label: organization.name })
 })
 
 const siteNav = computed<NavGroup>(() => ({
   label: 'Sites',
   items: sites.value.map((site) => ({
     title: site.name,
-    to: `/sites/${site.id}`,
+    to: siteOverviewPath(site.id),
     icon: Globe02Icon,
   })),
 }))
@@ -65,14 +94,13 @@ const siteSectionNav = computed<NavGroup | undefined>(() => {
 })
 
 function selectOrganization(organizationId: string): void {
-  const siteId = sites.value.find((site) => site.teamId === organizationId)?.id
-  if (siteId !== undefined) void router.push(`/sites/${siteId}`)
+  selectWorkspaceOrganization(organizationId)
 }
 
 function selectSite(siteId: string): void {
   const site = sites.value.find((candidate) => candidate.id === siteId)
   if (site === undefined) return
-  void router.push(`/sites/${site.id}`)
+  void router.push(siteOverviewPath(site.id))
 }
 
 const user = computed(() => {
@@ -106,6 +134,7 @@ const user = computed(() => {
     </SidebarHeader>
     <SidebarContent>
       <NavMain :group="NAV_REGISTRY.main" />
+      <NavProjects v-if="organizationNav !== undefined" :group="organizationNav" />
       <NavProjects v-if="siteNav.items.length > 0" :group="siteNav" />
       <NavProjects v-if="siteSectionNav !== undefined" :group="siteSectionNav" />
       <NavSecondary :group="secondary" class="mt-auto" />

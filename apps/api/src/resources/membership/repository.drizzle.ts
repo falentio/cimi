@@ -2,7 +2,7 @@ import { and, count, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import type { OrganizationRole } from '../organization/repository.ts'
 import { isOwnerInvariantValid } from '../organization/owner-invariant.ts'
-import type { MembershipRecord, MembershipRepository } from './repository.ts'
+import type { MembershipListRecord, MembershipRecord, MembershipRepository } from './repository.ts'
 
 export interface MembershipRepositoryDrizzleDependencies {
   readonly db: Db
@@ -26,15 +26,16 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
       .from(schema.TMembership)
       .where(where)
     const rows = await this.db
-      .select()
+      .select({ membership: schema.TMembership, email: schema.TUser.email })
       .from(schema.TMembership)
+      .innerJoin(schema.TUser, eq(schema.TUser.id, schema.TMembership.userId))
       .where(where)
       .orderBy(desc(schema.TMembership.createdAt), desc(schema.TMembership.userId))
       .limit(options.limit + 1)
       .offset(options.offset)
     const hasMore = rows.length > options.limit
     return {
-      items: rows.slice(0, options.limit).map(toMembership),
+      items: rows.slice(0, options.limit).map(toMembershipListRecord),
       nextOffset: hasMore ? options.offset + options.limit : null,
       hasMore,
       totalCount: countRow?.count ?? 0,
@@ -707,6 +708,13 @@ function toMembership(row: typeof schema.TMembership.$inferSelect): MembershipRe
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
+}
+
+function toMembershipListRecord(row: {
+  readonly membership: typeof schema.TMembership.$inferSelect
+  readonly email: string
+}): MembershipListRecord {
+  return { ...toMembership(row.membership), email: row.email }
 }
 
 function toTransfer(

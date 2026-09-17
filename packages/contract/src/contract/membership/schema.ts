@@ -17,7 +17,12 @@ export const SMembershipNonOwner = v.strictObject(
 )
 export const SMembership = v.strictObject(
   v.entriesFromObjects([
-    v.strictObject({ organizationId: SId, userId: SId, role: SMembershipRole }),
+    v.strictObject({
+      organizationId: SId,
+      userId: SId,
+      email: v.pipe(v.string(), v.email()),
+      role: SMembershipRole,
+    }),
     SCreated,
   ]),
 )

@@ -34,8 +34,10 @@ describe('isNavItemActive', () => {
   })
 
   it('matches section targets by path prefix', () => {
-    expect(isNavItemActive('/settings/general', { to: '/settings' })).toBe(true)
-    expect(isNavItemActive('/settings-elsewhere', { to: '/settings' })).toBe(false)
+    expect(isNavItemActive('/org/org_1/settings/general', { to: '/org/org_1/settings' })).toBe(true)
+    expect(isNavItemActive('/org/org_1/settings-elsewhere', { to: '/org/org_1/settings' })).toBe(
+      false,
+    )
   })
 
   it('supports exact targets', () => {

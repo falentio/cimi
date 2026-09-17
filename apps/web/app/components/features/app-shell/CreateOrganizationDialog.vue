@@ -12,11 +12,19 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
+import { useOrganizationSettings } from '@/components/features/organization-settings/useOrganizationSettings'
+import { normalizeOrganizationNameDraft } from '@/components/features/organization-settings/organization-settings.utils'
+import type { Organization } from '@/components/features/organization-settings/organization-settings.types'
 
 const isOpen = defineModel<boolean>('open', { default: false })
+const emit = defineEmits<{
+  created: [organization: Organization]
+}>()
 const organizationName = shallowRef('')
 const hasSubmitted = shallowRef(false)
 const feedback = shallowRef<string | null>(null)
+const { isCreating, error, createOrganization } = useOrganizationSettings({ section: 'create' })
 
 const nameError = computed(() => {
   if (!hasSubmitted.value || organizationName.value.trim().length > 0) return null
@@ -27,7 +35,7 @@ watch(isOpen, (open) => {
   if (!open) resetForm()
 })
 
-function submit(): void {
+async function submit(): Promise<void> {
   hasSubmitted.value = true
   feedback.value = null
 
@@ -36,7 +44,16 @@ function submit(): void {
     return
   }
 
-  feedback.value = 'Organization creation is not connected yet. Nothing was saved.'
+  const name = normalizeOrganizationNameDraft(organizationName.value)
+  if (name === null) return
+
+  try {
+    const organization = await createOrganization({ name })
+    emit('created', organization)
+    isOpen.value = false
+  } catch {
+    feedback.value = error.value?.message ?? 'Organization creation failed. Try again.'
+  }
 }
 
 function resetForm(): void {
@@ -74,6 +91,7 @@ function resetForm(): void {
                 : 'organization-name-description'
             "
             :aria-invalid="nameError !== null"
+            :disabled="isCreating"
             maxlength="256"
             name="organizationName"
             placeholder="e.g. Northstar Analytics"
@@ -102,7 +120,10 @@ function resetForm(): void {
         <DialogClose as-child>
           <Button type="button" variant="outline">Cancel</Button>
         </DialogClose>
-        <Button form="create-organization-form" type="submit">Create organization</Button>
+        <Button :disabled="isCreating" form="create-organization-form" type="submit">
+          <Spinner v-if="isCreating" aria-hidden="true" />
+          {{ isCreating ? 'Creating…' : 'Create organization' }}
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
