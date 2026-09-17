@@ -7,6 +7,7 @@ export {
   type Db,
 } from './client.ts'
 export * as schema from './schema/index.ts'
+export type { JsonObject, JsonScalar, JsonValue } from './schema/types.ts'
 export {
   BASE_SKELETON_TABLES,
   ControlMigrationIncompatibilityError,
@@ -22,6 +23,10 @@ export {
   ANALYTICS_REQUIRED_TABLES,
   createAnalyticsDb,
   type AnalyticsDb,
+  type AnalyticsReportData,
+  type AnalyticsReportEvent,
+  type AnalyticsReportScalar,
+  type AnalyticsReportSession,
   type AnalyticsProjectionCheckpoint,
   type AnalyticsProjectionGap,
   type AnalyticsProjectionSnapshot,

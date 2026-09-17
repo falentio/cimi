@@ -49,6 +49,10 @@ import {
 } from './resources/backup-restore/index.ts'
 import { createIdentityProfile } from './resources/identity-profile/index.ts'
 import { createTrafficReport } from './resources/traffic-report/index.ts'
+import { createGoal } from './resources/goal/index.ts'
+import { createFunnel } from './resources/funnel/index.ts'
+import { createCohort } from './resources/cohort-retention/index.ts'
+import { createReportQueryKernelFromInfrastructure } from './resources/reporting/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -246,6 +250,29 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
   })
+  const reportQuery = createReportQueryKernelFromInfrastructure({
+    db: deps.db,
+    analytics: deps.analytics,
+    admission: trafficReport.admission,
+  })
+  const goal = createGoal({
+    db: deps.db,
+    analytics: deps.analytics,
+    admission: trafficReport.admission,
+    query: reportQuery,
+  })
+  const funnel = createFunnel({
+    db: deps.db,
+    analytics: deps.analytics,
+    admission: trafficReport.admission,
+    query: reportQuery,
+  })
+  const cohort = createCohort({
+    db: deps.db,
+    analytics: deps.analytics,
+    admission: trafficReport.admission,
+    query: reportQuery,
+  })
   const router = api.router({
     health: {
       health: api.health.health.handler(async () => systemHealthHandler({ ...deps, lifecycle })),
@@ -261,6 +288,9 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     backupRestore: backupRestore.router,
     eventIngestion: eventIngestion.router,
     identityProfile: identityProfile.router,
+    goal: goal.router,
+    funnel: funnel.router,
+    cohortRetention: cohort.router,
     trafficReport: trafficReport.router,
   })
 

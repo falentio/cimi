@@ -5,6 +5,7 @@ import {
   enumerateLocalBucketStarts,
   formatLocalCalendarDate,
   resolveLocalDateStart,
+  type LocalWeekStart,
   type LocalCalendarDate,
 } from '@cimi/utils'
 
@@ -17,9 +18,11 @@ import type {
   ResolvedPeriod,
   ResolvedPeriods,
   SiteReportingMetadata,
+  Periodization,
 } from './types.ts'
 import {
   calendarDateParts,
+  calendarDateValue,
   createInstantMs,
   instantFromDate,
   type CalendarDate,
@@ -65,6 +68,42 @@ export function resolveReportPeriods(input: {
   } catch (error) {
     if (error instanceof ReportingAdmissionError) throw error
     throw badReportingRequest('invalid-period')
+  }
+}
+
+export function resolvePeriodSequence(input: {
+  readonly metadata: SiteReportingMetadata
+  readonly dates: InclusiveDateRange
+  readonly periodization: Periodization
+}): readonly ResolvedPeriod[] {
+  const { metadata, dates, periodization } = input
+  if (!Number.isInteger(periodization.maxPeriods) || periodization.maxPeriods < 1) {
+    throw badReportingRequest('period-bound')
+  }
+
+  const from = calendarDateParts(dates.fromDate)
+  const to = calendarDateParts(dates.toDate)
+  if (compareCalendarDates(from, to) > 0) throw badReportingRequest('invalid-period')
+
+  const first = startOfPeriod(from, periodization.kind, metadata.weekStartsOn)
+  const periods: ResolvedPeriod[] = []
+  for (let index = 0; ; index += 1) {
+    if (index >= periodization.maxPeriods) throw badReportingRequest('period-bound')
+    const periodFrom = addPeriod(first, index, periodization.kind)
+    const nextFrom = addPeriod(first, index + 1, periodization.kind)
+    const periodTo = addCalendarDays(nextFrom, -1)
+    periods.push(
+      resolvePeriod({
+        key: 'current',
+        dates: {
+          fromDate: calendarDateValue(periodFrom),
+          toDate: calendarDateValue(periodTo),
+        },
+        metadata,
+        bucket: undefined,
+      }),
+    )
+    if (compareCalendarDates(periodTo, to) >= 0) return periods
   }
 }
 
@@ -123,6 +162,52 @@ function resolvePeriod(input: {
             metadata: input.metadata,
             bucket: input.bucket,
           }),
+  }
+}
+
+function startOfPeriod(
+  date: LocalCalendarDate,
+  kind: Periodization['kind'],
+  weekStartsOn: LocalWeekStart,
+): LocalCalendarDate {
+  if (kind === 'day') return date
+  if (kind === 'month') return { year: date.year, month: date.month, day: 1 }
+  const weekday = new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay()
+  const weekStart = weekStartNumber(weekStartsOn)
+  return addCalendarDays(date, -((weekday - weekStart + 7) % 7))
+}
+
+function addPeriod(
+  date: LocalCalendarDate,
+  amount: number,
+  kind: Periodization['kind'],
+): LocalCalendarDate {
+  if (kind === 'day') return addCalendarDays(date, amount)
+  if (kind === 'week') return addCalendarDays(date, amount * 7)
+  const absoluteMonth = date.year * 12 + date.month - 1 + amount
+  return {
+    year: Math.floor(absoluteMonth / 12),
+    month: (((absoluteMonth % 12) + 12) % 12) + 1,
+    day: 1,
+  }
+}
+
+function weekStartNumber(value: LocalWeekStart): number {
+  switch (value) {
+    case 'sunday':
+      return 0
+    case 'monday':
+      return 1
+    case 'tuesday':
+      return 2
+    case 'wednesday':
+      return 3
+    case 'thursday':
+      return 4
+    case 'friday':
+      return 5
+    case 'saturday':
+      return 6
   }
 }
 

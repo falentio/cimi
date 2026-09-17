@@ -9,6 +9,7 @@ export type ReportingAdmissionErrorReason =
   | 'comparison-not-adjacent'
   | 'comparison-not-equal-length'
   | 'bucket-bound'
+  | 'period-bound'
   | 'metadata-missing'
   | 'analytics-not-ready'
   | 'port-failure'

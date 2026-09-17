@@ -6,7 +6,11 @@ export {
 export { ReportingAdmissionService } from './admission.ts'
 export { defaultFactWorkEstimator, estimateFactWork, FACT_WORK_WEIGHTS } from './fact-work.ts'
 export { checkRetentionCoverage } from './retention.ts'
-export { findRelevantProjectionGap, resolveReportPeriods } from './interval.ts'
+export {
+  findRelevantProjectionGap,
+  resolvePeriodSequence,
+  resolveReportPeriods,
+} from './interval.ts'
 export type {
   FactWorkPort,
   ReportingAdmissionDependencies,
@@ -39,8 +43,11 @@ export {
   type ProjectionCheckpoint,
   type ProjectionEvidence,
   type ProjectionGap,
+  type Periodization,
   type ReportAdmissionInput,
   type ReportAdmissionTicket,
+  type ReportEvaluationPeriod,
+  type ReportEvaluationPeriods,
   type ReportGranularity,
   type ReportWorkDemand,
   type ResolvedPeriod,

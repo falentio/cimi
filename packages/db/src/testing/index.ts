@@ -32,6 +32,7 @@ export async function createTestAnalyticsDb(): Promise<AnalyticsDb> {
       deleteExpired: (input) => analytics.deleteExpired(input),
       purgeSite: (input) => analytics.purgeSite(input),
       readProjectionSnapshot: (input) => analytics.readProjectionSnapshot(input),
+      readReportData: (input) => analytics.readReportData(input),
       async close() {
         if (closed) return
         closed = true

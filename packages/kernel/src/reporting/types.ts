@@ -68,9 +68,26 @@ export interface ReportAdmissionInput {
   readonly siteId: SiteId
   readonly current: InclusiveDateRange
   readonly comparison?: InclusiveDateRange
+  readonly periodization?: Periodization
   readonly bucket?: BucketDemand
   readonly coverage: readonly CoverageDependency[]
   readonly work: ReportWorkDemand
+}
+
+export interface Periodization {
+  readonly kind: Extract<ReportGranularity, 'day' | 'week' | 'month'>
+  readonly maxPeriods: number
+}
+
+export interface ReportEvaluationPeriod {
+  readonly period: ResolvedPeriod
+  readonly sequence: readonly ResolvedPeriod[] | null
+}
+
+export interface ReportEvaluationPeriods {
+  readonly current: ReportEvaluationPeriod
+  readonly comparison: ReportEvaluationPeriod | null
+  readonly interval: HalfOpenInterval
 }
 
 export interface SiteReportingMetadata {
@@ -147,6 +164,7 @@ export interface FactWorkEstimate {
 
 export interface ReportAdmissionTicket {
   readonly periods: ResolvedPeriods
+  readonly evaluation: ReportEvaluationPeriods
   readonly freshness: Readonly<{
     readonly current: FreshnessEvidence
     readonly comparison: FreshnessEvidence | null

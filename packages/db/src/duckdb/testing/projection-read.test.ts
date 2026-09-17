@@ -75,6 +75,44 @@ describe('readProjectionSnapshot', () => {
       closeDb(controlDb)
     }
   })
+
+  it('reads bounded report events and their server-defined sessions', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analytics = await createTestAnalyticsDb()
+    const now = Date.parse('2026-09-05T00:00:00.000Z')
+    try {
+      migrateControlDb(controlDb)
+      seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 3 })
+      await analytics.rebuild({ controlDb })
+
+      const report = await analytics.readReportData({
+        siteId: 'ste-1',
+        from: new Date(now),
+        toExclusive: new Date(now + 86_400_000),
+      })
+
+      expect(report.events).toHaveLength(3)
+      expect(report.events[0]).toMatchObject({
+        eventId: 'evt-1',
+        eventKind: 'custom_event',
+        visitorId: 'vis-1',
+        sessionId: 'ses-1',
+        properties: {},
+      })
+      expect(report.events[0]?.occurrenceTime).toEqual(new Date(now))
+      expect(report.sessions).toEqual([
+        expect.objectContaining({
+          sessionId: 'ses-1',
+          visitorId: 'vis-1',
+          startedAt: new Date(now),
+          endedAt: new Date(now + 2_000),
+        }),
+      ])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
 })
 
 function seedControlDb(

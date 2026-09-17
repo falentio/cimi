@@ -7,6 +7,7 @@ import {
   nestedMapValues,
   parseEventAttribution,
   setNestedMapValue,
+  isRecord,
 } from '@cimi/utils'
 import type { Db } from '../client.ts'
 import { linkCoversEvent } from '../identity/coverage.ts'
@@ -53,12 +54,60 @@ export interface AnalyticsProjectionSnapshot {
   readonly factCardinality: number
 }
 
+export type AnalyticsReportScalar = string | number | boolean | null
+
+export interface AnalyticsReportEvent {
+  readonly eventId: string
+  readonly eventKind: string
+  readonly occurrenceTime: Date
+  readonly visitorId: string | null
+  readonly identifiedUserId: string | null
+  readonly sessionId: string | null
+  readonly pagePath: string | null
+  readonly referrer: string | null
+  readonly name: string | null
+  readonly destination: string | null
+  readonly unit: string | null
+  readonly code: string | null
+  readonly properties: Readonly<Record<string, AnalyticsReportScalar>>
+}
+
+export interface AnalyticsReportSession {
+  readonly sessionId: string
+  readonly visitorId: string | null
+  readonly identifiedUserId: string | null
+  readonly startedAt: Date
+  readonly endedAt: Date | null
+  readonly entryPage: string | null
+  readonly exitPage: string | null
+  readonly referrer: string | null
+  readonly utmSource: string | null
+  readonly utmMedium: string | null
+  readonly utmCampaign: string | null
+  readonly device: string | null
+  readonly browser: string | null
+  readonly operatingSystem: string | null
+  readonly country: string | null
+  readonly region: string | null
+  readonly city: string | null
+}
+
+export interface AnalyticsReportData {
+  readonly events: readonly AnalyticsReportEvent[]
+  readonly sessions: readonly AnalyticsReportSession[]
+}
+
 export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
   deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number>
   purgeSite(input: { siteId: string }): Promise<void>
   readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot>
+  readReportData(input: {
+    siteId: string
+    from: Date
+    toExclusive: Date
+  }): Promise<AnalyticsReportData>
   close(): Promise<void>
 }
 
@@ -183,6 +232,47 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           },
           openGaps: readGapRows(gapReader.getRowObjects()),
           factCardinality,
+        }
+      })
+    },
+    async readReportData(input: {
+      siteId: string
+      from: Date
+      toExclusive: Date
+    }): Promise<AnalyticsReportData> {
+      if (closed || closing) throw new Error('Analytics database is closed')
+      if (unavailable) throw new Error('Analytics database is unavailable')
+      return enqueue(async () => {
+        const sessionsReader = await connection.runAndReadAll(
+          `SELECT session_id, visitor_id, identified_user_id,
+                  epoch_ms(started_at) AS started_at, epoch_ms(ended_at) AS ended_at,
+                  (SELECT page_path FROM events event
+                   WHERE event.site_id = analytics_sessions.site_id
+                     AND event.analytics_session_id = analytics_sessions.session_id
+                   ORDER BY event.occurrence_time DESC, event.event_id DESC LIMIT 1) AS exit_page,
+                  entry_page, referrer, utm_source, utm_medium, utm_campaign,
+                  device, browser, operating_system, country, region, city
+           FROM analytics_sessions
+           WHERE site_id = ?
+             AND (ended_at IS NULL OR ended_at >= CAST(? AS TIMESTAMP))
+             AND started_at < CAST(? AS TIMESTAMP)
+           ORDER BY started_at, session_id`,
+          [input.siteId, timestamp(input.from.getTime()), timestamp(input.toExclusive.getTime())],
+        )
+        const eventsReader = await connection.runAndReadAll(
+          `SELECT event_id, event_kind, epoch_ms(occurrence_time) AS occurrence_time,
+                  visitor_id, identified_user_id, analytics_session_id,
+                  page_path, referrer, name, destination, unit, code, properties_json
+           FROM events
+           WHERE site_id = ?
+             AND occurrence_time >= CAST(? AS TIMESTAMP)
+             AND occurrence_time < CAST(? AS TIMESTAMP)
+           ORDER BY occurrence_time, event_id`,
+          [input.siteId, timestamp(input.from.getTime()), timestamp(input.toExclusive.getTime())],
+        )
+        return {
+          sessions: sessionsReader.getRowObjects().map(readReportSession),
+          events: eventsReader.getRowObjects().map(readReportEvent),
         }
       })
     },
@@ -1079,8 +1169,84 @@ function readInstant(value: unknown): Date | null {
     const parsed = new Date(Number(value))
     return Number.isNaN(parsed.getTime()) ? null : parsed
   }
-  const parsed = new Date(String(value))
+  if (typeof value !== 'string') return null
+  const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function readRequiredInstant(value: unknown, field: string): Date {
+  const instant = readInstant(value)
+  if (instant === null) throw new Error(`Analytics report row has no ${field}`)
+  return instant
+}
+
+function readReportSession(row: Record<string, unknown>): AnalyticsReportSession {
+  return {
+    sessionId: String(row['session_id']),
+    visitorId: nullableString(row['visitor_id']),
+    identifiedUserId: nullableString(row['identified_user_id']),
+    startedAt: readRequiredInstant(row['started_at'], 'session start'),
+    endedAt: readInstant(row['ended_at']),
+    exitPage: nullableString(row['exit_page']),
+    entryPage: nullableString(row['entry_page']),
+    referrer: nullableString(row['referrer']),
+    utmSource: nullableString(row['utm_source']),
+    utmMedium: nullableString(row['utm_medium']),
+    utmCampaign: nullableString(row['utm_campaign']),
+    device: nullableString(row['device']),
+    browser: nullableString(row['browser']),
+    operatingSystem: nullableString(row['operating_system']),
+    country: nullableString(row['country']),
+    region: nullableString(row['region']),
+    city: nullableString(row['city']),
+  }
+}
+
+function readReportEvent(row: Record<string, unknown>): AnalyticsReportEvent {
+  return {
+    eventId: String(row['event_id']),
+    eventKind: String(row['event_kind']),
+    occurrenceTime: readRequiredInstant(row['occurrence_time'], 'event occurrence time'),
+    visitorId: nullableString(row['visitor_id']),
+    identifiedUserId: nullableString(row['identified_user_id']),
+    sessionId: nullableString(row['analytics_session_id']),
+    pagePath: nullableString(row['page_path']),
+    referrer: nullableString(row['referrer']),
+    name: nullableString(row['name']),
+    destination: nullableString(row['destination']),
+    unit: nullableString(row['unit']),
+    code: nullableString(row['code']),
+    properties: readReportProperties(row['properties_json']),
+  }
+}
+
+function nullableString(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return null
+}
+
+function readReportProperties(value: unknown): Readonly<Record<string, AnalyticsReportScalar>> {
+  if (value === null || value === undefined) return {}
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value
+  if (!isRecord(parsed)) throw new Error('Analytics report properties are not an object')
+  const properties: Record<string, AnalyticsReportScalar> = {}
+  for (const [key, property] of Object.entries(parsed)) {
+    if (
+      property === null ||
+      typeof property === 'string' ||
+      typeof property === 'boolean' ||
+      (typeof property === 'number' && Number.isFinite(property))
+    ) {
+      properties[key] = property
+    } else {
+      throw new Error('Analytics report properties contain an unsupported value')
+    }
+  }
+  return properties
 }
 
 function readGapRows(rows: readonly Record<string, unknown>[]): AnalyticsProjectionGap[] {

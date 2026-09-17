@@ -13,6 +13,7 @@ import {
   estimateFactWork,
   findRelevantProjectionGap,
   resolveReportPeriods,
+  resolvePeriodSequence,
   type AlignedStatistics,
   type FactWorkPort,
   type ProjectionEvidence,
@@ -159,6 +160,10 @@ function createPorts(): {
 function admissionInput(
   overrides: {
     readonly comparison?: { readonly fromDate: string; readonly toDate: string }
+    readonly periodization?: {
+      readonly kind: 'day' | 'week' | 'month'
+      readonly maxPeriods: number
+    }
     readonly coverage?: readonly ('event-occurrence' | 'profile-activity' | 'replay-receipt')[]
     readonly budget?: number
   } = {},
@@ -174,6 +179,7 @@ function admissionInput(
     siteId,
     current: currentInput,
     ...(comparison === undefined ? {} : { comparison }),
+    ...(overrides.periodization === undefined ? {} : { periodization: overrides.periodization }),
     coverage: overrides.coverage ?? ['event-occurrence'],
     work: {
       extraMetricCount: 0,
@@ -298,6 +304,32 @@ describe('reporting period resolution', () => {
         fromDate: '2026-09-05',
         toDate: '2026-09-06',
         bucket: { granularity: 'hour', maxStarts: 47 },
+      }),
+    ).toThrowError(ReportingAdmissionError)
+  })
+
+  it('aligns periodized ranges to the Site week start and rejects more than the hard bound', () => {
+    const sequence = resolvePeriodSequence({
+      metadata,
+      dates: {
+        fromDate: createCalendarDate('2026-09-09'),
+        toDate: createCalendarDate('2026-09-15'),
+      },
+      periodization: { kind: 'week', maxPeriods: 2 },
+    })
+
+    expect(sequence.map((period) => [period.dates.fromDate, period.dates.toDate])).toEqual([
+      ['2026-09-07', '2026-09-13'],
+      ['2026-09-14', '2026-09-20'],
+    ])
+    expect(() =>
+      resolvePeriodSequence({
+        metadata,
+        dates: {
+          fromDate: createCalendarDate('2026-09-09'),
+          toDate: createCalendarDate('2026-09-15'),
+        },
+        periodization: { kind: 'week', maxPeriods: 1 },
       }),
     ).toThrowError(ReportingAdmissionError)
   })
@@ -616,6 +648,23 @@ describe('ReportingAdmissionService', () => {
     expect(error.reason).toBe('fact-work-uncertain')
   })
 
+  it('rejects narrow statistics whose acceptance sequence differs from the checkpoint', async () => {
+    const ports = createPorts()
+    ports.statistics.read.mockReturnValue({
+      state: 'aligned',
+      asOfAcceptanceSequence: 41,
+      factCardinality: 100,
+    })
+
+    const error = await expectAdmissionError(
+      () => new ReportingAdmissionService(ports.dependencies).admit(admissionInput()),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+
+    expect(error.reason).toBe('statistics-uncertain')
+    expect(ports.factWork.estimate).not.toHaveBeenCalled()
+  })
+
   it('rejects a Fact-Work estimate budget that differs from the requested budget', async () => {
     const ports = createPorts()
     ports.factWork.estimate.mockReturnValue({
@@ -637,6 +686,26 @@ describe('ReportingAdmissionService', () => {
     )
 
     expect(error.reason).toBe('fact-work-uncertain')
+  })
+
+  it('checks retention across the expanded periodized evaluation interval', async () => {
+    const ports = createPorts()
+    ports.retention.read.mockReturnValue({
+      ...completeRetention(),
+      eventOccurrence: {
+        state: 'available',
+        from: instant('2026-09-05T00:00:00.000Z'),
+      },
+    })
+
+    await expectAdmissionError(
+      () =>
+        new ReportingAdmissionService(ports.dependencies).admit(
+          admissionInput({ periodization: { kind: 'week', maxPeriods: 2 } }),
+        ),
+      'QUERY_LIMIT_EXCEEDED',
+    )
+    expect(ports.factWork.estimate).not.toHaveBeenCalled()
   })
 })
 

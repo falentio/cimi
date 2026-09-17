@@ -49,6 +49,7 @@ export {
   TRetentionPolicy,
 } from './lifecycle.ts'
 export { TIdentityProjectionDebt, TProjectionCheckpoint, TProjectionGap } from './projection.ts'
+export type { JsonObject, JsonScalar, JsonValue } from './types.ts'
 export {
   TCohort,
   TCohortVersion,

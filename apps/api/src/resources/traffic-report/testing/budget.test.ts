@@ -23,6 +23,23 @@ const ticket: ReportAdmissionTicket = {
     },
     comparison: null,
   },
+  evaluation: {
+    current: {
+      period: {
+        key: 'current',
+        dates: {
+          fromDate: createCalendarDate('2026-09-05'),
+          toDate: createCalendarDate('2026-09-06'),
+        },
+        interval: { start: createInstantMs(0), endExclusive: createInstantMs(1) },
+        calendarDays: 2,
+        bucketStarts: null,
+      },
+      sequence: null,
+    },
+    comparison: null,
+    interval: { start: createInstantMs(0), endExclusive: createInstantMs(1) },
+  },
   freshness: {
     current: {
       status: 'stale',

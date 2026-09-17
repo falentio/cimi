@@ -1,6 +1,11 @@
 import { defaultFactWorkEstimator } from './fact-work.ts'
 import { ReportingAdmissionError, queryLimitExceeded, serviceUnavailable } from './errors.ts'
-import { findRelevantProjectionGap, resolveReportPeriods } from './interval.ts'
+import { createInstantMs } from './types.ts'
+import {
+  findRelevantProjectionGap,
+  resolvePeriodSequence,
+  resolveReportPeriods,
+} from './interval.ts'
 import { checkRetentionCoverage } from './retention.ts'
 import type {
   AlignedStatistics,
@@ -9,6 +14,7 @@ import type {
   ProjectionEvidence,
   ReportAdmissionInput,
   ReportAdmissionTicket,
+  ReportEvaluationPeriods,
   ResolvedPeriod,
   ResolvedPeriods,
   RetentionCoverage,
@@ -38,17 +44,28 @@ export class ReportingAdmissionService {
       ...(input.comparison === undefined ? {} : { comparison: input.comparison }),
       ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
     })
+    const evaluation = resolveEvaluationPeriods({
+      metadata,
+      periods,
+      periodization: input.periodization,
+    })
 
-    const facts = await this.#readFacts(input, periods)
+    const facts = await this.#readFacts(input, evaluation.coveragePeriods)
 
-    checkRetentionCoverage({ coverage: facts.retention, required: input.coverage, periods })
+    checkRetentionCoverage({
+      coverage: facts.retention,
+      required: input.coverage,
+      periods: evaluation.coveragePeriods,
+    })
 
     const bucketWork = input.work.bucketWork ?? countBucketStarts(periods)
+    const periodWork = evaluation.current.sequence?.length ?? 0
+    const comparisonPeriodWork = evaluation.comparison?.sequence?.length ?? 0
     const factWorkPort = this.#dependencies.factWork ?? { estimate: defaultFactWorkEstimator }
     const estimate = await this.readPort(() =>
       factWorkPort.estimate({
         factCardinality: facts.statistics.factCardinality,
-        extraMetricCount: input.work.extraMetricCount,
+        extraMetricCount: input.work.extraMetricCount + periodWork + comparisonPeriodWork,
         bucketWork,
         dimensionCount: input.work.dimensionCount,
         filterCount: input.work.filterCount,
@@ -60,12 +77,25 @@ export class ReportingAdmissionService {
 
     return {
       periods,
+      evaluation: {
+        current: evaluation.current,
+        comparison: evaluation.comparison,
+        interval: evaluation.interval,
+      },
       freshness: {
-        current: resolveFreshness(periods.current, facts.projection),
+        current: resolveFreshness(
+          evaluation.current.period,
+          facts.projection,
+          evaluation.current.sequence,
+        ),
         comparison:
           periods.comparison === null
             ? null
-            : resolveFreshness(periods.comparison, facts.projection),
+            : resolveFreshness(
+                evaluation.comparison?.period ?? periods.comparison,
+                facts.projection,
+                evaluation.comparison?.sequence,
+              ),
       },
       factWork: estimate,
     }
@@ -130,6 +160,54 @@ export class ReportingAdmissionService {
   }
 }
 
+function resolveEvaluationPeriods(input: {
+  readonly metadata: Parameters<typeof resolveReportPeriods>[0]['metadata']
+  readonly periods: ResolvedPeriods
+  readonly periodization: ReportAdmissionInput['periodization']
+}): ReportEvaluationPeriods & {
+  readonly coveragePeriods: ResolvedPeriods
+} {
+  const currentSequence =
+    input.periodization === undefined
+      ? null
+      : resolvePeriodSequence({
+          metadata: input.metadata,
+          dates: input.periods.current.dates,
+          periodization: input.periodization,
+        })
+  const comparisonSequence =
+    input.periodization === undefined || input.periods.comparison === null
+      ? null
+      : resolvePeriodSequence({
+          metadata: input.metadata,
+          dates: input.periods.comparison.dates,
+          periodization: input.periodization,
+        })
+  const current = {
+    period: input.periods.current,
+    sequence: currentSequence,
+  }
+  const comparison =
+    input.periods.comparison === null
+      ? null
+      : { period: input.periods.comparison, sequence: comparisonSequence }
+  const intervals = [
+    input.periods.current.interval,
+    ...(input.periods.comparison === null ? [] : [input.periods.comparison.interval]),
+    ...(currentSequence?.map((period) => period.interval) ?? []),
+    ...(comparisonSequence?.map((period) => period.interval) ?? []),
+  ]
+  const interval = {
+    start: createInstantMs(Math.min(...intervals.map((value) => value.start))),
+    endExclusive: createInstantMs(Math.max(...intervals.map((value) => value.endExclusive))),
+  }
+  const coveragePeriods: ResolvedPeriods = {
+    current: { ...input.periods.current, interval },
+    comparison: null,
+  }
+  return { current, comparison, interval, coveragePeriods }
+}
+
 function rejectRelevantGap(projection: ProjectionEvidence, periods: ResolvedPeriods): void {
   if (findRelevantProjectionGap(projection.openGaps, periods) !== undefined) {
     throw queryLimitExceeded('projection-gap')
@@ -148,6 +226,7 @@ function requireAlignedStatistics(
 ): Extract<AlignedStatistics, { readonly state: 'aligned' }> {
   if (
     statistics.state !== 'aligned' ||
+    statistics.asOfAcceptanceSequence !== projection.checkpoint.projectedAcceptanceSequence ||
     projection.checkpoint.projectedFactCardinality === null ||
     statistics.factCardinality !== projection.checkpoint.projectedFactCardinality ||
     !Number.isFinite(statistics.factCardinality) ||
@@ -183,13 +262,14 @@ function countBucketStarts(periods: ResolvedPeriods): number {
 function resolveFreshness(
   period: ResolvedPeriod,
   projection: ProjectionEvidence,
+  sequence: readonly ResolvedPeriod[] | null = null,
 ): FreshnessEvidence {
   const coveredThrough = projection.checkpoint.occurrenceCoveredThrough
+  const evaluationEndExclusive =
+    sequence?.at(-1)?.interval.endExclusive ?? period.interval.endExclusive
   return {
     status:
-      coveredThrough !== null && coveredThrough >= period.interval.endExclusive
-        ? 'current'
-        : 'stale',
+      coveredThrough !== null && coveredThrough >= evaluationEndExclusive ? 'current' : 'stale',
     projectedAcceptanceSequence: projection.checkpoint.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough: coveredThrough,
   }
