@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { honoLogger } from '@logtape/hono'
 import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
@@ -7,6 +8,8 @@ import { ERROR_CATALOG, isProfileTraitsPayloadOversized } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
+import { getLogger, toLogError } from '@cimi/logging'
+import { configureNodeLogging } from '@cimi/logging/node'
 import {
   InMemoryLifecycleLock,
   type AcceptanceJournalPort,
@@ -113,6 +116,8 @@ function combineAcceptanceQuiescence(
 }
 
 export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
+  configureNodeLogging()
+  const logger = getLogger(['cimi', 'api'])
   const hello = createHello({ db: deps.db })
   const authority = createOrganizationAuthority(deps.auth)
   const membership = createMembership({ db: deps.db, authority })
@@ -282,10 +287,13 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     interceptors: [
       onError((error) => {
         if (error instanceof ORPCError) {
-          console.error({ code: error.code, status: error.status })
+          logger.error('API request failed', {
+            code: error.code,
+            status: error.status,
+          })
           return
         }
-        console.error('API request failed')
+        logger.error('API request failed', { error: toLogError(error) })
       }),
     ],
     clientInterceptors: [
@@ -341,6 +349,14 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   })
 
   const app = new Hono()
+  app.use(
+    '*',
+    honoLogger({
+      category: ['cimi', 'api', 'http'],
+      format: 'structured-combined',
+      context: true,
+    }),
+  )
 
   app.get('/api/system/health', async () => {
     const health = await systemHealthHandler({ ...deps, lifecycle })

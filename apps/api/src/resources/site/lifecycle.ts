@@ -1,8 +1,10 @@
 import type { LifecycleLock } from '@cimi/kernel'
+import { getLogger, toLogError } from '@cimi/logging'
 import { generateId } from '@cimi/utils'
 import type { SiteRepository } from './repository.ts'
 
 const DEFAULT_INTERVAL_MS = 1_000
+const logger = getLogger(['cimi', 'api', 'worker', 'site-lifecycle'])
 
 export interface SiteLifecycleWorkerDependencies {
   repository: SiteRepository
@@ -33,7 +35,9 @@ export class SiteLifecycleWorker {
     this.repository = repository
     this.lock = lock
     this.intervalMs = intervalMs
-    this.onError = onError ?? ((error) => console.error('Site lifecycle worker failed', error))
+    this.onError =
+      onError ??
+      ((error) => logger.error('Site lifecycle worker failed', { error: toLogError(error) }))
     this.onPurgedSite = onPurgedSite
   }
 
