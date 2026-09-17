@@ -33,49 +33,64 @@ export interface CohortReportPeriod {
   readonly rate: number
 }
 
+interface CohortEntry {
+  readonly key: string
+  readonly event: ReportEvent
+  readonly enteredAt: number
+}
+
 export function evaluateRetention(
   input: ReportEvaluationInput & CohortDefinitionByPeriod,
 ): readonly CohortReportPeriod[] {
   const identityForPeriod = input.identityForPeriod ?? (() => input.identity)
-  const membershipIdentity = identityForPeriod(input.period.period)
-  const membershipSessions = eligibleSessions({
-    snapshot: input.snapshot,
-    period: input.period.period,
-    identity: membershipIdentity,
-    filters: input.filters,
-  })
-  const membershipSessionIds = new Set(membershipSessions.map((session) => session.sessionId))
-  const membershipSessionsById = new Map(
-    membershipSessions.map((session) => [session.sessionId, session]),
-  )
-  const orderedEntries = input.snapshot.events
-    .filter((event) => eventInPeriod(event, input.period.period))
-    .filter((event) => event.sessionId !== null && membershipSessionIds.has(event.sessionId))
-    .filter((event) => membershipIdentity.subjectOfEvent(event) !== null)
-    .filter((event) =>
-      matchesAction(
-        event,
-        (input.definitionForPeriod?.(input.period.period) ?? input.definition).entryAction,
-      ),
-    )
-    .filter((event) => {
-      const session =
-        event.sessionId === null ? undefined : membershipSessionsById.get(event.sessionId)
-      return session !== undefined && eventBelongsToSession(event, session, membershipIdentity)
+  const periods = input.period.sequence ?? [input.period.period]
+  const orderedEntries = periods
+    .flatMap((period) => {
+      const periodIdentity = identityForPeriod(period)
+      const membershipSessions = eligibleSessions({
+        snapshot: input.snapshot,
+        period: input.period.period,
+        identity: periodIdentity,
+        filters: input.filters,
+      })
+      const membershipSessionIds = new Set(membershipSessions.map((session) => session.sessionId))
+      const membershipSessionsById = new Map(
+        membershipSessions.map((session) => [session.sessionId, session]),
+      )
+      const entryAction = (input.definitionForPeriod?.(period) ?? input.definition).entryAction
+
+      return input.snapshot.events
+        .filter((event) => eventInPeriod(event, input.period.period))
+        .filter((event) => eventInPeriod(event, period))
+        .filter((event) => event.sessionId !== null && membershipSessionIds.has(event.sessionId))
+        .filter((event) => periodIdentity.subjectOfEvent(event) !== null)
+        .filter((event) => matchesAction(event, entryAction))
+        .filter((event) => {
+          const session =
+            event.sessionId === null ? undefined : membershipSessionsById.get(event.sessionId)
+          return session !== undefined && eventBelongsToSession(event, session, periodIdentity)
+        })
+        .flatMap((event) => {
+          const subject = periodIdentity.subjectOfEvent(event)
+          return subject === null
+            ? []
+            : [
+                {
+                  key: identityKey(periodIdentity.kind, subject),
+                  event,
+                  enteredAt: event.occurrenceTime.getTime(),
+                },
+              ]
+        })
     })
-    .toSorted(compareEvents)
-  const entries = new Map<
-    string,
-    { readonly event: (typeof orderedEntries)[number]; readonly enteredAt: number }
-  >()
-  for (const event of orderedEntries) {
-    const subject = membershipIdentity.subjectOfEvent(event)
-    if (subject !== null && !entries.has(subject)) {
-      entries.set(subject, { event, enteredAt: event.occurrenceTime.getTime() })
+    .toSorted((left, right) => compareEvents(left.event, right.event))
+  const entries = new Map<string, CohortEntry>()
+  for (const entry of orderedEntries) {
+    if (!entries.has(entry.key)) {
+      entries.set(entry.key, entry)
     }
   }
 
-  const periods = input.period.sequence ?? [input.period.period]
   return periods.map((period, index) => {
     const periodIdentity = identityForPeriod(period)
     const retentionSessions = input.snapshot.sessions.filter((session) => {
@@ -84,7 +99,7 @@ export function evaluateRetention(
       return true
     })
     const retained = new Set<string>()
-    for (const [subject, entry] of entries) {
+    for (const entry of entries.values()) {
       const matched = retentionSessions.some((session) =>
         eventsForSession(input.snapshot.events, session).some(
           (event) =>
@@ -98,7 +113,7 @@ export function evaluateRetention(
             ),
         ),
       )
-      if (matched) retained.add(subject)
+      if (matched) retained.add(entry.key)
     }
     return {
       index,
@@ -109,6 +124,10 @@ export function evaluateRetention(
       rate: ratio(retained.size, entries.size),
     }
   })
+}
+
+function identityKey(kind: IdentityScope['kind'], subject: string): string {
+  return `${kind}:${subject}`
 }
 
 function sameIdentity(

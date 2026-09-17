@@ -34,6 +34,51 @@ it('uses the historical identity scope for each retention period', () => {
   ])
 })
 
+it('uses the historical entry action and identity for each entry period', () => {
+  const firstPeriod = day('2026-09-01')
+  const secondPeriod = day('2026-09-02')
+  const snapshot = reportSnapshot()
+  const visitor = identityScope('visitor')
+  const identifiedUser = identityScope('identified_user')
+  const outerPeriod: ResolvedPeriod = {
+    ...firstPeriod,
+    dates: { fromDate: createCalendarDate('2026-09-01'), toDate: createCalendarDate('2026-09-02') },
+    interval: {
+      start: firstPeriod.interval.start,
+      endExclusive: secondPeriod.interval.endExclusive,
+    },
+    calendarDays: 2,
+  }
+
+  const result = evaluateRetention({
+    period: { period: outerPeriod, sequence: [firstPeriod, secondPeriod] },
+    snapshot,
+    identity: visitor,
+    identityForPeriod: (period) =>
+      period.interval.start === firstPeriod.interval.start ? visitor : identifiedUser,
+    filters: undefined,
+    definition: {
+      entryAction: { kind: 'custom_event', name: 'signup' },
+      retentionAction: { kind: 'custom_event', name: 'purchase' },
+    },
+    definitionForPeriod: (period) =>
+      period.interval.start === firstPeriod.interval.start
+        ? {
+            entryAction: { kind: 'custom_event', name: 'signup' },
+            retentionAction: { kind: 'custom_event', name: 'purchase' },
+          }
+        : {
+            entryAction: { kind: 'custom_event', name: 'purchase' },
+            retentionAction: { kind: 'custom_event', name: 'purchase' },
+          },
+  })
+
+  expect(result).toMatchObject([
+    { index: 0, size: 2, retained: 0, rate: 0 },
+    { index: 1, size: 2, retained: 2, rate: 1 },
+  ])
+})
+
 function day(value: string): ResolvedPeriod {
   const start = Date.parse(`${value}T00:00:00.000Z`)
   return {
