@@ -1,6 +1,14 @@
 import * as v from 'valibot'
 
-import { SName } from '@cimi/utils'
+import {
+  EVENT_FIELDS,
+  EVENT_KINDS,
+  SName,
+  isCompatibleDirectEventFilter,
+  isCompatibleIdentityKindFilter,
+  isCompatiblePropertyFilter,
+  isCompatibleSessionFilter,
+} from '@cimi/utils'
 import { toORPCErrorMap } from './errors.ts'
 
 export {
@@ -128,13 +136,7 @@ export const SScalarMap = v.record(SScalarKey, SScalar)
 export const SSortDirection = v.picklist(['asc', 'desc'])
 export const SIdentityKind = v.picklist(['visitor', 'identified_user'])
 export const SGranularity = v.picklist(['minute', 'hour', 'day', 'week', 'month', 'year'])
-export const SEventKind = v.picklist([
-  'page_view',
-  'custom_event',
-  'outbound',
-  'performance',
-  'error',
-])
+export const SEventKind = v.picklist(EVENT_KINDS)
 
 export const SFilterOperator = v.picklist([
   'equals',
@@ -167,7 +169,7 @@ const SReportFilterCommonFields = {
 const SScopedAttributeFilter = v.variant('scope', [
   v.strictObject({
     scope: v.literal('event'),
-    field: v.picklist(['kind', 'name', 'pagePath', 'referrer', 'destination', 'unit', 'code']),
+    field: v.picklist(EVENT_FIELDS),
     ...SReportFilterCommonFields,
   }),
   v.strictObject({
@@ -218,16 +220,14 @@ export const SScopedQueryFilter = v.pipe(
   v.check((input) => {
     if (input.operator === 'has_done' || input.operator === 'has_not_done') return true
     if (!('values' in input)) return false
-    if (input.scope === 'profile') return true
+    if (input.scope === 'profile') return isCompatiblePropertyFilter(input)
+    if (input.scope === 'event') {
+      return isCompatibleDirectEventFilter(input)
+    }
     if (input.scope === 'visitor') {
-      return input.values.every((value) => value === 'visitor' || value === 'identified_user')
+      return isCompatibleIdentityKindFilter(input)
     }
-    if (input.scope === 'event' && input.field === 'kind') {
-      return input.values.every((value) =>
-        ['page_view', 'custom_event', 'outbound', 'performance', 'error'].includes(String(value)),
-      )
-    }
-    return input.values.every((value) => typeof value === 'string')
+    return isCompatibleSessionFilter(input)
   }, 'Report filters require values compatible with the selected field.'),
 )
 
@@ -268,13 +268,6 @@ const dateToDay = (date: string) => Date.parse(`${date}T00:00:00Z`)
 const day = 86_400_000
 const isOrderedDateRange = (fromDate: string, toDate: string) =>
   dateToDay(fromDate) <= dateToDay(toDate)
-const isRangeWithinGranularity = (fromDate: string, toDate: string, granularity: string) => {
-  if (!isOrderedDateRange(fromDate, toDate)) return false
-  const days = (dateToDay(toDate) - dateToDay(fromDate)) / 86_400_000 + 1
-  if (granularity === 'minute') return days <= 1
-  if (granularity === 'hour') return days <= 30
-  return true
-}
 export const isValidReportRange = (input: {
   fromDate: string
   toDate: string
@@ -294,16 +287,7 @@ export const isValidGranularReportRange = (input: {
   comparison?: { fromDate: string; toDate: string } | undefined
   [key: string]: unknown
 }) => {
-  if (!isValidReportRange(input)) return false
-  return (
-    isRangeWithinGranularity(input.fromDate, input.toDate, input.granularity) &&
-    (input.comparison === undefined ||
-      isRangeWithinGranularity(
-        input.comparison.fromDate,
-        input.comparison.toDate,
-        input.granularity,
-      ))
-  )
+  return isValidReportRange(input)
 }
 export const SReportInput = v.pipe(
   SReportFieldsSchema,

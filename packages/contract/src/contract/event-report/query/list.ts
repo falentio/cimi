@@ -5,7 +5,12 @@ import {
   SSortDirection,
   isValidReportRange,
 } from '../../../schema/index.ts'
-import { SEventPageResult, SEventReportListFieldsSchema, SEventSiteFields } from '../schema.ts'
+import {
+  areEventFiltersCompatibleWithKind,
+  SEventPageResult,
+  SEventReportListFieldsSchema,
+  SEventSiteFields,
+} from '../schema.ts'
 
 export const SEventListInput = v.pipe(
   v.strictObject(
@@ -18,6 +23,10 @@ export const SEventListInput = v.pipe(
         direction: v.optional(SSortDirection),
       }),
     ]),
+  ),
+  v.check(
+    (input) => areEventFiltersCompatibleWithKind(input),
+    'Event filters are incompatible with the selected Event Kind.',
   ),
   v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
 )

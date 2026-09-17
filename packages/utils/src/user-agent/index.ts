@@ -34,7 +34,7 @@ export interface UserAgentParserOptions {
   cacheSize?: number
 }
 
-// TODO: Consume from apps/api event enrichment and apps/frontend analytics projection once their contracts settle.
+// TODO: Consume from apps/api event enrichment and apps/web analytics projection once their contracts settle.
 export interface UserAgentParser {
   parse(userAgent: string): ParsedUserAgent
 }

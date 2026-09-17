@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { isEventKind } from '@cimi/utils'
 import { SDate, SId, SNonNegativeInteger, SNonNegativeNumber, SScalar } from '../../schema/index.ts'
 
 export const SPublicAbsoluteDateTime = v.pipe(v.string(), v.isoTimestamp())
@@ -48,11 +49,7 @@ export const SPublicDashboardFilter = v.pipe(
     (input) =>
       input.scope === 'visitor' ||
       (input.field === 'kind'
-        ? input.values.every((value) =>
-            ['page_view', 'custom_event', 'outbound', 'performance', 'error'].includes(
-              String(value),
-            ),
-          )
+        ? input.values.every((value) => typeof value === 'string' && isEventKind(value))
         : input.values.every((value) => typeof value === 'string')),
     'Public dashboard dimension filters require string values.',
   ),

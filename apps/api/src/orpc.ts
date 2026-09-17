@@ -27,6 +27,7 @@ export const api = implement({
   funnel: contract.funnel,
   cohortRetention: contract.cohortRetention,
   trafficReport: contract.trafficReport,
+  eventReport: contract.eventReport,
 }).$context<ApiContext>()
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {

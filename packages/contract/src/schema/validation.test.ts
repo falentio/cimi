@@ -118,6 +118,66 @@ describe('shared report schemas', () => {
     }).not.toEqual(expect.schemaMatching(SAuthenticatedFilter))
   })
 
+  it('uses Event filter compatibility for scoped traffic queries', () => {
+    expect({
+      scope: 'event',
+      field: 'pagePath',
+      operator: 'equals',
+      values: [null],
+    }).toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'event',
+      field: 'kind',
+      operator: 'greater_than',
+      values: ['page_view'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'event',
+      field: 'pagePath',
+      operator: 'greater_than',
+      values: ['42'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+  })
+
+  it('uses shared operator compatibility for every traffic filter scope', () => {
+    expect({
+      scope: 'session',
+      field: 'country',
+      operator: 'contains',
+      values: ['G'],
+    }).toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'session',
+      field: 'country',
+      operator: 'greater_than',
+      values: [1],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'session',
+      field: 'country',
+      operator: 'greater_than',
+      values: ['1'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'profile',
+      field: 'trait.plan',
+      operator: 'greater_than',
+      values: [1],
+    }).toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'profile',
+      field: 'trait.plan',
+      operator: 'greater_than',
+      values: ['pro'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+    expect({
+      scope: 'visitor',
+      field: 'identityKind',
+      operator: 'greater_than',
+      values: ['visitor'],
+    }).not.toEqual(expect.schemaMatching(SScopedQueryFilter))
+  })
+
   it('allows only current or stale successful report freshness', () => {
     expect({
       projectedAcceptanceSequence: 10,
@@ -173,12 +233,12 @@ describe('shared report schemas', () => {
     }).not.toEqual(expect.schemaMatching(SReportInput))
   })
 
-  it('rejects granular ranges beyond procedure limits', () => {
+  it('accepts syntactically valid granular ranges for site-local admission', () => {
     expect({
       fromDate: '2026-08-01',
       toDate: '2026-08-31',
       granularity: 'hour',
-    }).not.toEqual(expect.schemaMatching(SGranularReportInput))
+    }).toEqual(expect.schemaMatching(SGranularReportInput))
     expect({
       fromDate: '2026-08-01',
       toDate: '2026-08-01',
@@ -188,7 +248,7 @@ describe('shared report schemas', () => {
       fromDate: '2026-08-01',
       toDate: '2026-08-02',
       granularity: 'minute',
-    }).not.toEqual(expect.schemaMatching(SGranularReportInput))
+    }).toEqual(expect.schemaMatching(SGranularReportInput))
   })
 
   it('bounds minute report output to the shared one-day response ceiling', () => {

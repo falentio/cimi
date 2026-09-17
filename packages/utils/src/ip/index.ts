@@ -14,7 +14,7 @@ export interface IpMatcher {
   matches(ip: string): boolean
 }
 
-// TODO: Consume from event-ingestion policy evaluation and the frontend policy editor once their contract is settled.
+// TODO: Consume from event-ingestion policy evaluation and the web policy editor once their contract is settled.
 type IpAddress = Address4 | Address6
 
 interface CompiledIpPattern {

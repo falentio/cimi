@@ -23,6 +23,7 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 | ------------------------- | ------------------ | -------------------------------------------------------------------- |
 | `organizationId`          | `SId`              | Organization scope.                                                  |
 | `userId`                  | `SId`              | Better Auth User identifier represented as an opaque bounded string. |
+| `email`                   | `string`           | User email displayed in membership listings.                         |
 | `role`                    | `organizationRole` | `owner`, `admin`, or `member`.                                       |
 | `createdAt` / `updatedAt` | `SDateTime`        | Membership timestamps.                                               |
 
@@ -46,7 +47,7 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 
 **Purpose:** List active memberships for an Organization.
 
-**Behavior:** Require persisted membership. Return zero-based live offset pages ordered by `createdAt` plus `userId`, with `nextOffset`, `hasMore`, and `totalCount`; do not reveal whether a non-member queried a valid Organization.
+**Behavior:** Require persisted membership. Return zero-based live offset pages ordered by `createdAt` plus `userId`, including each member's email, with `nextOffset`, `hasMore`, and `totalCount`; do not reveal whether a non-member queried a valid Organization.
 
 **Errors:** `UNAUTHORIZED` (401), `NOT_FOUND` (404), `BAD_REQUEST` (400), `INTERNAL_SERVER_ERROR` (500).
 

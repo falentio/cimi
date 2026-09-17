@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
 import { schema } from '@cimi/db'
 import { createTestAnalyticsDb } from '@cimi/db/testing'
-import { InMemoryLifecycleLock } from '@cimi/kernel'
+import { InMemoryLifecycleLock, InMemoryLifecycleOperationStatusReader } from '@cimi/kernel'
+import { CollectionPolicyReportingProfileFilter } from '../../collection-policy/reporting-profile-filter.ts'
+import { CollectionPolicyRepositoryDrizzle } from '../../collection-policy/repository.drizzle.ts'
+import { CollectionPolicyService } from '../../collection-policy/service.ts'
 import type { GoalRepository } from '../../goal/repository.ts'
 import { GoalService } from '../../goal/service.ts'
 import { createTrafficReport } from '../../traffic-report/index.ts'
@@ -99,6 +102,12 @@ async function createReportFixture(repository: GoalRepository) {
     await analytics.rebuild({ controlDb: db })
 
     const scope = createSiteScopeDependencies({ db })
+    const collectionPolicy = new CollectionPolicyService({
+      repository: new CollectionPolicyRepositoryDrizzle({ db }),
+      lock: new InMemoryLifecycleLock(),
+      scope,
+      lifecycle: new InMemoryLifecycleOperationStatusReader(),
+    })
     const trafficReport = createTrafficReport({
       db,
       analytics,
@@ -114,6 +123,7 @@ async function createReportFixture(repository: GoalRepository) {
       },
       dataDirectoryReady: true,
       scope,
+      profileFilterKeys: new CollectionPolicyReportingProfileFilter({ collectionPolicy }),
     })
 
     return {

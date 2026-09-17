@@ -78,9 +78,36 @@ export {
   type UnlistenFn,
 } from './event/index.ts'
 export { canonicalJsonString, isRecord, sortedRecord } from './canonical-json/index.ts'
+export { redactDiagnosticMessage } from './diagnostic-message/index.ts'
+export {
+  EVENT_FIELD_STATES,
+  EVENT_FIELDS,
+  EVENT_KINDS,
+  isCompatibleDirectEventFilter,
+  isCompatibleEventFilterForKind,
+  isCompatibleIdentityKindFilter,
+  isCompatiblePropertyFilter,
+  isCompatibleSessionFilter,
+  isEventKind,
+  isEventField,
+  type EventField,
+  type EventFieldState,
+  type EventFilterCompatibilityInput,
+  type EventFilterOperator,
+  type EventFilterValue,
+  type EventKind,
+  type EventKindFilterCompatibilityInput,
+  type PropertyFilterCompatibilityInput,
+} from './event-filter/index.ts'
 export { getNestedMapValue, nestedMapValues, setNestedMapValue } from './nested-map/index.ts'
 export {
   mergeEventAttribution,
   parseEventAttribution,
   type EventAttribution,
 } from './event-attribution/index.ts'
+export {
+  createXoroshiro128PlusPlus,
+  type Xoroshiro128PlusPlus,
+  type Xoroshiro128PlusPlusOptions,
+  type Xoroshiro128PlusPlusState,
+} from './rng/index.ts'

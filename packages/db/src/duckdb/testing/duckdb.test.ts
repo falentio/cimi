@@ -464,6 +464,10 @@ describe('createAnalyticsDb', () => {
           projection_checkpoints: 2,
           projection_gaps: 1,
         })
+        const duplicateEvents = await inspectionConnection.runAndReadAll(
+          'SELECT site_id, event_id FROM events GROUP BY site_id, event_id HAVING count(*) > 1',
+        )
+        expect(duplicateEvents.getRowObjects()).toEqual([])
         const redactedEvent = await inspectionConnection.runAndReadAll(
           "SELECT identified_user_id FROM events WHERE event_id = 'evt-1'",
         )
@@ -502,6 +506,50 @@ describe('createAnalyticsDb', () => {
         inspectionConnection.closeSync()
         inspectionInstance.closeSync()
       }
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('keeps the same Event ID and properties isolated across Sites during rebuild', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analytics = await createTestAnalyticsDb()
+    const now = Date.parse('2026-09-05T00:00:00.000Z')
+
+    try {
+      migrateControlDb(controlDb)
+      seedSharedEventIdAcrossSites(controlDb, now)
+      await analytics.rebuild({ controlDb })
+
+      const events = await analytics.readWindowed((reader) =>
+        reader.read('SELECT site_id, event_id, page_path FROM events ORDER BY site_id', []),
+      )
+      expect(events).toEqual([
+        { site_id: 'ste-1', event_id: 'evt-shared', page_path: '/one' },
+        { site_id: 'ste-2', event_id: 'evt-shared', page_path: '/two' },
+      ])
+
+      const properties = await analytics.readWindowed((reader) =>
+        reader.read(
+          'SELECT site_id, event_id, property_key, string_value FROM event_properties ORDER BY site_id',
+          [],
+        ),
+      )
+      expect(properties).toEqual([
+        {
+          site_id: 'ste-1',
+          event_id: 'evt-shared',
+          property_key: 'plan',
+          string_value: 'one',
+        },
+        {
+          site_id: 'ste-2',
+          event_id: 'evt-shared',
+          property_key: 'plan',
+          string_value: 'two',
+        },
+      ])
     } finally {
       await analytics.close()
       closeDb(controlDb)
@@ -718,3 +766,63 @@ describe('createAnalyticsDb', () => {
     }
   })
 })
+
+function seedSharedEventIdAcrossSites(controlDb: ReturnType<typeof createDb>, now: number): void {
+  controlDb.$client
+    .prepare(
+      'INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run('user-1', 'User', 'user@example.com', 1, now, now)
+  controlDb.$client
+    .prepare(
+      'INSERT INTO organization (id, name, owner_user_id, is_personal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run('org-1', 'Organization', 'user-1', 0, now, now)
+  const insertSite = controlDb.$client.prepare(
+    'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  )
+  insertSite.run('ste-1', 'org-1', 'Site 1', 'one.example.com', 'ing-1', now, now)
+  insertSite.run('ste-2', 'org-1', 'Site 2', 'two.example.com', 'ing-2', now, now)
+  controlDb.$client
+    .prepare(
+      'INSERT INTO installation (id, status, data_directory_ready, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+    )
+    .run('ins-1', 'ready', 1, now, now)
+  controlDb.$client
+    .prepare(
+      'INSERT INTO collection_policy_revision (id, installation_id, scope, version, policy_json, effective_from, committed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run('pol-1', 'ins-1', 'installation', 1, '{}', now, now, now)
+
+  const insertEvent = controlDb.$client.prepare(
+    'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  )
+  const insertPageView = controlDb.$client.prepare(
+    'INSERT INTO event_page_view (event_pk, page_path, referrer) VALUES (?, ?, ?)',
+  )
+  const insertProperty = controlDb.$client.prepare(
+    'INSERT INTO event_property (event_pk, property_key, value_type, string_value) VALUES (?, ?, ?, ?)',
+  )
+  for (const [eventPk, siteId, visitorId, pagePath, propertyValue] of [
+    [1, 'ste-1', 'visitor-1', '/one', 'one'],
+    [2, 'ste-2', 'visitor-2', '/two', 'two'],
+  ] as const) {
+    insertEvent.run(
+      eventPk,
+      siteId,
+      'evt-shared',
+      'page_view',
+      now,
+      now,
+      visitorId,
+      `session-${siteId}`,
+      'pol-1',
+      eventPk,
+      `fingerprint-${eventPk}`,
+      'pending',
+      now,
+    )
+    insertPageView.run(eventPk, pagePath, null)
+    insertProperty.run(eventPk, 'plan', 'string', propertyValue)
+  }
+}

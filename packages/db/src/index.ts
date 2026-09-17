@@ -16,6 +16,7 @@ export {
   resolveControlDbPath,
   validateBaseSchema,
   validateControlMigrationHistory,
+  type ControlMigrationOptions,
 } from './migrate.ts'
 export {
   ANALYTICS_DB_FILENAME,
@@ -30,6 +31,7 @@ export {
   type AnalyticsProjectionCheckpoint,
   type AnalyticsProjectionGap,
   type AnalyticsProjectionSnapshot,
+  type AnalyticsWindowReader,
   type CreateAnalyticsDbOptions,
 } from './duckdb/index.ts'
 export {
@@ -40,3 +42,7 @@ export {
   type IdentityRedactionScope,
   type IdentityRedactionTarget,
 } from './identity/coverage.ts'
+export {
+  DuckDbReportingQuery,
+  type DuckDbReportingQueryDependencies,
+} from './duckdb/reporting-query.ts'

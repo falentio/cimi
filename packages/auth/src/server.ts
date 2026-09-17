@@ -9,12 +9,14 @@ export interface CreateAuthDependencies {
   schema?: Record<string, unknown> | undefined
   baseURL?: string | undefined
   secret?: string | undefined
+  trustedOrigins?: readonly string[] | undefined
 }
 
 export function createAuth(deps: CreateAuthDependencies) {
   return betterAuth({
     ...(deps.baseURL && { baseURL: deps.baseURL }),
     ...(deps.secret && { secret: deps.secret }),
+    ...(deps.trustedOrigins && { trustedOrigins: [...deps.trustedOrigins] }),
     database: drizzleAdapter(deps.db, {
       provider: 'sqlite',
       ...(deps.schema && { schema: deps.schema }),

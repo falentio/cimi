@@ -33,6 +33,7 @@ export async function createTestAnalyticsDb(): Promise<AnalyticsDb> {
       purgeSite: (input) => analytics.purgeSite(input),
       readProjectionSnapshot: (input) => analytics.readProjectionSnapshot(input),
       readReportData: (input) => analytics.readReportData(input),
+      readWindowed: (work) => analytics.readWindowed(work),
       async close() {
         if (closed) return
         closed = true

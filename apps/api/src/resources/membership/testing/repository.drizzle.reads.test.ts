@@ -22,7 +22,12 @@ describe.concurrent('MembershipRepositoryDrizzle.reads', () => {
 
     await expect(
       repo.findMany({ organizationId: 'org_1', offset: 0, limit: 1 }),
-    ).resolves.toMatchObject({ totalCount: 3, hasMore: true, nextOffset: 1 })
+    ).resolves.toMatchObject({
+      items: [{ userId: 'user_3', email: 'user_3@example.com' }],
+      totalCount: 3,
+      hasMore: true,
+      nextOffset: 1,
+    })
     await expect(
       repo.findMany({ organizationId: 'org_1', offset: 3, limit: 1 }),
     ).resolves.toMatchObject({ items: [], totalCount: 3, hasMore: false, nextOffset: null })

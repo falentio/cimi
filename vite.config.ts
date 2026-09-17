@@ -1,20 +1,19 @@
 import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
-  defaultPackage: 'apps/frontend',
+  defaultPackage: 'apps/web',
   check: {
     fmt: true,
     lint: true,
   },
   staged: {
-    '*.{js,ts,tsx,mjs,cjs,astro}': 'vp check --fix',
+    '*.{js,ts,tsx,mjs,cjs,vue}': 'vp check --fix',
   },
   fmt: {
     ignorePatterns: [
       'docs/vendor/**',
       'node_modules/**',
       'dist/**',
-      '.astro/**',
       '.cimi/**',
       'packages/db/src/schema/auth.generated.ts',
       'packages/db/src/migrations/meta/**',
@@ -23,11 +22,11 @@ export default defineConfig({
     semi: false,
   },
   lint: {
+    plugins: ['unicorn', 'typescript', 'oxc', 'vue'],
     ignorePatterns: [
       'docs/vendor/**',
       'node_modules/**',
       'dist/**',
-      '.astro/**',
       '.cimi/**',
       'packages/db/src/schema/auth.generated.ts',
       'packages/db/src/migrations/meta/**',

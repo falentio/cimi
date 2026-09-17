@@ -9,7 +9,7 @@ import {
   type LocalCalendarDate,
 } from '@cimi/utils'
 
-import { ReportingAdmissionError, badReportingRequest } from './errors.ts'
+import { ReportingAdmissionError, badReportingRequest, queryLimitExceeded } from './errors.ts'
 import type {
   BucketDemand,
   BucketStart,
@@ -230,7 +230,7 @@ function resolveBucketStarts(input: {
     weekStartsOn: input.metadata.weekStartsOn,
     maxStarts: input.bucket.maxStarts,
   })
-  if (starts.length > input.bucket.maxStarts) throw badReportingRequest('bucket-bound')
+  if (starts.length > input.bucket.maxStarts) throw queryLimitExceeded('bucket-bound')
   return starts.map((start) => ({
     at: createInstantMs(start.instant.getTime()),
     localLabel: `${formatLocalCalendarDate(start.local)}T${String(start.local.hour).padStart(2, '0')}:${String(start.local.minute).padStart(2, '0')}:00`,

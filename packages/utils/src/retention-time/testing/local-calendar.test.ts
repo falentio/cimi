@@ -153,7 +153,7 @@ describe('nonexistent local dates', () => {
         date: parseLocalCalendarDate('2011-12-30'),
         timeZone: 'Pacific/Apia',
       }),
-    ).toThrowError(RangeError)
+    ).toThrow(RangeError)
   })
 
   it('omits a skipped local date from daily enumeration instead of failing the range', () => {

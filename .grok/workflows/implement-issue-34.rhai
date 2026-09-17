@@ -231,7 +231,7 @@ fn p_gate(wt, baseSha, headSha, res) {
     s += "Work inside the existing git worktree: " + wt + ".\n";
     s += "Steps:\n";
     s += "1. `cd \"" + wt + "\"`; list changed files: `git diff --name-only " + baseSha + ".." + headSha + "`.\n";
-    s += "2. Map changed files to their workspace packages (@cimi/contract, @cimi/db, @cimi/utils, @cimi/guard, @cimi/auth, @cimi/api, @cimi/frontend, ...). For up to 4 affected packages run `pnpm -F <pkg> test`.\n";
+    s += "2. Map changed files to their workspace packages (@cimi/contract, @cimi/db, @cimi/utils, @cimi/guard, @cimi/auth, @cimi/api, @cimi/web, ...). For up to 4 affected packages run `pnpm -F <pkg> test`.\n";
     s += "3. Run `vp check` on the changed source files (up to 40).\n";
     s += "4. Run `vp run --filter ./apps/api typecheck`.\n";
     s += "Report passed=true ONLY if every command you ran exited green. Put short tails of failures into summary.\n";
@@ -512,7 +512,7 @@ let ip = "";
 ip += "Full integration verification on the merged main repo at " + REPO + ".\n";
 ip += "1. Discover workspace packages (apps/*, packages/*) from pnpm-workspace.yaml and each package.json name.\n";
 ip += "2. For every package that has a test script, run `pnpm -F <name> test` sequentially. Collect failures.\n";
-ip += "3. Run `vp run --filter ./apps/api typecheck` and `vp run --filter ./apps/frontend typecheck`.\n";
+ip += "3. Run `vp run --filter ./apps/api typecheck` and `vp run --filter ./apps/web typecheck`.\n";
 ip += "4. Report passed=true only if everything is green; list each failure as `package: failing command`.\n";
 ip += policy();
 let integ = agent(ip, #{ label: "integrate:main", capability_mode: "execute", output_schema: integ_schema });

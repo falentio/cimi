@@ -229,7 +229,7 @@ export function enumerateLocalBucketStarts(
   }
 
   for (
-    let date = input.fromDate;
+    let date = firstBucketDate(input);
     compareCalendarDates(date, input.toDateExclusive) < 0;
     date = addCalendarDays(date, 1)
   ) {
@@ -268,6 +268,20 @@ export function enumerateLocalBucketStarts(
   }
 
   return starts
+}
+
+function firstBucketDate(input: EnumerateLocalBucketStartsInput): LocalCalendarDate {
+  if (input.granularity === 'week') {
+    const distance = (localWeekday(input.fromDate) - weekStartNumber(input.weekStartsOn) + 7) % 7
+    return addCalendarDays(input.fromDate, -distance)
+  }
+  if (input.granularity === 'month') {
+    return { ...input.fromDate, day: 1 }
+  }
+  if (input.granularity === 'year') {
+    return { year: input.fromDate.year, month: 1, day: 1 }
+  }
+  return input.fromDate
 }
 
 function resolveLocalDateStartOrUndefined(

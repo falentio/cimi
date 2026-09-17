@@ -1,6 +1,6 @@
-import type { AnalyticsDb, Db } from '@cimi/db'
+import { DuckDbReportingQuery, type AnalyticsDb, type Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import { ReportingAdmissionService } from '@cimi/kernel'
+import { ReportingAdmissionService, type ReportingProfileFilterPort } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import type { HealthLifecycle } from '../../health.ts'
 import { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
@@ -14,7 +14,7 @@ export { TrafficReportService, type TrafficReportServiceDependencies } from './s
 export { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
 export { ReportingMetadataDrizzle } from './metadata.drizzle.ts'
 export { createReportingReadinessPort } from './readiness.ts'
-export { toOrpcReportingError } from './errors.ts'
+export { toOrpcReportingError } from '../../errors.ts'
 export type {
   TrafficBreakdownsInput,
   TrafficBreakdownsOutput,
@@ -28,6 +28,7 @@ export interface CreateTrafficReportDependencies {
   readonly lifecycle: HealthLifecycle
   readonly dataDirectoryReady: boolean | (() => boolean)
   readonly scope?: SiteScopeGuardDependencies | undefined
+  readonly profileFilterKeys: ReportingProfileFilterPort
 }
 
 export function createTrafficReport({
@@ -36,9 +37,11 @@ export function createTrafficReport({
   lifecycle,
   dataDirectoryReady,
   scope,
+  profileFilterKeys,
 }: CreateTrafficReportDependencies) {
   const metadata = new ReportingMetadataDrizzle({ db })
   const evidence = new ReportingEvidenceDrizzleDuckDb({ db, analytics })
+  const query = new DuckDbReportingQuery({ analytics })
   const admission = new ReportingAdmissionService({
     metadata,
     evidence,
@@ -49,9 +52,11 @@ export function createTrafficReport({
   })
   const service = new TrafficReportService({
     admission,
+    query,
+    profileFilterKeys,
     scope: scope ?? createSiteScopeDependencies({ db }),
   })
-  return { metadata, evidence, admission, service, router: trafficReportRouter(service) }
+  return { metadata, evidence, admission, query, service, router: trafficReportRouter(service) }
 }
 
 export type TrafficReportModule = ReturnType<typeof createTrafficReport>

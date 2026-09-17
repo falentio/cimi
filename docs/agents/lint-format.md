@@ -19,7 +19,7 @@ whole workspace for a small change.
 Run the affected package's typecheck once for each workspace package touched:
 
 ```bash
-vp run --filter ./apps/frontend typecheck
+vp run --filter ./apps/web typecheck
 ```
 
 ## Focused worker

@@ -97,6 +97,13 @@ export interface AnalyticsReportData {
   readonly sessions: readonly AnalyticsReportSession[]
 }
 
+export interface AnalyticsWindowReader {
+  read(
+    sql: string,
+    args: readonly (string | number | boolean | null)[],
+  ): Promise<readonly Record<string, unknown>[]>
+}
+
 export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
@@ -108,6 +115,7 @@ export interface AnalyticsDb {
     from: Date
     toExclusive: Date
   }): Promise<AnalyticsReportData>
+  readWindowed<T>(work: (reader: AnalyticsWindowReader) => Promise<T>): Promise<T>
   close(): Promise<void>
 }
 
@@ -274,6 +282,19 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           sessions: sessionsReader.getRowObjects().map(readReportSession),
           events: eventsReader.getRowObjects().map(readReportEvent),
         }
+      })
+    },
+    async readWindowed<T>(work: (reader: AnalyticsWindowReader) => Promise<T>): Promise<T> {
+      if (closed || closing) throw new Error('Analytics database is closed')
+      if (unavailable) throw new Error('Analytics database is unavailable')
+      return enqueue(async () => {
+        const reader: AnalyticsWindowReader = {
+          async read(sql, args) {
+            const result = await connection.runAndReadAll(sql, [...args])
+            return result.getRowObjects()
+          },
+        }
+        return work(reader)
       })
     },
     async rebuild(input: { controlDb: Db }): Promise<void> {

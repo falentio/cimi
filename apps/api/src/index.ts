@@ -28,6 +28,7 @@ import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
 import { createRetentionPolicy } from './resources/retention-policy/index.ts'
 import { createCollectionPolicy } from './resources/collection-policy/index.ts'
+import { CollectionPolicyReportingProfileFilter } from './resources/collection-policy/reporting-profile-filter.ts'
 import { createSite, createSiteLifecycleWorker } from './resources/site/index.ts'
 import { resolveRequestAdmissionGate, systemHealthHandler, type HealthLifecycle } from './health.ts'
 import { normalizeApiError } from './errors.ts'
@@ -53,6 +54,7 @@ import { createGoal } from './resources/goal/index.ts'
 import { createFunnel } from './resources/funnel/index.ts'
 import { createCohort } from './resources/cohort-retention/index.ts'
 import { createReportQueryKernelFromInfrastructure } from './resources/reporting/index.ts'
+import { createEventReport } from './resources/event-report/index.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -244,11 +246,22 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       }
     },
   }
+  const reportingProfileFilter = new CollectionPolicyReportingProfileFilter({
+    collectionPolicy: collectionPolicy.service,
+  })
   const trafficReport = createTrafficReport({
     db: deps.db,
     analytics: deps.analytics,
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
+    profileFilterKeys: reportingProfileFilter,
+  })
+  const eventReport = createEventReport({
+    db: deps.db,
+    analytics: deps.analytics,
+    lifecycle,
+    dataDirectoryReady: deps.dataDirectoryReady,
+    profileFilterKeys: reportingProfileFilter,
   })
   const reportQuery = createReportQueryKernelFromInfrastructure({
     db: deps.db,
@@ -296,6 +309,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     funnel: funnel.router,
     cohortRetention: cohort.router,
     trafficReport: trafficReport.router,
+    eventReport: eventReport.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
