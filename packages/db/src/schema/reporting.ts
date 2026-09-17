@@ -157,7 +157,7 @@ export const TPublicDashboard = sqliteTable(
       .primaryKey()
       .references(() => TSite.id, { onDelete: 'restrict' }),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
-    publicIdentifier: text('public_identifier').notNull().unique(),
+    publicIdentifier: text('public_identifier').unique(),
     publicIdentifierHash: text('public_identifier_hash').notNull().unique(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
@@ -167,7 +167,7 @@ export const TPublicDashboard = sqliteTable(
     index('public_dashboard_identifier_enabled_idx').on(table.publicIdentifierHash, table.enabled),
     check(
       'public_dashboard_identifier_length_check',
-      sql`length(${table.publicIdentifier}) BETWEEN 1 AND 128`,
+      sql`${table.publicIdentifier} IS NULL OR length(${table.publicIdentifier}) BETWEEN 1 AND 128`,
     ),
   ],
 )
