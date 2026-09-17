@@ -23,6 +23,9 @@ export const api = implement({
   backupRestore: contract.backupRestore,
   eventIngestion: contract.eventIngestion,
   identityProfile: contract.identityProfile,
+  goal: contract.goal,
+  funnel: contract.funnel,
+  cohortRetention: contract.cohortRetention,
   trafficReport: contract.trafficReport,
   eventReport: contract.eventReport,
 }).$context<ApiContext>()

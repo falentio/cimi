@@ -110,6 +110,36 @@ export {
   type ReportFactWorkFamily,
   type TrafficReportFamily,
 } from './contract/traffic-report/schema.ts'
+export { SGoalCreateInput, SGoalCreateOutput } from './contract/goal/command/create.ts'
+export { SGoalUpdateInput, SGoalUpdateOutput } from './contract/goal/command/update.ts'
+export { SGoalArchiveInput, SGoalArchiveOutput } from './contract/goal/command/archive.ts'
+export { SGoalGetInput, SGoalGetOutput } from './contract/goal/query/get.ts'
+export { SGoalListInput, SGoalListOutput } from './contract/goal/query/list.ts'
+export { SGoalReportInput, SGoalReportOutput } from './contract/goal/query/get-report.ts'
+export { SFunnelCreateInput, SFunnelCreateOutput } from './contract/funnel/command/create.ts'
+export { SFunnelUpdateInput, SFunnelUpdateOutput } from './contract/funnel/command/update.ts'
+export { SFunnelArchiveInput, SFunnelArchiveOutput } from './contract/funnel/command/archive.ts'
+export { SFunnelGetInput, SFunnelGetOutput } from './contract/funnel/query/get.ts'
+export { SFunnelListInput, SFunnelListOutput } from './contract/funnel/query/list.ts'
+export { SFunnelReportInput, SFunnelReportOutput } from './contract/funnel/query/get-report.ts'
+export {
+  SCohortCreateInput,
+  SCohortCreateOutput,
+} from './contract/cohort-retention/command/create.ts'
+export {
+  SCohortUpdateInput,
+  SCohortUpdateOutput,
+} from './contract/cohort-retention/command/update.ts'
+export {
+  SCohortArchiveInput,
+  SCohortArchiveOutput,
+} from './contract/cohort-retention/command/archive.ts'
+export { SCohortGetInput, SCohortGetOutput } from './contract/cohort-retention/query/get.ts'
+export { SCohortListInput, SCohortListOutput } from './contract/cohort-retention/query/list.ts'
+export {
+  SCohortReportInput,
+  SCohortReportOutput,
+} from './contract/cohort-retention/query/get-report.ts'
 export {
   SEventOverviewInput,
   SEventOverviewOutput,

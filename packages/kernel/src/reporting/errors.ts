@@ -9,8 +9,11 @@ export type ReportingAdmissionErrorReason =
   | 'comparison-not-adjacent'
   | 'comparison-not-equal-length'
   | 'bucket-bound'
+  | 'period-bound'
   | 'metadata-missing'
+  | 'definition-version-missing'
   | 'analytics-not-ready'
+  | 'lifecycle-locked'
   | 'port-failure'
   | 'statistics-uncertain'
   | 'projection-gap'
@@ -45,6 +48,12 @@ export function badReportingRequest(
   reason: ReportingAdmissionErrorReason,
 ): ReportingAdmissionError {
   return new ReportingAdmissionError({ code: 'BAD_REQUEST', reason })
+}
+
+export function reportingNotFound(
+  reason: Extract<ReportingAdmissionErrorReason, 'metadata-missing' | 'definition-version-missing'>,
+): ReportingAdmissionError {
+  return new ReportingAdmissionError({ code: 'NOT_FOUND', reason })
 }
 
 export function queryLimitExceeded(reason: ReportingAdmissionErrorReason): ReportingAdmissionError {

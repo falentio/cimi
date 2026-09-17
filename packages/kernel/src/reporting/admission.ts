@@ -1,14 +1,23 @@
 import { defaultFactWorkEstimator } from './fact-work.ts'
-import { ReportingAdmissionError, queryLimitExceeded, serviceUnavailable } from './errors.ts'
-import { findRelevantProjectionGap, resolveReportPeriods } from './interval.ts'
+import { queryLimitExceeded, reportingNotFound, serviceUnavailable } from './errors.ts'
+import { createInstantMs } from './types.ts'
+import {
+  findRelevantProjectionGap,
+  resolvePeriodSequence,
+  resolveReportPeriods,
+} from './interval.ts'
 import { checkRetentionCoverage } from './retention.ts'
 import type {
   AlignedStatistics,
   FactWorkEstimate,
   FreshnessEvidence,
   ProjectionEvidence,
+  ReportAdmissionDemand,
   ReportAdmissionInput,
+  ReportAdmissionPreparation,
+  ReportAdmissionPreparationInput,
   ReportAdmissionTicket,
+  ReportEvaluationPeriods,
   ResolvedPeriod,
   ResolvedPeriods,
   RetentionCoverage,
@@ -23,6 +32,17 @@ export class ReportingAdmissionService {
   }
 
   async admit(input: ReportAdmissionInput): Promise<ReportAdmissionTicket> {
+    const preparation = await this.prepare({
+      siteId: input.siteId,
+      current: input.current,
+      ...(input.comparison === undefined ? {} : { comparison: input.comparison }),
+      ...(input.periodization === undefined ? {} : { periodization: input.periodization }),
+      ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
+    })
+    return this.admitPrepared(preparation, input)
+  }
+
+  async prepare(input: ReportAdmissionPreparationInput): Promise<ReportAdmissionPreparation> {
     const health = await this.readPort(() => this.#dependencies.analyticsReadiness.getHealth())
     if (health.controlStore !== 'ready' || health.analyticsStore !== 'ready') {
       throw serviceUnavailable('analytics-not-ready')
@@ -30,7 +50,7 @@ export class ReportingAdmissionService {
 
     const metadata = await this.readPort(() => this.#dependencies.metadata.getActive(input.siteId))
     if (metadata === undefined) {
-      throw new ReportingAdmissionError({ code: 'NOT_FOUND', reason: 'metadata-missing' })
+      throw reportingNotFound('metadata-missing')
     }
     const periods = resolveReportPeriods({
       metadata,
@@ -38,47 +58,87 @@ export class ReportingAdmissionService {
       ...(input.comparison === undefined ? {} : { comparison: input.comparison }),
       ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
     })
+    const evaluation = resolveEvaluationPeriods({
+      metadata,
+      periods,
+      periodization: input.periodization,
+    })
 
-    const facts = await this.#readFacts(input, periods)
+    return {
+      input,
+      periods,
+      evaluation: {
+        current: evaluation.current,
+        comparison: evaluation.comparison,
+        interval: evaluation.interval,
+      },
+      coveragePeriods: evaluation.coveragePeriods,
+    }
+  }
 
-    checkRetentionCoverage({ coverage: facts.retention, required: input.coverage, periods })
+  async admitPrepared(
+    preparation: ReportAdmissionPreparation,
+    demand: ReportAdmissionDemand,
+  ): Promise<ReportAdmissionTicket> {
+    const facts = await this.#readFacts(
+      { siteId: preparation.input.siteId, coverage: demand.coverage },
+      preparation.coveragePeriods,
+    )
 
-    const bucketWork = input.work.bucketWork ?? countBucketStarts(periods)
+    checkRetentionCoverage({
+      coverage: facts.retention,
+      required: demand.coverage,
+      periods: preparation.coveragePeriods,
+    })
+
+    const bucketWork = demand.work.bucketWork ?? countBucketStarts(preparation.periods)
+    const periodWork = preparation.evaluation.current.sequence?.length ?? 0
+    const comparisonPeriodWork = preparation.evaluation.comparison?.sequence?.length ?? 0
     const factWorkPort = this.#dependencies.factWork ?? { estimate: defaultFactWorkEstimator }
     const estimate = await this.readPort(() =>
       factWorkPort.estimate({
         factCardinality: facts.statistics.factCardinality,
-        extraMetricCount: input.work.extraMetricCount,
+        extraMetricCount: demand.work.extraMetricCount + periodWork + comparisonPeriodWork,
         bucketWork,
-        dimensionCount: input.work.dimensionCount,
-        filterCount: input.work.filterCount,
-        distinctCountOperations: input.work.distinctCountOperations,
-        budget: input.work.budget,
+        dimensionCount: demand.work.dimensionCount,
+        filterCount: demand.work.filterCount,
+        distinctCountOperations: demand.work.distinctCountOperations,
+        budget: demand.work.budget,
       }),
     )
-    assertAdmittedFactWork(estimate, input.work.budget)
+    assertAdmittedFactWork(estimate, demand.work.budget)
 
     return {
-      periods,
+      periods: preparation.periods,
+      evaluation: {
+        current: preparation.evaluation.current,
+        comparison: preparation.evaluation.comparison,
+        interval: preparation.evaluation.interval,
+      },
       freshness: {
-        current: resolveFreshness(periods.current, facts.projection),
+        current: resolveFreshness(
+          preparation.evaluation.current.period,
+          facts.projection,
+          preparation.evaluation.current.sequence,
+        ),
         comparison:
-          periods.comparison === null
+          preparation.periods.comparison === null
             ? null
-            : resolveFreshness(periods.comparison, facts.projection),
+            : resolveFreshness(
+                preparation.evaluation.comparison?.period ?? preparation.periods.comparison,
+                facts.projection,
+                preparation.evaluation.comparison?.sequence,
+              ),
       },
       factWork: estimate,
     }
   }
 
-  /**
-   * Reads the window's preflight facts. With the deep port this is one transaction, so projection
-   * and statistics cannot be torn apart by a concurrent rebuild. The narrow ports keep their
-   * original stage-by-stage reads, including the fail-fast that skips retention when the gap gate
-   * already rejects the request.
-   */
   async #readFacts(
-    input: ReportAdmissionInput,
+    input: {
+      readonly siteId: ReportAdmissionPreparationInput['siteId']
+      readonly coverage: ReportAdmissionDemand['coverage']
+    },
     periods: ResolvedPeriods,
   ): Promise<{
     readonly projection: ProjectionEvidence
@@ -130,24 +190,71 @@ export class ReportingAdmissionService {
   }
 }
 
+function resolveEvaluationPeriods(input: {
+  readonly metadata: Parameters<typeof resolveReportPeriods>[0]['metadata']
+  readonly periods: ResolvedPeriods
+  readonly periodization: ReportAdmissionInput['periodization']
+}): ReportEvaluationPeriods & {
+  readonly coveragePeriods: ResolvedPeriods
+} {
+  const currentPeriodization = input.periodization?.current
+  const comparisonPeriodization = input.periodization?.comparison
+  const currentSequence =
+    currentPeriodization === undefined
+      ? null
+      : resolvePeriodSequence({
+          key: 'current',
+          metadata: input.metadata,
+          dates: input.periods.current.dates,
+          periodization: currentPeriodization,
+        })
+  const comparisonSequence =
+    comparisonPeriodization === undefined || input.periods.comparison === null
+      ? null
+      : resolvePeriodSequence({
+          key: 'comparison',
+          metadata: input.metadata,
+          dates: input.periods.comparison.dates,
+          periodization: comparisonPeriodization,
+        })
+  const current = {
+    period: input.periods.current,
+    sequence: currentSequence,
+  }
+  const comparison =
+    input.periods.comparison === null
+      ? null
+      : { period: input.periods.comparison, sequence: comparisonSequence }
+  const intervals = [
+    input.periods.current.interval,
+    ...(input.periods.comparison === null ? [] : [input.periods.comparison.interval]),
+    ...(currentSequence?.map((period) => period.interval) ?? []),
+    ...(comparisonSequence?.map((period) => period.interval) ?? []),
+  ]
+  const interval = {
+    start: createInstantMs(Math.min(...intervals.map((value) => value.start))),
+    endExclusive: createInstantMs(Math.max(...intervals.map((value) => value.endExclusive))),
+  }
+  const coveragePeriods: ResolvedPeriods = {
+    current: { ...input.periods.current, interval },
+    comparison: null,
+  }
+  return { current, comparison, interval, coveragePeriods }
+}
+
 function rejectRelevantGap(projection: ProjectionEvidence, periods: ResolvedPeriods): void {
   if (findRelevantProjectionGap(projection.openGaps, periods) !== undefined) {
     throw queryLimitExceeded('projection-gap')
   }
 }
 
-/**
- * Alignment means the counted facts are the ones the projection published. The checkpoint stamps
- * the cardinality it projected, and the statistics carry the cardinality counted at report time;
- * those two are written by different code at different instants, so comparing them is a real check
- * rather than a value against itself.
- */
 function requireAlignedStatistics(
   statistics: AlignedStatistics,
   projection: ProjectionEvidence,
 ): Extract<AlignedStatistics, { readonly state: 'aligned' }> {
   if (
     statistics.state !== 'aligned' ||
+    statistics.asOfAcceptanceSequence !== projection.checkpoint.projectedAcceptanceSequence ||
     projection.checkpoint.projectedFactCardinality === null ||
     statistics.factCardinality !== projection.checkpoint.projectedFactCardinality ||
     !Number.isFinite(statistics.factCardinality) ||
@@ -183,13 +290,14 @@ function countBucketStarts(periods: ResolvedPeriods): number {
 function resolveFreshness(
   period: ResolvedPeriod,
   projection: ProjectionEvidence,
+  sequence: readonly ResolvedPeriod[] | null = null,
 ): FreshnessEvidence {
   const coveredThrough = projection.checkpoint.occurrenceCoveredThrough
+  const evaluationEndExclusive =
+    sequence?.at(-1)?.interval.endExclusive ?? period.interval.endExclusive
   return {
     status:
-      coveredThrough !== null && coveredThrough >= period.interval.endExclusive
-        ? 'current'
-        : 'stale',
+      coveredThrough !== null && coveredThrough >= evaluationEndExclusive ? 'current' : 'stale',
     projectedAcceptanceSequence: projection.checkpoint.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough: coveredThrough,
   }
