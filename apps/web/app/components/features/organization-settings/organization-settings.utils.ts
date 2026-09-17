@@ -1,5 +1,13 @@
 import type { WorkspaceSite, WorkspaceTeam } from '@/components/features/app-shell/workspace'
+import { normalizeSettingsError as normalizeSharedSettingsError } from '../../../utils/settings-error'
 import type { SettingsError } from './organization-settings.types'
+
+export function normalizeSettingsError(
+  value: unknown,
+  fallbackMessage = 'Organization settings request failed',
+): SettingsError {
+  return normalizeSharedSettingsError(value, fallbackMessage)
+}
 
 export function resolveActiveOrganizationId(input: {
   readonly routeSiteId: string | undefined
@@ -28,30 +36,9 @@ export function formatSettingsDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
 }
 
-export function normalizeSettingsError(
-  value: unknown,
-  fallbackMessage = 'Organization settings request failed',
-): SettingsError {
-  if (value instanceof Error) {
-    return { message: value.message || fallbackMessage }
-  }
-
-  if (isRecord(value)) {
-    const message = typeof value.message === 'string' ? value.message : undefined
-    const code = typeof value.code === 'string' ? value.code : undefined
-    if (message !== undefined) return code === undefined ? { message } : { code, message }
-  }
-
-  return { message: fallbackMessage }
-}
-
 function isKnownOrganization(
   organizationId: string | undefined,
   teams: readonly WorkspaceTeam[],
 ): organizationId is string {
   return organizationId !== undefined && teams.some((team) => team.id === organizationId)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
