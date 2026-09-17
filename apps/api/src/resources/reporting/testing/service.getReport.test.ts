@@ -20,7 +20,7 @@ import type { HealthSnapshot } from '../../../health.ts'
 
 const now = new Date('2026-09-05T00:00:00.000Z')
 
-describe('GoalService reports', () => {
+describe('GoalService.getReport', () => {
   it('uses the historical identity population for an earlier report period', async () => {
     const repository = mock<GoalRepository>()
     const currentGoal: GoalRepository.Goal = {
