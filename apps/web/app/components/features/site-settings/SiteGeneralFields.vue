@@ -18,6 +18,26 @@ const emit = defineEmits<{
   updateTimezone: [value: SiteSettingsDraft['reportingTimezone']]
   updateWeekStart: [value: SiteSettingsDraft['weekStartsOn']]
 }>()
+
+function updateName(value: unknown): void {
+  if (typeof value === 'string' || typeof value === 'number') emit('updateName', String(value))
+}
+
+function updateHostname(value: unknown): void {
+  if (typeof value === 'string' || typeof value === 'number') emit('updateHostname', String(value))
+}
+
+function updateTimezone(value: unknown): void {
+  if (typeof value === 'string') emit('updateTimezone', value)
+}
+
+function isWeekStart(value: string): value is SiteSettingsDraft['weekStartsOn'] {
+  return WEEK_START_OPTIONS.some((option) => option.value === value)
+}
+
+function updateWeekStart(value: unknown): void {
+  if (typeof value === 'string' && isWeekStart(value)) emit('updateWeekStart', value)
+}
 </script>
 
 <template>
@@ -38,7 +58,7 @@ const emit = defineEmits<{
         maxlength="256"
         name="name"
         required
-        @update:model-value="emit('updateName', $event)"
+        @update:model-value="updateName"
       />
       <UIFieldDescription id="site-settings-name-description">
         Use a name your team will recognize.
@@ -66,7 +86,7 @@ const emit = defineEmits<{
         placeholder="www.example.com"
         required
         spellcheck="false"
-        @update:model-value="emit('updateHostname', $event)"
+        @update:model-value="updateHostname"
       />
       <UIFieldDescription id="site-settings-hostname-description">
         Enter the hostname where this site is published.
@@ -82,7 +102,7 @@ const emit = defineEmits<{
         :model-value="draft.reportingTimezone"
         :disabled="disabled"
         name="reportingTimezone"
-        @update:model-value="emit('updateTimezone', $event)"
+        @update:model-value="updateTimezone"
       >
         <UIComboboxAnchor as-child>
           <UIComboboxTrigger as-child>
@@ -131,7 +151,7 @@ const emit = defineEmits<{
         :model-value="draft.weekStartsOn"
         :disabled="disabled"
         name="weekStartsOn"
-        @update:model-value="emit('updateWeekStart', $event)"
+        @update:model-value="updateWeekStart"
       >
         <UISelectTrigger id="site-settings-week-start" class="w-full">
           <UISelectValue placeholder="Choose a week start" />
