@@ -735,7 +735,7 @@ function handleFilterClear(): void {
 
 <template>
   <section class="flex min-w-0 flex-col gap-6" aria-labelledby="site-overview-title">
-    <div class="sticky top-0 z-20 bg-background border-background border-x-2">
+    <div class="sticky top-0 z-20 bg-background ring-background ring-2">
       <OverviewToolbar
         :ranges="rangeOptions"
         :selected-range="selectedRange"
