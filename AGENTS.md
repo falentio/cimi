@@ -16,6 +16,7 @@
 - After a fresh clone or worktree creation, set up the dev environment before running the app. See the "Set up the dev environment" section in README.md.
 - If changes touch different packages or apps, it should changed 1 by 1 vertically until test green or smoke test-ed(if apps/web).
 - Always TDD
+- Smoke test apps/web using agent-browser after you work on that app
 
 ## Tooling
 
