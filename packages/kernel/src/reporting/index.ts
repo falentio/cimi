@@ -46,6 +46,7 @@ export {
   type ProjectionEvidence,
   type ProjectionGap,
   type Periodization,
+  type PeriodizationByKey,
   type ReportAdmissionInput,
   type ReportAdmissionDemand,
   type ReportAdmissionPreparation,

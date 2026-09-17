@@ -68,7 +68,7 @@ export interface ReportAdmissionPreparationInput {
   readonly siteId: SiteId
   readonly current: InclusiveDateRange
   readonly comparison?: InclusiveDateRange
-  readonly periodization?: Periodization
+  readonly periodization?: PeriodizationByKey
   readonly bucket?: BucketDemand
 }
 
@@ -83,6 +83,11 @@ export interface ReportAdmissionInput
 export interface Periodization {
   readonly kind: Extract<ReportGranularity, 'day' | 'week' | 'month'>
   readonly maxPeriods: number
+}
+
+export interface PeriodizationByKey {
+  readonly current: Periodization
+  readonly comparison?: Periodization
 }
 
 export interface ReportEvaluationPeriod {

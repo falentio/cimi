@@ -9,7 +9,7 @@ import {
   type LifecycleLease,
   type LifecycleLock,
   type PeriodKey,
-  type Periodization,
+  type PeriodizationByKey,
   type ReportAdmissionPreparation,
   type ReportAdmissionPreparationInput,
   type ReportAdmissionTicket,
@@ -62,7 +62,9 @@ export interface HistoricalDefinitionPlan<T> {
 }
 
 export interface ReportQueryPlanningContext {
-  prepare(input?: { readonly periodization?: Periodization }): Promise<ReportAdmissionPreparation>
+  prepare(input?: {
+    readonly periodization?: PeriodizationByKey
+  }): Promise<ReportAdmissionPreparation>
 }
 
 export interface ReportQueryPlan<T> {
@@ -126,7 +128,7 @@ export function createReportQueryKernel(
         if (lease === undefined) throw serviceUnavailable('lifecycle-locked')
 
         const planning = {
-          prepare: (options: { readonly periodization?: Periodization } = {}) =>
+          prepare: (options: { readonly periodization?: PeriodizationByKey } = {}) =>
             dependencies.admission.prepare(
               createPreparationInput(input.siteId, input.window, options.periodization),
             ),
@@ -237,7 +239,7 @@ async function evaluatePeriod<T>(input: {
 function createPreparationInput(
   siteId: string,
   window: ReportWindow,
-  periodization: Periodization | undefined,
+  periodization: PeriodizationByKey | undefined,
 ): ReportAdmissionPreparationInput {
   const comparison = window.comparison
   return {

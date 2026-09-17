@@ -143,22 +143,38 @@ export class CohortService {
           cohort,
           initialPreparation.evaluation.current.period,
         )
+        const comparisonAnchor =
+          initialPreparation.evaluation.comparison === null
+            ? null
+            : await requireCohortDefinition(
+                this.deps.repository,
+                cohort,
+                initialPreparation.evaluation.comparison.period,
+              )
         const preparation = await planning.prepare({
-          periodization: { kind: anchor.period, maxPeriods: 12 },
+          periodization: {
+            current: { kind: anchor.period, maxPeriods: 12 },
+            ...(comparisonAnchor === null
+              ? {}
+              : { comparison: { kind: comparisonAnchor.period, maxPeriods: 12 } }),
+          },
         })
         const current = await planCohortOuterPeriod(
           this.deps.repository,
           cohort,
           preparation.evaluation.current,
+          anchor,
         )
-        const comparison =
-          preparation.evaluation.comparison === null
-            ? null
-            : await planCohortOuterPeriod(
-                this.deps.repository,
-                cohort,
-                preparation.evaluation.comparison,
-              )
+        let comparison: CohortOuterPlan | null = null
+        if (preparation.evaluation.comparison !== null) {
+          if (comparisonAnchor === null) throw reportingNotFound('definition-version-missing')
+          comparison = await planCohortOuterPeriod(
+            this.deps.repository,
+            cohort,
+            preparation.evaluation.comparison,
+            comparisonAnchor,
+          )
+        }
         const definitions: HistoricalDefinitionPlan<CohortRepository.Cohort> = {
           current: current.anchor,
           comparison: comparison?.anchor ?? null,
@@ -234,16 +250,17 @@ async function planCohortOuterPeriod(
   repository: CohortRepository,
   cohort: CohortRepository.Cohort,
   outerPeriod: ReportEvaluationPeriod,
+  anchorDefinition: CohortRepository.Cohort,
 ): Promise<CohortOuterPlan> {
-  const anchor = historicalCohort(
-    await requireCohortDefinition(repository, cohort, outerPeriod.period),
-  )
+  const anchor = historicalCohort(anchorDefinition)
   const periods = outerPeriod.sequence ?? [outerPeriod.period]
   const periodDefinitions = await Promise.all(
-    periods.map(async (period) => ({
-      period,
-      definition: historicalCohort(await requireCohortDefinition(repository, cohort, period)),
-    })),
+    periods
+      .filter((period) => !samePeriod(period, outerPeriod.period))
+      .map(async (period) => ({
+        period,
+        definition: historicalCohort(await requireCohortDefinition(repository, cohort, period)),
+      })),
   )
   const byStart = new Map<InstantMs, HistoricalDefinition<CohortRepository.Cohort>>()
   byStart.set(outerPeriod.period.interval.start, anchor)

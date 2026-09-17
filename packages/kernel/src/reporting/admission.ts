@@ -197,21 +197,25 @@ function resolveEvaluationPeriods(input: {
 }): ReportEvaluationPeriods & {
   readonly coveragePeriods: ResolvedPeriods
 } {
+  const currentPeriodization = input.periodization?.current
+  const comparisonPeriodization = input.periodization?.comparison
   const currentSequence =
-    input.periodization === undefined
+    currentPeriodization === undefined
       ? null
       : resolvePeriodSequence({
+          key: 'current',
           metadata: input.metadata,
           dates: input.periods.current.dates,
-          periodization: input.periodization,
+          periodization: currentPeriodization,
         })
   const comparisonSequence =
-    input.periodization === undefined || input.periods.comparison === null
+    comparisonPeriodization === undefined || input.periods.comparison === null
       ? null
       : resolvePeriodSequence({
+          key: 'comparison',
           metadata: input.metadata,
           dates: input.periods.comparison.dates,
-          periodization: input.periodization,
+          periodization: comparisonPeriodization,
         })
   const current = {
     period: input.periods.current,

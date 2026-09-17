@@ -17,6 +17,7 @@ import {
   type AlignedStatistics,
   type FactWorkPort,
   type ProjectionEvidence,
+  type PeriodizationByKey,
   type ReportingAdmissionDependencies,
   type ReportingEvidencePort,
   type ReportingMetadataPort,
@@ -160,10 +161,7 @@ function createPorts(): {
 function admissionInput(
   overrides: {
     readonly comparison?: { readonly fromDate: string; readonly toDate: string }
-    readonly periodization?: {
-      readonly kind: 'day' | 'week' | 'month'
-      readonly maxPeriods: number
-    }
+    readonly periodization?: PeriodizationByKey
     readonly coverage?: readonly ('event-occurrence' | 'profile-activity' | 'replay-receipt')[]
     readonly budget?: number
   } = {},
@@ -206,6 +204,45 @@ async function expectAdmissionError(
 }
 
 describe('reporting period resolution', () => {
+  it('resolves current and comparison periodization independently', async () => {
+    const ports = createPorts()
+    const preparation = await new ReportingAdmissionService(ports.dependencies).prepare({
+      siteId,
+      current: currentInput,
+      comparison: {
+        fromDate: createCalendarDate('2026-09-03'),
+        toDate: createCalendarDate('2026-09-04'),
+      },
+      periodization: {
+        current: { kind: 'week', maxPeriods: 12 },
+        comparison: { kind: 'month', maxPeriods: 12 },
+      },
+    })
+
+    expect(preparation.evaluation.current.sequence).toMatchObject([
+      { key: 'current', dates: { fromDate: '2026-08-31', toDate: '2026-09-06' } },
+    ])
+    expect(preparation.evaluation.comparison?.sequence).toMatchObject([
+      { key: 'comparison', dates: { fromDate: '2026-09-01', toDate: '2026-09-30' } },
+    ])
+  })
+
+  it('does not inherit current periodization for an unconfigured comparison', async () => {
+    const ports = createPorts()
+    const preparation = await new ReportingAdmissionService(ports.dependencies).prepare({
+      siteId,
+      current: currentInput,
+      comparison: {
+        fromDate: createCalendarDate('2026-09-03'),
+        toDate: createCalendarDate('2026-09-04'),
+      },
+      periodization: { current: { kind: 'week', maxPeriods: 12 } },
+    })
+
+    expect(preparation.evaluation.current.sequence).toHaveLength(1)
+    expect(preparation.evaluation.comparison?.sequence).toBeNull()
+  })
+
   it('resolves inclusive UTC dates to a half-open interval', () => {
     const periods = periodsFor({ fromDate: '2026-09-05', toDate: '2026-09-06' })
 
@@ -311,6 +348,7 @@ describe('reporting period resolution', () => {
   it('aligns periodized ranges to the Site week start and rejects more than the hard bound', () => {
     const sequence = resolvePeriodSequence({
       metadata,
+      key: 'current',
       dates: {
         fromDate: createCalendarDate('2026-09-09'),
         toDate: createCalendarDate('2026-09-15'),
@@ -325,6 +363,7 @@ describe('reporting period resolution', () => {
     expect(() =>
       resolvePeriodSequence({
         metadata,
+        key: 'current',
         dates: {
           fromDate: createCalendarDate('2026-09-09'),
           toDate: createCalendarDate('2026-09-15'),
@@ -701,7 +740,7 @@ describe('ReportingAdmissionService', () => {
     await expectAdmissionError(
       () =>
         new ReportingAdmissionService(ports.dependencies).admit(
-          admissionInput({ periodization: { kind: 'week', maxPeriods: 2 } }),
+          admissionInput({ periodization: { current: { kind: 'week', maxPeriods: 2 } } }),
         ),
       'QUERY_LIMIT_EXCEEDED',
     )

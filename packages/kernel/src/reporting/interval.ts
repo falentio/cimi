@@ -14,6 +14,7 @@ import type {
   BucketDemand,
   BucketStart,
   InclusiveDateRange,
+  PeriodKey,
   ProjectionGap,
   ResolvedPeriod,
   ResolvedPeriods,
@@ -72,6 +73,7 @@ export function resolveReportPeriods(input: {
 }
 
 export function resolvePeriodSequence(input: {
+  readonly key: PeriodKey
   readonly metadata: SiteReportingMetadata
   readonly dates: InclusiveDateRange
   readonly periodization: Periodization
@@ -94,7 +96,7 @@ export function resolvePeriodSequence(input: {
     const periodTo = addCalendarDays(nextFrom, -1)
     periods.push(
       resolvePeriod({
-        key: 'current',
+        key: input.key,
         dates: {
           fromDate: calendarDateValue(periodFrom),
           toDate: calendarDateValue(periodTo),
