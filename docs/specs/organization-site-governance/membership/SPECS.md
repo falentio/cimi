@@ -23,7 +23,7 @@ Membership states are `active` and absent. Ownership transfer is an explicit Own
 | ------------------------- | ------------------ | -------------------------------------------------------------------- |
 | `organizationId`          | `SId`              | Organization scope.                                                  |
 | `userId`                  | `SId`              | Better Auth User identifier represented as an opaque bounded string. |
-| `email`                   | `string`           | User email displayed in membership listings.                        |
+| `email`                   | `string`           | User email displayed in membership listings.                         |
 | `role`                    | `organizationRole` | `owner`, `admin`, or `member`.                                       |
 | `createdAt` / `updatedAt` | `SDateTime`        | Membership timestamps.                                               |
 
