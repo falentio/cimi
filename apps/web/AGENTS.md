@@ -20,3 +20,13 @@
 - Always smoke-test using agent-browser cli (run `agent-browser skills get core` first before any agent-browser operations)
 - Run smoke-test inside subagents/task tool.
 - If Vue files/components has more than >200 lines, extract these (prioritized, first listed win): {utils fn, large element, small element}
+
+### Dashboard layout
+
+Authenticated pages use `app/layouts/default.vue`. This layout owns the `p-4 pt-0` shell gutter and the single centered `max-w-5xl` content column.
+
+Feature roots use `w-full min-w-0`. Do not add a second page-level `max-w-*`, `mx-auto`, or horizontal gutter.
+
+Narrower `max-w-*` values remain valid for local text, forms, dialogs, popovers, tables, and controls.
+
+The `public` and `bare` layouts are outside this rule. A future full-bleed authenticated page needs an explicit layout or a documented exception.

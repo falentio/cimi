@@ -69,10 +69,7 @@ async function retry(): Promise<void> {
 </script>
 
 <template>
-  <section
-    aria-labelledby="organization-settings-title"
-    class="mx-auto flex w-full max-w-4xl flex-col gap-6"
-  >
+  <section aria-labelledby="organization-settings-title" class="flex min-w-0 w-full flex-col gap-6">
     <header class="flex flex-col gap-1">
       <p class="text-muted-foreground text-sm font-medium tracking-wide uppercase">
         Organization settings

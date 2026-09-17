@@ -26,14 +26,25 @@ const emit = defineEmits<{
 
 <template>
   <section aria-labelledby="organization-sites-title" class="flex flex-col gap-4">
-    <header class="flex flex-wrap items-end justify-between gap-2">
-      <div>
+    <header class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div class="min-w-0">
         <h2 id="organization-sites-title" class="text-lg font-semibold tracking-tight">Sites</h2>
         <p class="text-muted-foreground text-sm">Sites connected to this organization.</p>
       </div>
-      <p class="text-muted-foreground text-sm">
-        {{ sites.length }} {{ sites.length === 1 ? 'site' : 'sites' }}
-      </p>
+      <div class="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+        <p class="text-muted-foreground shrink-0 text-sm whitespace-nowrap">
+          {{ sites.length }} {{ sites.length === 1 ? 'site' : 'sites' }}
+        </p>
+        <Button
+          v-if="sites.length > 0"
+          class="shrink-0"
+          size="sm"
+          type="button"
+          @click="emit('addSite')"
+        >
+          Add site
+        </Button>
+      </div>
     </header>
 
     <div v-if="sites.length > 0" class="grid min-w-0 gap-4 md:grid-cols-2" role="list">
