@@ -735,23 +735,25 @@ function handleFilterClear(): void {
 
 <template>
   <section class="flex min-w-0 flex-col gap-6" aria-labelledby="site-overview-title">
-    <OverviewToolbar
-      :ranges="rangeOptions"
-      :selected-range="selectedRange"
-      :status-text="statusText"
-      @range-change="handleRangeChange"
-      @refresh="handleRefresh"
-    >
-      <template #filters>
-        <OverviewFilterBar
-          :filters="activeFilters"
-          @add-filter="handleFilterAdd"
-          @replace-filter="handleFilterReplace"
-          @remove-filter="handleFilterRemove"
-          @clear-filters="handleFilterClear"
-        />
-      </template>
-    </OverviewToolbar>
+    <div class="sticky top-0 z-20 bg-background border-background border-x-2">
+      <OverviewToolbar
+        :ranges="rangeOptions"
+        :selected-range="selectedRange"
+        :status-text="statusText"
+        @range-change="handleRangeChange"
+        @refresh="handleRefresh"
+      >
+        <template #filters>
+          <OverviewFilterBar
+            :filters="activeFilters"
+            @add-filter="handleFilterAdd"
+            @replace-filter="handleFilterReplace"
+            @remove-filter="handleFilterRemove"
+            @clear-filters="handleFilterClear"
+          />
+        </template>
+      </OverviewToolbar>
+    </div>
 
     <div
       v-if="viewState === 'loading'"
