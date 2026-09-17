@@ -1,5 +1,7 @@
 export {
   ReportingAdmissionError,
+  reportingNotFound,
+  serviceUnavailable,
   type ReportingAdmissionErrorCode,
   type ReportingAdmissionErrorReason,
 } from './errors.ts'
@@ -45,6 +47,9 @@ export {
   type ProjectionGap,
   type Periodization,
   type ReportAdmissionInput,
+  type ReportAdmissionDemand,
+  type ReportAdmissionPreparation,
+  type ReportAdmissionPreparationInput,
   type ReportAdmissionTicket,
   type ReportEvaluationPeriod,
   type ReportEvaluationPeriods,

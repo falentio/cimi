@@ -254,23 +254,27 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     db: deps.db,
     analytics: deps.analytics,
     admission: trafficReport.admission,
+    lifecycleLock: lock,
   })
   const goal = createGoal({
     db: deps.db,
     analytics: deps.analytics,
     admission: trafficReport.admission,
+    lifecycleLock: lock,
     query: reportQuery,
   })
   const funnel = createFunnel({
     db: deps.db,
     analytics: deps.analytics,
     admission: trafficReport.admission,
+    lifecycleLock: lock,
     query: reportQuery,
   })
   const cohort = createCohort({
     db: deps.db,
     analytics: deps.analytics,
     admission: trafficReport.admission,
+    lifecycleLock: lock,
     query: reportQuery,
   })
   const router = api.router({

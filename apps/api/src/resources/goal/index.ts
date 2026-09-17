@@ -1,6 +1,6 @@
 import type { AnalyticsDb, Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import type { ReportingAdmissionService } from '@cimi/kernel'
+import type { LifecycleLock, ReportingAdmissionService } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import type { ReportQueryKernel } from '../reporting/index.ts'
 import { GoalRepositoryDrizzle } from './repository.drizzle.ts'
@@ -19,6 +19,7 @@ export interface CreateGoalDependencies {
   readonly db: Db
   readonly analytics: AnalyticsDb
   readonly admission: ReportingAdmissionService
+  readonly lifecycleLock: LifecycleLock
   readonly query?: ReportQueryKernel | undefined
   readonly scope?: SiteScopeGuardDependencies | undefined
   readonly clock?: (() => Date) | undefined
@@ -29,6 +30,7 @@ export function createGoal({
   db,
   analytics,
   admission,
+  lifecycleLock,
   query,
   scope,
   clock,
@@ -40,6 +42,7 @@ export function createGoal({
     analytics,
     db,
     admission,
+    lifecycleLock,
     ...(query === undefined ? {} : { query }),
     scope: scope ?? createSiteScopeDependencies({ db }),
     ...(clock === undefined ? {} : { clock }),

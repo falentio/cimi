@@ -18,14 +18,22 @@ import {
   assertSiteScope,
   type SiteScopeGuardDependencies,
 } from '@cimi/guard'
-import type { ReportingAdmissionService } from '@cimi/kernel'
+import {
+  reportingNotFound,
+  type LifecycleLock,
+  type ReportingAdmissionService,
+  type ResolvedPeriod,
+} from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import { evaluateGoal, type GoalReportCounts } from './evaluator.ts'
 import {
   createReportQueryKernelFromInfrastructure,
+  coverageForDefinitions,
   goalReportWork,
+  historicalDefinitionFor,
+  type HistoricalDefinitionPlan,
   type ReportQueryKernel,
 } from '../reporting/index.ts'
 import type { ReportRun } from '../reporting/index.ts'
@@ -35,6 +43,7 @@ export interface GoalServiceDependencies {
   readonly repository: GoalRepository
   readonly scope: SiteScopeGuardDependencies
   readonly admission: ReportingAdmissionService
+  readonly lifecycleLock: LifecycleLock
   readonly analytics: AnalyticsDb
   readonly db: Db
   readonly query?: ReportQueryKernel | undefined
@@ -56,6 +65,7 @@ export class GoalService {
         db: deps.db,
         analytics: deps.analytics,
         admission: deps.admission,
+        lifecycleLock: deps.lifecycleLock,
       })
   }
 
@@ -120,32 +130,59 @@ export class GoalService {
     const goal = await this.deps.repository.findById({ goalId: input.goalId })
     if (goal === undefined) throw new ORPCError('NOT_FOUND')
     await assertSiteScope(user, goal.siteId, this.deps.scope)
-    const run = await this.query.run({
+    const window = reportWindow(input)
+    return this.query.run({
       siteId: goal.siteId,
-      window: reportWindow(input),
-      identityKind: goal.identityKind,
-      work: goalReportWork(),
-      evaluate: async (evaluation) => {
-        const definition =
-          (await this.deps.repository.findVersionAt({
-            siteId: goal.siteId,
-            goalId: goal.id,
-            at: periodEnd(evaluation.period.period),
-          })) ?? goal
-        return evaluateGoal({
-          ...evaluation,
-          definition: {
-            action: definition.action,
-            propertyFilters: definition.propertyFilters,
+      window,
+      plan: async (planning) => {
+        const preparation = await planning.prepare()
+        const current = await requireGoalDefinition(
+          this.deps.repository,
+          goal,
+          preparation.evaluation.current.period,
+        )
+        const comparison =
+          preparation.evaluation.comparison === null
+            ? null
+            : await requireGoalDefinition(
+                this.deps.repository,
+                goal,
+                preparation.evaluation.comparison.period,
+              )
+        const definitions: HistoricalDefinitionPlan<GoalRepository.Goal> = {
+          current: historicalGoal(current),
+          comparison: comparison === null ? null : historicalGoal(comparison),
+          all: [current, ...(comparison === null ? [] : [comparison])].map(historicalGoal),
+        }
+        return {
+          preparation,
+          coverage: coverageForDefinitions({
+            definitions: definitions.all,
+            filters: window.filters,
+          }),
+          work: goalReportWork(),
+          identityKindFor: (evaluation) =>
+            historicalDefinitionFor(definitions, evaluation.period.key).identityKind,
+          evaluate: (evaluation) => {
+            const definition = historicalDefinitionFor(definitions, evaluation.period.period.key)
+            return evaluateGoal({
+              ...evaluation,
+              definition: {
+                action: definition.definition.action,
+                propertyFilters: definition.definition.propertyFilters,
+              },
+            })
           },
-        })
+        }
+      },
+      render: (run) => {
+        const current = goalReportPeriod(run.current)
+        return {
+          ...current,
+          ...(run.comparison === null ? {} : { comparison: goalReportPeriod(run.comparison) }),
+        }
       },
     })
-    const current = goalReportPeriod(run.current)
-    return {
-      ...current,
-      ...(run.comparison === null ? {} : { comparison: goalReportPeriod(run.comparison) }),
-    }
   }
 
   private async assertCanManage(
@@ -168,8 +205,26 @@ function reportWindow(input: InferOutput<typeof SGoalReportInput>) {
   return window
 }
 
-function periodEnd(period: { readonly interval: { readonly endExclusive: number } }): Date {
+function periodEnd(period: Pick<ResolvedPeriod, 'interval'>): Date {
   return new Date(period.interval.endExclusive - 1)
+}
+
+async function requireGoalDefinition(
+  repository: GoalRepository,
+  goal: GoalRepository.Goal,
+  period: ResolvedPeriod,
+): Promise<GoalRepository.Goal> {
+  const definition = await repository.findVersionAt({
+    siteId: goal.siteId,
+    goalId: goal.id,
+    at: periodEnd(period),
+  })
+  if (definition === undefined) throw reportingNotFound('definition-version-missing')
+  return definition
+}
+
+function historicalGoal(definition: GoalRepository.Goal) {
+  return { definition, identityKind: definition.identityKind } as const
 }
 
 function goalReportPeriod(period: ReportRun<GoalReportCounts>['current']) {

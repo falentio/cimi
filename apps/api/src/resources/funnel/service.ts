@@ -18,14 +18,22 @@ import {
   assertSiteScope,
   type SiteScopeGuardDependencies,
 } from '@cimi/guard'
-import type { ReportingAdmissionService } from '@cimi/kernel'
+import {
+  reportingNotFound,
+  type LifecycleLock,
+  type ReportingAdmissionService,
+  type ResolvedPeriod,
+} from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import { evaluateFunnel, type FunnelReportStep } from './evaluator.ts'
 import {
   createReportQueryKernelFromInfrastructure,
+  coverageForDefinitions,
   funnelReportWork,
+  historicalDefinitionFor,
+  type HistoricalDefinitionPlan,
   type ReportQueryKernel,
   type ReportRun,
 } from '../reporting/index.ts'
@@ -35,6 +43,7 @@ export interface FunnelServiceDependencies {
   readonly repository: FunnelRepository
   readonly scope: SiteScopeGuardDependencies
   readonly admission: ReportingAdmissionService
+  readonly lifecycleLock: LifecycleLock
   readonly analytics: AnalyticsDb
   readonly db: Db
   readonly query?: ReportQueryKernel | undefined
@@ -56,6 +65,7 @@ export class FunnelService {
         db: deps.db,
         analytics: deps.analytics,
         admission: deps.admission,
+        lifecycleLock: deps.lifecycleLock,
       })
   }
 
@@ -119,28 +129,55 @@ export class FunnelService {
     const funnel = await this.deps.repository.findById({ funnelId: input.funnelId })
     if (funnel === undefined) throw new ORPCError('NOT_FOUND')
     await assertSiteScope(user, funnel.siteId, this.deps.scope)
-    const run = await this.query.run({
+    const window = reportWindow(input)
+    return this.query.run({
       siteId: funnel.siteId,
-      window: reportWindow(input),
-      identityKind: funnel.identityKind,
-      work: funnelReportWork(funnel.steps.length),
-      evaluate: async (evaluation) => {
-        const definition =
-          (await this.deps.repository.findVersionAt({
-            siteId: funnel.siteId,
-            funnelId: funnel.id,
-            at: periodEnd(evaluation.period.period),
-          })) ?? funnel
-        return evaluateFunnel({
-          ...evaluation,
-          definition: { steps: definition.steps },
-        })
+      window,
+      plan: async (planning) => {
+        const preparation = await planning.prepare()
+        const current = await requireFunnelDefinition(
+          this.deps.repository,
+          funnel,
+          preparation.evaluation.current.period,
+        )
+        const comparison =
+          preparation.evaluation.comparison === null
+            ? null
+            : await requireFunnelDefinition(
+                this.deps.repository,
+                funnel,
+                preparation.evaluation.comparison.period,
+              )
+        const definitions: HistoricalDefinitionPlan<FunnelRepository.Funnel> = {
+          current: historicalFunnel(current),
+          comparison: comparison === null ? null : historicalFunnel(comparison),
+          all: [current, ...(comparison === null ? [] : [comparison])].map(historicalFunnel),
+        }
+        return {
+          preparation,
+          coverage: coverageForDefinitions({
+            definitions: definitions.all,
+            filters: window.filters,
+          }),
+          work: funnelReportWork(
+            Math.max(...definitions.all.map(({ definition }) => definition.steps.length)),
+          ),
+          identityKindFor: (evaluation) =>
+            historicalDefinitionFor(definitions, evaluation.period.key).identityKind,
+          evaluate: (evaluation) => {
+            const definition = historicalDefinitionFor(definitions, evaluation.period.period.key)
+            return evaluateFunnel({
+              ...evaluation,
+              definition: { steps: definition.definition.steps },
+            })
+          },
+        }
       },
+      render: (run) => ({
+        ...funnelReportPeriod(run.current),
+        ...(run.comparison === null ? {} : { comparison: funnelReportPeriod(run.comparison) }),
+      }),
     })
-    return {
-      ...funnelReportPeriod(run.current),
-      ...(run.comparison === null ? {} : { comparison: funnelReportPeriod(run.comparison) }),
-    }
   }
 
   private async assertCanManage(
@@ -163,8 +200,26 @@ function reportWindow(input: InferOutput<typeof SFunnelReportInput>) {
   return window
 }
 
-function periodEnd(period: { readonly interval: { readonly endExclusive: number } }): Date {
+function periodEnd(period: Pick<ResolvedPeriod, 'interval'>): Date {
   return new Date(period.interval.endExclusive - 1)
+}
+
+async function requireFunnelDefinition(
+  repository: FunnelRepository,
+  funnel: FunnelRepository.Funnel,
+  period: ResolvedPeriod,
+): Promise<FunnelRepository.Funnel> {
+  const definition = await repository.findVersionAt({
+    siteId: funnel.siteId,
+    funnelId: funnel.id,
+    at: periodEnd(period),
+  })
+  if (definition === undefined) throw reportingNotFound('definition-version-missing')
+  return definition
+}
+
+function historicalFunnel(definition: FunnelRepository.Funnel) {
+  return { definition, identityKind: definition.identityKind } as const
 }
 
 function funnelReportPeriod(period: ReportRun<readonly FunnelReportStep[]>['current']) {

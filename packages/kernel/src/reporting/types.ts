@@ -64,15 +64,21 @@ export interface ReportWorkDemand {
   readonly budget: number
 }
 
-export interface ReportAdmissionInput {
+export interface ReportAdmissionPreparationInput {
   readonly siteId: SiteId
   readonly current: InclusiveDateRange
   readonly comparison?: InclusiveDateRange
   readonly periodization?: Periodization
   readonly bucket?: BucketDemand
+}
+
+export interface ReportAdmissionDemand {
   readonly coverage: readonly CoverageDependency[]
   readonly work: ReportWorkDemand
 }
+
+export interface ReportAdmissionInput
+  extends ReportAdmissionPreparationInput, ReportAdmissionDemand {}
 
 export interface Periodization {
   readonly kind: Extract<ReportGranularity, 'day' | 'week' | 'month'>
@@ -88,6 +94,13 @@ export interface ReportEvaluationPeriods {
   readonly current: ReportEvaluationPeriod
   readonly comparison: ReportEvaluationPeriod | null
   readonly interval: HalfOpenInterval
+}
+
+export interface ReportAdmissionPreparation {
+  readonly input: ReportAdmissionPreparationInput
+  readonly periods: ResolvedPeriods
+  readonly evaluation: ReportEvaluationPeriods
+  readonly coveragePeriods: ResolvedPeriods
 }
 
 export interface SiteReportingMetadata {

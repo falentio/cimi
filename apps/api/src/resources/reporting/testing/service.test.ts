@@ -1,150 +1,226 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
-import type { AnalyticsDb, AnalyticsReportData } from '@cimi/db'
+import type { AnalyticsDb, Db } from '@cimi/db'
 import {
+  InMemoryLifecycleLock,
   ReportingAdmissionService,
+  createCalendarDate,
   createInstantMs,
   createSiteId,
-  type ReportingEvidencePort,
-  type ReportingMetadataPort,
-  type AnalyticsReadinessPort,
+  type ReportAdmissionTicket,
+  type ReportAdmissionPreparation,
+  type ReportEvaluationPeriod,
 } from '@cimi/kernel'
-import { GoalRepositoryDrizzle } from '../../goal/repository.drizzle.ts'
+import { createReportQueryKernel } from '../query.ts'
+import type { ReportSnapshot } from '../model.ts'
+import type { GoalRepository } from '../../goal/repository.ts'
 import { GoalService } from '../../goal/service.ts'
-import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 
 const now = new Date('2026-09-05T00:00:00.000Z')
 
 describe('GoalService reports', () => {
-  it('uses the shared admission ticket and counts one conversion per Session', async () => {
-    using fixture = createSiteDrizzleFixture()
-    const repository = new GoalRepositoryDrizzle({ db: fixture.db })
-    const goal = await repository.insert({
+  it('uses the historical identity population for an earlier report period', async () => {
+    const repository = mock<GoalRepository>()
+    const currentGoal: GoalRepository.Goal = {
       id: 'gol_1',
       siteId: 'ste_1',
       name: 'Signups',
       action: { kind: 'custom_event', name: 'signup' },
-      identityKind: 'visitor',
-      now,
-    })
-    const analytics = mock<AnalyticsDb>()
-    const reportData: AnalyticsReportData = {
-      sessions: [
-        {
-          sessionId: 'ses-1',
-          visitorId: 'vis-1',
-          identifiedUserId: null,
-          startedAt: new Date('2026-09-01T10:00:00.000Z'),
-          endedAt: new Date('2026-09-01T10:05:00.000Z'),
-          entryPage: '/',
-          exitPage: '/done',
-          referrer: null,
-          utmSource: null,
-          utmMedium: null,
-          utmCampaign: null,
-          device: null,
-          browser: null,
-          operatingSystem: null,
-          country: null,
-          region: null,
-          city: null,
-        },
-      ],
-      events: [
-        {
-          eventId: 'evt-1',
-          eventKind: 'custom_event',
-          occurrenceTime: new Date('2026-09-01T10:01:00.000Z'),
-          visitorId: 'vis-1',
-          identifiedUserId: null,
-          sessionId: 'ses-1',
-          pagePath: '/',
-          referrer: null,
-          name: 'signup',
-          destination: null,
-          unit: null,
-          code: null,
-          properties: {},
-        },
-        {
-          eventId: 'evt-2',
-          eventKind: 'custom_event',
-          occurrenceTime: new Date('2026-09-01T10:02:00.000Z'),
-          visitorId: 'vis-1',
-          identifiedUserId: null,
-          sessionId: 'ses-1',
-          pagePath: '/',
-          referrer: null,
-          name: 'signup',
-          destination: null,
-          unit: null,
-          code: null,
-          properties: {},
-        },
-      ],
+      identityKind: 'identified_user',
+      status: 'active',
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     }
-    analytics.readReportData.mockResolvedValue(reportData)
-    const readiness = mock<AnalyticsReadinessPort>()
-    readiness.getHealth.mockReturnValue({ controlStore: 'ready', analyticsStore: 'ready' })
-    const metadata = mock<ReportingMetadataPort>()
-    metadata.getActive.mockReturnValue({
-      siteId: createSiteId('ste_1'),
-      reportingTimezone: 'UTC',
-      weekStartsOn: 'monday',
-    })
-    const evidence = mock<ReportingEvidencePort>()
-    evidence.read.mockReturnValue({
-      projection: {
-        checkpoint: {
-          projectedAcceptanceSequence: 2,
-          projectedFactCardinality: 2,
-          occurrenceCoveredFrom: createInstantMs(Date.parse('2026-01-01T00:00:00.000Z')),
-          occurrenceCoveredThrough: createInstantMs(Date.parse('2026-09-02T00:00:00.000Z')),
-        },
-        openGaps: [],
-      },
-      statistics: { state: 'aligned', asOfAcceptanceSequence: 2, factCardinality: 2 },
-      retention: {
-        eventOccurrence: { state: 'available', from: createInstantMs(0) },
-        profileActivity: { state: 'available', from: createInstantMs(0) },
-        replayReceipt: { state: 'available', from: createInstantMs(0) },
-      },
-    })
-    const admission = new ReportingAdmissionService({
-      analyticsReadiness: readiness,
-      metadata,
-      evidence,
+    const historicalGoal: GoalRepository.Goal = {
+      ...currentGoal,
+      identityKind: 'visitor',
+    }
+    repository.findById.mockResolvedValue(currentGoal)
+    repository.findVersionAt.mockResolvedValue(historicalGoal)
+
+    const admission = mock<ReportingAdmissionService>()
+    admission.prepare.mockResolvedValue(admissionPreparation())
+    admission.admitPrepared.mockResolvedValue(admissionTicket())
+    const lifecycleLock = new InMemoryLifecycleLock()
+    const query = createReportQueryKernel({
+      admission,
+      data: { read: async () => reportSnapshot() },
+      lifecycleLock,
     })
     const service = new GoalService({
       repository,
-      scope: {
-        siteScope: {
-          exists: async () => true,
-          isActive: async () => true,
-          getOrganizationId: async () => 'org_1',
-        },
-        membership: {
-          getRole: () => 'owner',
-          hasPendingGovernanceOperation: () => false,
-        },
-      },
+      scope: siteScope(),
       admission,
-      analytics,
-      db: fixture.db,
+      lifecycleLock,
+      analytics: mock<AnalyticsDb>(),
+      db: mock<Db>(),
+      query,
     })
 
     await expect(
       service.getReport(
-        { goalId: goal.id, fromDate: '2026-09-01', toDate: '2026-09-01' },
+        { goalId: currentGoal.id, fromDate: '2026-09-01', toDate: '2026-09-01' },
         { id: 'user_1' },
       ),
     ).resolves.toMatchObject({
-      fromDate: '2026-09-01',
-      toDate: '2026-09-01',
-      conversions: 1,
-      eligibleSessions: 1,
+      conversions: 2,
+      eligibleSessions: 2,
       conversionRate: 1,
-      status: 'current',
+    })
+    expect(repository.findVersionAt).toHaveBeenCalledWith({
+      siteId: 'ste_1',
+      goalId: 'gol_1',
+      at: expect.any(Date),
     })
   })
 })
+
+function admissionTicket(): ReportAdmissionTicket {
+  const period = {
+    key: 'current' as const,
+    dates: {
+      fromDate: createCalendarDate('2026-09-01'),
+      toDate: createCalendarDate('2026-09-01'),
+    },
+    interval: {
+      start: createInstantMs(Date.parse('2026-09-01T00:00:00.000Z')),
+      endExclusive: createInstantMs(Date.parse('2026-09-02T00:00:00.000Z')),
+    },
+    calendarDays: 1,
+    bucketStarts: null,
+  }
+  const evaluation: ReportEvaluationPeriod = { period, sequence: null }
+  return {
+    periods: { current: period, comparison: null },
+    evaluation: {
+      current: evaluation,
+      comparison: null,
+      interval: period.interval,
+    },
+    freshness: {
+      current: {
+        status: 'current',
+        projectedAcceptanceSequence: 1,
+        occurrenceTimeCoverageThrough: createInstantMs(Date.parse('2026-09-02T00:00:00.000Z')),
+      },
+      comparison: null,
+    },
+    factWork: {
+      units: 1,
+      budget: 1_000_000,
+      components: {
+        baseFacts: 0,
+        extraMetrics: 0,
+        bucketWork: 0,
+        dimensions: 0,
+        filters: 0,
+        distinctCounts: 0,
+      },
+    },
+  }
+}
+
+function admissionPreparation(): ReportAdmissionPreparation {
+  const ticket = admissionTicket()
+  return {
+    input: {
+      siteId: createSiteId('ste_1'),
+      current: ticket.periods.current.dates,
+    },
+    periods: ticket.periods,
+    evaluation: ticket.evaluation,
+    coveragePeriods: ticket.periods,
+  }
+}
+
+function reportSnapshot(): ReportSnapshot {
+  return {
+    sessions: [
+      {
+        sessionId: 'ses-visitor',
+        visitorId: 'vis-1',
+        identifiedUserId: null,
+        startedAt: new Date('2026-09-01T10:00:00.000Z'),
+        endedAt: new Date('2026-09-01T10:05:00.000Z'),
+        entryPage: '/',
+        exitPage: '/done',
+        referrer: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
+        device: null,
+        browser: null,
+        operatingSystem: null,
+        country: null,
+        region: null,
+        city: null,
+      },
+      {
+        sessionId: 'ses-identified',
+        visitorId: 'vis-2',
+        identifiedUserId: 'usr-1',
+        startedAt: new Date('2026-09-01T11:00:00.000Z'),
+        endedAt: new Date('2026-09-01T11:05:00.000Z'),
+        entryPage: '/',
+        exitPage: '/done',
+        referrer: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
+        device: null,
+        browser: null,
+        operatingSystem: null,
+        country: null,
+        region: null,
+        city: null,
+      },
+    ],
+    events: [
+      {
+        eventId: 'evt-visitor',
+        eventKind: 'custom_event',
+        occurrenceTime: new Date('2026-09-01T10:01:00.000Z'),
+        visitorId: 'vis-1',
+        identifiedUserId: null,
+        sessionId: 'ses-visitor',
+        pagePath: '/',
+        referrer: null,
+        name: 'signup',
+        destination: null,
+        unit: null,
+        code: null,
+        properties: {},
+      },
+      {
+        eventId: 'evt-identified',
+        eventKind: 'custom_event',
+        occurrenceTime: new Date('2026-09-01T11:01:00.000Z'),
+        visitorId: 'vis-2',
+        identifiedUserId: 'usr-1',
+        sessionId: 'ses-identified',
+        pagePath: '/',
+        referrer: null,
+        name: 'signup',
+        destination: null,
+        unit: null,
+        code: null,
+        properties: {},
+      },
+    ],
+    activeProfiles: new Map([['usr-1', { identifiedUserId: 'usr-1', traits: {} }]]),
+  }
+}
+
+function siteScope() {
+  return {
+    siteScope: {
+      exists: async () => true,
+      isActive: async () => true,
+      getOrganizationId: async () => 'org_1',
+    },
+    membership: {
+      getRole: () => 'owner' as const,
+      hasPendingGovernanceOperation: () => false,
+    },
+  }
+}

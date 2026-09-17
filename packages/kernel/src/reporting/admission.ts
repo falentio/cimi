@@ -1,5 +1,5 @@
 import { defaultFactWorkEstimator } from './fact-work.ts'
-import { ReportingAdmissionError, queryLimitExceeded, serviceUnavailable } from './errors.ts'
+import { queryLimitExceeded, reportingNotFound, serviceUnavailable } from './errors.ts'
 import { createInstantMs } from './types.ts'
 import {
   findRelevantProjectionGap,
@@ -12,7 +12,10 @@ import type {
   FactWorkEstimate,
   FreshnessEvidence,
   ProjectionEvidence,
+  ReportAdmissionDemand,
   ReportAdmissionInput,
+  ReportAdmissionPreparation,
+  ReportAdmissionPreparationInput,
   ReportAdmissionTicket,
   ReportEvaluationPeriods,
   ResolvedPeriod,
@@ -29,6 +32,17 @@ export class ReportingAdmissionService {
   }
 
   async admit(input: ReportAdmissionInput): Promise<ReportAdmissionTicket> {
+    const preparation = await this.prepare({
+      siteId: input.siteId,
+      current: input.current,
+      ...(input.comparison === undefined ? {} : { comparison: input.comparison }),
+      ...(input.periodization === undefined ? {} : { periodization: input.periodization }),
+      ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
+    })
+    return this.admitPrepared(preparation, input)
+  }
+
+  async prepare(input: ReportAdmissionPreparationInput): Promise<ReportAdmissionPreparation> {
     const health = await this.readPort(() => this.#dependencies.analyticsReadiness.getHealth())
     if (health.controlStore !== 'ready' || health.analyticsStore !== 'ready') {
       throw serviceUnavailable('analytics-not-ready')
@@ -36,7 +50,7 @@ export class ReportingAdmissionService {
 
     const metadata = await this.readPort(() => this.#dependencies.metadata.getActive(input.siteId))
     if (metadata === undefined) {
-      throw new ReportingAdmissionError({ code: 'NOT_FOUND', reason: 'metadata-missing' })
+      throw reportingNotFound('metadata-missing')
     }
     const periods = resolveReportPeriods({
       metadata,
@@ -50,65 +64,81 @@ export class ReportingAdmissionService {
       periodization: input.periodization,
     })
 
-    const facts = await this.#readFacts(input, evaluation.coveragePeriods)
-
-    checkRetentionCoverage({
-      coverage: facts.retention,
-      required: input.coverage,
-      periods: evaluation.coveragePeriods,
-    })
-
-    const bucketWork = input.work.bucketWork ?? countBucketStarts(periods)
-    const periodWork = evaluation.current.sequence?.length ?? 0
-    const comparisonPeriodWork = evaluation.comparison?.sequence?.length ?? 0
-    const factWorkPort = this.#dependencies.factWork ?? { estimate: defaultFactWorkEstimator }
-    const estimate = await this.readPort(() =>
-      factWorkPort.estimate({
-        factCardinality: facts.statistics.factCardinality,
-        extraMetricCount: input.work.extraMetricCount + periodWork + comparisonPeriodWork,
-        bucketWork,
-        dimensionCount: input.work.dimensionCount,
-        filterCount: input.work.filterCount,
-        distinctCountOperations: input.work.distinctCountOperations,
-        budget: input.work.budget,
-      }),
-    )
-    assertAdmittedFactWork(estimate, input.work.budget)
-
     return {
+      input,
       periods,
       evaluation: {
         current: evaluation.current,
         comparison: evaluation.comparison,
         interval: evaluation.interval,
       },
+      coveragePeriods: evaluation.coveragePeriods,
+    }
+  }
+
+  async admitPrepared(
+    preparation: ReportAdmissionPreparation,
+    demand: ReportAdmissionDemand,
+  ): Promise<ReportAdmissionTicket> {
+    const facts = await this.#readFacts(
+      { siteId: preparation.input.siteId, coverage: demand.coverage },
+      preparation.coveragePeriods,
+    )
+
+    checkRetentionCoverage({
+      coverage: facts.retention,
+      required: demand.coverage,
+      periods: preparation.coveragePeriods,
+    })
+
+    const bucketWork = demand.work.bucketWork ?? countBucketStarts(preparation.periods)
+    const periodWork = preparation.evaluation.current.sequence?.length ?? 0
+    const comparisonPeriodWork = preparation.evaluation.comparison?.sequence?.length ?? 0
+    const factWorkPort = this.#dependencies.factWork ?? { estimate: defaultFactWorkEstimator }
+    const estimate = await this.readPort(() =>
+      factWorkPort.estimate({
+        factCardinality: facts.statistics.factCardinality,
+        extraMetricCount: demand.work.extraMetricCount + periodWork + comparisonPeriodWork,
+        bucketWork,
+        dimensionCount: demand.work.dimensionCount,
+        filterCount: demand.work.filterCount,
+        distinctCountOperations: demand.work.distinctCountOperations,
+        budget: demand.work.budget,
+      }),
+    )
+    assertAdmittedFactWork(estimate, demand.work.budget)
+
+    return {
+      periods: preparation.periods,
+      evaluation: {
+        current: preparation.evaluation.current,
+        comparison: preparation.evaluation.comparison,
+        interval: preparation.evaluation.interval,
+      },
       freshness: {
         current: resolveFreshness(
-          evaluation.current.period,
+          preparation.evaluation.current.period,
           facts.projection,
-          evaluation.current.sequence,
+          preparation.evaluation.current.sequence,
         ),
         comparison:
-          periods.comparison === null
+          preparation.periods.comparison === null
             ? null
             : resolveFreshness(
-                evaluation.comparison?.period ?? periods.comparison,
+                preparation.evaluation.comparison?.period ?? preparation.periods.comparison,
                 facts.projection,
-                evaluation.comparison?.sequence,
+                preparation.evaluation.comparison?.sequence,
               ),
       },
       factWork: estimate,
     }
   }
 
-  /**
-   * Reads the window's preflight facts. With the deep port this is one transaction, so projection
-   * and statistics cannot be torn apart by a concurrent rebuild. The narrow ports keep their
-   * original stage-by-stage reads, including the fail-fast that skips retention when the gap gate
-   * already rejects the request.
-   */
   async #readFacts(
-    input: ReportAdmissionInput,
+    input: {
+      readonly siteId: ReportAdmissionPreparationInput['siteId']
+      readonly coverage: ReportAdmissionDemand['coverage']
+    },
     periods: ResolvedPeriods,
   ): Promise<{
     readonly projection: ProjectionEvidence
@@ -214,12 +244,6 @@ function rejectRelevantGap(projection: ProjectionEvidence, periods: ResolvedPeri
   }
 }
 
-/**
- * Alignment means the counted facts are the ones the projection published. The checkpoint stamps
- * the cardinality it projected, and the statistics carry the cardinality counted at report time;
- * those two are written by different code at different instants, so comparing them is a real check
- * rather than a value against itself.
- */
 function requireAlignedStatistics(
   statistics: AlignedStatistics,
   projection: ProjectionEvidence,

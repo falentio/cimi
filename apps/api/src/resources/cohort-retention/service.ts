@@ -18,7 +18,14 @@ import {
   assertSiteScope,
   type SiteScopeGuardDependencies,
 } from '@cimi/guard'
-import type { ReportingAdmissionService } from '@cimi/kernel'
+import {
+  reportingNotFound,
+  type LifecycleLock,
+  type ReportingAdmissionService,
+  type ReportEvaluationPeriod,
+  type ResolvedPeriod,
+  type InstantMs,
+} from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -26,6 +33,10 @@ import { evaluateRetention, type CohortReportPeriod } from './evaluator.ts'
 import {
   createReportQueryKernelFromInfrastructure,
   cohortReportWork,
+  coverageForDefinitions,
+  historicalDefinitionFor,
+  type HistoricalDefinition,
+  type HistoricalDefinitionPlan,
   type ReportQueryKernel,
   type ReportRun,
 } from '../reporting/index.ts'
@@ -35,6 +46,7 @@ export interface CohortServiceDependencies {
   readonly repository: CohortRepository
   readonly scope: SiteScopeGuardDependencies
   readonly admission: ReportingAdmissionService
+  readonly lifecycleLock: LifecycleLock
   readonly analytics: AnalyticsDb
   readonly db: Db
   readonly query?: ReportQueryKernel | undefined
@@ -56,6 +68,7 @@ export class CohortService {
         db: deps.db,
         analytics: deps.analytics,
         admission: deps.admission,
+        lifecycleLock: deps.lifecycleLock,
       })
   }
 
@@ -119,51 +132,71 @@ export class CohortService {
     const cohort = await this.deps.repository.findById({ cohortId: input.cohortId })
     if (cohort === undefined) throw new ORPCError('NOT_FOUND')
     await assertSiteScope(user, cohort.siteId, this.deps.scope)
-    const run = await this.query.run({
+    const window = reportWindow(input)
+    return this.query.run({
       siteId: cohort.siteId,
-      window: reportWindow(input),
-      identityKind: cohort.identityKind,
-      periodization: { kind: cohort.period, maxPeriods: 12 },
-      work: cohortReportWork(),
-      evaluate: async (evaluation) => {
-        const periods = evaluation.period.sequence ?? [evaluation.period.period]
-        const definitions = await Promise.all(
-          periods.map((period) =>
-            this.deps.repository.findVersionAt({
-              siteId: cohort.siteId,
-              cohortId: cohort.id,
-              at: periodEnd(period),
-            }),
-          ),
+      window,
+      plan: async (planning) => {
+        const initialPreparation = await planning.prepare()
+        const anchor = await requireCohortDefinition(
+          this.deps.repository,
+          cohort,
+          initialPreparation.evaluation.current.period,
         )
-        const resolvedDefinitions = definitions.map((definition) => definition ?? cohort)
-        const firstDefinition = resolvedDefinitions[0]
-        if (firstDefinition === undefined) throw new ORPCError('NOT_FOUND')
-        const definitionsByStart = new Map(
-          periods.map((period, index) => [period.interval.start, resolvedDefinitions[index]]),
-        )
-        return evaluateRetention({
-          ...evaluation,
-          definition: {
-            entryAction: firstDefinition.entryAction,
-            retentionAction: firstDefinition.retentionAction,
-          },
-          definitionForPeriod: (period) => {
-            const definition = definitionsByStart.get(period.interval.start)
-            return definition === undefined
-              ? firstDefinition
-              : {
-                  entryAction: definition.entryAction,
-                  retentionAction: definition.retentionAction,
-                }
-          },
+        const preparation = await planning.prepare({
+          periodization: { kind: anchor.period, maxPeriods: 12 },
         })
+        const current = await planCohortOuterPeriod(
+          this.deps.repository,
+          cohort,
+          preparation.evaluation.current,
+        )
+        const comparison =
+          preparation.evaluation.comparison === null
+            ? null
+            : await planCohortOuterPeriod(
+                this.deps.repository,
+                cohort,
+                preparation.evaluation.comparison,
+              )
+        const definitions: HistoricalDefinitionPlan<CohortRepository.Cohort> = {
+          current: current.anchor,
+          comparison: comparison?.anchor ?? null,
+          all: [...current.all, ...(comparison?.all ?? [])],
+        }
+        return {
+          preparation,
+          coverage: coverageForDefinitions({
+            definitions: definitions.all,
+            filters: window.filters,
+          }),
+          work: cohortReportWork(),
+          identityKindFor: (evaluation) =>
+            historicalDefinitionFor(definitions, evaluation.period.key).identityKind,
+          identityKindForPeriod: (evaluation, period) =>
+            cohortDefinitionForPeriod(
+              evaluation.period.key === 'current' ? current : (comparison ?? undefined),
+              period,
+            ).identityKind,
+          evaluate: (evaluation) => {
+            const outer =
+              evaluation.period.period.key === 'current' ? current : (comparison ?? undefined)
+            if (outer === undefined) throw new Error('Comparison cohort plan is not available')
+            return evaluateRetention({
+              ...evaluation,
+              definition: cohortActions(outer.anchor.definition),
+              definitionForPeriod: (period) => {
+                return cohortActions(cohortDefinitionForPeriod(outer, period).definition)
+              },
+            })
+          },
+        }
       },
+      render: (run) => ({
+        ...cohortReportPeriod(run.current),
+        ...(run.comparison === null ? {} : { comparison: cohortReportPeriod(run.comparison) }),
+      }),
     })
-    return {
-      ...cohortReportPeriod(run.current),
-      ...(run.comparison === null ? {} : { comparison: cohortReportPeriod(run.comparison) }),
-    }
   }
 
   private async assertCanManage(
@@ -186,8 +219,90 @@ function reportWindow(input: InferOutput<typeof SCohortReportInput>) {
   return window
 }
 
-function periodEnd(period: { readonly interval: { readonly endExclusive: number } }): Date {
+function periodEnd(period: Pick<ResolvedPeriod, 'interval'>): Date {
   return new Date(period.interval.endExclusive - 1)
+}
+
+interface CohortOuterPlan {
+  readonly anchor: HistoricalDefinition<CohortRepository.Cohort>
+  readonly outerPeriod: ResolvedPeriod
+  readonly byStart: ReadonlyMap<InstantMs, HistoricalDefinition<CohortRepository.Cohort>>
+  readonly all: readonly HistoricalDefinition<CohortRepository.Cohort>[]
+}
+
+async function planCohortOuterPeriod(
+  repository: CohortRepository,
+  cohort: CohortRepository.Cohort,
+  outerPeriod: ReportEvaluationPeriod,
+): Promise<CohortOuterPlan> {
+  const anchor = historicalCohort(
+    await requireCohortDefinition(repository, cohort, outerPeriod.period),
+  )
+  const periods = outerPeriod.sequence ?? [outerPeriod.period]
+  const periodDefinitions = await Promise.all(
+    periods.map(async (period) => ({
+      period,
+      definition: historicalCohort(await requireCohortDefinition(repository, cohort, period)),
+    })),
+  )
+  const byStart = new Map<InstantMs, HistoricalDefinition<CohortRepository.Cohort>>()
+  byStart.set(outerPeriod.period.interval.start, anchor)
+  for (const { period, definition } of periodDefinitions) {
+    byStart.set(period.interval.start, definition)
+  }
+  return {
+    anchor,
+    outerPeriod: outerPeriod.period,
+    byStart,
+    all: [anchor, ...periodDefinitions.map(({ definition }) => definition)],
+  }
+}
+
+function samePeriod(
+  left: Pick<ResolvedPeriod, 'interval'>,
+  right: Pick<ResolvedPeriod, 'interval'>,
+): boolean {
+  return (
+    left.interval.start === right.interval.start &&
+    left.interval.endExclusive === right.interval.endExclusive
+  )
+}
+
+function cohortDefinitionForPeriod(
+  outer: CohortOuterPlan | undefined,
+  period: ResolvedPeriod,
+): HistoricalDefinition<CohortRepository.Cohort> {
+  if (outer === undefined) throw reportingNotFound('definition-version-missing')
+  const definition = samePeriod(period, outer.outerPeriod)
+    ? outer.anchor
+    : outer.byStart.get(period.interval.start)
+  if (definition === undefined) throw reportingNotFound('definition-version-missing')
+  return definition
+}
+
+async function requireCohortDefinition(
+  repository: CohortRepository,
+  cohort: CohortRepository.Cohort,
+  period: ResolvedPeriod,
+): Promise<CohortRepository.Cohort> {
+  const definition = await repository.findVersionAt({
+    siteId: cohort.siteId,
+    cohortId: cohort.id,
+    at: periodEnd(period),
+  })
+  if (definition === undefined) throw reportingNotFound('definition-version-missing')
+  return definition
+}
+
+function historicalCohort(definition: CohortRepository.Cohort) {
+  return { definition, identityKind: definition.identityKind } as const
+}
+
+function cohortActions(definition: CohortRepository.Cohort) {
+  return {
+    entryAction: definition.entryAction,
+    retentionAction: definition.retentionAction,
+  }
 }
 
 function cohortReportPeriod(period: ReportRun<readonly CohortReportPeriod[]>['current']) {

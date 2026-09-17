@@ -15,6 +15,7 @@ export interface ReportEvaluationInput {
   readonly period: EvaluationPeriod
   readonly snapshot: ReportSnapshot
   readonly identity: IdentityScope
+  readonly identityForPeriod?: (period: ResolvedPeriod) => IdentityScope
   readonly filters: readonly ReportFilter[] | undefined
 }
 
