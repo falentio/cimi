@@ -1,4 +1,4 @@
-import { ERROR_CATALOG } from '@cimi/contract'
+import { ERROR_CATALOG, VALIDATION_KEYS } from '@cimi/contract'
 import en from '../../i18n/locales/en.json'
 import fr from '../../i18n/locales/fr.json'
 import { describe, expect, it } from 'vitest'
@@ -20,6 +20,15 @@ function interpolationShape(message: string): string[] {
 
 const englishLeaves = collectLeaves(en.validation.auth)
 const frenchLeaves = collectLeaves(fr.validation.auth)
+const registryLeaves = collectLeaves(VALIDATION_KEYS)
+const englishValidationLeaves = [
+  ...collectLeaves(en.validation.shared, 'shared'),
+  ...collectLeaves(en.validation.contract, 'contract'),
+]
+const frenchValidationLeaves = [
+  ...collectLeaves(fr.validation.shared, 'shared'),
+  ...collectLeaves(fr.validation.contract, 'contract'),
+]
 const frenchByPath = new Map(frenchLeaves.map((leaf) => [leaf.path, leaf]))
 const englishErrorLeaves = collectLeaves(en.errors)
 const frenchErrorLeaves = collectLeaves(fr.errors)
@@ -39,6 +48,23 @@ describe('auth validation locale messages', () => {
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
       expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+    }
+  })
+
+  it('covers every shared and contract validation registry leaf in both locales', () => {
+    const registryPaths = registryLeaves.map(({ path }) => path).sort()
+
+    expect(englishValidationLeaves.map(({ path }) => path).sort()).toEqual(registryPaths)
+    expect(frenchValidationLeaves.map(({ path }) => path).sort()).toEqual(registryPaths)
+    expect(new Set(registryLeaves.map(({ message }) => message)).size).toBe(registryLeaves.length)
+    expect(registryLeaves.every(({ message }) => message.startsWith('validation.'))).toBe(true)
+
+    const localeLeaves = [englishValidationLeaves, frenchValidationLeaves]
+    for (const leaves of localeLeaves) {
+      for (const { message, path } of leaves) {
+        expect(message.trim(), path).not.toBe('')
+        expect(interpolationShape(message), path).toEqual([])
+      }
     }
   })
 

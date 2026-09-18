@@ -1,5 +1,15 @@
 import * as v from 'valibot'
 
+export const VALIDATION_KEYS = {
+  shared: {
+    ianaTimezone: 'validation.shared.ianaTimezone',
+  },
+} as const satisfies {
+  readonly shared: {
+    readonly ianaTimezone: `validation.shared.${string}`
+  }
+}
+
 export const SId = v.pipe(v.string(), v.minLength(1), v.maxLength(128))
 export const SName = v.pipe(v.string(), v.minLength(1), v.maxLength(256))
 
@@ -26,7 +36,7 @@ export const SIanaTimezone = v.pipe(
     } catch {
       return false
     }
-  }, 'Expected a valid IANA timezone.'),
+  }, VALIDATION_KEYS.shared.ianaTimezone),
 )
 
 export const SWeekStart = v.picklist([

@@ -1,12 +1,11 @@
 import * as v from 'valibot'
-import { SCreated, SDateTime, SId, SScalarMap } from '../../schema/index.ts'
+import { SCreated, SDateTime, SId, SScalarMap, VALIDATION_KEYS } from '../../schema/index.ts'
 import { SCollectionContext } from '../collection-policy/transport.ts'
 
 export const SProfileStatus = v.picklist(['active', 'deletion-requested', 'deleting', 'deleted'])
 export const PROFILE_TRAITS_MAX_SERIALIZED_BYTES = 16 * 1024
 export const PROFILE_EPOCH_HISTORY_MAX = 32
 export const PROFILE_EPOCH_NUMBER_MAX = 2_147_483_647
-const PROFILE_TRAITS_SIZE_ERROR = `Serialized traits must not exceed ${PROFILE_TRAITS_MAX_SERIALIZED_BYTES} UTF-8 bytes.`
 const PROFILE_TRAIT_RESERVED_KEYS = new Set([
   'aliases',
   'backupcleanup',
@@ -74,16 +73,19 @@ export const SDeletionCleanupStatus = v.strictObject({
 })
 export const SProfileTraits = v.pipe(
   SScalarMap,
-  v.check((value) => Object.keys(value).length <= 64, 'Expected at most 64 traits.'),
+  v.check(
+    (value) => Object.keys(value).length <= 64,
+    VALIDATION_KEYS.contract.profile.traitsMaxCount,
+  ),
   v.check(
     (value) => hasAllowedProfileTraitKeys(value),
-    'Traits contain a prohibited or reserved key.',
+    VALIDATION_KEYS.contract.profile.traitKeysAllowed,
   ),
   v.check(
     (value) =>
       new TextEncoder().encode(JSON.stringify(value)).byteLength <=
       PROFILE_TRAITS_MAX_SERIALIZED_BYTES,
-    PROFILE_TRAITS_SIZE_ERROR,
+    VALIDATION_KEYS.contract.profile.traitsSize,
   ),
 )
 
@@ -125,7 +127,7 @@ const SIdentityHistory = v.pipe(
   v.maxLength(PROFILE_EPOCH_HISTORY_MAX),
   v.check(
     (history) => new Set(history.map((entry) => entry.epoch)).size === history.length,
-    'Profile Epoch numbers must be unique.',
+    VALIDATION_KEYS.contract.profile.epochNumbersUnique,
   ),
 )
 const SProfileLifecycleFields = {

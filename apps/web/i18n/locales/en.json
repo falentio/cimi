@@ -54,6 +54,75 @@
         "required": "Password confirmation is required.",
         "mismatch": "Passwords do not match."
       }
+    },
+    "shared": {
+      "ianaTimezone": "Expected a valid IANA timezone."
+    },
+    "contract": {
+      "batch": {
+        "collectionContextScoped": "Collection context is scoped to the batch envelope.",
+        "ingestionIdentifierMatches": "Every Event must use the batch Ingestion Identifier when provided."
+      },
+      "backup": {
+        "safetyArtifactCoherent": "Safety artifact errors must match the artifact status.",
+        "stateCoherent": "Backup status, phase, readiness, cleanup, and timestamp fields must describe one lifecycle state."
+      },
+      "cohort": {
+        "actionsDistinct": "Entry and retention actions must be distinct."
+      },
+      "date": {
+        "invalid": "Expected a valid calendar date."
+      },
+      "dateTime": {
+        "invalid": "Expected a valid ISO date-time.",
+        "utc": "Expected a UTC date-time."
+      },
+      "event": {
+        "filtersCompatibleWithKind": "Event filters are incompatible with the selected Event Kind.",
+        "propertiesReservedName": "Event properties must not use reserved envelope names.",
+        "propertyFilterValuesCompatible": "Event property filters require compatible typed values.",
+        "reportFilterValuesCompatible": "Event report filters require compatible typed values."
+      },
+      "funnel": {
+        "reportStepsContiguous": "Funnel report steps must have contiguous indexes starting at zero.",
+        "stepsDistinct": "Funnel steps must be distinct."
+      },
+      "health": {
+        "stateCoherent": "Health status and store states are not a valid combination."
+      },
+      "installation": {
+        "stateCoherent": "Installation readiness, cleanup, and lifecycle fields must agree."
+      },
+      "lifecycle": {
+        "cleanupStageCoherent": "Cleanup stage timestamps and errors must match its status."
+      },
+      "profile": {
+        "epochNumbersUnique": "Profile Epoch numbers must be unique.",
+        "traitKeysAllowed": "Traits contain a prohibited or reserved key.",
+        "traitsMaxCount": "Expected at most 64 traits.",
+        "traitsSize": "Serialized traits exceed the configured UTF-8 byte limit."
+      },
+      "properties": {
+        "maxCount": "Expected at most 64 properties."
+      },
+      "publicDashboard": {
+        "dateRange": "Public dashboard date range must be ordered and at most 90 days.",
+        "dimensionFiltersString": "Public dashboard dimension filters require string values.",
+        "timeBucketOffset": "Time bucket keys must include an offset.",
+        "utcTimestamp": "Expected a UTC timestamp."
+      },
+      "report": {
+        "dateRangeOrdered": "Report date ranges must be ordered.",
+        "filtersCompatible": "Report filters require values compatible with the selected field.",
+        "granularRangeInvalid": "Report range is invalid for its granularity.",
+        "outputPeriodsOrdered": "Report output periods must be ordered."
+      },
+      "retention": {
+        "policyOrder": "Profile retention cannot exceed Event retention, and replay retention must be shorter than both."
+      },
+      "site": {
+        "lifecycleTimestampsMatchStatus": "Site lifecycle timestamps must match the reported status."
+      }
     }
   },
   "errors": {

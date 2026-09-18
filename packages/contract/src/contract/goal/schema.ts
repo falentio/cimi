@@ -9,6 +9,7 @@ import {
   SPropertyFilter,
   SReportFreshness,
   SRate,
+  VALIDATION_KEYS,
   isValidReportRange,
 } from '../../schema/index.ts'
 
@@ -59,7 +60,7 @@ export const SGoalReport = v.pipe(
         toDate: input.toDate,
         comparison: input.comparison ?? undefined,
       }),
-    'Report output periods must be ordered.',
+    VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
 export const SGoalSiteFields = v.strictObject({ siteId: SId })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { safeParse } from 'valibot'
+import { VALIDATION_KEYS } from '../../schema/index.ts'
 import {
   PROFILE_TRAITS_MAX_SERIALIZED_BYTES,
   SIdentifyFields,
@@ -88,6 +89,16 @@ describe('identity profile schemas', () => {
       identifiedUserId: 'user-1',
       traits: oversizedTraits,
     }).not.toEqual(expect.schemaMatching(SIdentifyFields))
+  })
+
+  it('emits a stable key for oversized serialized Traits', () => {
+    const traits = exactLimitTraits()
+    const result = safeParse(SProfileTraits, { ...traits, 'trait-63': `${traits['trait-63']}x` })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+
+    expect(result.issues[0]?.message).toBe(VALIDATION_KEYS.contract.profile.traitsSize)
   })
 
   it('rejects prohibited and reserved Trait keys while allowing removal markers', () => {

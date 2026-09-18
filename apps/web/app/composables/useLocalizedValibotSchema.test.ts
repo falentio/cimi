@@ -1,8 +1,10 @@
-import { SGoalCreateInput } from '@cimi/contract'
+import { SGoalCreateInput, SGoalReportInput, VALIDATION_KEYS } from '@cimi/contract'
 import { toTypedSchema } from '@vee-validate/valibot'
 import * as v from 'valibot'
 import { shallowRef } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import en from '../../i18n/locales/en.json'
+import fr from '../../i18n/locales/fr.json'
 import { loginSchema } from '../lib/auth-form'
 import {
   createStableMessageResolver,
@@ -181,6 +183,32 @@ describe('useLocalizedValibotSchema', () => {
     const result = await schema.value.parse(value)
 
     expect(result).toEqual({ value, errors: [] })
+  })
+
+  it('renders an imported contract validation key in English and French', async () => {
+    const input = {
+      goalId: 'goal-1',
+      fromDate: '2026-08-23',
+      toDate: '2026-08-22',
+    }
+    const key = VALIDATION_KEYS.contract.report.dateRangeOrdered
+    const messages = {
+      en: en.validation.contract.report.dateRangeOrdered,
+      fr: fr.validation.contract.report.dateRangeOrdered,
+    }
+
+    for (const locale of ['en', 'fr'] as const) {
+      const activeLocale = shallowRef(locale)
+      vi.stubGlobal('useI18n', () => ({
+        locale: activeLocale,
+        t: vi.fn(() => messages[locale]),
+        te: vi.fn((requestedKey: string) => requestedKey === key),
+      }))
+
+      const result = await useLocalizedValibotSchema(SGoalReportInput).value.parse(input)
+
+      expect(result.errors[0]?.errors).toEqual([messages[locale]])
+    }
   })
 
   it('translates stable keys from the auth schema', async () => {

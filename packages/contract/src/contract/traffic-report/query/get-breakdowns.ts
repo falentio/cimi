@@ -4,6 +4,7 @@ import {
   SGranularReportFieldsSchema,
   SOffsetPaginationInput,
   SSortDirection,
+  VALIDATION_KEYS,
   isValidGranularReportRange,
 } from '../../../schema/index.ts'
 import { STrafficBreakdown, STrafficBreakdownFields } from '../schema.ts'
@@ -22,7 +23,7 @@ export const STrafficBreakdownsInput = v.pipe(
   ),
   v.check(
     (input) => isValidGranularReportRange(input),
-    'Report range is invalid for its granularity.',
+    VALIDATION_KEYS.contract.report.granularRangeInvalid,
   ),
 )
 export type STrafficBreakdownsInput = v.InferOutput<typeof STrafficBreakdownsInput>

@@ -1,11 +1,18 @@
 import * as v from 'valibot'
 import { isEventKind } from '@cimi/utils'
-import { SDate, SId, SNonNegativeInteger, SNonNegativeNumber, SScalar } from '../../schema/index.ts'
+import {
+  SDate,
+  SId,
+  SNonNegativeInteger,
+  SNonNegativeNumber,
+  SScalar,
+  VALIDATION_KEYS,
+} from '../../schema/index.ts'
 
 export const SPublicAbsoluteDateTime = v.pipe(v.string(), v.isoTimestamp())
 export const SPublicUtcDateTime = v.pipe(
   SPublicAbsoluteDateTime,
-  v.check((value) => value.endsWith('Z'), 'Expected a UTC timestamp.'),
+  v.check((value) => value.endsWith('Z'), VALIDATION_KEYS.contract.publicDashboard.utcTimestamp),
 )
 export const MAX_PUBLIC_DASHBOARD_INTERVAL_STARTS = 2_161
 export const MAX_PUBLIC_DASHBOARD_DIMENSION_ROWS = 100
@@ -51,7 +58,7 @@ export const SPublicDashboardFilter = v.pipe(
       (input.field === 'kind'
         ? input.values.every((value) => typeof value === 'string' && isEventKind(value))
         : input.values.every((value) => typeof value === 'string')),
-    'Public dashboard dimension filters require string values.',
+    VALIDATION_KEYS.contract.publicDashboard.dimensionFiltersString,
   ),
 )
 
@@ -89,7 +96,7 @@ export const SPublicDashboardQueryFields = v.pipe(
     const from = Date.parse(`${fromDate}T00:00:00Z`)
     const to = Date.parse(`${toDate}T23:59:59Z`)
     return to >= from && to - from < 90 * 24 * 60 * 60 * 1000
-  }, 'Public dashboard date range must be ordered and at most 90 days.'),
+  }, VALIDATION_KEYS.contract.publicDashboard.dateRange),
 )
 const SPublicDashboardBucketValueFields = {
   value: v.nullable(SNonNegativeNumber),
@@ -97,7 +104,7 @@ const SPublicDashboardBucketValueFields = {
 const SPublicDashboardDimensionKey = v.pipe(v.string(), v.minLength(1), v.maxLength(2048))
 const SPublicDashboardTimeKey = v.pipe(
   SPublicDashboardDimensionKey,
-  v.regex(/(?:Z|[+-]\d{2}:\d{2})$/, 'Time bucket keys must include an offset.'),
+  v.regex(/(?:Z|[+-]\d{2}:\d{2})$/, VALIDATION_KEYS.contract.publicDashboard.timeBucketOffset),
 )
 export const SPublicDashboardTimeBucket = v.strictObject({
   key: SPublicDashboardTimeKey,

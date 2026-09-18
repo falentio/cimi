@@ -54,6 +54,75 @@
         "required": "La confirmation du mot de passe est requise.",
         "mismatch": "Les mots de passe ne correspondent pas."
       }
+    },
+    "shared": {
+      "ianaTimezone": "Saisissez un fuseau horaire IANA valide."
+    },
+    "contract": {
+      "batch": {
+        "collectionContextScoped": "Le contexte de collecte est associé à l'enveloppe du lot.",
+        "ingestionIdentifierMatches": "Chaque événement doit utiliser l'identifiant d'ingestion du lot lorsqu'il est fourni."
+      },
+      "backup": {
+        "safetyArtifactCoherent": "Les erreurs de l'artefact de sécurité doivent correspondre à son état.",
+        "stateCoherent": "L'état, la phase, la préparation, le nettoyage et les horodatages de la sauvegarde doivent décrire un seul état du cycle de vie."
+      },
+      "cohort": {
+        "actionsDistinct": "Les actions d'entrée et de rétention doivent être distinctes."
+      },
+      "date": {
+        "invalid": "Saisissez une date calendaire valide."
+      },
+      "dateTime": {
+        "invalid": "Saisissez une date-heure ISO valide.",
+        "utc": "Saisissez une date-heure UTC."
+      },
+      "event": {
+        "filtersCompatibleWithKind": "Les filtres d'événement sont incompatibles avec le type d'événement sélectionné.",
+        "propertiesReservedName": "Les propriétés d'événement ne doivent pas utiliser de noms réservés de l'enveloppe.",
+        "propertyFilterValuesCompatible": "Les filtres de propriétés d'événement nécessitent des valeurs de types compatibles.",
+        "reportFilterValuesCompatible": "Les filtres de rapport d'événements nécessitent des valeurs de types compatibles."
+      },
+      "funnel": {
+        "reportStepsContiguous": "Les étapes du rapport d'entonnoir doivent avoir des index contigus commençant à zéro.",
+        "stepsDistinct": "Les étapes de l'entonnoir doivent être distinctes."
+      },
+      "health": {
+        "stateCoherent": "L'état de santé et les états des stockages ne forment pas une combinaison valide."
+      },
+      "installation": {
+        "stateCoherent": "La disponibilité de l'installation, le nettoyage et les champs du cycle de vie doivent être cohérents."
+      },
+      "lifecycle": {
+        "cleanupStageCoherent": "Les horodatages et les erreurs de l'étape de nettoyage doivent correspondre à son état."
+      },
+      "profile": {
+        "epochNumbersUnique": "Les numéros d'époque du profil doivent être uniques.",
+        "traitKeysAllowed": "Les attributs contiennent une clé interdite ou réservée.",
+        "traitsMaxCount": "Le profil ne peut pas contenir plus de 64 attributs.",
+        "traitsSize": "Les attributs sérialisés dépassent la limite configurée d'octets UTF-8."
+      },
+      "properties": {
+        "maxCount": "Le nombre de propriétés ne peut pas dépasser 64."
+      },
+      "publicDashboard": {
+        "dateRange": "La période du tableau de bord public doit être ordonnée et couvrir au plus 90 jours.",
+        "dimensionFiltersString": "Les filtres de dimension du tableau de bord public nécessitent des valeurs textuelles.",
+        "timeBucketOffset": "Les clés des intervalles temporels doivent inclure un décalage.",
+        "utcTimestamp": "Saisissez un horodatage UTC."
+      },
+      "report": {
+        "dateRangeOrdered": "Les périodes du rapport doivent être ordonnées.",
+        "filtersCompatible": "Les filtres du rapport nécessitent des valeurs compatibles avec le champ sélectionné.",
+        "granularRangeInvalid": "La période du rapport n'est pas valide pour sa granularité.",
+        "outputPeriodsOrdered": "Les périodes produites par le rapport doivent être ordonnées."
+      },
+      "retention": {
+        "policyOrder": "La rétention des profils ne peut pas dépasser celle des événements, et la rétention des relectures doit être plus courte que les deux."
+      },
+      "site": {
+        "lifecycleTimestampsMatchStatus": "Les horodatages du cycle de vie du site doivent correspondre à l'état indiqué."
+      }
     }
   },
   "errors": {

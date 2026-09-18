@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { SDateTime, SId } from '../../schema/index.ts'
+import { SDateTime, SId, VALIDATION_KEYS } from '../../schema/index.ts'
 import { SCleanupStage } from '../../schema/lifecycle.ts'
 
 export const SRetentionPolicy = v.pipe(
@@ -12,7 +12,7 @@ export const SRetentionPolicy = v.pipe(
     ({ eventMonths, profileMonths, replayMonths }) =>
       profileMonths <= eventMonths &&
       (replayMonths === null || (replayMonths < eventMonths && replayMonths < profileMonths)),
-    'Profile retention cannot exceed Event retention, and replay retention must be shorter than both.',
+    VALIDATION_KEYS.contract.retention.policyOrder,
   ),
 )
 const SInstallationRetentionPolicyResult = v.strictObject({
