@@ -36,6 +36,7 @@ import {
   createBackupRestore,
   type BackupRestoreCleanupPort,
   type BackupRestoreHealthSnapshot,
+  type BackupRestoreExecutor,
 } from './resources/backup-restore/index.ts'
 import { createIdentityProfile } from './resources/identity-profile/index.ts'
 import { createTrafficReport } from './resources/traffic-report/index.ts'
@@ -57,10 +58,14 @@ export interface CreateApiAppDependencies {
   acceptance?: AcceptanceQuiescencePort | undefined
   reads?: ReadQuiescencePort | undefined
   cleanup?: BackupRestoreCleanupPort | undefined
+  wrapBackupRestoreCleanup?:
+    | ((cleanup: BackupRestoreCleanupPort) => BackupRestoreCleanupPort)
+    | undefined
   dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
   upgradeExecutor?: UpgradeExecutor | undefined
+  backupRestoreExecutor?: BackupRestoreExecutor | undefined
   eventIngestionProtection?: IngestionProtection | undefined
   eventIngestionProtectionThresholds?:
     | {
@@ -206,14 +211,8 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lock,
     acceptance: upgradeAcceptance,
     ...(deps.reads === undefined ? {} : { reads: deps.reads }),
-    cleanup:
-      deps.cleanup ??
-      new AcceptanceBackupRestoreCleanup({
-        acceptance: eventIngestion.acceptanceRepository,
-        analytics: deps.analytics,
-        db: deps.db,
-        dataDirectoryPath: deps.dataDirectoryPath,
-      }),
+    ...(deps.backupRestoreExecutor === undefined ? {} : { executor: deps.backupRestoreExecutor }),
+    cleanup: deps.cleanup ?? createBackupRestoreCleanup(deps, eventIngestion.acceptanceRepository),
     dataDirectoryReady: deps.dataDirectoryReady,
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
@@ -336,6 +335,19 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     await backupRestore.service.stop()
     await installation.service.stop()
   }
+}
+
+function createBackupRestoreCleanup(
+  deps: CreateApiAppDependencies,
+  acceptance: ConstructorParameters<typeof AcceptanceBackupRestoreCleanup>[0]['acceptance'],
+): BackupRestoreCleanupPort {
+  const cleanup = new AcceptanceBackupRestoreCleanup({
+    acceptance,
+    analytics: deps.analytics,
+    db: deps.db,
+    dataDirectoryPath: deps.dataDirectoryPath,
+  })
+  return deps.wrapBackupRestoreCleanup?.(cleanup) ?? cleanup
 }
 
 function createApiRouter(parts: ApiRouterParts) {

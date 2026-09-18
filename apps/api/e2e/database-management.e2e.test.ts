@@ -1,16 +1,41 @@
+import { existsSync } from 'node:fs'
 import { call } from '@orpc/server'
+import { schema } from '@cimi/contract'
 import { expect, test } from 'vitest'
-import { createApiE2eFixture } from './fixture.ts'
+import type { InferOutput } from 'valibot'
+import {
+  assertAvailableBackup,
+  assertCheckpointMonotonic,
+  assertCleanupSettled,
+  assertProgressMonotonic,
+  assertRestoreSafety,
+  waitForBackupTrace,
+  waitForInstallationTerminal,
+} from './database-management.lifecycle.ts'
+import { createApiE2eFixture, E2ePollingTimeoutError } from './fixture.ts'
 
-test('initializes the installation convergently and enforces admin access', async () => {
+type InstallationInitializeInput = InferOutput<typeof schema.SInstallationInitializeFields>
+type BackupRestoreInput = InferOutput<typeof schema.SBackupRestoreInput>
+
+test('initializes convergently and rejects strict or divergent inputs without mutation', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('database-admin@example.com', 'Database Admin')
-  const member = await fixture.createUser('database-member@example.com', 'Database Member')
+
+  await expect(
+    call(fixture.router.installation.getInstallationStatus, {}, { context: await admin.context() }),
+  ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+
+  const invalidInput = { unexpected: true } as unknown as InstallationInitializeInput
+  await expect(
+    call(fixture.router.installation.initializeInstallation, invalidInput, {
+      context: await admin.context(),
+    }),
+  ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
 
   const created = await call(
     fixture.router.installation.initializeInstallation,
     {},
-    { context: admin.context },
+    { context: await admin.context() },
   )
   expect(created.status).toBe(201)
   expect(created.body).toMatchObject({
@@ -22,34 +47,100 @@ test('initializes the installation convergently and enforces admin access', asyn
   const reused = await call(
     fixture.router.installation.initializeInstallation,
     {},
-    { context: admin.context },
+    { context: await admin.context() },
   )
   expect(reused.status).toBe(200)
   expect(reused.body).toEqual(created.body)
 
+  const divergent: InstallationInitializeInput = {
+    defaultRetention: { eventMonths: 24, profileMonths: 18, replayMonths: 6 },
+  }
   await expect(
-    call(fixture.router.installation.getInstallationStatus, {}, { context: member.context }),
-  ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    call(fixture.router.installation.initializeInstallation, divergent, {
+      context: await admin.context(),
+    }),
+  ).rejects.toMatchObject({ code: 'CONFLICT' })
+
+  const afterRejectedInitialization = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
+  )
+  expect(afterRejectedInitialization).toEqual(created.body)
+})
+
+test('enforces admin authorization across lifecycle procedures without mutation', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('authorization-admin@example.com', 'Authorization Admin')
+  const member = await fixture.createUser(
+    'authorization-member@example.com',
+    'Authorization Member',
+  )
+
+  const created = await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const before = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
+  )
+
   await expect(
     call(
       fixture.router.installation.getInstallationStatus,
       {},
-      {
-        context: { user: undefined, headers: new Headers() },
-      },
+      { context: await member.context() },
+    ),
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  await expect(
+    call(
+      fixture.router.installation.upgradeInstallation,
+      { confirmation: 'UPGRADE' },
+      { context: await member.context() },
+    ),
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  await expect(
+    call(
+      fixture.router.backupRestore.createBackup,
+      {},
+      { context: fixture.unauthenticatedContext() },
     ),
   ).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  await expect(
+    call(fixture.router.backupRestore.createBackup, {}, { context: await member.context() }),
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  await expect(
+    call(
+      fixture.router.backupRestore.restoreBackup,
+      { backupId: 'bop_missing', confirmation: 'RESTORE' },
+      { context: await member.context() },
+    ),
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+
+  const after = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
+  )
+  expect(after).toEqual(before)
+  expect(created.body).toEqual(before)
 })
 
-test('persists installation and site retention and collection policy state', async () => {
+test('persists scoped retention and collection policy inheritance', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('policy-admin@example.com', 'Policy Admin')
-
-  await call(fixture.router.installation.initializeInstallation, {}, { context: admin.context })
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
   const organization = await call(
     fixture.router.organization.createOrganization,
     { name: 'Policy Organization' },
-    { context: admin.context },
+    { context: await admin.context() },
   )
   const site = await call(
     fixture.router.site.createSite,
@@ -58,36 +149,37 @@ test('persists installation and site retention and collection policy state', asy
       name: 'Policy Site',
       hostname: 'policy.example.com',
     },
-    { context: admin.context },
+    { context: await admin.context() },
   )
-
   const installationRetention = { eventMonths: 18, profileMonths: 12, replayMonths: 6 }
-  await call(
+  const siteRetention = { eventMonths: 24, profileMonths: 18, replayMonths: 12 }
+
+  const savedInstallationRetention = await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     { scope: 'installation', policy: installationRetention },
-    { context: admin.context },
+    { context: await admin.context() },
   )
-  const siteRetention = { eventMonths: 24, profileMonths: 18, replayMonths: 12 }
-  const siteRetentionResult = await call(
+  expect(savedInstallationRetention.effectivePolicy).toEqual(installationRetention)
+  const savedSiteRetention = await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     { scope: 'site', siteId: site.id, policy: siteRetention },
-    { context: admin.context },
+    { context: await admin.context() },
   )
-  expect(siteRetentionResult.effectivePolicy).toEqual(siteRetention)
-
+  expect(savedSiteRetention.effectivePolicy).toEqual(siteRetention)
   await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     { scope: 'site', siteId: site.id, policy: null },
-    { context: admin.context },
+    { context: await admin.context() },
   )
-  const clearedRetention = await call(
-    fixture.router.retentionPolicy.getRetentionPolicy,
-    { scope: 'site', siteId: site.id },
-    { context: admin.context },
-  )
-  expect(clearedRetention.effectivePolicy).toEqual(installationRetention)
+  await expect(
+    call(
+      fixture.router.retentionPolicy.getRetentionPolicy,
+      { scope: 'site', siteId: site.id },
+      { context: await admin.context() },
+    ),
+  ).resolves.toMatchObject({ effectivePolicy: installationRetention })
 
-  const collectionValues = {
+  const installationCollection = {
     anonymousCollection: 'disabled' as const,
     honorGpcDnt: false,
     consentMode: 'none' as const,
@@ -110,137 +202,611 @@ test('persists installation and site retention and collection policy state', asy
   }
   await call(
     fixture.router.collectionPolicy.updateCollectionPolicy,
-    { scope: 'installation', policy: collectionValues },
-    { context: admin.context },
+    { scope: 'installation', policy: installationCollection },
+    { context: await admin.context() },
   )
   const siteCollection = await call(
     fixture.router.collectionPolicy.updateCollectionPolicy,
-    { scope: 'site', policy: { siteId: site.id, ...collectionValues, captureQueryStrings: false } },
-    { context: admin.context },
+    {
+      scope: 'site',
+      policy: { siteId: site.id, ...installationCollection, captureQueryStrings: false },
+    },
+    { context: await admin.context() },
   )
   expect(siteCollection).toMatchObject({
     scope: 'site',
     siteId: site.id,
     captureQueryStrings: false,
   })
-
   const effectiveCollection = await call(
     fixture.router.collectionPolicy.getCollectionPolicy,
     { siteId: site.id },
-    { context: admin.context },
+    { context: await admin.context() },
   )
   expect(effectiveCollection).toMatchObject({
-    effective: { siteId: site.id, captureQueryStrings: false },
+    siteOverride: { scope: 'site', siteId: site.id, captureQueryStrings: false },
+    effective: { scope: 'site', siteId: site.id, captureQueryStrings: false },
     source: { captureQueryStrings: 'site' },
   })
   await call(
     fixture.router.collectionPolicy.updateCollectionPolicy,
     { scope: 'site', policy: { siteId: site.id, clear: true } },
-    { context: admin.context },
+    { context: await admin.context() },
   )
   const clearedCollection = await call(
     fixture.router.collectionPolicy.getCollectionPolicy,
     { siteId: site.id },
-    { context: admin.context },
+    { context: await admin.context() },
   )
-  expect(clearedCollection.source.captureQueryStrings).toBe('installation')
+  expect(clearedCollection).toMatchObject({
+    siteOverride: null,
+    effective: { scope: 'site', siteId: site.id, captureQueryStrings: true },
+    source: { captureQueryStrings: 'installation' },
+  })
 })
 
-test('completes an installation upgrade through the implemented procedures', async () => {
+test('rejects wrong lifecycle confirmation before creating an operation', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('confirmation-admin@example.com', 'Confirmation Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const before = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
+  )
+  const wrongUpgrade = { confirmation: 'WRONG' } as unknown as { confirmation: 'UPGRADE' }
+  const wrongRestore = {
+    backupId: 'bop_missing',
+    confirmation: 'WRONG',
+  } as unknown as BackupRestoreInput
+
+  await expect(
+    call(fixture.router.installation.upgradeInstallation, wrongUpgrade, {
+      context: await admin.context(),
+    }),
+  ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  await expect(
+    call(fixture.router.backupRestore.restoreBackup, wrongRestore, {
+      context: await admin.context(),
+    }),
+  ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+  const after = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
+  )
+  expect(after).toEqual(before)
+})
+
+test('holds a real upgrade, exposes accepted state, and preserves operation ownership on conflict', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('upgrade-admin@example.com', 'Upgrade Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
 
-  await call(fixture.router.installation.initializeInstallation, {}, { context: admin.context })
+  const gate = fixture.faults.hold({ domain: 'upgrade', stage: 'migrate' })
   const started = await call(
     fixture.router.installation.upgradeInstallation,
     { confirmation: 'UPGRADE' },
-    { context: admin.context },
+    { context: await admin.context() },
   )
-  expect(started.status).toBe('maintenance')
+  expect(started).toMatchObject({
+    status: 'maintenance',
+    activeOperation: {
+      kind: 'upgrade',
+      phase: 'pre_upgrade_safety',
+      checkpoint: 'none',
+      errorCode: null,
+    },
+  })
+  await gate.entered
 
-  const completed = await fixture.waitFor(
-    () => call(fixture.router.installation.getInstallationStatus, {}, { context: admin.context }),
-    (status) => status.activeOperation === null,
+  const held = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
   )
-  expect(completed.status).toBe('ready')
+  expect(held).toMatchObject({ status: 'maintenance', activeOperation: { kind: 'upgrade' } })
+  await expect(
+    call(
+      fixture.router.installation.upgradeInstallation,
+      { confirmation: 'UPGRADE' },
+      { context: await admin.context() },
+    ),
+  ).rejects.toMatchObject({ code: 'CONFLICT' })
+  await expect(
+    call(
+      fixture.router.retentionPolicy.updateRetentionPolicy,
+      {
+        scope: 'installation',
+        policy: { eventMonths: 18, profileMonths: 12, replayMonths: 6 },
+      },
+      { context: await admin.context() },
+    ),
+  ).rejects.toMatchObject({ code: 'CONFLICT' })
+
+  gate.release()
+  const completed = await waitForInstallationTerminal(fixture, admin, 'ready')
+  expect(completed.activeOperation).toBeNull()
 })
 
-test('backs up and restores persisted policy state', async () => {
+test('reaches degraded upgrade state through real migration-history validation and retries after repair', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('migration-admin@example.com', 'Migration Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  fixture.state.appendFutureMigrationHistory()
+
+  const started = await call(
+    fixture.router.installation.upgradeInstallation,
+    { confirmation: 'UPGRADE' },
+    { context: await admin.context() },
+  )
+  expect(started.status).toBe('maintenance')
+  const degraded = await waitForInstallationTerminal(fixture, admin, 'degraded')
+  expect(degraded).toMatchObject({
+    status: 'degraded',
+    activeOperation: { kind: 'upgrade', errorCode: 'INCOMPATIBLE_BACKUP' },
+  })
+
+  fixture.state.repairMigrationHistory()
+  const retry = await call(
+    fixture.router.installation.upgradeInstallation,
+    { confirmation: 'UPGRADE' },
+    { context: await admin.context() },
+  )
+  expect(retry.status).toBe('maintenance')
+  await expect(waitForInstallationTerminal(fixture, admin, 'ready')).resolves.toMatchObject({
+    status: 'ready',
+    activeOperation: null,
+  })
+})
+
+test('reports backup failure, retries, lists pages, and preserves the source across restart', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('backup-admin@example.com', 'Backup Admin')
-
-  await call(fixture.router.installation.initializeInstallation, {}, { context: admin.context })
-  const originalPolicy = { eventMonths: 12, profileMonths: 12, replayMonths: null }
-  const changedPolicy = { eventMonths: 24, profileMonths: 18, replayMonths: 6 }
-
   await call(
-    fixture.router.retentionPolicy.updateRetentionPolicy,
-    { scope: 'installation', policy: originalPolicy },
-    { context: admin.context },
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
   )
-  const started = await call(
+  fixture.faults.failNext(
+    { domain: 'backup', stage: 'captureBackup' },
+    { kind: 'throw', error: 'backupFailed' },
+  )
+
+  const failedStarted = await call(
     fixture.router.backupRestore.createBackup,
     {},
-    { context: admin.context },
+    { context: await admin.context() },
   )
-  const available = await fixture.waitFor(
-    () =>
-      call(
-        fixture.router.backupRestore.getBackupStatus,
-        { backupId: started.id },
-        { context: admin.context },
-      ),
-    (backup) => backup.status === 'available' || backup.status === 'failed',
-  )
-  expect(available).toMatchObject({
-    status: 'available',
-    checkpoint: 'structurally_ready',
-    cleanupPending: false,
-    readiness: { controlStore: 'ready', analyticsStore: 'ready', structural: 'ready' },
-  })
+  const failed = await waitForBackupTrace(fixture, admin, failedStarted.id)
+  expect(failed.terminal).toMatchObject({ status: 'failed', errorCode: 'BACKUP_FAILED' })
+  assertCheckpointMonotonic(failed)
+  assertProgressMonotonic(failed)
 
-  const listed = await call(
+  const firstStarted = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const firstTrace = await waitForBackupTrace(fixture, admin, firstStarted.id)
+  assertCheckpointMonotonic(firstTrace)
+  assertProgressMonotonic(firstTrace)
+  assertAvailableBackup(firstTrace.terminal)
+  assertCleanupSettled(firstTrace.terminal)
+
+  const secondStarted = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const secondTrace = await waitForBackupTrace(fixture, admin, secondStarted.id)
+  assertCheckpointMonotonic(secondTrace)
+  assertProgressMonotonic(secondTrace)
+  assertAvailableBackup(secondTrace.terminal)
+
+  const firstPage = await call(
     fixture.router.backupRestore.listBackups,
-    { offset: 0, limit: 20 },
-    { context: admin.context },
+    { offset: 0, limit: 1 },
+    { context: await admin.context() },
   )
-  expect(listed.items).toContainEqual(
-    expect.objectContaining({ id: available.id, status: 'available' }),
+  expect(firstPage.items).toHaveLength(1)
+  expect(firstPage.hasMore).toBe(true)
+  expect(firstPage.nextOffset).toBe(1)
+  const secondPage = await call(
+    fixture.router.backupRestore.listBackups,
+    { offset: firstPage.nextOffset ?? 1, limit: 1 },
+    { context: await admin.context() },
   )
+  expect(secondPage.items).toHaveLength(1)
+  expect(secondPage.totalCount).toBe(3)
 
+  const root = fixture.rootDirectory
+  const paths = fixture.paths
+  await fixture.stop()
+  expect(existsSync(root)).toBe(true)
+  expect(existsSync(paths.controlDatabasePath)).toBe(true)
+  await fixture.restart()
+  const afterRestart = await call(
+    fixture.router.backupRestore.getBackupStatus,
+    { backupId: firstTrace.terminal.id },
+    { context: await admin.context() },
+  )
+  expect(afterRestart).toMatchObject({ id: firstTrace.terminal.id, status: 'available' })
+})
+
+test('rejects an incompatible restore manifest before creating a restore operation', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('restore-preflight@example.com', 'Restore Preflight')
   await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const backupStarted = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const backup = await waitForBackupTrace(fixture, admin, backupStarted.id)
+  assertCheckpointMonotonic(backup)
+  assertProgressMonotonic(backup)
+  assertAvailableBackup(backup.terminal)
+  const incompatible = await fixture.state.createIncompatibleManifestVariant({
+    sourceBackupId: backup.terminal.id,
+  })
+  const before = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
+  )
+  const beforeCount = (
+    await call(
+      fixture.router.backupRestore.listBackups,
+      { offset: 0, limit: 20 },
+      { context: await admin.context() },
+    )
+  ).totalCount
+
+  const invalidRestore = {
+    backupId: incompatible.backupId,
+    confirmation: 'RESTORE',
+  } satisfies BackupRestoreInput
+  await expect(
+    call(fixture.router.backupRestore.restoreBackup, invalidRestore, {
+      context: await admin.context(),
+    }),
+  ).rejects.toMatchObject({ code: 'INCOMPATIBLE_BACKUP' })
+
+  const after = await call(
+    fixture.router.installation.getInstallationStatus,
+    {},
+    { context: await admin.context() },
+  )
+  const afterCount = (
+    await call(
+      fixture.router.backupRestore.listBackups,
+      { offset: 0, limit: 20 },
+      { context: await admin.context() },
+    )
+  ).totalCount
+  expect(after).toEqual(before)
+  expect(afterCount).toBe(beforeCount)
+})
+
+test('reports restore checkpoints, readiness, safety, cleanup, and policy rollback', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('restore-admin@example.com', 'Restore Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const originalPolicy = { eventMonths: 18, profileMonths: 12, replayMonths: 6 }
+  const changedPolicy = { eventMonths: 24, profileMonths: 18, replayMonths: 6 }
+  const savedOriginal = await call(
+    fixture.router.retentionPolicy.updateRetentionPolicy,
+    { scope: 'installation', policy: originalPolicy },
+    { context: await admin.context() },
+  )
+  expect(savedOriginal.effectivePolicy).toEqual(originalPolicy)
+  const backupStarted = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const backup = await waitForBackupTrace(fixture, admin, backupStarted.id)
+  assertCheckpointMonotonic(backup)
+  assertProgressMonotonic(backup)
+  assertAvailableBackup(backup.terminal)
+
+  const savedChanged = await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     { scope: 'installation', policy: changedPolicy },
-    { context: admin.context },
+    { context: await admin.context() },
   )
+  expect(savedChanged.effectivePolicy).toEqual(changedPolicy)
+  const gate = fixture.faults.hold({ domain: 'restore', stage: 'restoreSqlite' })
   const restoreStarted = await call(
     fixture.router.backupRestore.restoreBackup,
-    { backupId: available.id, confirmation: 'RESTORE' },
-    { context: admin.context },
+    { backupId: backup.terminal.id, confirmation: 'RESTORE' },
+    { context: await admin.context() },
   )
-  const restored = await fixture.waitFor(
-    () =>
-      call(
-        fixture.router.backupRestore.getBackupStatus,
-        { backupId: restoreStarted.id },
-        { context: admin.context },
-      ),
-    (backup) =>
-      backup.status === 'failed' || (backup.status === 'available' && !backup.cleanupPending),
-  )
-  expect(restored).toMatchObject({
-    status: 'available',
-    checkpoint: 'structurally_ready',
-    cleanupPending: false,
-    restoreSourceBackupId: available.id,
-    readiness: { controlStore: 'ready', analyticsStore: 'ready', structural: 'ready' },
-    preRestoreSafetyArtifact: { status: 'ready' },
+  expect(restoreStarted).toMatchObject({
+    id: expect.any(String),
+    status: 'creating',
+    checkpoint: 'none',
+    restoreSourceBackupId: backup.terminal.id,
+    preRestoreSafetyArtifact: null,
   })
+  await gate.entered
+  const intermediate = await call(
+    fixture.router.backupRestore.getBackupStatus,
+    { backupId: restoreStarted.id },
+    { context: await admin.context() },
+  )
+  expect(intermediate).toMatchObject({
+    status: 'restoring',
+    phase: 'restoring_sqlite',
+    checkpoint: 'none',
+    readiness: { structural: 'not_ready' },
+    preRestoreSafetyArtifact: { status: 'ready', errorCode: null },
+  })
+  gate.release()
 
+  const restored = await waitForBackupTrace(fixture, admin, restoreStarted.id)
+  assertCheckpointMonotonic(restored)
+  assertProgressMonotonic(restored)
+  assertAvailableBackup(restored.terminal)
+  assertCleanupSettled(restored.terminal)
+  assertRestoreSafety(restored.terminal, backup.terminal.id)
   const policyAfterRestore = await call(
     fixture.router.retentionPolicy.getRetentionPolicy,
     { scope: 'installation' },
-    { context: admin.context },
+    { context: await admin.context() },
   )
   expect(policyAfterRestore.effectivePolicy).toEqual(originalPolicy)
+  const backupsAfterRestore = await call(
+    fixture.router.backupRestore.listBackups,
+    { offset: 0, limit: 20 },
+    { context: await admin.context() },
+  )
+  expect(backupsAfterRestore.items).toContainEqual(
+    expect.objectContaining({ id: backup.terminal.id, status: 'available' }),
+  )
+})
+
+test('rolls back a staged incompatible restore and retries from a valid source', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('restore-retry@example.com', 'Restore Retry')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const sourceStarted = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const source = await waitForBackupTrace(fixture, admin, sourceStarted.id)
+  assertCheckpointMonotonic(source)
+  assertProgressMonotonic(source)
+  assertAvailableBackup(source.terminal)
+  const incompatible = await fixture.state.createIncompatibleBackupVariant({
+    sourceBackupId: source.terminal.id,
+  })
+
+  const failedStarted = await call(
+    fixture.router.backupRestore.restoreBackup,
+    { backupId: incompatible.backupId, confirmation: 'RESTORE' },
+    { context: await admin.context() },
+  )
+  const failed = await waitForBackupTrace(fixture, admin, failedStarted.id)
+  assertCheckpointMonotonic(failed)
+  assertProgressMonotonic(failed)
+  expect(failed.terminal).toMatchObject({
+    status: 'failed',
+    errorCode: 'INCOMPATIBLE_BACKUP',
+  })
+
+  const retryStarted = await call(
+    fixture.router.backupRestore.restoreBackup,
+    { backupId: source.terminal.id, confirmation: 'RESTORE' },
+    { context: await admin.context() },
+  )
+  const retry = await waitForBackupTrace(fixture, admin, retryStarted.id)
+  assertCheckpointMonotonic(retry)
+  assertProgressMonotonic(retry)
+  assertAvailableBackup(retry.terminal)
+  assertRestoreSafety(retry.terminal, source.terminal.id)
+})
+
+test('retries cleanup failures in order and clears cleanupPending', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('cleanup-admin@example.com', 'Cleanup Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const backupStarted = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const backup = await waitForBackupTrace(fixture, admin, backupStarted.id)
+  assertCheckpointMonotonic(backup)
+  assertProgressMonotonic(backup)
+  assertAvailableBackup(backup.terminal)
+  fixture.faults.failNext(
+    { domain: 'cleanup', stage: 'derivedCleanup' },
+    { kind: 'throw', error: 'internal' },
+  )
+  fixture.faults.failNext(
+    { domain: 'cleanup', stage: 'backupCleanup' },
+    { kind: 'throw', error: 'internal' },
+  )
+  const restoreStarted = await call(
+    fixture.router.backupRestore.restoreBackup,
+    { backupId: backup.terminal.id, confirmation: 'RESTORE' },
+    { context: await admin.context() },
+  )
+  const restored = await fixture.waitFor({
+    read: async () =>
+      call(
+        fixture.router.backupRestore.getBackupStatus,
+        { backupId: restoreStarted.id },
+        { context: await admin.context() },
+      ),
+    done: (value) => value.status === 'available',
+    operationId: restoreStarted.id,
+    label: 'restore completion before cleanup',
+  })
+  expect(restored).toMatchObject({
+    status: 'available',
+    phase: 'cleanup_pending',
+    cleanupPending: true,
+  })
+  const failedDerived = await fixture.waitFor({
+    read: async () =>
+      call(
+        fixture.router.backupRestore.getBackupStatus,
+        { backupId: restoreStarted.id },
+        { context: await admin.context() },
+      ),
+    done: (value) => value.derivedCleanup.status === 'failed',
+    operationId: restoreStarted.id,
+    label: 'failed derived cleanup',
+  })
+  expect(failedDerived.cleanupPending).toBe(true)
+  expect(failedDerived.backupCleanup.status).toBe('pending')
+  const failedBackup = await fixture.waitFor({
+    read: async () =>
+      call(
+        fixture.router.backupRestore.getBackupStatus,
+        { backupId: restoreStarted.id },
+        { context: await admin.context() },
+      ),
+    done: (value) => value.backupCleanup.status === 'failed',
+    operationId: restoreStarted.id,
+    label: 'failed backup cleanup',
+  })
+  expect(failedBackup.derivedCleanup.status).toBe('completed')
+  const settled = await fixture.waitFor({
+    read: async () =>
+      call(
+        fixture.router.backupRestore.getBackupStatus,
+        { backupId: restoreStarted.id },
+        { context: await admin.context() },
+      ),
+    done: (value) => !value.cleanupPending,
+    operationId: restoreStarted.id,
+    label: 'settled cleanup',
+  })
+  expect(settled.derivedCleanup.status).toBe('completed')
+  expect(settled.backupCleanup.status).toBe('completed')
+})
+
+test('recovers an interrupted upgrade after reopening the same files', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('upgrade-recovery@example.com', 'Upgrade Recovery')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const firstGeneration = fixture.generation
+  await fixture.stop()
+  await fixture.state.seedInterrupted({ kind: 'upgrade', checkpoint: 'none' })
+  const operationId = fixture.state.interruptedOperationId
+  await fixture.restart()
+  expect(fixture.generation).toBeGreaterThan(firstGeneration)
+  await expect(waitForInstallationTerminal(fixture, admin, 'ready')).resolves.toMatchObject({
+    status: 'ready',
+    activeOperation: null,
+  })
+  expect(operationId).toMatch(/^bop_/)
+})
+
+test('recovers interrupted backup and restore operations after reopening files', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('recovery-admin@example.com', 'Recovery Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const sourceStarted = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const source = await waitForBackupTrace(fixture, admin, sourceStarted.id)
+  assertCheckpointMonotonic(source)
+  assertProgressMonotonic(source)
+  assertAvailableBackup(source.terminal)
+
+  await fixture.stop()
+  await fixture.state.seedInterrupted({ kind: 'backup', checkpoint: 'none' })
+  const backupOperationId = fixture.state.interruptedOperationId
+  await fixture.restart()
+  const recoveredBackup = await waitForBackupTrace(fixture, admin, backupOperationId)
+  assertCheckpointMonotonic(recoveredBackup)
+  assertProgressMonotonic(recoveredBackup)
+  assertAvailableBackup(recoveredBackup.terminal)
+
+  await fixture.stop()
+  await fixture.state.seedInterrupted({
+    kind: 'restore',
+    sourceBackupId: source.terminal.id,
+    checkpoint: 'none',
+  })
+  const restoreOperationId = fixture.state.interruptedOperationId
+  await fixture.restart()
+  const recoveredRestore = await waitForBackupTrace(fixture, admin, restoreOperationId)
+  assertCheckpointMonotonic(recoveredRestore)
+  assertProgressMonotonic(recoveredRestore)
+  assertAvailableBackup(recoveredRestore.terminal)
+  assertRestoreSafety(recoveredRestore.terminal, source.terminal.id)
+})
+
+test('closes resources before removing the root and makes disposal idempotent', async () => {
+  const fixture = await createApiE2eFixture()
+  const root = fixture.rootDirectory
+  expect(existsSync(fixture.controlDatabasePath)).toBe(true)
+  expect(existsSync(fixture.paths.analyticsDatabasePath)).toBe(true)
+  await fixture.close()
+  await fixture.close()
+  expect(existsSync(root)).toBe(false)
+  await expect(fixture.restart()).rejects.toThrow('closed')
+})
+
+test('reports the last lifecycle state and operation identity on polling timeout', async () => {
+  await using fixture = await createApiE2eFixture({ timeoutMs: 1 })
+  await expect(
+    fixture.waitFor({
+      read: async () => ({ id: 'bop_timeout', status: 'creating' }),
+      done: () => false,
+      timeoutMs: 1,
+      intervalMs: 1,
+      label: 'diagnostic operation',
+    }),
+  ).rejects.toMatchObject({
+    name: E2ePollingTimeoutError.name,
+    operationId: 'bop_timeout',
+    lastState: { id: 'bop_timeout', status: 'creating' },
+  })
 })

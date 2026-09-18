@@ -944,10 +944,13 @@ function readinessForAdvance(
       structural: operation.structuralReadiness,
     }
   }
-  if (input.phase === 'rebuilding_duckdb' && input.checkpoint === 'sqlite_restored') {
+  if (
+    input.phase === 'rebuilding_duckdb' &&
+    (input.checkpoint === 'sqlite_restored' || input.checkpoint === 'duckdb_rebuilt')
+  ) {
     return { controlStore: 'ready', analyticsStore: 'rebuilding', structural: 'not_ready' }
   }
-  if (input.checkpoint === 'duckdb_rebuilt') {
+  if (input.checkpoint === 'duckdb_rebuilt' && input.phase !== 'rebuilding_duckdb') {
     return { controlStore: 'ready', analyticsStore: 'ready', structural: 'not_ready' }
   }
   if (input.checkpoint === 'structurally_ready') {
@@ -1229,9 +1232,6 @@ function toOperationFromRows(
 function toSourceManifest(row: typeof schema.TBackupArtifact.$inferSelect): SourceManifest {
   if (row.artifactType !== 'authoritative_sqlite' || row.checksumAlgorithm !== 'sha256') {
     throw new Error('Source artifact is invalid')
-  }
-  if (row.schemaVersion !== '1') {
-    throw new BackupIncompatibilityError('Backup manifest is not compatible')
   }
   return {
     kind: 'source',
