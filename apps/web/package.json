@@ -26,6 +26,7 @@
     "@pinia/colada-nuxt": "^1.1.0",
     "@pinia/nuxt": "^1.0.2",
     "@unovis/vue": "^1.6.7",
+    "@valibot/i18n": "catalog:",
     "@vee-validate/valibot": "^4.15.1",
     "@vue/devtools-api": "^8.2.1",
     "@vueuse/core": "^14.4.0",

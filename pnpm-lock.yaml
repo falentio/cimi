@@ -51,6 +51,9 @@ catalogs:
     '@types/ua-parser-js':
       specifier: ^0.7.39
       version: 0.7.39
+    '@valibot/i18n':
+      specifier: 1.2.0
+      version: 1.2.0
     auth:
       specifier: 1.7.1
       version: 1.7.1
@@ -231,6 +234,9 @@ importers:
       '@unovis/vue':
         specifier: ^1.6.7
         version: 1.6.7(@unovis/ts@1.6.7(supports-color@10.2.2))(vue@3.5.42(typescript@6.0.3))
+      '@valibot/i18n':
+        specifier: 'catalog:'
+        version: 1.2.0(valibot@1.4.2(typescript@6.0.3))
       '@vee-validate/valibot':
         specifier: ^4.15.1
         version: 4.15.1(valibot@1.4.2(typescript@6.0.3))(vue@3.5.42(typescript@6.0.3))
@@ -3427,6 +3433,11 @@ packages:
     resolution: {integrity: sha512-Yz4JeWOHGa+w/3YudVdng8hgN/VGW9cvp8xmFkmPPFzalGblLPPSpIRiwVo853yLstMZO2LLwe0vOoLAQsUQXw==}
     engines: {node: '>=18'}
     hasBin: true
+
+  '@valibot/i18n@1.2.0':
+    resolution: {integrity: sha512-vpSWlLB/or0GjF8dqQlUn9HIO+sBMWj74tw/w85KpkZAKsrdfdXb97EtXXRlEVgdYK8/AoUqe8GIGuqwmxiu1Q==}
+    peerDependencies:
+      valibot: ^1.4.0
 
   '@valibot/to-json-schema@1.7.1':
     resolution: {integrity: sha512-3qkmU6KXWh8GIThEAW3kuRHPQBMjWkKy+Ppz3WkUucx53DTpOa6siMn4xDGSOhlVyMrDaJTCTMLYPZVAIk1P0A==}
@@ -10779,6 +10790,10 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
+
+  '@valibot/i18n@1.2.0(valibot@1.4.2(typescript@6.0.3))':
+    dependencies:
+      valibot: 1.4.2(typescript@6.0.3)
 
   '@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@7.0.2))':
     dependencies:
