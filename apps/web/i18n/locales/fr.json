@@ -1,6 +1,7 @@
 {
   "auth": {
     "brand": "Espace de travail Cimi",
+    "languageLabel": "Langue",
     "login": {
       "title": "Bon retour",
       "description": "Connectez-vous à votre espace de travail Cimi.",

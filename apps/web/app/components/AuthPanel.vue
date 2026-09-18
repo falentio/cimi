@@ -23,6 +23,7 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import type { SupportedLocale } from '@/composables/useLocalizedValibotSchema'
 
 interface AuthPanelProps {
   readonly mode: AuthMode
@@ -51,9 +52,14 @@ type AuthFormField = keyof AuthFormValues
 
 const props = defineProps<AuthPanelProps>()
 const { pending, signIn, signUp } = useAuth()
-const { t } = useI18n()
+const { locale, setLocale, t } = useI18n()
 const route = useRoute()
 const feedback = shallowRef<AuthFeedback>(null)
+
+const localeOptions = [
+  { code: 'en', label: 'EN' },
+  { code: 'fr', label: 'FR' },
+] satisfies readonly { code: SupportedLocale; label: string }[]
 
 const copyByMode = {
   login: {
@@ -95,7 +101,7 @@ const alternateLocation = computed(() => ({
 const validationSchema = useLocalizedValibotSchema(() =>
   props.mode === 'signup' ? signupSchema : loginSchema,
 )
-const { defineField, errors, handleSubmit, resetForm } = useForm<AuthFormValues>({
+const { defineField, errors, handleSubmit, resetForm, validate } = useForm<AuthFormValues>({
   initialValues: { name: '', email: '', password: '', passwordConfirmation: '' },
   validationSchema,
 })
@@ -120,6 +126,15 @@ watch(
     feedback.value = null
   },
 )
+
+watch(locale, async () => {
+  if (Object.keys(errors.value).length > 0) await validate()
+})
+
+async function switchLocale(nextLocale: SupportedLocale): Promise<void> {
+  if (locale.value === nextLocale) return
+  await setLocale(nextLocale)
+}
 
 const submit = handleSubmit(
   async (values) => {
@@ -209,6 +224,21 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
           C
         </span>
         {{ t('auth.brand') }}
+      </div>
+
+      <div class="flex justify-end" role="group" :aria-label="t('auth.languageLabel')">
+        <Button
+          v-for="localeOption in localeOptions"
+          :key="localeOption.code"
+          class="min-w-10"
+          size="sm"
+          type="button"
+          variant="ghost"
+          :aria-pressed="locale === localeOption.code"
+          @click="switchLocale(localeOption.code)"
+        >
+          {{ localeOption.label }}
+        </Button>
       </div>
 
       <Card>
