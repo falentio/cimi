@@ -2,8 +2,8 @@
 import SetupContainer from '@/components/features/setup/SetupContainer.vue'
 
 definePageMeta({
-  layout: 'bare',
-  auth: false,
+  layout: 'default',
+  admin: true,
 })
 
 useHead({ title: 'Cimi setup' })
