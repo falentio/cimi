@@ -94,6 +94,14 @@ const fieldOrderByMode = {
 } satisfies Record<AuthMode, readonly (keyof AuthFormValues)[]>
 
 const copy = computed(() => copyByMode[props.mode])
+const feedbackMessage = computed(() => {
+  const currentFeedback = feedback.value
+  if (currentFeedback === null) return ''
+  if ('message' in currentFeedback) return currentFeedback.message
+  return currentFeedback.values === undefined
+    ? t(currentFeedback.messageKey)
+    : t(currentFeedback.messageKey, currentFeedback.values)
+})
 const alternateLocation = computed(() => ({
   name: copy.value.alternateRoute,
   query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : undefined,
@@ -184,16 +192,14 @@ function feedbackForResult(result: AuthResult, mode: AuthMode): AuthFeedback {
 
   if (result.session === null) {
     return mode === 'signup'
-      ? { tone: 'success', message: t('auth.feedback.accountCreated') }
-      : { tone: 'error', message: t('auth.feedback.signInWithoutSession') }
+      ? { tone: 'success', messageKey: 'auth.feedback.accountCreated' }
+      : { tone: 'error', messageKey: 'auth.feedback.signInWithoutSession' }
   }
 
   return {
     tone: 'success',
-    message:
-      mode === 'signup'
-        ? t('auth.feedback.welcome', { name: result.session.user.name })
-        : t('auth.feedback.welcomeBack', { name: result.session.user.name }),
+    messageKey: mode === 'signup' ? 'auth.feedback.welcome' : 'auth.feedback.welcomeBack',
+    values: { name: result.session.user.name },
   }
 }
 
@@ -253,7 +259,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
 
         <CardContent class="flex flex-col gap-6">
           <Alert v-if="feedback" :variant="feedback.tone === 'error' ? 'destructive' : 'default'">
-            <AlertDescription>{{ feedback.message }}</AlertDescription>
+            <AlertDescription>{{ feedbackMessage }}</AlertDescription>
           </Alert>
 
           <form

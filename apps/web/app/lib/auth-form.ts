@@ -2,9 +2,19 @@ import * as v from 'valibot'
 
 export type AuthMode = 'login' | 'signup'
 
+export type AuthFeedbackMessageKey =
+  | 'auth.feedback.accountCreated'
+  | 'auth.feedback.signInWithoutSession'
+  | 'auth.feedback.welcome'
+  | 'auth.feedback.welcomeBack'
+
 export type AuthFeedback =
   | { tone: 'error'; message: string }
-  | { tone: 'success'; message: string }
+  | {
+      tone: 'error' | 'success'
+      messageKey: AuthFeedbackMessageKey
+      values?: { name: string }
+    }
   | null
 
 const emailSchema = v.pipe(
