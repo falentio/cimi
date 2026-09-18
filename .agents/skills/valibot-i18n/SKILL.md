@@ -26,7 +26,7 @@ Do not store the locale in a shared schema. Do not translate by matching English
 - Define schemas with Valibot only.
 - Keep schemas locale-neutral and free of Nuxt or Vue I18n imports.
 - Keep reusable type and domain rules in the contract package.
-- Leave existing literal custom messages unchanged until the consuming surface proves that they are user-facing web validation.
+- Use the package-owned validation-key registry for every explicit custom Valibot message.
 - Keep transport errors separate from Valibot issues. `ERROR_CATALOG` owns stable `ContractErrorCode` values, statuses, and fallback messages.
 
 ### `apps/web`
@@ -67,7 +67,9 @@ v.email('The email is invalid.')
 v.check(isValidDateTime, 'Expected a valid ISO date-time.')
 ```
 
-Those strings remain unchanged in every locale. This is the current behavior for custom messages in shared contract schemas such as `SDateTime`.
+For a shared contract schema, use a stable `validation.*` key instead of either sentence. The contract emits the key. The consuming application translates it.
+
+The registries live in `packages/utils/src/schema/index.ts` for utility-owned schemas and `packages/contract/src/schema/validation-keys.ts` for contract-owned schemas. `SDateTime` emits `VALIDATION_KEYS.contract.dateTime.invalid`, and `SIanaTimezone` emits `VALIDATION_KEYS.shared.ianaTimezone`.
 
 ### Web-owned user-facing rules
 
@@ -83,14 +85,14 @@ Keep keys stable and sentences in locale files. Do not put translated sentences 
 
 ### Shared contract rules
 
-Classify a custom contract message before changing it.
+Use the registry for every explicit custom issue message in `packages/contract` and the shared schemas it re-exports.
 
-- A user-facing web form may need a web-owned stable key or a separate web schema.
-- An internal, output, server, or API-boundary rule can keep its literal message.
-- Do not add Nuxt translation keys to `packages/contract` just to make one web screen French.
-- Do not translate by matching the current English message. English wording is not an identifier.
+- Name keys after the violated rule, not the operation or screen that uses the schema.
+- Reuse one key when the same semantic rule appears in several schemas.
+- Keep the registry free of translated sentences and framework imports.
+- Do not translate by matching English messages. English wording is not an identifier.
 
-If a shared rule must produce a localized user-facing error for several consumers, first define a consumer-neutral stable issue identifier or structured metadata. Each consumer can then map that identifier to its own catalog. Do not start that migration without tests for every consumer that parses the schema.
+If a custom issue needs runtime interpolation, keep the stable key and design issue metadata separately. Do not put locale text or dynamic values into the key.
 
 ## Transport errors
 
@@ -106,8 +108,8 @@ Keep this path separate from `validation.*` keys. A form issue and a failed API 
 ## Implementation workflow
 
 1. Find every consumer of the schema. Identify whether it parses in the API, in `apps/web`, or in both places.
-2. Classify each issue as built-in Valibot text, a stable `validation.*` key, a literal custom message, or a transport error code.
-3. Keep shared schemas framework-neutral. Move web-only messages and catalogs to `apps/web`.
+2. Classify each issue as built-in Valibot text, a stable `validation.*` key, or a transport error code.
+3. Replace every explicit contract custom message with the owning registry leaf. Keep shared schemas framework-neutral.
 4. Use `useLocalizedValibotSchema` for web form schemas. Preserve its typed-schema methods and original field paths.
 5. Add or update locale catalog entries. Keep English complete and use English fallback for a missing French entry.
 6. Add tests before broadening the change.
@@ -121,15 +123,16 @@ For the web adapter, cover these cases when the change touches them.
 - Stable `validation.*` keys translate in the active locale.
 - A missing active-locale key falls back to English.
 - An unknown stable key remains unchanged.
-- A literal custom message remains unchanged.
+- A literal custom message in a web-only schema remains unchanged.
+- An imported contract schema emits a stable `validation.*` key and renders its English and French catalog values.
 - Forwarded field paths remain attached to the correct field.
 - An imported schema from `@cimi/contract` still parses through the adapter.
 - Locale changes create a new typed schema and retranslate visible form errors.
 
-For the contract package, keep tests focused on schema acceptance, rejection, output shape, and error-code metadata. Do not import web locale catalogs into contract tests.
+For the contract package, keep tests focused on schema acceptance, rejection, output shape, stable custom issue keys, and error-code metadata. Do not import web locale catalogs into contract tests.
 
 Run focused checks for the files changed. Use `vp check --fix <files>` for formatting, lint, and typechecking. Use the relevant package test command before the web build.
 
 ## Completion criteria
 
-The change is complete when every modified schema has a known consumer, every custom message has an explicit classification, locale selection remains parse-local, all changed locale keys have English coverage, and the relevant tests prove built-in messages, custom messages, stable keys, and field paths.
+The change is complete when every modified schema has a known consumer, every explicit contract custom message uses an owning `validation.*` registry leaf, locale selection remains parse-local, all registry leaves have English and French coverage, and the relevant tests prove built-in messages, custom messages, stable keys, and field paths.

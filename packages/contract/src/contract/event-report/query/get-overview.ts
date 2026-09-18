@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { isValidReportRange } from '../../../schema/index.ts'
+import { VALIDATION_KEYS, isValidReportRange } from '../../../schema/index.ts'
 import {
   areEventFiltersCompatibleWithKind,
   SEventOverview,
@@ -12,9 +12,9 @@ export const SEventOverviewInput = v.pipe(
   v.strictObject(v.entriesFromObjects([SEventSiteFields, SEventReportFieldsSchema])),
   v.check(
     (input) => areEventFiltersCompatibleWithKind(input),
-    'Event filters are incompatible with the selected Event Kind.',
+    VALIDATION_KEYS.contract.event.filtersCompatibleWithKind,
   ),
-  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
+  v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
 export type SEventOverviewInput = v.InferOutput<typeof SEventOverviewInput>
 export const SEventOverviewOutput = SEventOverview

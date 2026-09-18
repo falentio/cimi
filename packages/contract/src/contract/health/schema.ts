@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { SDateTime } from '../../schema/index.ts'
+import { SDateTime, VALIDATION_KEYS } from '../../schema/index.ts'
 
 export const SHealthStatus = v.picklist([
   'healthy',
@@ -53,7 +53,7 @@ const isAllowedHealthState = ({
 
 export const SHealth = v.pipe(
   SSystemHealthFields,
-  v.check(isAllowedHealthState, 'Health status and store states are not a valid combination.'),
+  v.check(isAllowedHealthState, VALIDATION_KEYS.contract.health.stateCoherent),
 )
 
 export const SSystemHealth = SHealth

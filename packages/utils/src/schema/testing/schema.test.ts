@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
-import { SHostname, SIanaTimezone, SId, SName, SWeekStart } from '../index.ts'
+import { SHostname, SIanaTimezone, SId, SName, SWeekStart, VALIDATION_KEYS } from '../index.ts'
 
 describe('shared utility schemas', () => {
   it('validates opaque IDs and bounded names strictly', () => {
@@ -21,5 +21,15 @@ describe('shared utility schemas', () => {
     expect(v.parse(SWeekStart, 'monday')).toBe('monday')
     expect(() => v.parse(SIanaTimezone, 'not/a-timezone')).toThrow(v.ValiError)
     expect(() => v.parse(SWeekStart, 'locale')).toThrow(v.ValiError)
+  })
+
+  it('emits the shared stable key for an invalid IANA timezone', () => {
+    const result = v.safeParse(SIanaTimezone, 'not/a-timezone')
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+
+    expect(VALIDATION_KEYS.shared.ianaTimezone).toBe('validation.shared.ianaTimezone')
+    expect(result.issues[0]?.message).toBe(VALIDATION_KEYS.shared.ianaTimezone)
   })
 })

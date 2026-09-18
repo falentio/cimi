@@ -20,6 +20,7 @@ import {
   SFilterOperator,
   SFilterValues,
   SName,
+  VALIDATION_KEYS,
   isValidReportRange,
 } from '../../schema/index.ts'
 
@@ -36,7 +37,7 @@ const SEventPropertyFilter = v.pipe(
   v.strictObject({ field: SScalarKey, operator: SFilterOperator, values: SFilterValues }),
   v.check(
     (input) => isCompatiblePropertyFilter(input),
-    'Event property filters require compatible typed values.',
+    VALIDATION_KEYS.contract.event.propertyFilterValuesCompatible,
   ),
 )
 const SEventMatchActionCommonFields = {
@@ -77,7 +78,7 @@ const SEventValueFilter = v.pipe(
       input.field.startsWith('property.')
         ? isCompatiblePropertyFilter(input)
         : isCompatibleDirectEventFilter(input),
-    'Event report filters require compatible typed values.',
+    VALIDATION_KEYS.contract.event.reportFilterValuesCompatible,
   ),
 )
 const SEventActionPresenceFilter = v.variant('operator', [
@@ -204,7 +205,7 @@ export const SEventOverview = v.pipe(
         toDate: input.toDate,
         comparison: input.comparison ?? undefined,
       }),
-    'Report output periods must be ordered.',
+    VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
 const SEventTimeseriesPeriod = v.strictObject(
@@ -240,12 +241,12 @@ export const SEventTimeseries = v.pipe(
         toDate: input.toDate,
         comparison: input.comparison ?? undefined,
       }),
-    'Report output periods must be ordered.',
+    VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
 const SEventOutputProperties = v.pipe(
   v.record(SScalarKey, SScalar),
-  v.check((value) => Object.keys(value).length <= 64, 'Expected at most 64 properties.'),
+  v.check((value) => Object.keys(value).length <= 64, VALIDATION_KEYS.contract.properties.maxCount),
 )
 const SEventOutputCommonFields = {
   eventId: SId,
