@@ -1,3 +1,4 @@
+import { SGoalCreateInput } from '@cimi/contract'
 import { toTypedSchema } from '@vee-validate/valibot'
 import * as v from 'valibot'
 import { shallowRef } from 'vue'
@@ -143,5 +144,41 @@ describe('useLocalizedValibotSchema', () => {
     expect(frenchResult.errors[0]?.errors).toEqual(['Message de validation français.'])
     expect(t).toHaveBeenCalledWith('validation.auth.email.invalid', { locale: 'en' })
     expect(t).toHaveBeenCalledWith('validation.auth.email.invalid', { locale: 'fr' })
+  })
+
+  it('passes the active locale to built-in Valibot messages', async () => {
+    const locale = shallowRef<'en' | 'fr'>('fr')
+
+    vi.stubGlobal('useI18n', () => ({
+      locale,
+      t: vi.fn(),
+      te: vi.fn(),
+    }))
+
+    const schema = useLocalizedValibotSchema(() => v.pipe(v.string(), v.email()))
+    const result = await schema.value.parse('invalid')
+
+    expect(result.errors?.[0]?.errors).toEqual(['Email invalide: reçu "invalid"'])
+  })
+
+  it('accepts a schema exported by @cimi/contract', async () => {
+    const locale = shallowRef<'en' | 'fr'>('en')
+
+    vi.stubGlobal('useI18n', () => ({
+      locale,
+      t: vi.fn(),
+      te: vi.fn(),
+    }))
+
+    const value = {
+      siteId: 'site-1',
+      name: 'Signup',
+      action: { kind: 'page_view' as const },
+      identityKind: 'visitor' as const,
+    }
+    const schema = useLocalizedValibotSchema(SGoalCreateInput)
+    const result = await schema.value.parse(value)
+
+    expect(result).toEqual({ value, errors: [] })
   })
 })
