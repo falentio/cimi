@@ -25,6 +25,11 @@ export default defineNuxtConfig({
   modules: ['@pinia/nuxt', '@pinia/colada-nuxt', 'shadcn-nuxt'],
   nitro: {
     preset: 'node-server',
+    esbuild: {
+      options: {
+        target: 'es2020',
+      },
+    },
     serverAssets: [
       {
         baseName: 'control-migrations',
