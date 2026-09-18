@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, watch } from 'vue'
-import { toTypedSchema } from '@vee-validate/valibot'
 import { useForm } from 'vee-validate'
 import type { AuthResult, SignInInput, SignUpInput } from '@/composables/useAuth'
 import {
@@ -10,6 +9,7 @@ import {
   loginSchema,
   signupSchema,
 } from '@/lib/auth-form'
+import { useLocalizedValibotSchema } from '@/composables/useLocalizedValibotSchema'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -92,8 +92,8 @@ const alternateLocation = computed(() => ({
   name: copy.value.alternateRoute,
   query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : undefined,
 }))
-const validationSchema = computed(() =>
-  toTypedSchema(props.mode === 'signup' ? signupSchema : loginSchema),
+const validationSchema = useLocalizedValibotSchema(() =>
+  props.mode === 'signup' ? signupSchema : loginSchema,
 )
 const { defineField, errors, handleSubmit, resetForm } = useForm<AuthFormValues>({
   initialValues: { name: '', email: '', password: '', passwordConfirmation: '' },
