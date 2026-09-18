@@ -20,6 +20,7 @@ import {
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { isRecord } from '@cimi/utils'
 import { api } from './orpc.ts'
+import { resolveRequestSourceIp } from './request-context.ts'
 import { createHello } from './resources/hello/index.ts'
 import {
   createInstallation,
@@ -103,7 +104,11 @@ export interface CreateApiAppDependencies {
   startRetentionCleanupWorker?: boolean | undefined
 }
 
-export type ApiApp = Hono & { close(): Promise<void> }
+export interface ApiBindings {
+  readonly transportPeerIp?: string | undefined
+}
+
+export type ApiApp = Hono<{ Bindings: ApiBindings }> & { close(): Promise<void> }
 
 const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
 
@@ -273,7 +278,6 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     lock,
     admission: trafficReport.admission,
     query: publicDashboardQuery,
-    trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
   })
   const eventReport = createEventReport({
     db: deps.db,
@@ -397,7 +401,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     ],
   })
 
-  const app = new Hono()
+  const app = new Hono<{ Bindings: ApiBindings }>()
   app.use(
     '*',
     honoLogger({
@@ -442,7 +446,15 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
 
     const { matched, response } = await openAPIHandler.handle(request, {
       prefix: '/api',
-      context: { user, headers: request.headers },
+      context: {
+        user,
+        headers: request.headers,
+        sourceIp: resolveRequestSourceIp({
+          headers: request.headers,
+          transportPeerIp: c.env?.transportPeerIp,
+          trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
+        }),
+      },
     })
     if (matched && response) {
       const publicResponse =

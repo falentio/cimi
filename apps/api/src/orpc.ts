@@ -7,6 +7,7 @@ import type { IngestionAdmission } from './health.ts'
 export interface ApiContext {
   user: AuthUser | undefined
   headers: Headers
+  sourceIp?: string | undefined
   admission?: IngestionAdmission | undefined
 }
 
@@ -34,7 +35,12 @@ export const api = implement({
 const authenticatedMiddleware = api.middleware(({ context, next }) => {
   assertAuthenticated(context.user)
   return next({
-    context: { user: context.user, headers: context.headers, admission: context.admission },
+    context: {
+      user: context.user,
+      headers: context.headers,
+      sourceIp: context.sourceIp,
+      admission: context.admission,
+    },
   })
 })
 
@@ -44,7 +50,12 @@ const adminMiddleware = api.middleware(({ context, next }) => {
   assertAuthenticated(context.user)
   assertIsAdmin(context.user)
   return next({
-    context: { user: context.user, headers: context.headers, admission: context.admission },
+    context: {
+      user: context.user,
+      headers: context.headers,
+      sourceIp: context.sourceIp,
+      admission: context.admission,
+    },
   })
 })
 

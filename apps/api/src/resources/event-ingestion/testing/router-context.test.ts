@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { extractRequestContext, trustedSourceIp } from '../../../request-context.ts'
+import {
+  extractRequestContext,
+  resolveRequestSourceIp,
+  trustedSourceIp,
+} from '../../../request-context.ts'
 
 function headersWith(entries: Record<string, string>): Headers {
   return new Headers(entries)
@@ -59,5 +63,49 @@ describe('extractRequestContext', () => {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
       isBot: false,
     })
+  })
+})
+
+describe('resolveRequestSourceIp', () => {
+  it('uses the transport peer when proxy headers are not trusted', () => {
+    expect(
+      resolveRequestSourceIp({
+        headers: headersWith({ 'x-forwarded-for': '198.51.100.7' }),
+        transportPeerIp: '192.0.2.10',
+      }),
+    ).toBe('192.0.2.10')
+  })
+
+  it('uses the trusted proxy source when configured', () => {
+    expect(
+      resolveRequestSourceIp({
+        headers: headersWith({ 'x-forwarded-for': '198.51.100.7' }),
+        transportPeerIp: '192.0.2.10',
+        trustProxyHeaders: true,
+      }),
+    ).toBe('198.51.100.7')
+  })
+
+  it('does not manufacture a shared fallback when no source is available', () => {
+    expect(resolveRequestSourceIp({ headers: headersWith({}) })).toBeUndefined()
+  })
+
+  it('falls back to the transport peer when trusted proxy headers are absent', () => {
+    expect(
+      resolveRequestSourceIp({
+        headers: headersWith({}),
+        transportPeerIp: '192.0.2.10',
+        trustProxyHeaders: true,
+      }),
+    ).toBe('192.0.2.10')
+  })
+
+  it('does not treat a blank transport peer as source context', () => {
+    expect(
+      resolveRequestSourceIp({
+        headers: headersWith({}),
+        transportPeerIp: '   ',
+      }),
+    ).toBeUndefined()
   })
 })

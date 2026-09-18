@@ -40,7 +40,6 @@ export interface CreatePublicDashboardDependencies {
   readonly identifiers?: {
     mint(): { readonly identifier: string; readonly hash: string }
   }
-  readonly trustProxyHeaders?: boolean | undefined
 }
 
 export function createPublicDashboard({
@@ -52,7 +51,6 @@ export function createPublicDashboard({
   scope,
   clock,
   identifiers,
-  trustProxyHeaders,
 }: CreatePublicDashboardDependencies) {
   const repository = new PublicDashboardRepositoryDrizzle({ db })
   const service = new PublicDashboardService({
@@ -68,7 +66,7 @@ export function createPublicDashboard({
   return {
     repository,
     service,
-    router: publicDashboardRouter(service, { trustProxyHeaders }),
+    router: publicDashboardRouter(service),
   }
 }
 

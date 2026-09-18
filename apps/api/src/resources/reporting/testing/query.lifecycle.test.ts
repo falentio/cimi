@@ -48,6 +48,39 @@ describe('ReportQueryKernel.lifecycle', () => {
 
     expect(deletionLease).toBeUndefined()
     expect(responseDeletionLease).toBeUndefined()
+    const deletionAfter = lifecycleLock.acquire('site_deletion')
+    expect(deletionAfter).toBeDefined()
+    await deletionAfter?.release()
+  })
+
+  it('completes while backup holds the compatible lifecycle lease', async () => {
+    const lifecycleLock = new InMemoryLifecycleLock()
+    const backupLease = lifecycleLock.acquire('backup')
+    const admission = createAdmission()
+    const query = createReportQueryKernel({
+      admission: admission.service,
+      lifecycleLock,
+      data: { read: async () => ({ events: [], sessions: [], activeProfiles: new Map() }) },
+    })
+
+    await expect(
+      query.run({
+        siteId: 'ste_1',
+        window: { fromDate: '2026-09-01', toDate: '2026-09-01' },
+        plan: async ({ prepare }) => ({
+          preparation: await prepare(),
+          coverage: ['event-occurrence'],
+          work: { extraMetricCount: 0, distinctCountOperations: 0 },
+          identityKindFor: () => 'visitor',
+          evaluate: () => 1,
+        }),
+        render: (run) => run,
+      }),
+    ).resolves.toMatchObject({ current: { value: 1 } })
+
+    expect(lifecycleLock.acquire('restore')).toBeUndefined()
+    await backupLease?.release()
+    expect(lifecycleLock.isLocked()).toBe(false)
   })
 
   it('fails closed when the shared lifecycle boundary is unavailable', async () => {
@@ -74,6 +107,39 @@ describe('ReportQueryKernel.lifecycle', () => {
 
     expect(admission.reads).toEqual({ readiness: 0, metadata: 0, evidence: 0 })
     await lifecycleLease.release()
+  })
+
+  it('releases the shared lifecycle lease when report execution fails', async () => {
+    const lifecycleLock = new InMemoryLifecycleLock()
+    const admission = createAdmission()
+    const query = createReportQueryKernel({
+      admission: admission.service,
+      lifecycleLock,
+      data: {
+        read: async () => {
+          throw new Error('read failed')
+        },
+      },
+    })
+
+    await expect(
+      query.run({
+        siteId: 'ste_1',
+        window: { fromDate: '2026-09-01', toDate: '2026-09-01' },
+        plan: async ({ prepare }) => ({
+          preparation: await prepare(),
+          coverage: ['event-occurrence'],
+          work: { extraMetricCount: 0, distinctCountOperations: 0 },
+          identityKindFor: () => 'visitor',
+          evaluate: () => 1,
+        }),
+        render: (run) => run,
+      }),
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
+
+    const deletionLease = lifecycleLock.acquire('site_deletion')
+    expect(deletionLease).toBeDefined()
+    await deletionLease?.release()
   })
 })
 
