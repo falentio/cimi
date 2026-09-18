@@ -10,6 +10,7 @@ import {
   signupSchema,
 } from '@/lib/auth-form'
 import { useLocalizedValibotSchema } from '@/composables/useLocalizedValibotSchema'
+import { localizeErrorMessage } from '@/utils/error-message'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -97,7 +98,7 @@ const copy = computed(() => copyByMode[props.mode])
 const feedbackMessage = computed(() => {
   const currentFeedback = feedback.value
   if (currentFeedback === null) return ''
-  if ('message' in currentFeedback) return currentFeedback.message
+  if ('message' in currentFeedback) return localizeErrorMessage(currentFeedback, t)
   return currentFeedback.values === undefined
     ? t(currentFeedback.messageKey)
     : t(currentFeedback.messageKey, currentFeedback.values)
@@ -187,7 +188,7 @@ function createSubmission(values: AuthFormValues): AuthSubmission {
 
 function feedbackForResult(result: AuthResult, mode: AuthMode): AuthFeedback {
   if (!result.ok) {
-    return { tone: 'error', message: result.error.message }
+    return { tone: 'error', code: result.error.code, message: result.error.message }
   }
 
   if (result.session === null) {
