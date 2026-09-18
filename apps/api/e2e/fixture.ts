@@ -111,15 +111,30 @@ export class E2ePollingTimeoutError extends Error {
   }
 }
 
-export type DatabaseManagementRouter = Pick<
+export type ApiE2eRouter = Pick<
   ApiRouter,
+  | 'health'
+  | 'hello'
   | 'installation'
   | 'backupRestore'
   | 'retentionPolicy'
   | 'collectionPolicy'
   | 'organization'
   | 'site'
+  | 'membership'
+  | 'invitation'
+  | 'eventIngestion'
+  | 'identityProfile'
+  | 'goal'
+  | 'funnel'
+  | 'cohortRetention'
+  | 'trafficReport'
+  | 'eventReport'
 >
+
+export interface E2eAnalyticsCapability {
+  rebuild(): Promise<void>
+}
 
 export interface E2eUser {
   readonly cookie: string
@@ -165,7 +180,7 @@ export interface DatabaseManagementFixtureOptions {
 
 export interface ApiE2eFixture {
   readonly app: ApiApp
-  readonly router: DatabaseManagementRouter
+  readonly router: ApiE2eRouter
   readonly paths: FileBackedPaths
   readonly rootDirectory: string
   readonly controlDatabasePath: string
@@ -174,6 +189,7 @@ export interface ApiE2eFixture {
   readonly ready: Promise<void>
   readonly faults: FaultController
   readonly state: FixtureStateTools
+  readonly analytics: E2eAnalyticsCapability
   createUser(email: string, name: string): Promise<E2eUser>
   unauthenticatedContext(): ApiContext
   waitFor<T>(options: PollOptions<T>): Promise<T>
@@ -697,6 +713,12 @@ export async function createApiE2eFixture(
     },
     faults,
     state,
+    analytics: {
+      async rebuild() {
+        const generation = requireOpenForMutation()
+        await generation.analytics.rebuild({ controlDb: generation.db })
+      },
+    },
     async createUser(email, name) {
       const generation = requireGeneration()
       const signedUp = await signUpTestUser(generation.app, email, name)
@@ -912,10 +934,11 @@ function interruptedOperationState(input: InterruptedState): {
   readonly installationCheckpoint: 'none' | 'sqlite_captured' | 'duckdb_rebuilt'
 } {
   if (input.kind === 'upgrade') {
+    const duckdbRebuilt = input.checkpoint === 'duckdb_rebuilt'
     return {
       status: 'creating',
-      phase: 'capturing_sqlite',
-      progress: input.checkpoint === 'none' ? 0 : 0.5,
+      phase: duckdbRebuilt ? 'rebuilding_duckdb' : 'capturing_sqlite',
+      progress: input.checkpoint === 'none' ? 0 : duckdbRebuilt ? 0.9 : 0.5,
       checkpoint: input.checkpoint,
       controlReadiness: 'ready',
       analyticsReadiness: 'ready',

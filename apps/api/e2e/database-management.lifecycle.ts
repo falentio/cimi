@@ -53,7 +53,7 @@ export async function waitForInstallationTerminal(
         {},
         { context: await admin.context() },
       ),
-    done: (value) => value.status === expected || value.status === 'degraded',
+    done: (value) => value.status === expected,
     label: `installation ${expected}`,
   })
 }
