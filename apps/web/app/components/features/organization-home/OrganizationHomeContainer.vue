@@ -15,6 +15,7 @@ import {
 import CreateSiteDialog from './CreateSiteDialog.vue'
 import OrganizationSiteList from './OrganizationSiteList.vue'
 import type { OrganizationSiteCreationResult } from './useOrganizationSiteCreation'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   state: OrganizationHomeState
@@ -25,6 +26,7 @@ const retrying = shallowRef(false)
 const createSiteOpen = shallowRef(false)
 const { isMobile, setOpen, setOpenMobile } = useSidebar()
 const router = useRouter()
+const localizeError = useLocalizedErrorMessage()
 
 const readyState = computed(() => (props.state.kind === 'ready' ? props.state : undefined))
 
@@ -101,7 +103,7 @@ async function handleSiteCreated(site: OrganizationSiteCreationResult): Promise<
     <Alert v-else-if="state.kind === 'error'" variant="destructive">
       <HugeiconsIcon :icon="AlertCircleIcon" aria-hidden="true" />
       <AlertTitle><h2>Workspace data could not be loaded</h2></AlertTitle>
-      <AlertDescription class="break-words">{{ state.error.message }}</AlertDescription>
+      <AlertDescription class="break-words">{{ localizeError(state.error) }}</AlertDescription>
       <Button class="mt-3" size="sm" variant="outline" :disabled="retrying" @click="retry">
         <Spinner v-if="retrying" aria-hidden="true" />
         {{ retrying ? 'Retrying…' : 'Retry' }}

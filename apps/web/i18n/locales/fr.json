@@ -55,5 +55,28 @@
         "mismatch": "Les mots de passe ne correspondent pas."
       }
     }
+  },
+  "errors": {
+    "UNAUTHORIZED": "Authentification requise.",
+    "FORBIDDEN": "Vous n'avez pas l'autorisation d'effectuer cette opération.",
+    "NOT_FOUND": "La ressource demandée est introuvable.",
+    "BAD_REQUEST": "La requête est invalide.",
+    "CONFLICT": "L'opération est en conflit avec l'état actuel.",
+    "OWNER_PROTECTED": "Le propriétaire de l'organisation est protégé contre cette opération.",
+    "ORGANIZATION_NOT_EMPTY": "L'organisation possède encore des sites ou des membres.",
+    "PERSONAL_ORGANIZATION_PROTECTED": "L'organisation personnelle ne peut pas être supprimée.",
+    "INVITATION_CONSUMED": "L'invitation a déjà été utilisée.",
+    "QUERY_LIMIT_EXCEEDED": "La requête demandée dépasse les ressources disponibles.",
+    "INCOMPATIBLE_BACKUP": "La sauvegarde n'est pas compatible avec cette installation.",
+    "BACKUP_FAILED": "L'opération de sauvegarde a échoué sans risque.",
+    "UPGRADE_FAILED": "La mise à niveau a échoué sans risque.",
+    "PAYLOAD_TOO_LARGE": "La charge utile de la requête est trop volumineuse.",
+    "TOO_MANY_REQUESTS": "Trop de requêtes.",
+    "SERVICE_UNAVAILABLE": "Le service est temporairement indisponible.",
+    "INSUFFICIENT_STORAGE": "Le stockage configuré ne peut pas terminer cette opération.",
+    "INTERNAL_SERVER_ERROR": "L'opération n'a pas pu être terminée en toute sécurité.",
+    "RESTORE_FAILED": "La restauration a échoué sans risque.",
+    "RETENTION_FAILED": "La rétention a échoué sans risque.",
+    "CLEANUP_FAILED": "Le nettoyage a échoué sans risque."
   }
 }

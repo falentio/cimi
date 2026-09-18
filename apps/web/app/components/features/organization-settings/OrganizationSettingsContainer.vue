@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Spinner } from '@/components/ui/spinner'
 import { useSidebar } from '@/components/ui/sidebar'
 import type { OrganizationSettingsSnapshot } from './organization-settings.types'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   snapshot: OrganizationSettingsSnapshot
@@ -17,6 +18,7 @@ const props = defineProps<{
 const retrying = shallowRef(false)
 const { toggleSidebar } = useSidebar()
 const route = useRoute()
+const localizeError = useLocalizedErrorMessage()
 
 type SettingsSectionLink = {
   readonly label: string
@@ -118,7 +120,7 @@ async function retry(): Promise<void> {
     <Alert v-else-if="snapshot.organization === undefined && snapshot.error" variant="destructive">
       <HugeiconsIcon :icon="AlertCircleIcon" aria-hidden="true" />
       <AlertTitle>Settings could not be loaded</AlertTitle>
-      <AlertDescription>{{ snapshot.error.message }}</AlertDescription>
+      <AlertDescription>{{ localizeError(snapshot.error) }}</AlertDescription>
       <Button class="mt-3" size="sm" variant="outline" :disabled="retrying" @click="retry">
         {{ retrying ? 'Retrying…' : 'Retry' }}
       </Button>

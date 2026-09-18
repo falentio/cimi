@@ -18,6 +18,7 @@ import type {
   OrganizationNameInput,
   SettingsError,
 } from './organization-settings.types'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   organization: Organization
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 
 const organizationName = shallowRef('')
 const hasSubmitted = shallowRef(false)
+const localizeError = useLocalizedErrorMessage()
 
 watch(
   () => props.organization.name,
@@ -100,7 +102,7 @@ async function submit(): Promise<void> {
             {{ nameError }}
           </FieldError>
         </Field>
-        <FieldError v-if="error" role="alert">{{ error.message }}</FieldError>
+        <FieldError v-if="error" role="alert">{{ localizeError(error) }}</FieldError>
         <Button class="self-start" :disabled="isSaving" type="submit">
           <Spinner v-if="isSaving" aria-hidden="true" />
           {{ isSaving ? 'Saving…' : 'Save changes' }}

@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { OrganizationSettingsSnapshot } from './organization-settings.types'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   snapshot: OrganizationSettingsSnapshot
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 
 const confirmationOpen = shallowRef(false)
 const action = computed(() => (props.snapshot.isOwner ? 'delete' : 'leave'))
+const localizeError = useLocalizedErrorMessage()
 
 function confirmAction(): void {
   confirmationOpen.value = false
@@ -50,7 +52,7 @@ function confirmAction(): void {
           </AlertDescription>
         </Alert>
         <p v-if="snapshot.error" class="text-destructive text-sm" role="alert">
-          {{ snapshot.error.message }}
+          {{ localizeError(snapshot.error) }}
         </p>
         <Button
           class="self-start"
