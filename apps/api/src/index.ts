@@ -8,7 +8,7 @@ import { ERROR_CATALOG, isProfileTraitsPayloadOversized } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
-import { getLogger, toLogError, type LoggingConfig } from '@cimi/logging'
+import { getLogger, toLogError, withContext, type LoggingConfig } from '@cimi/logging'
 import { configureNodeLogging } from '@cimi/logging/node'
 import {
   InMemoryLifecycleLock,
@@ -98,7 +98,12 @@ export interface CreateApiAppDependencies {
   startRetentionCleanupWorker?: boolean | undefined
 }
 
-export type ApiApp = Hono & { close(): Promise<void> }
+export type ApiApp = Hono<{ Variables: ApiContextVariables }> & { close(): Promise<void> }
+
+type ApiContextVariables = {
+  requestId: string
+  userId: string | undefined
+}
 
 const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
 
@@ -383,12 +388,23 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     ],
   })
 
-  const app = new Hono()
+  const app = new Hono<{ Variables: ApiContextVariables }>()
   app.use(
     '*',
     honoLogger({
       category: ['cimi', 'api', 'http'],
-      format: 'structured-combined',
+      format: (c, responseTime) => ({
+        requestId: c.get('requestId'),
+        method: c.req.method,
+        url: c.req.url,
+        path: c.req.path,
+        status: c.res.status,
+        responseTime,
+        contentLength: c.res.headers.get('content-length') ?? undefined,
+        userAgent: c.req.header('user-agent'),
+        referrer: c.req.header('referer'),
+        ...(c.get('userId') === undefined ? {} : { userId: c.get('userId') }),
+      }),
       context: true,
     }),
   )
@@ -426,10 +442,18 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       )
     }
 
-    const { matched, response } = await openAPIHandler.handle(request, {
-      prefix: '/api',
-      context: { user, headers: request.headers },
-    })
+    if (user !== undefined) c.set('userId', user.id)
+    const { matched, response } = await (user === undefined
+      ? openAPIHandler.handle(request, {
+          prefix: '/api',
+          context: { user, headers: request.headers },
+        })
+      : withContext({ userId: user.id }, () =>
+          openAPIHandler.handle(request, {
+            prefix: '/api',
+            context: { user, headers: request.headers },
+          }),
+        ))
     if (matched && response) return response
     return new Response('Not Found', { status: 404 })
   })

@@ -4,11 +4,13 @@ import {
   getConfig,
   getJsonLinesFormatter,
   getLogger,
+  withContext,
   type Config,
 } from '@logtape/logtape'
 import { DEFAULT_LOG_LEVEL, type LogLevel, type LoggingConfig } from './level.ts'
 
 export { getLogger }
+export { withContext }
 export { type LogLevel, type LoggingConfig } from './level.ts'
 
 export interface LogError {
