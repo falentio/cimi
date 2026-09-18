@@ -56,6 +56,8 @@ type QueryInput = InferOutput<typeof SPublicDashboardQueryInput>
 type QueryOutput = InferOutput<typeof SPublicDashboardQueryOutput>
 
 export class PublicDashboardService {
+  private static readonly CACHE_TTL_MS = 300_000
+  private static readonly MAX_CACHE_ENTRIES = 1_024
   private readonly clock: () => Date
   private readonly identifiers: PublicDashboardIdentifierFactory
   private readonly rateLimiter: PublicDashboardRateLimiter
@@ -122,10 +124,10 @@ export class PublicDashboardService {
     return config
   }
 
-  async query(input: QueryInput, sourceIp = 'unknown'): Promise<QueryOutput> {
+  async query(input: QueryInput, sourceIp: string): Promise<QueryOutput> {
     let lease: LifecycleLease | undefined
     try {
-      lease = await this.deps.lock.acquire('ingestion')
+      lease = await this.deps.lock.acquire('analytics-read')
       if (lease === undefined) {
         await this.resolveCurrent(input.publicDashboardIdentifier)
         throw toOrpcReportingError(serviceUnavailable('lifecycle-locked'))
@@ -177,8 +179,10 @@ export class PublicDashboardService {
         filters: input.filters ?? [],
         period: prepared.query.period,
       })
+      const now = this.clock().getTime()
       const cached = this.cache.get(cacheKey)
-      if (cached !== undefined && cached.expiresAt > this.clock().getTime()) return cached.output
+      if (cached !== undefined && cached.expiresAt > now) return cached.output
+      if (cached !== undefined) this.cache.delete(cacheKey)
 
       const aggregate = await planner.execute(prepared)
       const output: QueryOutput = {
@@ -194,7 +198,16 @@ export class PublicDashboardService {
                 return bucket
               }),
       }
-      this.cache.set(cacheKey, { expiresAt: this.clock().getTime() + 300_000, output })
+      const cachedAt = this.clock().getTime()
+      this.evictExpiredCacheEntries(cachedAt)
+      if (this.cache.size >= PublicDashboardService.MAX_CACHE_ENTRIES) {
+        const oldestKey = this.cache.keys().next().value
+        if (oldestKey !== undefined) this.cache.delete(oldestKey)
+      }
+      this.cache.set(cacheKey, {
+        expiresAt: cachedAt + PublicDashboardService.CACHE_TTL_MS,
+        output,
+      })
       return output
     } finally {
       await lease?.release()
@@ -204,6 +217,12 @@ export class PublicDashboardService {
   private async assertCanManage(siteId: string, user: AuthUser | undefined): Promise<void> {
     await assertSiteManagementScope(user, siteId, this.deps.scope)
     if (!(await this.deps.scope.siteScope.isActive(siteId))) throw new ORPCError('NOT_FOUND')
+  }
+
+  private evictExpiredCacheEntries(now: number): void {
+    for (const [key, entry] of this.cache) {
+      if (entry.expiresAt <= now) this.cache.delete(key)
+    }
   }
 
   private async withConfigurationLock<T>(work: () => Promise<T>): Promise<T> {

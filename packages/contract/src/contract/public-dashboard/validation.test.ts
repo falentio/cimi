@@ -8,6 +8,7 @@ import {
   SPublicRateLimitAdapterResponse,
   SPublicUtcDateTime,
 } from './schema.ts'
+import { publicDashboard } from './index.ts'
 
 describe('public dashboard contract', () => {
   it('keeps interval and dimension row budgets separate', () => {
@@ -90,5 +91,24 @@ describe('public dashboard contract', () => {
         'x-ratelimit-scope': 'site',
       },
     }).toEqual(expect.schemaMatching(SPublicRateLimitAdapterResponse))
+  })
+
+  it('uses Site-scoped authorization and analytics-read admission metadata', () => {
+    expect(publicDashboard.getPublicDashboardConfig['~orpc'].meta).toMatchObject({
+      auth: 'authenticated',
+    })
+    expect(publicDashboard.enablePublicDashboard['~orpc'].meta).toMatchObject({
+      auth: 'authenticated',
+    })
+    expect(publicDashboard.disablePublicDashboard['~orpc'].meta).toMatchObject({
+      auth: 'authenticated',
+    })
+    expect(publicDashboard.rotatePublicDashboardIdentifier['~orpc'].meta).toMatchObject({
+      auth: 'authenticated',
+    })
+    expect(publicDashboard.queryPublicDashboard['~orpc'].meta).toMatchObject({
+      auth: 'public',
+      admission: 'analytics-read',
+    })
   })
 })

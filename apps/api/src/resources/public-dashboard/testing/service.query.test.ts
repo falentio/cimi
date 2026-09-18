@@ -120,14 +120,17 @@ describe('PublicDashboardService.query', () => {
     })
 
     await expect(
-      service.query({
-        publicDashboardIdentifier: 'public-1',
-        fromDate: '2026-09-01',
-        toDate: '2026-09-01',
-        granularity: 'hour',
-        metric: 'visitors',
-        dimension: 'time',
-      }),
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
     ).resolves.toMatchObject({
       buckets: [
         { key: '2026-09-01T00:00:00Z', at: '1970-01-01T00:00:00.000Z', value: 7 },
@@ -159,14 +162,17 @@ describe('PublicDashboardService.query', () => {
     })
 
     await expect(
-      service.query({
-        publicDashboardIdentifier: 'public-1',
-        fromDate: '2026-09-01',
-        toDate: '2026-09-01',
-        granularity: 'hour',
-        metric: 'visitors',
-        dimension: 'time',
-      }),
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
 
@@ -184,14 +190,17 @@ describe('PublicDashboardService.query', () => {
     })
 
     await expect(
-      service.query({
-        publicDashboardIdentifier: 'public-1',
-        fromDate: '2026-09-01',
-        toDate: '2026-09-01',
-        granularity: 'hour',
-        metric: 'visitors',
-        dimension: 'time',
-      }),
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
@@ -215,14 +224,17 @@ describe('PublicDashboardService.query', () => {
     })
 
     await expect(
-      service.query({
-        publicDashboardIdentifier: 'public-1',
-        fromDate: '2026-09-01',
-        toDate: '2026-09-01',
-        granularity: 'hour',
-        metric: 'visitors',
-        dimension: 'time',
-      }),
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
     ).resolves.toMatchObject({
       buckets: [
         { key: '2026-09-01T00:00:00Z', value: null },
@@ -251,27 +263,30 @@ describe('PublicDashboardService.query', () => {
     })
 
     await expect(
-      service.query({
-        publicDashboardIdentifier: 'public-1',
-        fromDate: '2026-09-01',
-        toDate: '2026-09-01',
-        granularity: 'hour',
-        metric: 'visitors',
-        dimension: 'time',
-        filters: [
-          {
-            scope: 'event',
-            field: 'pagePath',
-            operator: 'equals',
-            values: ['/pricing?email=private@example.com'],
-          },
-        ],
-      }),
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+          filters: [
+            {
+              scope: 'event',
+              field: 'pagePath',
+              operator: 'equals',
+              values: ['/pricing?email=private@example.com'],
+            },
+          ],
+        },
+        '203.0.113.10',
+      ),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(admission.requests).toHaveLength(0)
   })
 
-  it('holds the ingestion read lease for the complete public analytics read', async () => {
+  it('holds the analytics read lease for the complete public analytics read', async () => {
     const repository = mock<PublicDashboardRepository>()
     repository.findByIdentifierHash.mockResolvedValue({
       siteId: 'ste_1',
@@ -284,7 +299,8 @@ describe('PublicDashboardService.query', () => {
     let releaseCount = 0
     const lock: LifecycleLock = {
       acquire: () => ({
-        kind: 'ingestion',
+        kind: 'analytics-read',
+        mode: 'shared-read',
         release: () => {
           releaseCount += 1
         },
@@ -301,16 +317,103 @@ describe('PublicDashboardService.query', () => {
     })
 
     await expect(
-      service.query({
-        publicDashboardIdentifier: 'public-1',
-        fromDate: '2026-09-01',
-        toDate: '2026-09-01',
-        granularity: 'hour',
-        metric: 'visitors',
-        dimension: 'time',
-      }),
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
     ).resolves.toBeDefined()
     expect(releaseCount).toBe(1)
+  })
+
+  it('completes a public analytics read while backup is active', async () => {
+    const repository = mock<PublicDashboardRepository>()
+    repository.findByIdentifierHash.mockResolvedValue({
+      siteId: 'ste_1',
+      enabled: true,
+      publicDashboardIdentifier: 'public-1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const admission = createAdmission()
+    const query = createQuery()
+    const lock = new InMemoryLifecycleLock()
+    const backupLease = lock.acquire('backup')
+    const service = new PublicDashboardService({
+      repository,
+      admission: admission.port,
+      query: query.port,
+      lock,
+      scope: { siteScope: {} as never, membership: {} as never },
+      clock: () => new Date('2026-09-01T00:00:00.000Z'),
+    })
+
+    await expect(
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
+    ).resolves.toBeDefined()
+
+    expect(lock.acquire('restore')).toBeUndefined()
+    await backupLease?.release()
+  })
+
+  it('releases the analytics read lease when query execution fails', async () => {
+    const repository = mock<PublicDashboardRepository>()
+    repository.findByIdentifierHash.mockResolvedValue({
+      siteId: 'ste_1',
+      enabled: true,
+      publicDashboardIdentifier: 'public-1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const admission = createAdmission()
+    const query: PublicDashboardQueryPort = {
+      countDimensionValues: async () => 0,
+      countDistinctVisitors: async () => 5,
+      aggregate: async () => {
+        throw new Error('aggregate failed')
+      },
+    }
+    const lock = new InMemoryLifecycleLock()
+    const service = new PublicDashboardService({
+      repository,
+      admission: admission.port,
+      query,
+      lock,
+      scope: { siteScope: {} as never, membership: {} as never },
+      clock: () => new Date('2026-09-01T00:00:00.000Z'),
+    })
+
+    await expect(
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
+
+    const deletionLease = lock.acquire('site_deletion')
+    expect(deletionLease).toBeDefined()
+    await deletionLease?.release()
   })
 
   it('resolves the identifier before serving a cached response after revocation', async () => {
@@ -342,8 +445,8 @@ describe('PublicDashboardService.query', () => {
       dimension: 'time' as const,
     }
 
-    await expect(service.query(input)).resolves.toBeDefined()
-    await expect(service.query(input)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(service.query(input, '203.0.113.10')).resolves.toBeDefined()
+    await expect(service.query(input, '203.0.113.10')).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(query.aggregateCalls).toBe(1)
   })
 
@@ -378,14 +481,17 @@ describe('PublicDashboardService.query', () => {
     })
 
     await expect(
-      service.query({
-        publicDashboardIdentifier: 'public-1',
-        fromDate: '2026-09-01',
-        toDate: '2026-09-01',
-        granularity: 'hour',
-        metric: 'visitors',
-        dimension: 'time',
-      }),
+      service.query(
+        {
+          publicDashboardIdentifier: 'public-1',
+          fromDate: '2026-09-01',
+          toDate: '2026-09-01',
+          granularity: 'hour',
+          metric: 'visitors',
+          dimension: 'time',
+        },
+        '203.0.113.10',
+      ),
     ).rejects.toMatchObject({
       code: 'TOO_MANY_REQUESTS',
       data: {
@@ -399,5 +505,119 @@ describe('PublicDashboardService.query', () => {
         },
       },
     })
+  })
+
+  it('passes the resolved source IP to the rate limiter', async () => {
+    const repository = mock<PublicDashboardRepository>()
+    repository.findByIdentifierHash.mockResolvedValue({
+      siteId: 'ste_1',
+      enabled: true,
+      publicDashboardIdentifier: 'public-1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const sourceIps: string[] = []
+    const service = new PublicDashboardService({
+      repository,
+      admission: createAdmission().port,
+      query: createQuery().port,
+      lock: new InMemoryLifecycleLock(),
+      rateLimiter: { consume: ({ sourceIp }) => sourceIps.push(sourceIp) },
+      scope: { siteScope: {} as never, membership: {} as never },
+      clock: () => new Date('2026-09-01T00:00:00.000Z'),
+    })
+
+    await service.query(
+      {
+        publicDashboardIdentifier: 'public-1',
+        fromDate: '2026-09-01',
+        toDate: '2026-09-01',
+        granularity: 'hour',
+        metric: 'visitors',
+        dimension: 'time',
+      },
+      '203.0.113.10',
+    )
+
+    expect(sourceIps).toEqual(['203.0.113.10'])
+  })
+
+  it('deletes an expired cached query before serving it', async () => {
+    const repository = mock<PublicDashboardRepository>()
+    repository.findByIdentifierHash.mockResolvedValue({
+      siteId: 'ste_1',
+      enabled: true,
+      publicDashboardIdentifier: 'public-1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const admission = createAdmission()
+    const query = createQuery()
+    let now = new Date('2026-09-01T00:00:00.000Z')
+    const service = new PublicDashboardService({
+      repository,
+      admission: admission.port,
+      query: query.port,
+      lock: new InMemoryLifecycleLock(),
+      rateLimiter: { consume: () => undefined },
+      scope: { siteScope: {} as never, membership: {} as never },
+      clock: () => now,
+    })
+    const input = {
+      publicDashboardIdentifier: 'public-1',
+      fromDate: '2026-09-01',
+      toDate: '2026-09-01',
+      granularity: 'hour' as const,
+      metric: 'visitors' as const,
+      dimension: 'time' as const,
+    }
+
+    await service.query(input, '203.0.113.10')
+    now = new Date(now.getTime() + 300_000)
+    await service.query(input, '203.0.113.10')
+
+    expect(query.aggregateCalls).toBe(2)
+  })
+
+  it('evicts the oldest cached query when the cache reaches its bound', async () => {
+    const repository = mock<PublicDashboardRepository>()
+    repository.findByIdentifierHash.mockResolvedValue({
+      siteId: 'ste_1',
+      enabled: true,
+      publicDashboardIdentifier: 'public-1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const admission = createAdmission()
+    const query = createQuery()
+    const service = new PublicDashboardService({
+      repository,
+      admission: admission.port,
+      query: query.port,
+      lock: new InMemoryLifecycleLock(),
+      rateLimiter: { consume: () => undefined },
+      scope: { siteScope: {} as never, membership: {} as never },
+      clock: () => new Date('2026-09-01T00:00:00.000Z'),
+    })
+    const input = (index: number) => ({
+      publicDashboardIdentifier: 'public-1',
+      fromDate: '2026-09-01',
+      toDate: '2026-09-01',
+      granularity: 'hour' as const,
+      metric: 'visitors' as const,
+      dimension: 'time' as const,
+      filters: [
+        {
+          scope: 'event' as const,
+          field: 'pagePath' as const,
+          operator: 'equals' as const,
+          values: [`/page-${index}`],
+        },
+      ],
+    })
+
+    for (let index = 0; index <= 1024; index += 1) {
+      await service.query(input(index), '203.0.113.10')
+    }
+    await service.query(input(0), '203.0.113.10')
+
+    expect(query.aggregateCalls).toBe(1026)
   })
 })
