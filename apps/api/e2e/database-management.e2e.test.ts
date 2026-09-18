@@ -338,6 +338,28 @@ test('holds a real upgrade, exposes accepted state, and preserves operation owne
   expect(completed.activeOperation).toBeNull()
 })
 
+test('cancels a held operation before closing its databases', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('teardown-admin@example.com', 'Teardown Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const gate = fixture.faults.hold({ domain: 'upgrade', stage: 'migrate' })
+  await call(
+    fixture.router.installation.upgradeInstallation,
+    { confirmation: 'UPGRADE' },
+    { context: await admin.context() },
+  )
+  await gate.entered
+
+  const root = fixture.rootDirectory
+  await fixture.close()
+
+  expect(existsSync(root)).toBe(false)
+})
+
 test('reaches degraded upgrade state through real migration-history validation and retries after repair', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('migration-admin@example.com', 'Migration Admin')
@@ -785,13 +807,17 @@ test('recovers interrupted backup and restore operations after reopening files',
 
 test('closes resources before removing the root and makes disposal idempotent', async () => {
   const fixture = await createApiE2eFixture()
-  const root = fixture.rootDirectory
-  expect(existsSync(fixture.controlDatabasePath)).toBe(true)
-  expect(existsSync(fixture.paths.analyticsDatabasePath)).toBe(true)
-  await fixture.close()
-  await fixture.close()
-  expect(existsSync(root)).toBe(false)
-  await expect(fixture.restart()).rejects.toThrow('closed')
+  try {
+    const root = fixture.rootDirectory
+    expect(existsSync(fixture.controlDatabasePath)).toBe(true)
+    expect(existsSync(fixture.paths.analyticsDatabasePath)).toBe(true)
+    await fixture.close()
+    await fixture.close()
+    expect(existsSync(root)).toBe(false)
+    await expect(fixture.restart()).rejects.toThrow('closed')
+  } finally {
+    await fixture.close()
+  }
 })
 
 test('reports the last lifecycle state and operation identity on polling timeout', async () => {

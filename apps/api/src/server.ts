@@ -65,21 +65,29 @@ export async function createApiServerApp(
 
       return Object.assign(app, {
         close(): Promise<void> {
-          closePromise ??= closeResources()
+          if (closePromise !== undefined) return closePromise
+          closePromise = closeResources().catch((error: unknown) => {
+            closePromise = undefined
+            throw error
+          })
           return closePromise
         },
       })
 
       async function closeResources(): Promise<void> {
+        await closeApiApp()
+        const failures: unknown[] = []
         try {
-          await closeApiApp()
-        } finally {
-          try {
-            await analytics.close()
-          } finally {
-            closeDb(db)
-          }
+          await analytics.close()
+        } catch (error) {
+          failures.push(error)
         }
+        try {
+          closeDb(db)
+        } catch (error) {
+          failures.push(error)
+        }
+        if (failures.length > 0) throw new AggregateError(failures, 'API server shutdown failed')
       }
     } catch (error) {
       try {

@@ -25,3 +25,16 @@ test('resumes an upgrade from a completed analytics checkpoint without rerunning
     activeOperation: null,
   })
 })
+
+test('serializes overlapping stop and restart transitions', async () => {
+  await using fixture = await createApiE2eFixture()
+  const firstGeneration = fixture.generation
+
+  const stopping = fixture.stop()
+  const restarting = fixture.restart()
+
+  await expect(stopping).resolves.toBeUndefined()
+  await expect(restarting).resolves.toBeUndefined()
+  expect(fixture.generation).toBeGreaterThan(firstGeneration)
+  await fixture.ready
+})

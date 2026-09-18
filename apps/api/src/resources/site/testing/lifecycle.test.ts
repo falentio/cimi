@@ -112,6 +112,22 @@ describe('SiteLifecycleWorker', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
+  it('ignores an interval callback queued before stopping', async () => {
+    const { repository, worker } = createWorker()
+    const interval = vi.spyOn(globalThis, 'setInterval')
+
+    worker.start()
+    const callback = interval.mock.calls.at(-1)?.[0]
+    if (typeof callback !== 'function') throw new Error('Expected an interval callback')
+
+    await worker.stop()
+    callback()
+    await Promise.resolve()
+
+    expect(repository.findPendingLifecycleOperations).toHaveBeenCalledTimes(1)
+    interval.mockRestore()
+  })
+
   it('waits for an in-flight run when stopping', async () => {
     const { repository, worker } = createWorker()
     let release!: () => void

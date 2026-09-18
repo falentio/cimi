@@ -45,6 +45,7 @@ export class RetentionCleanupWorker {
   private readonly intervalMs: number
   private readonly onError: (error: unknown) => void
   private timer: ReturnType<typeof setInterval> | undefined
+  private timerGeneration = 0
   private runPromise: Promise<void> | undefined
 
   constructor({
@@ -79,7 +80,9 @@ export class RetentionCleanupWorker {
 
   start(): void {
     if (this.timer !== undefined) return
+    const timerGeneration = ++this.timerGeneration
     this.timer = setInterval(() => {
+      if (this.timerGeneration !== timerGeneration) return
       void this.runOnce()
     }, this.intervalMs)
     this.timer.unref?.()
@@ -90,6 +93,7 @@ export class RetentionCleanupWorker {
     if (this.timer !== undefined) {
       clearInterval(this.timer)
       this.timer = undefined
+      this.timerGeneration += 1
     }
     await this.runPromise
   }

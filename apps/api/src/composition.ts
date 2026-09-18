@@ -10,6 +10,7 @@ import {
 } from '@cimi/kernel'
 import { api } from './orpc.ts'
 import { systemHealthHandler, type HealthLifecycle } from './health.ts'
+import { createShutdownCoordinator } from './lifecycle/shutdown-coordinator.ts'
 import { createHello } from './resources/hello/index.ts'
 import {
   createInstallation,
@@ -84,6 +85,7 @@ export interface CreateApiAppDependencies {
 export interface ApiComposition {
   readonly router: ApiRouter
   readonly lifecycle: HealthLifecycle
+  /** Resolves after startup barriers settle, not after a long-running recovery reaches terminal state. */
   readonly ready: Promise<void>
   close(): Promise<void>
 }
@@ -144,9 +146,6 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lock,
     onPurgedSite: ({ siteId }) => deps.analytics.purgeSite({ siteId }),
   })
-  siteLifecycleWorker.start()
-  const siteLifecycleStartup = siteLifecycleWorker.runOnce()
-  const installationStartup = installation.service.resumeOnStartup().catch(() => undefined)
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
   const retentionPolicy = createRetentionPolicy({
     db: deps.db,
@@ -201,10 +200,6 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     }),
   )
   let retentionCleanupStartup = Promise.resolve()
-  if (deps.startRetentionCleanupWorker !== false) {
-    retentionPolicy.worker.start()
-    retentionCleanupStartup = retentionPolicy.worker.runOnce()
-  }
   const backupRestore = createBackupRestore({
     db: deps.db,
     analytics: deps.analytics,
@@ -217,11 +212,6 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
   })
-  const backupRestoreStartup = installationStartup
-    .then(() => backupRestore.service.start())
-    .catch(() => undefined)
-  backupRestore.worker.start()
-  const backupCleanupStartup = backupRestore.worker.runOnce()
   const lifecycle: HealthLifecycle = {
     async getSnapshot() {
       const installationSnapshot = deps.lifecycle
@@ -307,6 +297,17 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     trafficReport,
     eventReport,
   })
+  siteLifecycleWorker.start()
+  const siteLifecycleStartup = siteLifecycleWorker.runOnce()
+  const installationStartup = installation.service.resumeOnStartup()
+  if (deps.startRetentionCleanupWorker !== false) {
+    retentionPolicy.worker.start()
+    retentionCleanupStartup = retentionPolicy.worker.runOnce()
+  }
+  const backupRestoreStartup = installationStartup.then(() => backupRestore.service.start())
+  backupRestore.worker.start()
+  const backupCleanupStartup = backupRestore.worker.runOnce()
+  const startupShutdownBarrier = Promise.allSettled([installationStartup, backupRestoreStartup])
   const ready = Promise.all([
     siteLifecycleStartup,
     installationStartup,
@@ -314,26 +315,43 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     backupRestoreStartup,
     backupCleanupStartup,
   ]).then(() => undefined)
-  let closePromise: Promise<void> | undefined
+  void ready.catch(() => undefined)
+  const shutdown = createShutdownCoordinator([
+    {
+      label: 'retention cleanup worker',
+      close: () => retentionPolicy.worker.stop(),
+    },
+    {
+      label: 'event ingestion service',
+      close: () => eventIngestion.service.stop(),
+    },
+    {
+      label: 'site lifecycle worker',
+      close: () => siteLifecycleWorker.stop(),
+    },
+    {
+      label: 'startup barriers',
+      close: () => startupShutdownBarrier.then(() => undefined),
+    },
+    {
+      label: 'backup restore cleanup worker',
+      close: () => backupRestore.worker.stop(),
+    },
+    {
+      label: 'backup restore service',
+      close: () => backupRestore.service.stop(),
+    },
+    {
+      label: 'installation service',
+      close: () => installation.service.stop(),
+    },
+  ])
 
   return {
     router,
     lifecycle,
     ready,
-    close() {
-      closePromise ??= closeResources()
-      return closePromise
-    },
-  }
-
-  async function closeResources(): Promise<void> {
-    await retentionPolicy.worker.stop()
-    await eventIngestion.service.stop()
-    await siteLifecycleWorker.stop()
-    await backupRestoreStartup
-    await backupRestore.worker.stop()
-    await backupRestore.service.stop()
-    await installation.service.stop()
+    close: () => shutdown.close(),
   }
 }
 
