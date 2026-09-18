@@ -204,6 +204,9 @@ importers:
       '@cimi/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@cimi/contract':
+        specifier: workspace:*
+        version: link:../../packages/contract
       '@cimi/logging':
         specifier: workspace:*
         version: link:../../packages/logging
