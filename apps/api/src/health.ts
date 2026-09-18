@@ -2,7 +2,7 @@ import * as v from 'valibot'
 import { schema } from '@cimi/contract'
 import { validateBaseSchema } from '@cimi/db'
 import type { LifecycleAdmissionMode } from '@cimi/kernel'
-import type { CreateApiAppDependencies } from './index.ts'
+import type { CreateApiAppDependencies } from './composition.ts'
 import type { AcceptanceDiagnosticsSnapshot } from './resources/event-ingestion/index.ts'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'recovering' | 'maintenance' | 'unavailable'
