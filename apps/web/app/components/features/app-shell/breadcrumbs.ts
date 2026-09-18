@@ -68,6 +68,7 @@ const RULES: readonly BreadcrumbRule[] = [
   },
   { pattern: '/settings/account', segments: [...ACCOUNT_SETTINGS_TRAIL, { label: 'Account' }] },
   { pattern: '/admin', segments: [{ label: 'Admin' }] },
+  { pattern: '/setup', segments: [{ label: 'Setup' }] },
   { pattern: '/admin/retention', segments: [...ADMIN_TRAIL, { label: 'Retention' }] },
   { pattern: '/admin/backup-restore', segments: [...ADMIN_TRAIL, { label: 'Backup Restore' }] },
 ]

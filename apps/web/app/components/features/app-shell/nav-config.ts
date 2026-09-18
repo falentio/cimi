@@ -1,4 +1,4 @@
-import { Globe02Icon, Home01Icon, ShieldKeyIcon } from '@hugeicons/core-free-icons'
+import { Globe02Icon, Home01Icon, Settings01Icon, ShieldKeyIcon } from '@hugeicons/core-free-icons'
 
 export interface NavItem {
   readonly title: string
@@ -28,7 +28,10 @@ export const NAV_REGISTRY: NavRegistry = {
     items: [{ title: 'Example Site', to: '/sites/example-site', icon: Globe02Icon }],
   },
   secondary: {
-    items: [{ title: 'Admin', to: '/admin', icon: ShieldKeyIcon, admin: true }],
+    items: [
+      { title: 'Admin', to: '/admin', icon: ShieldKeyIcon, admin: true },
+      { title: 'Setup', to: '/setup', icon: Settings01Icon, admin: true, exact: true },
+    ],
   },
 }
 

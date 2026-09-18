@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { Settings01Icon } from '@hugeicons/core-free-icons'
 import { describe, expect, it } from 'vitest'
 import { isNavItemActive, NAV_REGISTRY } from './nav-config'
 
@@ -17,7 +18,20 @@ describe('NAV_REGISTRY', () => {
   })
 
   it('flags exactly the admin entries', () => {
-    expect(ALL_ITEMS.filter((item) => item.admin).map((item) => item.to)).toEqual(['/admin'])
+    expect(ALL_ITEMS.filter((item) => item.admin).map((item) => item.to)).toEqual([
+      '/admin',
+      '/setup',
+    ])
+  })
+
+  it('defines Setup as an exact admin navigation entry', () => {
+    expect(NAV_REGISTRY.secondary.items).toContainEqual({
+      title: 'Setup',
+      to: '/setup',
+      icon: Settings01Icon,
+      admin: true,
+      exact: true,
+    })
   })
 
   it('routes every nav target to an existing page file', () => {
@@ -43,6 +57,10 @@ describe('isNavItemActive', () => {
   it('supports exact targets', () => {
     expect(isNavItemActive('/sites/ste_1/events', { to: '/sites/ste_1', exact: true })).toBe(false)
     expect(isNavItemActive('/sites/ste_1', { to: '/sites/ste_1', exact: true })).toBe(true)
+    const setup = NAV_REGISTRY.secondary.items.find((item) => item.to === '/setup')
+    if (setup === undefined) throw new Error('Setup nav item is missing')
+    expect(isNavItemActive('/setup', setup)).toBe(true)
+    expect(isNavItemActive('/setup/child', setup)).toBe(false)
   })
 })
 
