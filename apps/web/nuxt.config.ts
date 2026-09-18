@@ -23,6 +23,7 @@ export default defineNuxtConfig({
 
   modules: ['@pinia/nuxt', '@pinia/colada-nuxt', 'shadcn-nuxt', '@nuxtjs/i18n'],
   i18n: {
+    vueI18n: './i18n.config.ts',
     strategy: 'prefix_except_default',
     defaultLocale: 'en',
     detectBrowserLanguage: false,

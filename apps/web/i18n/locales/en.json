@@ -35,5 +35,24 @@
       "welcome": "Welcome to Cimi, {name}.",
       "welcomeBack": "Welcome back, {name}."
     }
+  },
+  "validation": {
+    "auth": {
+      "name": {
+        "required": "Name is required."
+      },
+      "email": {
+        "required": "Email is required.",
+        "invalid": "Enter a valid email address."
+      },
+      "password": {
+        "required": "Password is required.",
+        "minLength": "Password must be at least 8 characters."
+      },
+      "passwordConfirmation": {
+        "required": "Password confirmation is required.",
+        "mismatch": "Passwords do not match."
+      }
+    }
   }
 }
