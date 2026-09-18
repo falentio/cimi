@@ -28,7 +28,7 @@ interface AuthPanelProps {
   readonly mode: AuthMode
 }
 
-type AuthRoute = '/login' | '/signup'
+type AuthRoute = 'login' | 'signup'
 
 interface AuthCopy {
   readonly title: string
@@ -51,33 +51,34 @@ type AuthFormField = keyof AuthFormValues
 
 const props = defineProps<AuthPanelProps>()
 const { pending, signIn, signUp } = useAuth()
+const { t } = useI18n()
 const route = useRoute()
 const feedback = shallowRef<AuthFeedback>(null)
 
 const copyByMode = {
   login: {
-    title: 'Welcome back',
-    description: 'Sign in to your Cimi workspace.',
-    submitLabel: 'Sign in',
-    pendingLabel: 'Signing in...',
-    alternatePrompt: 'Need an account?',
-    alternateLabel: 'Sign up',
-    alternateRoute: '/signup',
-    emailDescription: 'Use the email address associated with your Cimi account.',
-    passwordDescription: 'Use the password for your Cimi account.',
+    title: 'auth.login.title',
+    description: 'auth.login.description',
+    submitLabel: 'auth.login.submitLabel',
+    pendingLabel: 'auth.login.pendingLabel',
+    alternatePrompt: 'auth.login.alternatePrompt',
+    alternateLabel: 'auth.login.alternateLabel',
+    alternateRoute: 'signup',
+    emailDescription: 'auth.login.emailDescription',
+    passwordDescription: 'auth.login.passwordDescription',
     confirmPasswordDescription: '',
   },
   signup: {
-    title: 'Create your account',
-    description: 'Start with a secure Cimi workspace.',
-    submitLabel: 'Create account',
-    pendingLabel: 'Creating account...',
-    alternatePrompt: 'Already have an account?',
-    alternateLabel: 'Log in',
-    alternateRoute: '/login',
-    emailDescription: 'We will use this address for account verification.',
-    passwordDescription: 'Choose a password with at least 8 characters.',
-    confirmPasswordDescription: 'Re-enter your password to confirm.',
+    title: 'auth.signup.title',
+    description: 'auth.signup.description',
+    submitLabel: 'auth.signup.submitLabel',
+    pendingLabel: 'auth.signup.pendingLabel',
+    alternatePrompt: 'auth.signup.alternatePrompt',
+    alternateLabel: 'auth.signup.alternateLabel',
+    alternateRoute: 'login',
+    emailDescription: 'auth.signup.emailDescription',
+    passwordDescription: 'auth.signup.passwordDescription',
+    confirmPasswordDescription: 'auth.signup.confirmPasswordDescription',
   },
 } satisfies Record<AuthMode, AuthCopy>
 
@@ -87,6 +88,10 @@ const fieldOrderByMode = {
 } satisfies Record<AuthMode, readonly (keyof AuthFormValues)[]>
 
 const copy = computed(() => copyByMode[props.mode])
+const alternateLocation = computed(() => ({
+  name: copy.value.alternateRoute,
+  query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : undefined,
+}))
 const validationSchema = computed(() =>
   toTypedSchema(props.mode === 'signup' ? signupSchema : loginSchema),
 )
@@ -164,16 +169,16 @@ function feedbackForResult(result: AuthResult, mode: AuthMode): AuthFeedback {
 
   if (result.session === null) {
     return mode === 'signup'
-      ? { tone: 'success', message: 'Account created. Check your email to continue.' }
-      : { tone: 'error', message: 'Sign-in succeeded, but no active session was returned.' }
+      ? { tone: 'success', message: t('auth.feedback.accountCreated') }
+      : { tone: 'error', message: t('auth.feedback.signInWithoutSession') }
   }
 
   return {
     tone: 'success',
     message:
       mode === 'signup'
-        ? `Welcome to Cimi, ${result.session.user.name}.`
-        : `Welcome back, ${result.session.user.name}.`,
+        ? t('auth.feedback.welcome', { name: result.session.user.name })
+        : t('auth.feedback.welcomeBack', { name: result.session.user.name }),
   }
 }
 
@@ -203,17 +208,17 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
         >
           C
         </span>
-        Cimi workspace
+        {{ t('auth.brand') }}
       </div>
 
       <Card>
         <CardHeader class="text-center">
           <CardTitle>
             <h1 class="text-2xl leading-tight font-semibold tracking-tight text-balance">
-              {{ copy.title }}
+              {{ t(copy.title) }}
             </h1>
           </CardTitle>
-          <CardDescription>{{ copy.description }}</CardDescription>
+          <CardDescription>{{ t(copy.description) }}</CardDescription>
         </CardHeader>
 
         <CardContent class="flex flex-col gap-6">
@@ -229,7 +234,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
           >
             <FieldGroup class="gap-4">
               <Field v-if="props.mode === 'signup'" :data-invalid="errors.name !== undefined">
-                <FieldLabel for="name">Name</FieldLabel>
+                <FieldLabel for="name">{{ t('auth.fields.nameLabel') }}</FieldLabel>
                 <Input
                   id="name"
                   v-model="name"
@@ -244,7 +249,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
                   type="text"
                 />
                 <FieldDescription id="name-description">
-                  Enter the name for your Cimi workspace.
+                  {{ t('auth.fields.nameDescription') }}
                 </FieldDescription>
                 <FieldError v-if="errors.name" id="name-error">
                   {{ errors.name }}
@@ -252,7 +257,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
               </Field>
 
               <Field :data-invalid="errors.email !== undefined">
-                <FieldLabel for="email">Email</FieldLabel>
+                <FieldLabel for="email">{{ t('auth.fields.emailLabel') }}</FieldLabel>
                 <Input
                   id="email"
                   v-model="email"
@@ -268,7 +273,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
                   type="email"
                 />
                 <FieldDescription id="email-description">
-                  {{ copy.emailDescription }}
+                  {{ t(copy.emailDescription) }}
                 </FieldDescription>
                 <FieldError v-if="errors.email" id="email-error">
                   {{ errors.email }}
@@ -276,7 +281,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
               </Field>
 
               <Field :data-invalid="errors.password !== undefined">
-                <FieldLabel for="password">Password</FieldLabel>
+                <FieldLabel for="password">{{ t('auth.fields.passwordLabel') }}</FieldLabel>
                 <Input
                   id="password"
                   v-model="password"
@@ -291,7 +296,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
                   type="password"
                 />
                 <FieldDescription id="password-description">
-                  {{ copy.passwordDescription }}
+                  {{ t(copy.passwordDescription) }}
                 </FieldDescription>
                 <FieldError v-if="errors.password" id="password-error">
                   {{ errors.password }}
@@ -302,7 +307,9 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
                 v-if="props.mode === 'signup'"
                 :data-invalid="errors.passwordConfirmation !== undefined"
               >
-                <FieldLabel for="passwordConfirmation">Confirm password</FieldLabel>
+                <FieldLabel for="passwordConfirmation">
+                  {{ t('auth.fields.confirmPasswordLabel') }}
+                </FieldLabel>
                 <Input
                   id="passwordConfirmation"
                   v-model="passwordConfirmation"
@@ -319,7 +326,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
                   type="password"
                 />
                 <FieldDescription id="passwordConfirmation-description">
-                  {{ copy.confirmPasswordDescription }}
+                  {{ t(copy.confirmPasswordDescription) }}
                 </FieldDescription>
                 <FieldError v-if="errors.passwordConfirmation" id="passwordConfirmation-error">
                   {{ errors.passwordConfirmation }}
@@ -329,20 +336,20 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
 
             <Button class="w-full" :disabled="pending" size="lg" type="submit">
               <Spinner v-if="pending" data-icon="inline-start" />
-              {{ pending ? copy.pendingLabel : copy.submitLabel }}
+              {{ t(pending ? copy.pendingLabel : copy.submitLabel) }}
             </Button>
           </form>
         </CardContent>
 
         <CardFooter class="justify-center">
           <p class="text-muted-foreground text-center text-sm">
-            {{ copy.alternatePrompt }}
-            <NuxtLink
+            {{ t(copy.alternatePrompt) }}
+            <NuxtLinkLocale
               class="text-primary font-medium underline-offset-4 hover:underline"
-              :to="copy.alternateRoute"
+              :to="alternateLocation"
             >
-              {{ copy.alternateLabel }}
-            </NuxtLink>
+              {{ t(copy.alternateLabel) }}
+            </NuxtLinkLocale>
           </p>
         </CardFooter>
       </Card>

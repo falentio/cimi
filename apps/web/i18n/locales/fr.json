@@ -1,0 +1,39 @@
+{
+  "auth": {
+    "brand": "Espace de travail Cimi",
+    "login": {
+      "title": "Bon retour",
+      "description": "Connectez-vous à votre espace de travail Cimi.",
+      "submitLabel": "Se connecter",
+      "pendingLabel": "Connexion...",
+      "alternatePrompt": "Besoin d'un compte ?",
+      "alternateLabel": "S'inscrire",
+      "emailDescription": "Utilisez l'adresse e-mail associée à votre compte Cimi.",
+      "passwordDescription": "Utilisez le mot de passe de votre compte Cimi."
+    },
+    "signup": {
+      "title": "Créez votre compte",
+      "description": "Commencez avec un espace de travail Cimi sécurisé.",
+      "submitLabel": "Créer un compte",
+      "pendingLabel": "Création du compte...",
+      "alternatePrompt": "Vous avez déjà un compte ?",
+      "alternateLabel": "Se connecter",
+      "emailDescription": "Nous utiliserons cette adresse pour vérifier votre compte.",
+      "passwordDescription": "Choisissez un mot de passe d'au moins 8 caractères.",
+      "confirmPasswordDescription": "Saisissez à nouveau votre mot de passe pour confirmer."
+    },
+    "fields": {
+      "nameLabel": "Nom",
+      "nameDescription": "Saisissez le nom de votre espace de travail Cimi.",
+      "emailLabel": "E-mail",
+      "passwordLabel": "Mot de passe",
+      "confirmPasswordLabel": "Confirmer le mot de passe"
+    },
+    "feedback": {
+      "accountCreated": "Compte créé. Consultez votre e-mail pour continuer.",
+      "signInWithoutSession": "La connexion a réussi, mais aucune session active n'a été renvoyée.",
+      "welcome": "Bienvenue sur Cimi, {name}.",
+      "welcomeBack": "Bon retour sur Cimi, {name}."
+    }
+  }
+}

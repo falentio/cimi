@@ -1,0 +1,39 @@
+{
+  "auth": {
+    "brand": "Cimi workspace",
+    "login": {
+      "title": "Welcome back",
+      "description": "Sign in to your Cimi workspace.",
+      "submitLabel": "Sign in",
+      "pendingLabel": "Signing in...",
+      "alternatePrompt": "Need an account?",
+      "alternateLabel": "Sign up",
+      "emailDescription": "Use the email address associated with your Cimi account.",
+      "passwordDescription": "Use the password for your Cimi account."
+    },
+    "signup": {
+      "title": "Create your account",
+      "description": "Start with a secure Cimi workspace.",
+      "submitLabel": "Create account",
+      "pendingLabel": "Creating account...",
+      "alternatePrompt": "Already have an account?",
+      "alternateLabel": "Log in",
+      "emailDescription": "We will use this address for account verification.",
+      "passwordDescription": "Choose a password with at least 8 characters.",
+      "confirmPasswordDescription": "Re-enter your password to confirm."
+    },
+    "fields": {
+      "nameLabel": "Name",
+      "nameDescription": "Enter the name for your Cimi workspace.",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "confirmPasswordLabel": "Confirm password"
+    },
+    "feedback": {
+      "accountCreated": "Account created. Check your email to continue.",
+      "signInWithoutSession": "Sign-in succeeded, but no active session was returned.",
+      "welcome": "Welcome to Cimi, {name}.",
+      "welcomeBack": "Welcome back, {name}."
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { computed, type ComputedRef, type Ref } from 'vue'
+import { computed, getCurrentInstance, type ComputedRef, type Ref } from 'vue'
 import type { createCimiAuthClient } from '@cimi/auth/client'
 
 type AuthClient = ReturnType<typeof createCimiAuthClient>
@@ -54,11 +54,13 @@ export function useAuth(): AuthApi {
   const initialized = useState('auth:initialized', () => false)
   const pending = computed(() => pendingCount.value > 0)
 
-  onMounted(() => {
-    if (initialized.value) return
-    initialized.value = true
-    void refreshSession()
-  })
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      if (initialized.value) return
+      initialized.value = true
+      void refreshSession()
+    })
+  }
 
   async function refreshSession(): Promise<AuthResult> {
     return withPending(async () => {

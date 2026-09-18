@@ -1,15 +1,14 @@
 import { resolve } from 'node:path'
 import { loadLoggingConfig } from '@cimi/config/logging'
 import tailwindcss from '@tailwindcss/vite'
+import type { ViteOptions } from 'nuxt/schema'
+
+// @ts-expect-error Vite's plugin types are duplicated across Nuxt and Tailwind's package graph.
+const tailwindPlugins: NonNullable<ViteOptions['plugins']> = tailwindcss()
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  app: {
-    head: {
-      htmlAttrs: { lang: 'en' },
-    },
-  },
   devtools: { enabled: true },
   css: ['~/assets/css/tailwind.css'],
   runtimeConfig: {
@@ -19,10 +18,20 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: tailwindPlugins,
   },
 
-  modules: ['@pinia/nuxt', '@pinia/colada-nuxt', 'shadcn-nuxt'],
+  modules: ['@pinia/nuxt', '@pinia/colada-nuxt', 'shadcn-nuxt', '@nuxtjs/i18n'],
+  i18n: {
+    strategy: 'prefix_except_default',
+    defaultLocale: 'en',
+    detectBrowserLanguage: false,
+    baseUrl: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
+    locales: [
+      { code: 'en', language: 'en-US', name: 'English', file: 'en.json' },
+      { code: 'fr', language: 'fr-FR', name: 'Français', file: 'fr.json' },
+    ],
+  },
   nitro: {
     preset: 'node-server',
     esbuild: {
