@@ -10,14 +10,14 @@ export type AuthFeedback =
 const emailSchema = v.pipe(
   v.string(),
   v.trim(),
-  v.minLength(1, 'Email is required.'),
-  v.email('Enter a valid email address.'),
+  v.minLength(1, 'validation.auth.email.required'),
+  v.email('validation.auth.email.invalid'),
 )
 
 const passwordSchema = v.pipe(
   v.string(),
-  v.minLength(1, 'Password is required.'),
-  v.minLength(8, 'Password must be at least 8 characters.'),
+  v.minLength(1, 'validation.auth.password.required'),
+  v.minLength(8, 'validation.auth.password.minLength'),
 )
 
 export const loginSchema = v.object({
@@ -30,16 +30,19 @@ export type LoginFormValues = v.InferOutput<typeof loginSchema>
 
 export const signupSchema = v.pipe(
   v.object({
-    name: v.pipe(v.string(), v.trim(), v.minLength(1, 'Name is required.')),
+    name: v.pipe(v.string(), v.trim(), v.minLength(1, 'validation.auth.name.required')),
     email: emailSchema,
     password: passwordSchema,
-    passwordConfirmation: v.pipe(v.string(), v.minLength(1, 'Password confirmation is required.')),
+    passwordConfirmation: v.pipe(
+      v.string(),
+      v.minLength(1, 'validation.auth.passwordConfirmation.required'),
+    ),
   }),
   v.forward(
     v.partialCheck(
       [['password'], ['passwordConfirmation']],
       (input) => input.password === input.passwordConfirmation,
-      'Passwords do not match.',
+      'validation.auth.passwordConfirmation.mismatch',
     ),
     ['passwordConfirmation'],
   ),

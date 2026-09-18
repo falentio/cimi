@@ -3,6 +3,7 @@ import { toTypedSchema } from '@vee-validate/valibot'
 import * as v from 'valibot'
 import { shallowRef } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { loginSchema } from '../lib/auth-form'
 import {
   createStableMessageResolver,
   useLocalizedValibotSchema,
@@ -180,5 +181,30 @@ describe('useLocalizedValibotSchema', () => {
     const result = await schema.value.parse(value)
 
     expect(result).toEqual({ value, errors: [] })
+  })
+
+  it('translates stable keys from the auth schema', async () => {
+    const locale = shallowRef<'en' | 'fr'>('fr')
+    const messages = {
+      'validation.auth.email.invalid': 'Saisissez une adresse e-mail valide.',
+      'validation.auth.password.required': 'Le mot de passe est requis.',
+      'validation.auth.password.minLength': 'Le mot de passe doit comporter au moins 8 caractères.',
+    }
+    const t = vi.fn((key: keyof typeof messages) => messages[key])
+    const te = vi.fn((key: string) => key in messages)
+
+    vi.stubGlobal('useI18n', () => ({ locale, t, te }))
+
+    const schema = useLocalizedValibotSchema(() => loginSchema)
+    const result = await schema.value.parse({ name: '', email: 'invalid', password: '' })
+    const messagesByField = Object.fromEntries(
+      result.errors.map((error) => [error.path, error.errors]),
+    )
+
+    expect(messagesByField.email).toEqual(['Saisissez une adresse e-mail valide.'])
+    expect(messagesByField.password).toEqual([
+      'Le mot de passe est requis.',
+      'Le mot de passe doit comporter au moins 8 caractères.',
+    ])
   })
 })
