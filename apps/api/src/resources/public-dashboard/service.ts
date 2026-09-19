@@ -17,6 +17,7 @@ import {
   type LifecycleLease,
   type LifecycleLock,
   type PublicDashboardQueryPort,
+  type ReportAdmissionTicket,
 } from '@cimi/kernel'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -169,20 +170,25 @@ export class PublicDashboardService {
         filterPlan: filterResult.plan,
         filterCount: input.filters?.length ?? 0,
       })
-      const cacheKey = JSON.stringify({
-        identifier: input.publicDashboardIdentifier,
-        fromDate: input.fromDate,
-        toDate: input.toDate,
-        granularity: input.granularity,
-        metric: input.metric,
-        dimension: input.dimension,
-        filters: input.filters ?? [],
-        period: prepared.query.period,
-      })
+      const cacheWitness = publicDashboardCacheWitness(prepared.ticket)
+      const cacheKey =
+        cacheWitness === undefined
+          ? undefined
+          : JSON.stringify({
+              identifier: input.publicDashboardIdentifier,
+              fromDate: input.fromDate,
+              toDate: input.toDate,
+              granularity: input.granularity,
+              metric: input.metric,
+              dimension: input.dimension,
+              filters: input.filters ?? [],
+              period: prepared.query.period,
+              witness: cacheWitness,
+            })
       const now = this.clock().getTime()
-      const cached = this.cache.get(cacheKey)
+      const cached = cacheKey === undefined ? undefined : this.cache.get(cacheKey)
       if (cached !== undefined && cached.expiresAt > now) return cached.output
-      if (cached !== undefined) this.cache.delete(cacheKey)
+      if (cached !== undefined && cacheKey !== undefined) this.cache.delete(cacheKey)
 
       const aggregate = await planner.execute(prepared)
       const output: QueryOutput = {
@@ -200,14 +206,16 @@ export class PublicDashboardService {
       }
       const cachedAt = this.clock().getTime()
       this.evictExpiredCacheEntries(cachedAt)
-      if (this.cache.size >= PublicDashboardService.MAX_CACHE_ENTRIES) {
-        const oldestKey = this.cache.keys().next().value
-        if (oldestKey !== undefined) this.cache.delete(oldestKey)
+      if (cacheKey !== undefined) {
+        if (this.cache.size >= PublicDashboardService.MAX_CACHE_ENTRIES) {
+          const oldestKey = this.cache.keys().next().value
+          if (oldestKey !== undefined) this.cache.delete(oldestKey)
+        }
+        this.cache.set(cacheKey, {
+          expiresAt: cachedAt + PublicDashboardService.CACHE_TTL_MS,
+          output,
+        })
       }
-      this.cache.set(cacheKey, {
-        expiresAt: cachedAt + PublicDashboardService.CACHE_TTL_MS,
-        output,
-      })
       return output
     } finally {
       await lease?.release()
@@ -270,4 +278,14 @@ function hasSensitivePublicUrlValue(filters: QueryInput['filters']): boolean {
       (filter.field === 'pagePath' || filter.field === 'referrer') &&
       filter.values.some((value) => typeof value === 'string' && /[?#]/.test(value)),
   )
+}
+
+function publicDashboardCacheWitness(ticket: ReportAdmissionTicket) {
+  const freshness = ticket.freshness.current
+  if (freshness.status === 'stale' || ticket.projectionGeneration === null) return undefined
+  return {
+    projectedAcceptanceSequence: freshness.projectedAcceptanceSequence,
+    occurrenceTimeCoverageThrough: freshness.occurrenceTimeCoverageThrough,
+    projectionGeneration: ticket.projectionGeneration,
+  }
 }

@@ -98,8 +98,10 @@ function projectionEvidence(
     checkpoint: {
       projectedAcceptanceSequence: 42,
       projectedFactCardinality: 100,
+      projectionGeneration: 1,
       occurrenceCoveredFrom: instant('2025-01-01T00:00:00.000Z'),
       occurrenceCoveredThrough,
+      statisticsRefreshedAt: instant('2026-09-07T00:00:00.000Z'),
     },
     openGaps: [],
   }
