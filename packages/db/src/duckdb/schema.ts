@@ -10,6 +10,7 @@ export const ANALYTICS_REQUIRED_TABLES = [
   'events',
   'event_properties',
   'projection_checkpoints',
+  'projection_generations',
   'projection_gaps',
 ] as const
 
@@ -154,6 +155,20 @@ export const ANALYTICS_MIGRATIONS: AnalyticsMigration[] = [
     name: 'projected-fact-cardinality',
     sql: `
       ALTER TABLE projection_checkpoints ADD COLUMN projected_fact_cardinality BIGINT;
+    `,
+  },
+  {
+    version: 5,
+    name: 'projection-generation',
+    sql: `
+      ALTER TABLE projection_checkpoints ADD COLUMN projection_generation BIGINT;
+      UPDATE projection_checkpoints SET projection_generation = 0 WHERE projection_generation IS NULL;
+
+      CREATE TABLE IF NOT EXISTS projection_generations (
+        site_id VARCHAR PRIMARY KEY,
+        projection_generation BIGINT NOT NULL,
+        updated_at TIMESTAMP NOT NULL
+      );
     `,
   },
 ]

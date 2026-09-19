@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
 import type { AnalyticsDb, Db } from '@cimi/db'
-import { createCalendarDate, createSiteId, resolveReportPeriods } from '@cimi/kernel'
+import {
+  createCalendarDate,
+  createInstantMs,
+  createSiteId,
+  resolveReportPeriods,
+} from '@cimi/kernel'
 import { ReportingEvidenceDrizzleDuckDb } from '../evidence.drizzle-duckdb.ts'
 
 const periods = resolveReportPeriods({
@@ -9,15 +14,20 @@ const periods = resolveReportPeriods({
   current: { fromDate: createCalendarDate('2026-09-05'), toDate: createCalendarDate('2026-09-06') },
 })
 
-function createAdapter(factCardinality: number, projectedFactCardinality: number | null) {
+function createAdapter(
+  factCardinality: number,
+  projectedFactCardinality: number | null,
+  statisticsRefreshedAt: Date | null = null,
+) {
   const analytics = mock<AnalyticsDb>()
   analytics.readProjectionSnapshot.mockResolvedValue({
     checkpoint: {
       projectedAcceptanceSequence: 42,
       projectedFactCardinality,
+      projectionGeneration: 1,
       occurrenceCoveredFrom: null,
       occurrenceCoveredThrough: null,
-      statisticsRefreshedAt: null,
+      statisticsRefreshedAt,
       readiness: 'ready',
     },
     openGaps: [],
@@ -32,13 +42,17 @@ function createAdapter(factCardinality: number, projectedFactCardinality: number
 
 describe('ReportingEvidenceDrizzleDuckDb.read', () => {
   it('reports aligned only when the count matches the published cardinality', async () => {
-    const evidence = await createAdapter(100, 100).read({
+    const refreshedAt = new Date('2026-09-07T00:00:00.000Z')
+    const evidence = await createAdapter(100, 100, refreshedAt).read({
       siteId: createSiteId('ste-1'),
       periods,
       coverage: ['event-occurrence'],
     })
 
     expect(evidence.projection.checkpoint.projectedFactCardinality).toBe(100)
+    expect(evidence.projection.checkpoint.statisticsRefreshedAt).toEqual(
+      createInstantMs(refreshedAt.getTime()),
+    )
     expect(evidence.statistics).toMatchObject({ state: 'aligned', factCardinality: 100 })
   })
 

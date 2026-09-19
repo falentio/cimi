@@ -36,6 +36,26 @@ describe('InMemoryPublicDashboardRateLimiter.consume', () => {
     ).not.toThrow()
   })
 
+  it('prunes keys from the previous window when traffic continues', () => {
+    const limiter = new InMemoryPublicDashboardRateLimiter()
+    limiter.consume({ siteId: 'ste_old', sourceIp: '192.0.2.1', now })
+    limiter.consume({ siteId: 'ste_other', sourceIp: '192.0.2.2', now })
+
+    limiter.consume({
+      siteId: 'ste_new',
+      sourceIp: '192.0.2.3',
+      now: new Date(now.getTime() + 60_000),
+    })
+
+    const siteWindows = Object.getOwnPropertyDescriptor(limiter, 'siteWindows')?.value
+    const ipWindows = Object.getOwnPropertyDescriptor(limiter, 'ipWindows')?.value
+    if (!(siteWindows instanceof Map) || !(ipWindows instanceof Map)) {
+      throw new Error('Expected in-memory limiter windows')
+    }
+    expect([...siteWindows.keys()]).toEqual(['ste_new'])
+    expect([...ipWindows.keys()]).toEqual(['192.0.2.3'])
+  })
+
   it('returns the IP limit after 600 requests across Sites', () => {
     const limiter = new InMemoryPublicDashboardRateLimiter()
     for (let index = 0; index < 600; index += 1) {

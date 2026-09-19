@@ -174,8 +174,10 @@ function createAdmission(): {
           checkpoint: {
             projectedAcceptanceSequence: 1,
             projectedFactCardinality: 0,
+            projectionGeneration: 1,
             occurrenceCoveredFrom: occurrenceFrom,
             occurrenceCoveredThrough: occurrenceThrough,
+            statisticsRefreshedAt: createInstantMs(Date.parse('2026-09-01T00:00:00.000Z')),
           },
           openGaps: [],
         },

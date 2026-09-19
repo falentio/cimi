@@ -165,3 +165,71 @@ test('collectEvent maps ingestion protection exhaustion to too many requests', a
   expect(calls).toEqual([site.id])
   expect(response.status, await response.clone().text()).toBe(429)
 })
+
+test('collect routes forward the transport source IP to protection', async () => {
+  const bucket = new InMemoryIngestionProtection({
+    siteRatePerSecond: 100,
+    siteBurst: 100,
+    sourceIpRatePerSecond: 0.001,
+    sourceIpBurst: 1,
+  })
+  const calls: Array<{ readonly sourceIp: string | undefined; readonly units: number }> = []
+  const protection = {
+    async consume(input: Parameters<InMemoryIngestionProtection['consume']>[0]) {
+      calls.push({ sourceIp: input.sourceIp, units: input.units })
+      return bucket.consume(input)
+    },
+  }
+  await using fixture = await createApiTestFixture({ eventIngestionProtection: protection })
+  const site = await createIngestionSite(fixture.app)
+  const headers = { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.7' }
+
+  const single = await fixture.app.fetch(
+    new Request('http://localhost/api/event-ingestion/collectEvent', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        eventId: 'event_transport_peer',
+        ingestionIdentifier: site.ingestionIdentifier,
+        kind: 'custom_event',
+        name: 'transport_peer',
+      }),
+    }),
+    { transportPeerIp: '203.0.113.10' },
+  )
+  expect(single.status, await single.clone().text()).toBe(200)
+
+  const limited = await fixture.app.fetch(
+    new Request('http://localhost/api/event-ingestion/collectEvent', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        eventId: 'event_transport_peer_limited',
+        ingestionIdentifier: site.ingestionIdentifier,
+        kind: 'custom_event',
+        name: 'transport_peer_limited',
+      }),
+    }),
+    { transportPeerIp: '203.0.113.10' },
+  )
+  expect(limited.status, await limited.clone().text()).toBe(429)
+
+  const batch = await fixture.app.fetch(
+    new Request('http://localhost/api/event-ingestion/collectEvents', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        ingestionIdentifier: site.ingestionIdentifier,
+        events: [{ eventId: 'event_transport_batch_1', kind: 'custom_event', name: 'batch_one' }],
+      }),
+    }),
+    { transportPeerIp: '203.0.113.11' },
+  )
+  expect(batch.status, await batch.clone().text()).toBe(200)
+
+  expect(calls).toEqual([
+    { sourceIp: '203.0.113.10', units: 1 },
+    { sourceIp: '203.0.113.10', units: 1 },
+    { sourceIp: '203.0.113.11', units: 1 },
+  ])
+})

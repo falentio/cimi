@@ -30,9 +30,15 @@ const IP_LIMIT = 600
 export class InMemoryPublicDashboardRateLimiter implements PublicDashboardRateLimiter {
   private readonly siteWindows = new Map<string, Window>()
   private readonly ipWindows = new Map<string, Window>()
+  private lastPrunedWindowStart: number | undefined
 
   consume(input: PublicDashboardRateLimitInput): void {
     const now = input.now.getTime()
+    const startedAt = Math.floor(now / WINDOW_MS) * WINDOW_MS
+    if (this.lastPrunedWindowStart !== startedAt) {
+      this.pruneExpiredWindows(startedAt)
+      this.lastPrunedWindowStart = startedAt
+    }
     const site = this.readWindow(this.siteWindows, input.siteId, now)
     const ip = this.readWindow(this.ipWindows, input.sourceIp, now)
     const siteFailure = this.failure('site', site, SITE_LIMIT, now)
@@ -41,6 +47,15 @@ export class InMemoryPublicDashboardRateLimiter implements PublicDashboardRateLi
     if (ipFailure !== undefined) throw new PublicDashboardRateLimitError(ipFailure)
     site.count += 1
     ip.count += 1
+  }
+
+  private pruneExpiredWindows(startedAt: number): void {
+    for (const [key, window] of this.siteWindows) {
+      if (window.startedAt < startedAt) this.siteWindows.delete(key)
+    }
+    for (const [key, window] of this.ipWindows) {
+      if (window.startedAt < startedAt) this.ipWindows.delete(key)
+    }
   }
 
   private readWindow(windows: Map<string, Window>, key: string, now: number): Window {

@@ -16,12 +16,6 @@ export interface ReportingEvidenceDrizzleDuckDbDependencies {
   readonly analytics: AnalyticsDb
 }
 
-/**
- * Reads a report window's evidence from its two stores. The projection snapshot is DuckDB and
- * the retention cutoffs are SQLite. The checkpoint publishes the cardinality the last rebuild
- * projected, and the snapshot counts the stored facts; the statistics are aligned only when those
- * two agree, so a checkpoint that does not describe the counted facts fails closed.
- */
 export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
   constructor(private readonly deps: ReportingEvidenceDrizzleDuckDbDependencies) {}
 
@@ -33,6 +27,7 @@ export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
       checkpoint: {
         projectedAcceptanceSequence: checkpoint?.projectedAcceptanceSequence ?? 0,
         projectedFactCardinality: checkpoint?.projectedFactCardinality ?? null,
+        projectionGeneration: checkpoint?.projectionGeneration ?? 0,
         occurrenceCoveredFrom:
           checkpoint?.occurrenceCoveredFrom === null ||
           checkpoint?.occurrenceCoveredFrom === undefined
@@ -43,6 +38,11 @@ export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
           checkpoint?.occurrenceCoveredThrough === undefined
             ? null
             : createInstantMs(checkpoint.occurrenceCoveredThrough.getTime()),
+        statisticsRefreshedAt:
+          checkpoint?.statisticsRefreshedAt === null ||
+          checkpoint?.statisticsRefreshedAt === undefined
+            ? null
+            : createInstantMs(checkpoint.statisticsRefreshedAt.getTime()),
       },
       openGaps: snapshot.openGaps.map((gap) => ({
         id: gap.id,
@@ -92,14 +92,6 @@ function availableFrom(value: Date): RetentionBoundary {
   return { state: 'available', from: createInstantMs(value.getTime()) }
 }
 
-/**
- * Statistics are aligned only when the facts counted at report time are the ones the checkpoint
- * published. A checkpoint that is absent, or present but not `ready`, has no trustworthy
- * projection; a checkpoint whose published cardinality does not match the count describes a
- * different fact set. All of those return `unknown` or `stale` so the kernel rejects the request
- * instead of reporting an empty or partial Site. A Site rebuilt with no events publishes a zero
- * cardinality and a zero count, which is a legitimate empty Site and admits.
- */
 function resolveStatistics(
   checkpoint: {
     readonly projectedAcceptanceSequence: number

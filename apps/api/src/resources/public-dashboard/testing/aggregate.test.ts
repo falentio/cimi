@@ -27,6 +27,7 @@ const ticket: ReportAdmissionTicket = {
     comparison: null,
     interval: period.interval,
   },
+  projectionGeneration: 1,
   freshness: {
     current: {
       status: 'current',

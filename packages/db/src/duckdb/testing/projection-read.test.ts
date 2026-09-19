@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { closeDb, createDb } from '../../client.ts'
 import { migrateControlDb } from '../../migrate.ts'
 import { createTestAnalyticsDb } from '../../testing/index.ts'
@@ -71,6 +71,33 @@ describe('readProjectionSnapshot', () => {
       expect(snapshot.checkpoint?.projectedFactCardinality).toBe(3)
       expect(snapshot.factCardinality).toBe(3)
     } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('advances the projection generation across same-timestamp rebuilds and purges', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analytics = await createTestAnalyticsDb()
+    const now = Date.parse('2026-09-05T00:00:00.000Z')
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(now)
+    try {
+      migrateControlDb(controlDb)
+      seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 3 })
+
+      await analytics.rebuild({ controlDb })
+      const first = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
+      await analytics.rebuild({ controlDb })
+      const second = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
+      await analytics.purgeSite({ siteId: 'ste-1' })
+      await analytics.rebuild({ controlDb })
+      const afterPurge = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
+
+      expect(first.checkpoint?.projectionGeneration).toBe(1)
+      expect(second.checkpoint?.projectionGeneration).toBe(2)
+      expect(afterPurge.checkpoint?.projectionGeneration).toBe(4)
+    } finally {
+      nowSpy.mockRestore()
       await analytics.close()
       closeDb(controlDb)
     }

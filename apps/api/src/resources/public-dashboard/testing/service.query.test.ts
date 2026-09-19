@@ -37,6 +37,7 @@ const ticket: ReportAdmissionTicket = {
     comparison: null,
     interval: currentPeriod.interval,
   },
+  projectionGeneration: 1,
   freshness: {
     current: {
       status: 'current',
@@ -64,6 +65,23 @@ function createAdmission(outcome: ReportAdmissionTicket | Error = ticket) {
   const port: PublicDashboardAdmission = {
     admit: async (input) => {
       requests.push(input)
+      if (outcome instanceof Error) throw outcome
+      return outcome
+    },
+  }
+  return { port, requests }
+}
+
+function createAdmissionSequence(
+  outcomes: readonly [ReportAdmissionTicket | Error, ...(ReportAdmissionTicket | Error)[]],
+) {
+  let index = 0
+  const requests: Parameters<PublicDashboardAdmission['admit']>[0][] = []
+  const port: PublicDashboardAdmission = {
+    admit: async (input) => {
+      requests.push(input)
+      const outcome = outcomes[Math.min(index, outcomes.length - 1)] ?? outcomes[0]
+      index += 1
       if (outcome instanceof Error) throw outcome
       return outcome
     },
@@ -242,6 +260,95 @@ describe('PublicDashboardService.query', () => {
       ],
     })
     expect(query.aggregateCalls).toBe(0)
+  })
+
+  it('rechecks aggregate suppression when the projection generation changes', async () => {
+    const repository = mock<PublicDashboardRepository>()
+    repository.findByIdentifierHash.mockResolvedValue({
+      siteId: 'ste_1',
+      enabled: true,
+      publicDashboardIdentifier: 'public-1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const admission = createAdmissionSequence([
+      ticket,
+      {
+        ...ticket,
+        projectionGeneration: 2,
+      },
+    ])
+    let aggregateCalls = 0
+    const query: PublicDashboardQueryPort = {
+      countDimensionValues: async () => 0,
+      countDistinctVisitors: async () => 5,
+      aggregate: async () => {
+        aggregateCalls += 1
+        return [{ groupKey: 0, value: 7, distinctVisitors: aggregateCalls === 1 ? 5 : 4 }]
+      },
+    }
+    const service = new PublicDashboardService({
+      repository,
+      admission: admission.port,
+      query,
+      lock: new InMemoryLifecycleLock(),
+      scope: { siteScope: {} as never, membership: {} as never },
+      clock: () => new Date('2026-09-01T00:00:00.000Z'),
+    })
+    const input = {
+      publicDashboardIdentifier: 'public-1',
+      fromDate: '2026-09-01',
+      toDate: '2026-09-01',
+      granularity: 'hour' as const,
+      metric: 'visitors' as const,
+      dimension: 'time' as const,
+    }
+
+    await expect(service.query(input, '203.0.113.10')).resolves.toMatchObject({
+      buckets: [{ value: 7 }, { value: null }],
+    })
+    await expect(service.query(input, '203.0.113.10')).resolves.toMatchObject({
+      buckets: [{ value: null }, { value: null }],
+    })
+    expect(aggregateCalls).toBe(2)
+  })
+
+  it('does not serve a current cache entry after fresh admission reports stale', async () => {
+    const repository = mock<PublicDashboardRepository>()
+    repository.findByIdentifierHash.mockResolvedValue({
+      siteId: 'ste_1',
+      enabled: true,
+      publicDashboardIdentifier: 'public-1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const staleTicket: ReportAdmissionTicket = {
+      ...ticket,
+      freshness: {
+        ...ticket.freshness,
+        current: { ...ticket.freshness.current, status: 'stale' },
+      },
+    }
+    const admission = createAdmissionSequence([ticket, staleTicket])
+    const query = createQuery()
+    const service = new PublicDashboardService({
+      repository,
+      admission: admission.port,
+      query: query.port,
+      lock: new InMemoryLifecycleLock(),
+      scope: { siteScope: {} as never, membership: {} as never },
+      clock: () => new Date('2026-09-01T00:00:00.000Z'),
+    })
+    const input = {
+      publicDashboardIdentifier: 'public-1',
+      fromDate: '2026-09-01',
+      toDate: '2026-09-01',
+      granularity: 'hour' as const,
+      metric: 'visitors' as const,
+      dimension: 'time' as const,
+    }
+
+    await service.query(input, '203.0.113.10')
+    await expect(service.query(input, '203.0.113.10')).resolves.toMatchObject({ status: 'stale' })
+    expect(query.aggregateCalls).toBe(2)
   })
 
   it('rejects public URL filters containing query strings or fragments', async () => {
