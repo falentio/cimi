@@ -46,3 +46,7 @@ export {
   DuckDbReportingQuery,
   type DuckDbReportingQueryDependencies,
 } from './duckdb/reporting-query.ts'
+export {
+  DuckDbPublicDashboardQuery,
+  type DuckDbPublicDashboardQueryDependencies,
+} from './duckdb/public-dashboard-query.ts'

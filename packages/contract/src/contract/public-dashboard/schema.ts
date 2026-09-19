@@ -58,7 +58,7 @@ export const SPublicDashboardFilter = v.pipe(
 export const SPublicDashboardConfig = v.strictObject({
   siteId: SId,
   enabled: v.boolean(),
-  publicDashboardIdentifier: v.pipe(v.string(), v.minLength(1), v.maxLength(128)),
+  publicDashboardIdentifier: v.nullable(v.pipe(v.string(), v.minLength(1), v.maxLength(128))),
   updatedAt: SPublicAbsoluteDateTime,
 })
 export const SPublicDashboardSiteFields = v.strictObject({ siteId: SId })

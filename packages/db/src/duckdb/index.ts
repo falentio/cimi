@@ -29,6 +29,7 @@ export const ANALYTICS_DB_FILENAME = 'analytics.duckdb'
 export interface AnalyticsProjectionCheckpoint {
   readonly projectedAcceptanceSequence: number
   readonly projectedFactCardinality: number | null
+  readonly projectionGeneration: number
   readonly occurrenceCoveredFrom: Date | null
   readonly occurrenceCoveredThrough: Date | null
   readonly statisticsRefreshedAt: Date | null
@@ -197,6 +198,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
         const checkpointReader = await connection.runAndReadAll(
           `SELECT projected_replay_sequence,
                   projected_fact_cardinality,
+                  projection_generation,
                   epoch_ms(occurrence_covered_from) AS occurrence_covered_from,
                   epoch_ms(occurrence_covered_through) AS occurrence_covered_through,
                   epoch_ms(statistics_refreshed_at) AS statistics_refreshed_at,
@@ -233,6 +235,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               checkpointRow['projected_fact_cardinality'] === undefined
                 ? null
                 : Number(checkpointRow['projected_fact_cardinality']),
+            projectionGeneration: Number(checkpointRow['projection_generation'] ?? 0),
             occurrenceCoveredFrom: readInstant(checkpointRow['occurrence_covered_from']),
             occurrenceCoveredThrough: readInstant(checkpointRow['occurrence_covered_through']),
             statisticsRefreshedAt: readInstant(checkpointRow['statistics_refreshed_at']),
@@ -323,7 +326,13 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           const projectedEvents = events
             .filter((event) => event.projectionState !== 'failed')
             .map((event) => projectEventIdentity(event, identities))
-          const projected = foldProjectedCheckpoints(activeSiteIds, projectedEvents, Date.now())
+          const previousGenerations = await readProjectionGenerations(connection)
+          const projected = foldProjectedCheckpoints(
+            activeSiteIds,
+            projectedEvents,
+            Date.now(),
+            previousGenerations,
+          )
           const sessions = new Map<string, Map<string, SessionRow>>()
           const visitors = new Map<string, Map<string, VisitorRow>>()
           for (const event of projectedEvents) {
@@ -494,14 +503,15 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
             for (const checkpoint of projected) {
               await connection.run(
                 `INSERT INTO projection_checkpoints (
-               site_id, projected_replay_sequence, projected_fact_cardinality,
+               site_id, projected_replay_sequence, projected_fact_cardinality, projection_generation,
                occurrence_covered_from, occurrence_covered_through, effective_retention_from,
                statistics_refreshed_at, readiness, projection_version, updated_at
-             ) VALUES (?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, CAST(? AS TIMESTAMP))`,
+             ) VALUES (?, ?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, CAST(? AS TIMESTAMP))`,
                 [
                   checkpoint.siteId,
                   checkpoint.projectedReplaySequence,
                   checkpoint.projectedFactCardinality,
+                  checkpoint.projectionGeneration,
                   timestamp(checkpoint.occurrenceCoveredFrom),
                   timestamp(checkpoint.occurrenceCoveredThrough),
                   timestamp(checkpoint.effectiveRetentionFrom),
@@ -510,6 +520,12 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
                   checkpoint.projectionVersion,
                   timestamp(checkpoint.updatedAt),
                 ],
+              )
+              await writeProjectionGeneration(
+                connection,
+                checkpoint.siteId,
+                checkpoint.projectionGeneration,
+                checkpoint.updatedAt,
               )
             }
 
@@ -576,6 +592,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
         const count = Number(countReader.getRowObjects()[0]?.['count'] ?? 0)
         await connection.run('BEGIN TRANSACTION')
         try {
+          const projectionGeneration = await nextProjectionGeneration(connection, input.siteId)
           await connection.run(
             `DELETE FROM event_properties
              WHERE site_id = ? AND event_id IN (
@@ -718,7 +735,8 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           )
           await connection.run(
             `UPDATE projection_checkpoints AS checkpoint
-             SET occurrence_covered_from = (
+             SET projection_generation = ?,
+                 occurrence_covered_from = (
                    SELECT min(event.occurrence_time) FROM events event
                    WHERE event.site_id = checkpoint.site_id
                  ),
@@ -734,8 +752,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
                  statistics_refreshed_at = current_timestamp,
                  updated_at = current_timestamp
              WHERE checkpoint.site_id = ?`,
-            [cutoff, input.siteId],
+            [projectionGeneration, cutoff, input.siteId],
           )
+          await writeProjectionGeneration(connection, input.siteId, projectionGeneration)
           await connection.run(
             `DELETE FROM projection_gaps
              WHERE site_id = ? AND occurrence_to IS NOT NULL AND occurrence_to < CAST(? AS TIMESTAMP)`,
@@ -756,6 +775,8 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       return enqueue(async () => {
         await connection.run('BEGIN TRANSACTION')
         try {
+          const projectionGeneration = await nextProjectionGeneration(connection, input.siteId)
+          await writeProjectionGeneration(connection, input.siteId, projectionGeneration)
           await connection.run('DELETE FROM event_properties WHERE site_id = ?', [input.siteId])
           await connection.run('DELETE FROM events WHERE site_id = ?', [input.siteId])
           await connection.run('DELETE FROM analytics_sessions WHERE site_id = ?', [input.siteId])
@@ -872,6 +893,7 @@ interface ProjectedCheckpointRow {
   siteId: string
   projectedReplaySequence: number
   projectedFactCardinality: number
+  projectionGeneration: number
   occurrenceCoveredFrom: number | null
   occurrenceCoveredThrough: number | null
   effectiveRetentionFrom: null
@@ -1043,17 +1065,11 @@ function readActiveSiteIds(db: Db): string[] {
   ).map((row) => row.siteId)
 }
 
-/**
- * Builds one checkpoint per active Site from the events the rebuild actually projected. The
- * cursor, coverage, and cardinality are the projected set's own facts, so a reader that counts the
- * stored events sees the same set the checkpoint describes. A Site with no projected events still
- * gets a `ready` row with a zero cursor, which is a legitimately empty Site rather than an absent
- * one.
- */
 function foldProjectedCheckpoints(
   siteIds: readonly string[],
   events: readonly (EventRow & { profileId: string | null })[],
   builtAt: number,
+  previousGenerations: ReadonlyMap<string, number>,
 ): ProjectedCheckpointRow[] {
   const bySite = new Map<
     string,
@@ -1079,6 +1095,7 @@ function foldProjectedCheckpoints(
       siteId,
       projectedReplaySequence: site.sequence,
       projectedFactCardinality: counts.get(siteId) ?? 0,
+      projectionGeneration: (previousGenerations.get(siteId) ?? 0) + 1,
       occurrenceCoveredFrom: site.from,
       occurrenceCoveredThrough: site.through,
       effectiveRetentionFrom: null,
@@ -1088,6 +1105,51 @@ function foldProjectedCheckpoints(
       updatedAt: builtAt,
     }
   })
+}
+
+async function readProjectionGenerations(
+  connection: DuckDBConnection,
+): Promise<ReadonlyMap<string, number>> {
+  const reader = await connection.runAndReadAll(
+    `SELECT site_id, projection_generation FROM projection_generations
+     UNION ALL
+     SELECT site_id, projection_generation FROM projection_checkpoints`,
+  )
+  const generations = new Map<string, number>()
+  for (const row of reader.getRowObjects()) {
+    const siteId = String(row['site_id'])
+    const generation = Number(row['projection_generation'] ?? 0)
+    generations.set(siteId, Math.max(generations.get(siteId) ?? 0, generation))
+  }
+  return generations
+}
+
+async function nextProjectionGeneration(
+  connection: DuckDBConnection,
+  siteId: string,
+): Promise<number> {
+  const reader = await connection.runAndReadAll(
+    `SELECT greatest(
+       coalesce((SELECT max(projection_generation) FROM projection_generations WHERE site_id = ?), 0),
+       coalesce((SELECT max(projection_generation) FROM projection_checkpoints WHERE site_id = ?), 0)
+     ) + 1 AS next_generation`,
+    [siteId, siteId],
+  )
+  return Number(reader.getRowObjects()[0]?.['next_generation'] ?? 1)
+}
+
+async function writeProjectionGeneration(
+  connection: DuckDBConnection,
+  siteId: string,
+  generation: number,
+  updatedAt = Date.now(),
+): Promise<void> {
+  await connection.run('DELETE FROM projection_generations WHERE site_id = ?', [siteId])
+  await connection.run(
+    `INSERT INTO projection_generations (site_id, projection_generation, updated_at)
+     VALUES (?, ?, CAST(? AS TIMESTAMP))`,
+    [siteId, generation, timestamp(updatedAt)],
+  )
 }
 
 function readProjectionGaps(db: Db): GapRow[] {

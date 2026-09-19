@@ -11,6 +11,13 @@ export {
 export { fillBuckets, type BucketCount, type FilledBucket } from './bucket-fill.ts'
 export type { ReportingQueryPort } from './ports.ts'
 export type {
+  PublicDashboardAggregateQuery,
+  PublicDashboardAggregateRow,
+  PublicDashboardDimension,
+  PublicDashboardMetric,
+  PublicDashboardQueryPort,
+} from './public-types.ts'
+export type {
   EventBreakdownField,
   EventBreakdownQuery,
   EventBreakdownResult,

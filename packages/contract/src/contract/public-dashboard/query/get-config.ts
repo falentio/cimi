@@ -17,7 +17,7 @@ export const getPublicDashboardConfig = oc
     tags: ['public-dashboard'],
     successStatus: 200,
   })
-  .meta({ auth: 'admin' })
+  .meta({ auth: 'authenticated' })
   .errors({
     UNAUTHORIZED: {},
     FORBIDDEN: {},

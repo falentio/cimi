@@ -115,6 +115,7 @@ export class ReportingAdmissionService {
         comparison: preparation.evaluation.comparison,
         interval: preparation.evaluation.interval,
       },
+      projectionGeneration: facts.projection.checkpoint.projectionGeneration,
       freshness: {
         current: resolveFreshness(
           preparation.evaluation.current.period,

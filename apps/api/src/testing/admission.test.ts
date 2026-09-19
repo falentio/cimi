@@ -110,6 +110,39 @@ test('accept-only admission passes a standard route through', async () => {
   await app.close()
 })
 
+test('backup write quiescence keeps public analytics admission open', async () => {
+  await using fixture = await createApiTestFixture()
+  const app = createApiApp({
+    db: fixture.db,
+    auth: fixture.auth,
+    analytics: fixture.analytics,
+    dataDirectoryReady: true,
+    controlDatabasePath: ':memory:',
+    dataDirectoryPath: '/tmp/cimi-test-data',
+    lifecycle: {
+      async getSnapshot() {
+        return {
+          installationStatus: 'ready' as const,
+          controlStore: 'ready' as const,
+          analyticsStore: 'ready' as const,
+          cleanupPending: false,
+          admissionMode: 'backup-write-quiesced' as const,
+        }
+      },
+    },
+  })
+
+  const response = await app.fetch(
+    new Request(
+      'http://localhost/api/public-dashboard/queryPublicDashboard?publicDashboardIdentifier=public-1&fromDate=2026-09-01&toDate=2026-09-01&granularity=hour&metric=visitors&dimension=time',
+    ),
+    { transportPeerIp: '203.0.113.10' },
+  )
+
+  expect(response.status).toBe(404)
+  await app.close()
+})
+
 test('cleanup-pending restore blocks analytics-read identity queries with SERVICE_UNAVAILABLE', async () => {
   await using fixture = await createApiTestFixture()
   const app = createApiApp({

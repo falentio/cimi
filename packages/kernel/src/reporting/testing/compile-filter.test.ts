@@ -73,6 +73,20 @@ describe('compileTrafficFilterPlan', () => {
     ])
   })
 
+  it('accepts the public anonymous and identified identity values', () => {
+    const plan = expectOk(
+      traffic([
+        {
+          scope: 'visitor',
+          field: 'identityKind',
+          operator: 'equals',
+          values: ['anonymous', 'identified'],
+        },
+      ]),
+    )
+    expect(plan.visitor[0]?.bind).toEqual(['anonymous', 'identified'])
+  })
+
   it('maps every traffic operator to its predicate operator', () => {
     const cases = [
       {

@@ -5,7 +5,7 @@ import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins'
 import { experimental_ValibotToJsonSchemaConverter } from '@orpc/valibot'
 import { onError, ORPCError } from '@orpc/server'
 import { ERROR_CATALOG, isProfileTraitsPayloadOversized } from '@cimi/contract'
-import type { Db } from '@cimi/db'
+import { DuckDbPublicDashboardQuery, type Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
 import { getLogger, toLogError, type LoggingConfig } from '@cimi/logging'
@@ -20,6 +20,7 @@ import {
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { isRecord } from '@cimi/utils'
 import { api } from './orpc.ts'
+import { resolveRequestSourceIp } from './request-context.ts'
 import { createHello } from './resources/hello/index.ts'
 import {
   createInstallation,
@@ -58,6 +59,11 @@ import { createFunnel } from './resources/funnel/index.ts'
 import { createCohort } from './resources/cohort-retention/index.ts'
 import { createReportQueryKernelFromInfrastructure } from './resources/reporting/index.ts'
 import { createEventReport } from './resources/event-report/index.ts'
+import { createPublicDashboard } from './resources/public-dashboard/index.ts'
+import {
+  addPublicNoIndexHeader,
+  addPublicRateLimitHeaders,
+} from './resources/public-dashboard/response.ts'
 
 export { normalizeApiError } from './errors.ts'
 export {
@@ -98,7 +104,11 @@ export interface CreateApiAppDependencies {
   startRetentionCleanupWorker?: boolean | undefined
 }
 
-export type ApiApp = Hono & { close(): Promise<void> }
+export interface ApiBindings {
+  readonly transportPeerIp?: string | undefined
+}
+
+export type ApiApp = Hono<{ Bindings: ApiBindings }> & { close(): Promise<void> }
 
 const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
 
@@ -262,6 +272,13 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     dataDirectoryReady: deps.dataDirectoryReady,
     profileFilterKeys: reportingProfileFilter,
   })
+  const publicDashboardQuery = new DuckDbPublicDashboardQuery({ analytics: deps.analytics })
+  const publicDashboard = createPublicDashboard({
+    db: deps.db,
+    lock,
+    admission: trafficReport.admission,
+    query: publicDashboardQuery,
+  })
   const eventReport = createEventReport({
     db: deps.db,
     analytics: deps.analytics,
@@ -316,6 +333,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     cohortRetention: cohort.router,
     trafficReport: trafficReport.router,
     eventReport: eventReport.router,
+    publicDashboard: publicDashboard.router,
   })
 
   const openAPIHandler = new OpenAPIHandler(router, {
@@ -383,7 +401,7 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     ],
   })
 
-  const app = new Hono()
+  const app = new Hono<{ Bindings: ApiBindings }>()
   app.use(
     '*',
     honoLogger({
@@ -428,9 +446,23 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
 
     const { matched, response } = await openAPIHandler.handle(request, {
       prefix: '/api',
-      context: { user, headers: request.headers },
+      context: {
+        user,
+        headers: request.headers,
+        sourceIp: resolveRequestSourceIp({
+          headers: request.headers,
+          transportPeerIp: c.env?.transportPeerIp,
+          trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
+        }),
+      },
     })
-    if (matched && response) return response
+    if (matched && response) {
+      const publicResponse =
+        new URL(request.url).pathname === '/api/public-dashboard/queryPublicDashboard'
+          ? addPublicNoIndexHeader(response)
+          : response
+      return addPublicRateLimitHeaders(publicResponse)
+    }
     return new Response('Not Found', { status: 404 })
   })
 

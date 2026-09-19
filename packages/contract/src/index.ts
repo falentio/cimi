@@ -158,3 +158,35 @@ export {
   MAX_AUTHENTICATED_EVENT_OUTPUT_BUCKETS,
   isWithinAuthenticatedEventBucketLimit,
 } from './contract/event-report/schema.ts'
+export {
+  MAX_PUBLIC_DASHBOARD_DIMENSION_ROWS,
+  MAX_PUBLIC_DASHBOARD_INTERVAL_STARTS,
+  SPublicDashboardBucket,
+  SPublicDashboardConfig,
+  SPublicDashboardDimensionBucket,
+  SPublicDashboardFilter,
+  SPublicDashboardQueryFields,
+  SPublicDashboardSiteFields,
+  SPublicDashboardTimeBucket,
+  SPublicRateLimitAdapterResponse,
+  SPublicRateLimitHeaders,
+  SPublicRateLimitMetadata,
+  SPublicUtcDateTime,
+} from './contract/public-dashboard/schema.ts'
+export {
+  SPublicDashboardConfigInput,
+  SPublicDashboardConfigOutput,
+} from './contract/public-dashboard/query/get-config.ts'
+export {
+  SPublicDashboardEnableInput,
+  SPublicDashboardEnableOutput,
+} from './contract/public-dashboard/command/enable.ts'
+export { SPublicDashboardDisableInput } from './contract/public-dashboard/command/disable.ts'
+export {
+  SPublicDashboardRotateInput,
+  SPublicDashboardRotateOutput,
+} from './contract/public-dashboard/command/rotate-identifier.ts'
+export {
+  SPublicDashboardQueryInput,
+  SPublicDashboardQueryOutput,
+} from './contract/public-dashboard/query/query.ts'

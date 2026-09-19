@@ -64,6 +64,40 @@ describe('in-memory kernel ports', () => {
     expect(lock.isLocked()).toBe(false)
   })
 
+  it('shares analytics reads, overlaps backup, and excludes other lifecycle modes', () => {
+    const lock = new InMemoryLifecycleLock()
+
+    const firstRead = lock.acquire('analytics-read')
+    const secondRead = lock.acquire('analytics-read')
+    const backup = lock.acquire('backup')
+
+    expect(backup).toBeDefined()
+    expect(firstRead?.mode).toBe('shared-read')
+    expect(secondRead).toBeDefined()
+    expect(lock.acquire('restore')).toBeUndefined()
+    expect(lock.acquire('site_deletion')).toBeUndefined()
+    expect(lock.acquire('ingestion')).toBeUndefined()
+
+    firstRead?.release()
+    expect(lock.isLocked()).toBe(true)
+    secondRead?.release()
+    expect(lock.isLocked()).toBe(true)
+    backup?.release()
+    expect(lock.isLocked()).toBe(false)
+  })
+
+  it('rejects analytics reads while ingestion or another exclusive operation is held', () => {
+    const ingestionLock = new InMemoryLifecycleLock()
+    const ingestion = ingestionLock.acquire('ingestion')
+    expect(ingestionLock.acquire('analytics-read')).toBeUndefined()
+    ingestion?.release()
+
+    const exclusiveLock = new InMemoryLifecycleLock()
+    const exclusive = exclusiveLock.acquire('site_deletion')
+    expect(exclusiveLock.acquire('analytics-read')).toBeUndefined()
+    exclusive?.release()
+  })
+
   it('normalizes the issue alias purge to the persisted site_purge kind', () => {
     expect(normalizeLifecycleOperationKind('purge')).toBe('site_purge')
     expect(normalizeLifecycleOperationKind('site_purge')).toBe('site_purge')

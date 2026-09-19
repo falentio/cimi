@@ -624,12 +624,16 @@ describe('createAnalyticsDb', () => {
       )
 
       await analytics.rebuild({ controlDb })
+      const beforeDelete = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
       await analytics.deleteExpired({ siteId: 'ste-1', occurrenceCutoff: new Date(cutoff) })
 
       const snapshot = await analytics.readProjectionSnapshot({ siteId: 'ste-1' })
 
       expect(snapshot.factCardinality).toBe(1)
       expect(snapshot.checkpoint?.projectedFactCardinality).toBe(1)
+      expect(snapshot.checkpoint?.projectionGeneration).toBeGreaterThan(
+        beforeDelete.checkpoint?.projectionGeneration ?? 0,
+      )
     } finally {
       await analytics.close()
       closeDb(controlDb)
