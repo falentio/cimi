@@ -40,7 +40,11 @@ jobs:
       - name: Check for leaked API E2E roots
         if: always()
         run: |
-          if compgen -G '/tmp/cimi-api-e2e-*' > /tmp/cimi-api-e2e-roots.txt; then
-            cat /tmp/cimi-api-e2e-roots.txt
+          leaked=()
+          while IFS= read -r root; do
+            leaked+=("$root")
+          done < <(compgen -G '/tmp/cimi-api-e2e-*' || true)
+          if [ ${#leaked[@]} -gt 0 ]; then
+            printf '%s\n' "${leaked[@]}"
             exit 1
           fi
