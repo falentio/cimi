@@ -1,0 +1,3 @@
+ts	phase	decision	why	evidence	result
+2026-09-19T04:30:08Z	frame	selected a high-rigor bridge run for the exact 471c10d lineage	the migration path is a one-way data boundary and the issue requires rollback, idempotence, and fail-closed proof	https://github.com/falentio/cimi/issues/113	open; grounding in progress
+2026-09-20T14:05:00Z	design	arena picked candidate A (staged file-backed rebuild) over B (in-place ledger append)	end-state ledger is exactly the current manifest with zero permanent validator residue; B's 21-row grammar compounds with every release and its rationale fabricated an issue quote	/tmp/opencode/issue-113-architect-synthesis.md	cross-judge 52 vs 46; grafts 1-6 from B plus hardlink-aside install fix

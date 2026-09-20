@@ -1,36 +1,34 @@
-import { createHash } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
-import { readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isRecord } from '@cimi/utils'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { closeDb, createDb, type Db } from './client.ts'
+import { bridgeLegacyControlDb, classifyControlLineage } from './legacy-bridge.ts'
+import {
+  BASE_SKELETON_TABLES,
+  ControlMigrationIncompatibilityError,
+  loadCurrentMigrationPlan,
+  type MigrationManifestEntry,
+} from './migration-plan.ts'
+
+export { BASE_SKELETON_TABLES, ControlMigrationIncompatibilityError } from './migration-plan.ts'
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL('./migrations', import.meta.url))
 const WORKSPACE_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
-
-export class ControlMigrationIncompatibilityError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ControlMigrationIncompatibilityError'
-  }
-}
-
-export const BASE_SKELETON_TABLES = [
-  'installation',
-  'retention_policy',
-  'retention_effective_cutoff',
-  'site_tombstone',
-  'backup_restore_reference',
-  'event_acceptance_journal',
-] as const
 
 export interface ControlMigrationOptions {
   migrationsFolder?: string | undefined
 }
 
 export function migrateControlDb(db: Db, options: ControlMigrationOptions = {}): void {
+  const lineage = classifyControlLineage(db.$client)
+  if (lineage.kind === 'legacy-471c10d') {
+    bridgeLegacyControlDb({
+      source: db,
+      plan: loadCurrentMigrationPlan(options.migrationsFolder ?? MIGRATIONS_FOLDER),
+    })
+    return
+  }
   validateControlMigrationHistory(db, options)
   migrate(db, {
     migrationsFolder: options.migrationsFolder ?? MIGRATIONS_FOLDER,
@@ -107,11 +105,6 @@ export function resolveControlDbPath(
   return resolve(workingDirectory, dataDirectory, 'control.sqlite')
 }
 
-interface MigrationManifestEntry {
-  readonly createdAt: number
-  readonly hash: string
-}
-
 let defaultControlMigrationManifest: readonly MigrationManifestEntry[] | undefined
 
 function getDefaultControlMigrationManifest(): readonly MigrationManifestEntry[] {
@@ -119,21 +112,5 @@ function getDefaultControlMigrationManifest(): readonly MigrationManifestEntry[]
 }
 
 function loadControlMigrationManifest(migrationsFolder: string): readonly MigrationManifestEntry[] {
-  const parsed: unknown = JSON.parse(
-    readFileSync(join(migrationsFolder, 'meta/_journal.json'), 'utf8'),
-  )
-  if (!isRecord(parsed) || !Array.isArray(parsed['entries'])) {
-    throw new Error('Control migration journal is invalid')
-  }
-
-  return parsed['entries'].map((entry) => {
-    if (!isRecord(entry) || typeof entry['tag'] !== 'string' || typeof entry['when'] !== 'number') {
-      throw new Error('Control migration journal entry is invalid')
-    }
-    const sql = readFileSync(join(migrationsFolder, `${entry['tag']}.sql`))
-    return {
-      createdAt: entry['when'],
-      hash: createHash('sha256').update(sql).digest('hex'),
-    }
-  })
+  return loadCurrentMigrationPlan(migrationsFolder).entries
 }
