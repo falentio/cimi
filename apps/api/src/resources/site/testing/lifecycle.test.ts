@@ -55,6 +55,12 @@ describe('SiteLifecycleWorker', () => {
 
     await expect(worker.runOnce(now)).resolves.toBeUndefined()
     expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), {
+      operation: 'site.lifecycle',
+      stage: 'site-delete',
+      operationId: 'sop_1',
+      siteId: 'ste_1',
+    })
     expect(repository.completeRecover).toHaveBeenCalledWith(
       expect.objectContaining({ siteId: 'ste_2' }),
     )

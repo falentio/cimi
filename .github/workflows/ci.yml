@@ -29,3 +29,6 @@ jobs:
 
       - name: Test
         run: vp run -r test
+
+      - name: Test logging benchmark contract
+        run: vp test scripts/benchmark-api-logging.test.mjs

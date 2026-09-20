@@ -4,12 +4,14 @@ import { assertInstallationAdmin } from '@cimi/guard'
 import type {
   AcceptanceQuiescencePort,
   LifecycleAdmissionMode,
+  LifecycleLease,
   LifecycleLock,
   ReadQuiescencePort,
 } from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
+import { reportLogEvent, type LogOperationContext } from '@cimi/logging'
 import {
   BackupIncompatibilityError,
   InsufficientStorageError,
@@ -47,7 +49,7 @@ export interface BackupRestoreServiceDependencies {
   readonly dataDirectoryReady: boolean | (() => boolean)
   readonly clock?: (() => Date) | undefined
   readonly ids?: BackupRestoreIdFactory | undefined
-  readonly onError?: ((error: unknown) => void) | undefined
+  readonly onError?: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
 }
 
 export interface BackupRestoreHealthSnapshot {
@@ -73,8 +75,10 @@ export class BackupRestoreService {
   private readonly dataDirectoryReady: () => boolean
   private readonly clock: () => Date
   private readonly ids: BackupRestoreIdFactory
-  private readonly onError: (error: unknown) => void
+  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
   private readonly tasks = new Set<Promise<void>>()
+  private pendingStarts = 0
+  private readonly pendingStartWaiters = new Set<() => void>()
 
   constructor({
     repository,
@@ -100,16 +104,27 @@ export class BackupRestoreService {
       artifactId: () => generateId('bar'),
       ownerToken: () => generateId('own'),
     }
-    this.onError = onError ?? (() => undefined)
+    this.onError = onError
   }
 
   async createBackup(_input: BackupCreateInput, user: AuthUser | undefined): Promise<BackupOutput> {
     assertAdmin(user)
     if (!this.dataDirectoryReady()) throw new ORPCError('CONFLICT', { status: 409 })
-    const lease = await this.lock.acquire('backup')
-    if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     const operationId = this.ids.operationId()
     const ownerToken = this.ids.ownerToken()
+    this.beginStart()
+    let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
+    try {
+      lease = await this.lock.acquire('backup')
+    } catch (error) {
+      this.endStart()
+      this.reportError(error, { operation: 'backup.create', stage: 'acquire', operationId })
+      throw error
+    }
+    if (lease === undefined) {
+      this.endStart()
+      throw new ORPCError('CONFLICT', { status: 409 })
+    }
     let keepLease = false
     let admissionStopped = false
     try {
@@ -139,15 +154,19 @@ export class BackupRestoreService {
     } catch (error) {
       if (admissionStopped) {
         try {
-          await this.resumeAdmission(false)
+          await this.resumeAdmission({ readsStopped: false, admissionStopped })
         } catch (resumeError) {
-          this.onError(resumeError)
+          this.reportError(resumeError, { operation: 'backup.create', stage: 'resume-admission' })
         }
       }
-      await this.failAfterAdmissionError(operationId, ownerToken, error)
+      await this.failAfterAdmissionError(operationId, ownerToken, error, 'backup.create')
       throw toCommandError(error)
     } finally {
-      if (!keepLease) await lease.release()
+      try {
+        if (!keepLease) await this.releaseLease(lease, 'backup.create', operationId)
+      } finally {
+        this.endStart()
+      }
     }
   }
 
@@ -157,13 +176,38 @@ export class BackupRestoreService {
   ): Promise<BackupOutput> {
     assertAdmin(user)
     if (!this.dataDirectoryReady()) throw new ORPCError('CONFLICT', { status: 409 })
-    const source = await this.repository.findSourceManifest(input.backupId)
-    if (source === undefined) throw new ORPCError('NOT_FOUND')
-    await this.preflight(source)
-    const lease = await this.lock.acquire('restore')
-    if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
     const operationId = this.ids.operationId()
     const ownerToken = this.ids.ownerToken()
+    this.beginStart()
+    let source: SourceManifest | undefined
+    try {
+      source = await this.repository.findSourceManifest(input.backupId)
+    } catch (error) {
+      this.endStart()
+      throw error
+    }
+    if (source === undefined) {
+      this.endStart()
+      throw new ORPCError('NOT_FOUND')
+    }
+    try {
+      await this.preflight(source)
+    } catch (error) {
+      this.endStart()
+      throw error
+    }
+    let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
+    try {
+      lease = await this.lock.acquire('restore')
+    } catch (error) {
+      this.endStart()
+      this.reportError(error, { operation: 'backup.restore', stage: 'acquire', operationId })
+      throw error
+    }
+    if (lease === undefined) {
+      this.endStart()
+      throw new ORPCError('CONFLICT', { status: 409 })
+    }
     let keepLease = false
     let admissionStopped = false
     let readsStopped = false
@@ -197,15 +241,18 @@ export class BackupRestoreService {
       return toPublicBackup(prepared)
     } catch (error) {
       try {
-        if (readsStopped) await this.resumeAdmission(true)
-        else if (admissionStopped) await this.resumeAdmission(false)
+        await this.resumeAdmission({ readsStopped, admissionStopped })
       } catch (resumeError) {
-        this.onError(resumeError)
+        this.reportError(resumeError, { operation: 'backup.restore', stage: 'resume-admission' })
       }
-      await this.failAfterAdmissionError(operationId, ownerToken, error)
+      await this.failAfterAdmissionError(operationId, ownerToken, error, 'backup.restore')
       throw toCommandError(error)
     } finally {
-      if (!keepLease) await lease.release()
+      try {
+        if (!keepLease) await this.releaseLease(lease, 'backup.restore', operationId)
+      } finally {
+        this.endStart()
+      }
     }
   }
 
@@ -242,9 +289,29 @@ export class BackupRestoreService {
   async resumeOnStartup(): Promise<void> {
     const operation = await this.repository.findActive()
     if (operation === undefined) return
-    const lease = await this.lock.acquire(operation.operationType)
+    let ownerToken: string
+    try {
+      ownerToken = this.ids.ownerToken()
+    } catch (error) {
+      this.reportError(error, {
+        operation: operationLogName(operation.operationType),
+        stage: 'startup',
+        operationId: operation.id,
+      })
+      return
+    }
+    let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
+    try {
+      lease = await this.lock.acquire(operation.operationType)
+    } catch (error) {
+      this.reportError(error, {
+        operation: operationLogName(operation.operationType),
+        stage: 'acquire',
+        operationId: operation.id,
+      })
+      return
+    }
     if (lease === undefined) return
-    const ownerToken = this.ids.ownerToken()
     let keepLease = false
     let admissionStopped = false
     let readsStopped = false
@@ -278,21 +345,52 @@ export class BackupRestoreService {
       })
     } catch (error) {
       try {
-        if (readsStopped) await this.resumeAdmission(true)
-        else if (admissionStopped) await this.resumeAdmission(false)
+        await this.resumeAdmission({ readsStopped, admissionStopped })
       } catch (resumeError) {
-        this.onError(resumeError)
+        const operationContext = {
+          operation: operationLogName(claimed?.operationType ?? operation.operationType),
+          stage: 'resume-admission' as const,
+          operationId: claimed?.id ?? operation.id,
+        }
+        this.reportError(resumeError, {
+          ...operationContext,
+        })
       }
       if (claimed !== undefined) {
+        const context = {
+          operation: operationLogName(claimed.operationType),
+          stage: 'startup' as const,
+          operationId: claimed.id,
+        }
+        this.reportError(error, context)
         try {
-          await this.recordFailure(claimed.id, ownerToken, error, undefined)
+          await this.recordFailure(claimed.id, ownerToken, error, undefined, context)
         } catch (failureError) {
-          this.onError(failureError)
+          this.reportError(failureError, {
+            operation: operationLogName(claimed.operationType),
+            stage: 'record-failure',
+            operationId: claimed.id,
+          })
+        }
+      } else {
+        this.reportError(error, {
+          operation: operationLogName(operation.operationType),
+          stage: 'startup',
+          operationId: operation.id,
+        })
+      }
+    } finally {
+      if (!keepLease) {
+        try {
+          await lease.release()
+        } catch (error) {
+          this.reportError(error, {
+            operation: operationLogName(operation.operationType),
+            stage: 'release',
+            operationId: operation.id,
+          })
         }
       }
-      this.onError(error)
-    } finally {
-      if (!keepLease) await lease.release()
     }
   }
 
@@ -301,6 +399,7 @@ export class BackupRestoreService {
   }
 
   async stop(): Promise<void> {
+    await this.waitForPendingStarts()
     await Promise.all(this.tasks)
   }
 
@@ -341,27 +440,44 @@ export class BackupRestoreService {
   }): void {
     let task: Promise<void>
     task = this.execute(input.operation, input.ownerToken)
-      .catch((error) => this.onError(error))
+      .catch((error) =>
+        this.reportError(error, {
+          operation: operationLogName(input.operation.operationType),
+          stage: 'execute',
+          operationId: input.operation.id,
+        }),
+      )
       .finally(async () => {
-        this.tasks.delete(task)
         try {
           if (input.readsStopped) await this.reads.resumeReads()
         } catch (error) {
-          this.onError(error)
+          this.reportError(error, {
+            operation: operationLogName(input.operation.operationType),
+            stage: 'resume-reads',
+            operationId: input.operation.id,
+          })
         }
         try {
           if (input.admissionStopped) await this.acceptance.resumeAdmission()
         } catch (error) {
-          this.onError(error)
+          this.reportError(error, {
+            operation: operationLogName(input.operation.operationType),
+            stage: 'resume-admission',
+            operationId: input.operation.id,
+          })
         }
         try {
           await input.lease.release()
         } catch (error) {
-          this.onError(error)
+          this.reportError(error, {
+            operation: operationLogName(input.operation.operationType),
+            stage: 'release',
+            operationId: input.operation.id,
+          })
         }
+        this.tasks.delete(task)
       })
     this.tasks.add(task)
-    void task.catch(() => undefined)
   }
 
   private async execute(operation: BackupOperation, ownerToken: string): Promise<void> {
@@ -402,7 +518,28 @@ export class BackupRestoreService {
       if (completed === undefined) ownershipLost = true
     } catch (error) {
       if (!ownershipLost) {
-        await this.recordFailure(operation.id, ownerToken, error, undefined, 'BACKUP_FAILED')
+        const context = {
+          operation: 'backup.create' as const,
+          stage: 'capture' as const,
+          operationId: operation.id,
+        }
+        this.reportError(error, context)
+        try {
+          await this.recordFailure(
+            operation.id,
+            ownerToken,
+            error,
+            undefined,
+            context,
+            'BACKUP_FAILED',
+          )
+        } catch (failureError) {
+          this.reportError(failureError, {
+            operation: 'backup.create',
+            stage: 'record-failure',
+            operationId: operation.id,
+          })
+        }
       }
     }
   }
@@ -476,7 +613,23 @@ export class BackupRestoreService {
       })
       if (completed === undefined) ownershipLost = true
     } catch (error) {
-      if (!ownershipLost) await this.recordFailure(operation.id, ownerToken, error, safety)
+      if (!ownershipLost) {
+        const context = {
+          operation: 'backup.restore' as const,
+          stage: 'restore' as const,
+          operationId: operation.id,
+        }
+        this.reportError(error, context)
+        try {
+          await this.recordFailure(operation.id, ownerToken, error, safety, context)
+        } catch (failureError) {
+          this.reportError(failureError, {
+            operation: 'backup.restore',
+            stage: 'record-failure',
+            operationId: operation.id,
+          })
+        }
+      }
     }
   }
 
@@ -511,13 +664,19 @@ export class BackupRestoreService {
     ownerToken: string,
     error: unknown,
     safety: SafetyManifest | undefined,
+    context: LogOperationContext,
     fallbackErrorCode: 'BACKUP_FAILED' | 'INTERNAL_SERVER_ERROR' = 'INTERNAL_SERVER_ERROR',
   ): Promise<void> {
     if (error instanceof OwnershipLostError) return
     if (safety !== undefined) {
       try {
         await this.executor.rollback({ operationId, safety })
-      } catch {
+      } catch (rollbackError) {
+        this.reportError(rollbackError, {
+          operation: context.operation,
+          stage: 'rollback',
+          operationId,
+        })
         await this.repository.fail({
           operationId,
           ownerToken,
@@ -540,8 +699,10 @@ export class BackupRestoreService {
     operationId: string,
     ownerToken: string,
     error: unknown,
+    operation: 'backup.create' | 'backup.restore',
   ): Promise<void> {
     if (error instanceof ORPCError && error.code === 'CONFLICT') return
+    this.reportError(error, { operation, stage: 'admission', operationId })
     try {
       await this.repository.fail({
         operationId,
@@ -549,14 +710,61 @@ export class BackupRestoreService {
         errorCode: errorCodeFor(error, 'INTERNAL_SERVER_ERROR'),
         now: this.clock(),
       })
-    } catch {
+    } catch (failureError) {
+      this.reportError(failureError, { operation, stage: 'record-failure', operationId })
       return
     }
   }
 
-  private async resumeAdmission(restore: boolean): Promise<void> {
-    if (restore) await this.reads.resumeReads()
-    await this.acceptance.resumeAdmission()
+  private async resumeAdmission(input: {
+    readonly readsStopped: boolean
+    readonly admissionStopped: boolean
+  }): Promise<void> {
+    const errors: unknown[] = []
+    if (input.readsStopped) {
+      try {
+        await this.reads.resumeReads()
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+    if (input.admissionStopped) {
+      try {
+        await this.acceptance.resumeAdmission()
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+    if (errors.length > 0) throw new AggregateError(errors, 'Failed to resume backup admission')
+  }
+
+  private beginStart(): void {
+    this.pendingStarts += 1
+  }
+
+  private endStart(): void {
+    this.pendingStarts -= 1
+    if (this.pendingStarts !== 0) return
+    for (const resolve of this.pendingStartWaiters) resolve()
+    this.pendingStartWaiters.clear()
+  }
+
+  private async waitForPendingStarts(): Promise<void> {
+    if (this.pendingStarts === 0) return
+    await new Promise<void>((resolve) => this.pendingStartWaiters.add(resolve))
+  }
+
+  private async releaseLease(
+    lease: LifecycleLease,
+    operation: 'backup.create' | 'backup.restore',
+    operationId: string,
+  ): Promise<void> {
+    try {
+      await lease.release()
+    } catch (error) {
+      this.reportError(error, { operation, stage: 'release', operationId })
+      throw error
+    }
   }
 
   private async preflight(source: SourceManifest): Promise<void> {
@@ -565,6 +773,16 @@ export class BackupRestoreService {
     } catch (error) {
       throw toCommandError(error)
     }
+  }
+
+  private reportError(error: unknown, context: LogOperationContext): void {
+    if (this.onError === undefined) {
+      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      return
+    }
+    try {
+      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+    } catch {}
   }
 }
 
@@ -587,6 +805,12 @@ function errorCodeFor(
   if (error instanceof SafetyArtifactChecksumMismatchError) return 'INTERNAL_SERVER_ERROR'
   if (error instanceof ORPCError && error.code === 'CONFLICT') return 'CONFLICT'
   return fallback
+}
+
+function operationLogName(
+  operationType: BackupOperation['operationType'] | undefined,
+): 'backup.create' | 'backup.restore' {
+  return operationType === 'restore' ? 'backup.restore' : 'backup.create'
 }
 
 function toCommandError(error: unknown): ORPCError<string, unknown> {
