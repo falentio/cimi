@@ -8,7 +8,13 @@ import { ERROR_CATALOG, isProfileTraitsPayloadOversized } from '@cimi/contract'
 import type { Db } from '@cimi/db'
 import { createOrganizationAuthority, type Auth, type AuthUser } from '@cimi/auth'
 import type { AnalyticsDb } from '@cimi/db'
-import { getLogger, toLogError, type LoggingConfig } from '@cimi/logging'
+import {
+  normalizeRequestId,
+  reportLogEvent,
+  toLogProperties,
+  withLogContext,
+  type LoggingConfig,
+} from '@cimi/logging'
 import { configureNodeLogging } from '@cimi/logging/node'
 import {
   InMemoryLifecycleLock,
@@ -98,7 +104,11 @@ export interface CreateApiAppDependencies {
   startRetentionCleanupWorker?: boolean | undefined
 }
 
-export type ApiApp = Hono & { close(): Promise<void> }
+export type ApiApp = Hono<{ Variables: ApiContextVariables }> & { close(): Promise<void> }
+
+type ApiContextVariables = {
+  requestId: string
+}
 
 const defaultLifecycleLocks = new WeakMap<Db, LifecycleLock>()
 
@@ -122,7 +132,6 @@ function combineAcceptanceQuiescence(
 
 export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   configureNodeLogging(deps.logging)
-  const logger = getLogger(['cimi', 'api'])
   const hello = createHello({ db: deps.db })
   const authority = createOrganizationAuthority(deps.auth)
   const membership = createMembership({ db: deps.db, authority })
@@ -154,7 +163,10 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     onPurgedSite: ({ siteId }) => deps.analytics.purgeSite({ siteId }),
   })
   siteLifecycleWorker.start()
-  const installationStartup = installation.service.resumeOnStartup().catch(() => undefined)
+  const installationStartup = installation.service.resumeOnStartup().catch((error: unknown) => {
+    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
+    return undefined
+  })
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
   const retentionPolicy = createRetentionPolicy({
     db: deps.db,
@@ -229,7 +241,15 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
   })
   const backupRestoreStartup = installationStartup
     .then(() => backupRestore.service.start())
-    .catch(() => undefined)
+    .catch((error: unknown) => {
+      reportLogEvent({
+        kind: 'operation.failure',
+        operation: 'api.startup',
+        stage: 'startup',
+        error,
+      })
+      return undefined
+    })
   backupRestore.worker.start()
   const lifecycle: HealthLifecycle = {
     async getSnapshot() {
@@ -238,7 +258,15 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
         : ((await installation.service.snapshotForHealth()) ?? {})
       const backupSnapshot: BackupRestoreHealthSnapshot = await backupRestore.service
         .getSnapshot()
-        .catch(() => ({ admissionMode: 'normal' }))
+        .catch((error: unknown) => {
+          reportLogEvent({
+            kind: 'health.failure',
+            operation: 'backup-snapshot',
+            stage: 'snapshot',
+            error,
+          })
+          return { admissionMode: 'normal' }
+        })
       const existingAdmissionMode =
         'admissionMode' in installationSnapshot ? installationSnapshot.admissionMode : undefined
       const admissionMode =
@@ -320,19 +348,37 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
 
   const openAPIHandler = new OpenAPIHandler(router, {
     interceptors: [
-      onError((error) => {
+      onError((error, options) => {
+        const context = options.context
         if (error instanceof ORPCError) {
-          logger.error('API request failed', {
+          reportLogEvent({
+            kind: 'api.error',
+            requestId: context.requestId,
+            method: context.method,
+            path: context.path,
+            procedure: context.procedure,
             code: error.code,
             status: error.status,
+            ...(error.cause === undefined ? {} : { error: error.cause }),
           })
           return
         }
-        logger.error('API request failed', { error: toLogError(error) })
+        const isDecodeError = context.procedure === undefined
+        reportLogEvent({
+          kind: 'api.error',
+          requestId: context.requestId,
+          method: context.method,
+          path: context.path,
+          procedure: context.procedure,
+          code: isDecodeError ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          status: isDecodeError ? 400 : 500,
+          error,
+        })
       }),
     ],
     clientInterceptors: [
       async (options) => {
+        options.context.procedure = options.path.join('.')
         try {
           return await options.next()
         } catch (error) {
@@ -383,24 +429,80 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     ],
   })
 
-  const app = new Hono()
+  const app = new Hono<{ Variables: ApiContextVariables }>()
   app.use(
     '*',
     honoLogger({
       category: ['cimi', 'api', 'http'],
-      format: 'structured-combined',
-      context: true,
+      format: (c, responseTime) => {
+        const properties = toLogProperties({
+          kind: 'api.http',
+          requestId: c.get('requestId'),
+          method: c.req.method,
+          path: c.req.path,
+          status: c.res.status,
+          responseTimeMs: responseTime,
+          contentLength: c.res.headers.get('content-length') ?? undefined,
+          userAgent: c.req.header('user-agent'),
+          referrer: c.req.header('referer'),
+        })
+        return { ...properties, url: properties['path'] }
+      },
+      context: { requestId: { normalize: normalizeRequestId } },
     }),
   )
 
-  app.get('/api/system/health', async () => {
-    const health = await systemHealthHandler({ ...deps, lifecycle })
-    return Response.json(health)
+  app.use('*', async (c, next) => {
+    const requestId = normalizeRequestId(c.res.headers.get('x-request-id') ?? '') ?? 'unknown'
+    c.set('requestId', requestId)
+    await withLogContext({ requestId, method: c.req.method, path: c.req.path }, next)
+  })
+
+  app.get('/api/system/health', async (c) => {
+    try {
+      const health = await systemHealthHandler({ ...deps, lifecycle })
+      return Response.json(health)
+    } catch (error) {
+      reportLogEvent({
+        kind: 'api.error',
+        method: c.req.method,
+        path: c.req.path,
+        code: 'INTERNAL_SERVER_ERROR',
+        status: 500,
+        requestId: c.get('requestId'),
+        error,
+      })
+      throw error
+    }
   })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/auth/*', async (c) => {
     if (isNativeGovernanceMutation(c.req.raw)) return new Response('Not Found', { status: 404 })
-    return deps.auth.handler(c.req.raw)
+    try {
+      const response = await deps.auth.handler(c.req.raw)
+      if (response.status >= 400) {
+        reportLogEvent({
+          kind: 'api.error',
+          method: c.req.method,
+          path: c.req.path,
+          code: response.status === 401 ? 'UNAUTHORIZED' : 'AUTH_HANDLER_ERROR',
+          status: response.status,
+          requestId: c.get('requestId'),
+        })
+      }
+      return response
+    } catch (error) {
+      reportLogEvent({
+        kind: 'api.error',
+        method: c.req.method,
+        path: c.req.path,
+        code: 'INTERNAL_SERVER_ERROR',
+        status: 500,
+        requestId: c.get('requestId'),
+        error,
+      })
+      throw error
+    }
   })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/*', async (c) => {
@@ -414,7 +516,16 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     let user: AuthUser | undefined
     try {
       user = await getUser(deps.auth, request)
-    } catch {
+    } catch (error) {
+      reportLogEvent({
+        kind: 'api.error',
+        method: request.method,
+        path: new URL(request.url).pathname,
+        code: 'INTERNAL_SERVER_ERROR',
+        status: 500,
+        requestId: c.get('requestId'),
+        error,
+      })
       return c.json(
         {
           defined: false,
@@ -426,10 +537,19 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
       )
     }
 
-    const { matched, response } = await openAPIHandler.handle(request, {
-      prefix: '/api',
-      context: { user, headers: request.headers },
-    })
+    const context = {
+      user,
+      headers: request.headers,
+      requestId: c.get('requestId'),
+      method: request.method,
+      path: new URL(request.url).pathname,
+    }
+    const { matched, response } = await withLogContext(context, () =>
+      openAPIHandler.handle(request, {
+        prefix: '/api',
+        context,
+      }),
+    )
     if (matched && response) return response
     return new Response('Not Found', { status: 404 })
   })
@@ -439,13 +559,31 @@ export function createApiApp(deps: CreateApiAppDependencies): ApiApp {
     async close(): Promise<void> {
       if (closed) return
       closed = true
-      await retentionPolicy.worker.stop()
-      await eventIngestion.service.stop()
-      await siteLifecycleWorker.stop()
-      await backupRestoreStartup
-      await backupRestore.worker.stop()
-      await backupRestore.service.stop()
-      await installation.service.stop()
+      const failures: unknown[] = []
+      const stop = async (
+        operation:
+          | 'retention.cleanup'
+          | 'event-ingestion.flush'
+          | 'site.lifecycle'
+          | 'backup.cleanup'
+          | 'installation.upgrade',
+        worker: () => Promise<unknown>,
+      ): Promise<void> => {
+        try {
+          await worker()
+        } catch (error) {
+          failures.push(error)
+          reportLogEvent({ kind: 'operation.failure', operation, stage: 'shutdown', error })
+        }
+      }
+      await stop('retention.cleanup', () => retentionPolicy.worker.stop())
+      await stop('event-ingestion.flush', () => eventIngestion.service.stop())
+      await stop('site.lifecycle', () => siteLifecycleWorker.stop())
+      await stop('backup.cleanup', () => backupRestoreStartup)
+      await stop('backup.cleanup', () => backupRestore.worker.stop())
+      await stop('backup.cleanup', () => backupRestore.service.stop())
+      await stop('installation.upgrade', () => installation.service.stop())
+      if (failures.length > 0) throw new AggregateError(failures, 'Failed to stop API workers')
     },
   })
 }

@@ -4,6 +4,7 @@ import {
   EVENT_ACCEPTANCE_WINDOW_MS,
 } from '@cimi/contract'
 import type { AcceptanceQuiescencePort } from '@cimi/kernel'
+import { reportLogEvent, type LogOperationContext } from '@cimi/logging'
 import { getNestedMapValue, setNestedMapValue } from '@cimi/utils'
 import type { AcceptanceCandidate, AcceptanceRepository } from './repository.ts'
 
@@ -67,6 +68,7 @@ export interface AcceptanceCoalescerDependencies {
   readonly schedule?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>
   readonly cancel?: (timer: ReturnType<typeof setTimeout>) => void
   readonly clock?: (() => Date) | undefined
+  readonly onError?: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
 }
 
 export interface AcceptanceDiagnosticsSnapshot {
@@ -96,6 +98,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   ) => ReturnType<typeof setTimeout>
   private readonly cancel: (timer: ReturnType<typeof setTimeout>) => void
   private readonly clock: () => Date
+  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
   private readonly reservations = new Map<string, Map<string, ReservationState>>()
   private active: ReservationState[] = []
   private pending: ReservationState[] = []
@@ -123,6 +126,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     schedule = (callback, delayMs) => setTimeout(callback, delayMs),
     cancel = clearTimeout,
     clock = () => new Date(),
+    onError,
   }: AcceptanceCoalescerDependencies) {
     this.repository = repository
     this.windowMs = windowMs
@@ -131,6 +135,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     this.schedule = schedule
     this.cancel = cancel
     this.clock = clock
+    this.onError = onError
   }
 
   async reserveMany(candidates: readonly ReservableCandidate[]): Promise<readonly Reservation[]> {
@@ -389,6 +394,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       })
       .catch((error: unknown) => {
         this.failureCount += 1
+        this.reportError(error, batch.length)
         for (const state of batch) state.deferred.reject(error)
         throw error
       })
@@ -440,6 +446,21 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     if (siteReservations === undefined) return
     siteReservations.delete(eventId)
     if (siteReservations.size === 0) this.reservations.delete(siteId)
+  }
+
+  private reportError(error: unknown, batchSize?: number): void {
+    const context: LogOperationContext = {
+      operation: 'event-ingestion.flush',
+      stage: 'flush',
+      ...(batchSize === undefined ? {} : { batchSize }),
+    }
+    if (this.onError === undefined) {
+      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      return
+    }
+    try {
+      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+    } catch {}
   }
 }
 
