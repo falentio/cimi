@@ -1,5 +1,6 @@
 import type { Db } from '@cimi/db'
 import type { LifecycleLock, LifecycleOperationStatusReader } from '@cimi/kernel'
+import type { LogOperationContext } from '@cimi/logging'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
 import { SiteLifecycleWorker, type SiteLifecycleWorkerDependencies } from './lifecycle.ts'
 import { SiteRepositoryDrizzle } from './repository.drizzle.ts'
@@ -28,7 +29,7 @@ export interface CreateSiteLifecycleWorkerDependencies {
   db: Db
   lock: LifecycleLock
   intervalMs?: number | undefined
-  onError?: ((error: unknown) => void) | undefined
+  onError?: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
   onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined
 }
 

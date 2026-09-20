@@ -2,6 +2,7 @@ import * as v from 'valibot'
 import { schema } from '@cimi/contract'
 import { validateBaseSchema } from '@cimi/db'
 import type { LifecycleAdmissionMode } from '@cimi/kernel'
+import { reportLogEvent } from '@cimi/logging'
 import type { CreateApiAppDependencies } from './composition.ts'
 import type { AcceptanceDiagnosticsSnapshot } from './resources/event-ingestion/index.ts'
 
@@ -103,15 +104,21 @@ export async function resolveRequestAdmissionGate(
   deps: CreateApiAppDependencies & { lifecycle: HealthLifecycle },
 ): Promise<RequestAdmissionGate> {
   try {
-    const health = await systemHealthHandler(deps)
     const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
+    const health = await systemHealthHandler(deps, lifecycle)
     const admissionMode = lifecycle.admissionMode ?? 'normal'
     return {
       ...resolveAdmissionGate(health.status, admissionMode),
       status: health.status,
       admissionMode,
     }
-  } catch {
+  } catch (error: unknown) {
+    reportLogEvent({
+      kind: 'health.failure',
+      operation: 'admission',
+      stage: 'fallback',
+      error,
+    })
     return {
       ingestion: 'paused',
       analyticsReads: 'unavailable',
@@ -134,6 +141,8 @@ export interface StoreHealthReport {
  */
 export async function readStoreHealth(
   deps: Pick<CreateApiAppDependencies, 'db' | 'analytics' | 'dataDirectoryReady' | 'lifecycle'>,
+  lifecycleSnapshot?: HealthSnapshot,
+  reportFailures = true,
 ): Promise<StoreHealthReport> {
   let controlDatabase = false
   try {
@@ -142,25 +151,50 @@ export async function readStoreHealth(
       validateBaseSchema(deps.db)
       controlDatabase = true
     }
-  } catch {
+  } catch (error: unknown) {
+    if (reportFailures) {
+      reportLogEvent({
+        kind: 'health.failure',
+        operation: 'store-probe',
+        stage: 'control-store',
+        error,
+      })
+    }
     controlDatabase = false
   }
 
   let analyticsDatabase = false
   try {
     analyticsDatabase = await deps.analytics.ready()
-  } catch {
+  } catch (error: unknown) {
+    if (reportFailures) {
+      reportLogEvent({
+        kind: 'health.failure',
+        operation: 'store-probe',
+        stage: 'analytics-store',
+        error,
+      })
+    }
     analyticsDatabase = false
   }
 
-  const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
+  const lifecycle = lifecycleSnapshot ?? (await getLifecycleSnapshot(deps.lifecycle))
   let dataDirectoryReady = false
   try {
     dataDirectoryReady =
       typeof deps.dataDirectoryReady === 'function'
         ? deps.dataDirectoryReady()
         : deps.dataDirectoryReady
-  } catch {}
+  } catch (error: unknown) {
+    if (reportFailures) {
+      reportLogEvent({
+        kind: 'health.failure',
+        operation: 'store-probe',
+        stage: 'data-directory',
+        error,
+      })
+    }
+  }
   return {
     controlStore:
       controlDatabase && dataDirectoryReady ? (lifecycle.controlStore ?? 'ready') : 'unavailable',
@@ -169,7 +203,10 @@ export async function readStoreHealth(
   }
 }
 
-export async function systemHealthHandler(deps: CreateApiAppDependencies): Promise<{
+export async function systemHealthHandler(
+  deps: CreateApiAppDependencies,
+  lifecycleSnapshot?: HealthSnapshot,
+): Promise<{
   status: HealthStatus
   controlStore: StoreHealth
   analyticsStore: StoreHealth
@@ -178,8 +215,8 @@ export async function systemHealthHandler(deps: CreateApiAppDependencies): Promi
   checkedAt: string
   ingestion?: AcceptanceDiagnosticsSnapshot | undefined
 }> {
-  const { controlStore, analyticsStore, cleanupPending } = await readStoreHealth(deps)
-  const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
+  const lifecycle = lifecycleSnapshot ?? (await getLifecycleSnapshot(deps.lifecycle))
+  const { controlStore, analyticsStore, cleanupPending } = await readStoreHealth(deps, lifecycle)
 
   const response = {
     status: resolveInstallationHealth({
@@ -206,7 +243,13 @@ async function getLifecycleSnapshot(
 
   try {
     return await lifecycle.getSnapshot()
-  } catch {
+  } catch (error: unknown) {
+    reportLogEvent({
+      kind: 'health.failure',
+      operation: 'lifecycle',
+      stage: 'fallback',
+      error,
+    })
     return { installationStatus: 'recovering' }
   }
 }

@@ -858,7 +858,7 @@ export async function createApiE2eFixture(
       }
     },
     unauthenticatedContext() {
-      return { user: undefined, headers: new Headers() }
+      return { user: undefined, headers: new Headers(), requestId: '', method: '', path: '' }
     },
     waitFor,
     stop,
@@ -878,7 +878,7 @@ export async function createApiE2eFixture(
       ...sessionUser,
       installationGrant: sessionUser.installationGrant ?? sessionUser.role === 'admin',
     }
-    return { user, headers }
+    return { user, headers, requestId: '', method: '', path: '' }
   }
 }
 

@@ -48,8 +48,12 @@ describe('resolveBreadcrumbs', () => {
     ])
   })
 
-  it('returns nothing for bare and public routes', () => {
-    expect(resolveBreadcrumbs('/setup')).toEqual([])
+  it('names the setup route', () => {
+    expect(resolveBreadcrumbs('/setup')).toEqual([{ label: 'Setup' }])
+    expect(resolveBreadcrumbs('/setup/child')).toEqual([])
+  })
+
+  it('returns nothing for public routes', () => {
     expect(resolveBreadcrumbs('/public/abc123')).toEqual([])
   })
 })

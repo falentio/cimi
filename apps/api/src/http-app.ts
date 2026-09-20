@@ -11,7 +11,7 @@ import {
   isProfileTraitsPayloadOversized,
 } from '@cimi/contract'
 import type { Auth, AuthUser } from '@cimi/auth'
-import { getLogger, toLogError } from '@cimi/logging'
+import { normalizeRequestId, reportLogEvent, toLogProperties, withLogContext } from '@cimi/logging'
 import { configureNodeLogging } from '@cimi/logging/node'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { isRecord } from '@cimi/utils'
@@ -20,30 +20,51 @@ import { normalizeApiError } from './errors.ts'
 import { isParsedPayloadOversized } from './resources/event-ingestion/payload-size.ts'
 import type { ApiComposition, CreateApiAppDependencies } from './composition.ts'
 
-export type ApiApp = Hono & { close(): Promise<void> }
+export type ApiApp = Hono<{ Variables: ApiContextVariables }> & { close(): Promise<void> }
+
+type ApiContextVariables = {
+  requestId: string
+}
 
 export function createApiHttpApp(
   deps: CreateApiAppDependencies,
   composition: ApiComposition,
 ): ApiApp {
   configureNodeLogging(deps.logging)
-  const logger = getLogger(['cimi', 'api'])
   const { lifecycle, router } = composition
   const openAPIHandler = new OpenAPIHandler(router, {
     interceptors: [
-      onError((error) => {
+      onError((error, options) => {
+        const context = options.context
         if (error instanceof ORPCError) {
-          logger.error('API request failed', {
+          reportLogEvent({
+            kind: 'api.error',
+            requestId: context.requestId,
+            method: context.method,
+            path: context.path,
+            procedure: context.procedure,
             code: error.code,
             status: error.status,
+            ...(error.cause === undefined ? {} : { error: error.cause }),
           })
           return
         }
-        logger.error('API request failed', { error: toLogError(error) })
+        const isDecodeError = context.procedure === undefined
+        reportLogEvent({
+          kind: 'api.error',
+          requestId: context.requestId,
+          method: context.method,
+          path: context.path,
+          procedure: context.procedure,
+          code: isDecodeError ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          status: isDecodeError ? 400 : 500,
+          error,
+        })
       }),
     ],
     clientInterceptors: [
       async (options) => {
+        options.context.procedure = options.path.join('.')
         try {
           return await options.next()
         } catch (error) {
@@ -94,24 +115,80 @@ export function createApiHttpApp(
     ],
   })
 
-  const app = new Hono()
+  const app = new Hono<{ Variables: ApiContextVariables }>()
   app.use(
     '*',
     honoLogger({
       category: ['cimi', 'api', 'http'],
-      format: 'structured-combined',
-      context: true,
+      format: (c, responseTime) => {
+        const properties = toLogProperties({
+          kind: 'api.http',
+          requestId: c.get('requestId'),
+          method: c.req.method,
+          path: c.req.path,
+          status: c.res.status,
+          responseTimeMs: responseTime,
+          contentLength: c.res.headers.get('content-length') ?? undefined,
+          userAgent: c.req.header('user-agent'),
+          referrer: c.req.header('referer'),
+        })
+        return { ...properties, url: properties['path'] }
+      },
+      context: { requestId: { normalize: normalizeRequestId } },
     }),
   )
 
-  app.get('/api/system/health', async () => {
-    const health = await systemHealthHandler({ ...deps, lifecycle })
-    return Response.json(health)
+  app.use('*', async (c, next) => {
+    const requestId = normalizeRequestId(c.res.headers.get('x-request-id') ?? '') ?? 'unknown'
+    c.set('requestId', requestId)
+    await withLogContext({ requestId, method: c.req.method, path: c.req.path }, next)
+  })
+
+  app.get('/api/system/health', async (c) => {
+    try {
+      const health = await systemHealthHandler({ ...deps, lifecycle })
+      return Response.json(health)
+    } catch (error) {
+      reportLogEvent({
+        kind: 'api.error',
+        method: c.req.method,
+        path: c.req.path,
+        code: 'INTERNAL_SERVER_ERROR',
+        status: 500,
+        requestId: c.get('requestId'),
+        error,
+      })
+      throw error
+    }
   })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/auth/*', async (c) => {
     if (isNativeGovernanceMutation(c.req.raw)) return new Response('Not Found', { status: 404 })
-    return deps.auth.handler(c.req.raw)
+    try {
+      const response = await deps.auth.handler(c.req.raw)
+      if (response.status >= 400) {
+        reportLogEvent({
+          kind: 'api.error',
+          method: c.req.method,
+          path: c.req.path,
+          code: response.status === 401 ? 'UNAUTHORIZED' : 'AUTH_HANDLER_ERROR',
+          status: response.status,
+          requestId: c.get('requestId'),
+        })
+      }
+      return response
+    } catch (error) {
+      reportLogEvent({
+        kind: 'api.error',
+        method: c.req.method,
+        path: c.req.path,
+        code: 'INTERNAL_SERVER_ERROR',
+        status: 500,
+        requestId: c.get('requestId'),
+        error,
+      })
+      throw error
+    }
   })
 
   app.on(['GET', 'POST', 'OPTIONS'], '/api/*', async (c) => {
@@ -125,7 +202,16 @@ export function createApiHttpApp(
     let user: AuthUser | undefined
     try {
       user = await getUser(deps.auth, request)
-    } catch {
+    } catch (error) {
+      reportLogEvent({
+        kind: 'api.error',
+        method: request.method,
+        path: new URL(request.url).pathname,
+        code: 'INTERNAL_SERVER_ERROR',
+        status: 500,
+        requestId: c.get('requestId'),
+        error,
+      })
       return c.json(
         {
           defined: false,
@@ -137,10 +223,19 @@ export function createApiHttpApp(
       )
     }
 
-    const { matched, response } = await openAPIHandler.handle(request, {
-      prefix: '/api',
-      context: { user, headers: request.headers },
-    })
+    const context = {
+      user,
+      headers: request.headers,
+      requestId: c.get('requestId'),
+      method: request.method,
+      path: new URL(request.url).pathname,
+    }
+    const { matched, response } = await withLogContext(context, () =>
+      openAPIHandler.handle(request, {
+        prefix: '/api',
+        context,
+      }),
+    )
     if (matched && response) return response
     return new Response('Not Found', { status: 404 })
   })

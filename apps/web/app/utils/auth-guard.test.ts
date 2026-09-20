@@ -40,6 +40,25 @@ describe('resolveAuthDecision', () => {
     ).toBeUndefined()
   })
 
+  it('passes global admins through setup', () => {
+    expect(
+      resolveAuthDecision(route('/setup', { admin: true }), 'authenticated', 'admin'),
+    ).toBeUndefined()
+  })
+
+  it('redirects authenticated global users away from setup', () => {
+    expect(resolveAuthDecision(route('/setup', { admin: true }), 'authenticated', 'user')).toEqual({
+      path: '/',
+    })
+  })
+
+  it('redirects unauthenticated setup access to login', () => {
+    expect(resolveAuthDecision(route('/setup', { admin: true }), 'unauthenticated', null)).toEqual({
+      path: '/login',
+      query: { redirect: '/setup' },
+    })
+  })
+
   it('redirects non-admin sessions away from admin routes without a return path', () => {
     expect(resolveAuthDecision(route('/admin', { admin: true }), 'authenticated', 'user')).toEqual({
       path: '/',

@@ -1,5 +1,6 @@
 import { createOrganizationAuthority, type Auth } from '@cimi/auth'
 import type { AnalyticsDb, Db } from '@cimi/db'
+import { reportLogEvent } from '@cimi/logging'
 import type { LoggingConfig } from '@cimi/logging'
 import {
   InMemoryLifecycleLock,
@@ -226,7 +227,15 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
         : ((await installation.service.snapshotForHealth()) ?? {})
       const backupSnapshot: BackupRestoreHealthSnapshot = await backupRestore.service
         .getSnapshot()
-        .catch(() => ({ admissionMode: 'normal' }))
+        .catch((error: unknown) => {
+          reportLogEvent({
+            kind: 'health.failure',
+            operation: 'backup-snapshot',
+            stage: 'snapshot',
+            error,
+          })
+          return { admissionMode: 'normal' }
+        })
       const existingAdmissionMode =
         'admissionMode' in installationSnapshot ? installationSnapshot.admissionMode : undefined
       const admissionMode =
@@ -306,12 +315,25 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
   })
   siteLifecycleWorker.start()
   const siteLifecycleStartup = siteLifecycleWorker.runOnce()
-  const installationStartup = installation.service.resumeOnStartup()
+  const installationStartup = installation.service.resumeOnStartup().catch((error: unknown) => {
+    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
+    return undefined
+  })
   if (deps.startRetentionCleanupWorker !== false) {
     retentionPolicy.worker.start()
     retentionCleanupStartup = retentionPolicy.worker.runOnce()
   }
-  const backupRestoreStartup = installationStartup.then(() => backupRestore.service.start())
+  const backupRestoreStartup = installationStartup
+    .then(() => backupRestore.service.start())
+    .catch((error: unknown) => {
+      reportLogEvent({
+        kind: 'operation.failure',
+        operation: 'api.startup',
+        stage: 'startup',
+        error,
+      })
+      return undefined
+    })
   backupRestore.worker.start()
   const backupCleanupStartup = backupRestore.worker.runOnce()
   const startupShutdownBarrier = Promise.allSettled([installationStartup, backupRestoreStartup])

@@ -266,4 +266,32 @@ describe('AcceptanceCoalescer', () => {
     if (retry[0] !== undefined && 'completion' in retry[0]) await retry[0].completion
     await coalescer.stop()
   })
+
+  it('reports detached flush failures with operation context', async () => {
+    const acceptance = mock<AcceptanceRepository>()
+    acceptance.lastReplaySequence.mockResolvedValue(0)
+    acceptance.append.mockRejectedValue(new Error('sqlite unavailable'))
+    const errors: Array<{ error: unknown; context: unknown }> = []
+    const coalescer = new AcceptanceCoalescer({
+      repository: acceptance,
+      flushMaxEvents: 1,
+      onError: (error, context) => errors.push({ error, context }),
+    })
+
+    const reservations = await coalescer.reserveMany([candidate('event-1')])
+    const completion = reservations[0]
+    if (completion !== undefined && 'completion' in completion)
+      completion.completion.catch(() => undefined)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(errors).toContainEqual({
+      error: expect.any(Error),
+      context: expect.objectContaining({
+        operation: 'event-ingestion.flush',
+        stage: 'flush',
+        batchSize: 1,
+      }),
+    })
+    await coalescer.stop().catch(() => undefined)
+  })
 })

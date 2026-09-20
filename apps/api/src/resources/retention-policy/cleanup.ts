@@ -1,9 +1,8 @@
 import type { LifecycleLock } from '@cimi/kernel'
-import { getLogger, toLogError } from '@cimi/logging'
+import { reportLogEvent, type LogOperationContext } from '@cimi/logging'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 const DEFAULT_INTERVAL_MS = 1_000
-const logger = getLogger(['cimi', 'api', 'worker', 'retention-cleanup'])
 
 export interface RetentionCleanupBatchResult {
   completed: boolean
@@ -35,7 +34,7 @@ export interface RetentionCleanupWorkerDependencies {
   lock: LifecycleLock
   cleanup?: RetentionCleanupPort | undefined
   intervalMs?: number
-  onError?: (error: unknown) => void
+  onError?: (error: unknown, context?: LogOperationContext) => unknown
 }
 
 export class RetentionCleanupWorker {
@@ -43,7 +42,7 @@ export class RetentionCleanupWorker {
   private readonly lock: LifecycleLock
   private cleanup: RetentionCleanupPort | undefined
   private readonly intervalMs: number
-  private readonly onError: (error: unknown) => void
+  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private timerGeneration = 0
   private runPromise: Promise<void> | undefined
@@ -59,9 +58,7 @@ export class RetentionCleanupWorker {
     this.lock = lock
     this.cleanup = cleanup
     this.intervalMs = intervalMs
-    this.onError =
-      onError ??
-      ((error) => logger.error('Retention cleanup worker failed', { error: toLogError(error) }))
+    this.onError = onError
   }
 
   setCleanupPort(cleanup: RetentionCleanupPort | undefined): void {
@@ -71,7 +68,9 @@ export class RetentionCleanupWorker {
   runOnce(now = new Date()): Promise<void> {
     if (this.runPromise !== undefined) return this.runPromise
     this.runPromise = this.process(now)
-      .catch((error: unknown) => this.onError(error))
+      .catch((error: unknown) =>
+        this.reportError(error, { operation: 'retention.cleanup', stage: 'scan' }),
+      )
       .finally(() => {
         this.runPromise = undefined
       })
@@ -99,8 +98,16 @@ export class RetentionCleanupWorker {
   }
 
   private async process(now: Date): Promise<void> {
-    const lease = await this.lock.acquire('retention')
+    let lease: Awaited<ReturnType<LifecycleLock['acquire']>> | undefined
+    try {
+      lease = await this.lock.acquire('retention')
+    } catch (error) {
+      this.reportError(error, { operation: 'retention.cleanup', stage: 'acquire' })
+      return
+    }
     if (lease === undefined) return
+    let runId: string | undefined
+    let siteId: string | undefined
     try {
       await this.repository.refreshDueBoundaries(now)
       await this.repository.recoverInterrupted(now)
@@ -111,8 +118,16 @@ export class RetentionCleanupWorker {
       if (this.cleanup.runIdentityBackup !== undefined) {
         await this.cleanup.runIdentityBackup({ now })
       }
-      const work = await this.repository.claimNext({ now })
+      let work
+      try {
+        work = await this.repository.claimNext({ now })
+      } catch (error) {
+        this.reportError(error, { operation: 'retention.cleanup', stage: 'claim' })
+        return
+      }
       if (work === undefined) return
+      runId = work.runId
+      siteId = work.siteId
       try {
         const result =
           work.kind === 'derived'
@@ -130,16 +145,51 @@ export class RetentionCleanupWorker {
           })
         }
       } catch (error) {
-        await this.repository.fail({
+        const context: LogOperationContext = {
+          operation: 'retention.cleanup' as const,
+          stage: work.kind === 'derived' ? 'derived-cleanup' : 'backup-cleanup',
           runId: work.runId,
-          kind: work.kind,
-          now,
-          errorCode: 'CLEANUP_FAILED',
-          errorMessage: error instanceof Error ? error.message : String(error),
-        })
+          siteId: work.siteId,
+        }
+        this.reportError(error, context)
+        try {
+          await this.repository.fail({
+            runId: work.runId,
+            kind: work.kind,
+            now,
+            errorCode: 'CLEANUP_FAILED',
+            errorMessage: error instanceof Error ? error.message : String(error),
+          })
+        } catch (failureError) {
+          this.reportError(failureError, {
+            operation: 'retention.cleanup',
+            stage: 'record-failure',
+            runId: work.runId,
+            siteId: work.siteId,
+          })
+        }
       }
     } finally {
-      await lease.release()
+      try {
+        await lease.release()
+      } catch (error) {
+        this.reportError(error, {
+          operation: 'retention.cleanup',
+          stage: 'release',
+          ...(runId === undefined ? {} : { runId }),
+          ...(siteId === undefined ? {} : { siteId }),
+        })
+      }
     }
+  }
+
+  private reportError(error: unknown, context: LogOperationContext): void {
+    if (this.onError === undefined) {
+      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      return
+    }
+    try {
+      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+    } catch {}
   }
 }

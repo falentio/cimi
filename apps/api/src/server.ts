@@ -2,7 +2,8 @@ import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { createAuth } from '@cimi/auth/server'
 import { loadConfig } from '@cimi/config'
-import type { LoggingConfig } from '@cimi/logging'
+import { reportLogEvent, type LoggingConfig } from '@cimi/logging'
+import { configureNodeLogging } from '@cimi/logging/node'
 import {
   ANALYTICS_DB_FILENAME,
   closeDb,
@@ -30,12 +31,24 @@ export async function createApiServerApp(
   options: CreateApiServerAppOptions = {},
 ): Promise<ApiServerApp> {
   const env = options.env ?? process.env
-  const cfg = loadConfig(env)
-  if (!isDirectory(cfg.dataDir)) throw new Error('Configured data directory is not ready')
+  let cfg!: ReturnType<typeof loadConfig>
+  let controlDbPath!: string
+  let db!: ReturnType<typeof createDb>
+  try {
+    cfg = loadConfig(env)
+    configureNodeLogging(options.logging ?? cfg.logging)
+    if (!isDirectory(cfg.dataDir)) {
+      throw new Error('Configured data directory is not ready')
+    }
 
-  const controlDbPath = resolveControlDbPath(env, process.cwd())
-  mkdirSync(dirname(controlDbPath), { recursive: true })
-  const db = createDb({ path: controlDbPath })
+    controlDbPath = resolveControlDbPath(env, process.cwd())
+    mkdirSync(dirname(controlDbPath), { recursive: true })
+    db = createDb({ path: controlDbPath })
+  } catch (error) {
+    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
+    if (db !== undefined) closeDb(db)
+    throw error
+  }
 
   try {
     migrateControlDb(db, { migrationsFolder: options.migrationsFolder })
@@ -86,10 +99,18 @@ export async function createApiServerApp(
     } catch (error) {
       try {
         await analytics.close()
-      } catch {}
+      } catch (cleanupError) {
+        reportLogEvent({
+          kind: 'operation.failure',
+          operation: 'api.startup',
+          stage: 'cleanup',
+          error: cleanupError,
+        })
+      }
       throw error
     }
   } catch (error) {
+    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
     closeDb(db)
     throw error
   }
