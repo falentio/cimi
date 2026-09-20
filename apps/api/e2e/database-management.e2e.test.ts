@@ -293,11 +293,23 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
   fixture.state.backdateAcceptedEvent({ eventId, at: expiredAt })
   await fixture.analytics.rebuild()
 
-  const started = await call(
-    fixture.router.backupRestore.createBackup,
-    {},
-    { context: await admin.context() },
-  )
+  let started: { readonly id: string }
+  const createBackupDeadline = Date.now() + 10_000
+  for (;;) {
+    try {
+      started = await call(
+        fixture.router.backupRestore.createBackup,
+        {},
+        { context: await admin.context() },
+      )
+      break
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'CONFLICT' || Date.now() > createBackupDeadline) {
+        throw error
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+  }
   const backup = await waitForBackupTrace(fixture, admin, started.id)
   assertAvailableBackup(backup.terminal)
 
