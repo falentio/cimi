@@ -16,10 +16,14 @@ export function createReportingReadinessPort(
 ): AnalyticsReadinessPort {
   return {
     async getHealth(): Promise<AnalyticsHealth> {
-      const { controlStore, analyticsStore } = await readStoreHealth({
-        ...deps.health,
-        lifecycle: deps.lifecycle,
-      })
+      const { controlStore, analyticsStore } = await readStoreHealth(
+        {
+          ...deps.health,
+          lifecycle: deps.lifecycle,
+        },
+        undefined,
+        false,
+      )
       return { controlStore, analyticsStore }
     },
   }

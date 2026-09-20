@@ -16,7 +16,7 @@ describe('BackupRestoreService.startupRecovery', () => {
     const operation = createBackupOperation()
     const claimed = { ...operation, updatedAt: new Date('2026-09-01T00:01:00.000Z') }
     const failure = new Error('acceptance drain failed')
-    const errors: unknown[] = []
+    const errors: Array<{ error: unknown; context: unknown }> = []
     repository.findActive.mockResolvedValue(operation)
     repository.claim.mockResolvedValue(claimed)
     repository.fail.mockResolvedValue(undefined)
@@ -36,7 +36,7 @@ describe('BackupRestoreService.startupRecovery', () => {
         artifactId: () => 'bar_1',
         ownerToken: () => 'own_startup',
       },
-      onError: (error) => errors.push(error),
+      onError: (error, context) => errors.push({ error, context }),
     })
 
     await service.start()
@@ -47,6 +47,13 @@ describe('BackupRestoreService.startupRecovery', () => {
       errorCode: 'INTERNAL_SERVER_ERROR',
       now: new Date('2026-09-01T00:02:00.000Z'),
     })
-    expect(errors).toContain(failure)
+    expect(errors).toContainEqual({
+      error: failure,
+      context: expect.objectContaining({
+        operation: 'backup.create',
+        stage: 'startup',
+        operationId: 'bop_1',
+      }),
+    })
   })
 })

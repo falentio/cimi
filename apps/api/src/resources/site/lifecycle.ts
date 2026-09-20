@@ -1,16 +1,15 @@
 import type { LifecycleLock } from '@cimi/kernel'
-import { getLogger, toLogError } from '@cimi/logging'
+import { reportLogEvent, type LogOperationContext } from '@cimi/logging'
 import { generateId } from '@cimi/utils'
 import type { SiteRepository } from './repository.ts'
 
 const DEFAULT_INTERVAL_MS = 1_000
-const logger = getLogger(['cimi', 'api', 'worker', 'site-lifecycle'])
 
 export interface SiteLifecycleWorkerDependencies {
   repository: SiteRepository
   lock: LifecycleLock
   intervalMs?: number
-  onError?: (error: unknown) => void
+  onError?: (error: unknown, context?: LogOperationContext) => unknown
   onPurgedSite?: (input: { siteId: string; now: Date }) => Promise<void>
 }
 
@@ -18,7 +17,7 @@ export class SiteLifecycleWorker {
   private readonly repository: SiteRepository
   private readonly lock: LifecycleLock
   private readonly intervalMs: number
-  private readonly onError: (error: unknown) => void
+  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
   private readonly onPurgedSite:
     | ((input: { siteId: string; now: Date }) => Promise<void>)
     | undefined
@@ -35,16 +34,16 @@ export class SiteLifecycleWorker {
     this.repository = repository
     this.lock = lock
     this.intervalMs = intervalMs
-    this.onError =
-      onError ??
-      ((error) => logger.error('Site lifecycle worker failed', { error: toLogError(error) }))
+    this.onError = onError
     this.onPurgedSite = onPurgedSite
   }
 
   runOnce(now = new Date()): Promise<void> {
     if (this.runPromise !== undefined) return this.runPromise
     this.runPromise = this.process(now)
-      .catch((error: unknown) => this.onError(error))
+      .catch((error: unknown) =>
+        this.reportError(error, { operation: 'site.lifecycle', stage: 'scan' }),
+      )
       .finally(() => {
         this.runPromise = undefined
       })
@@ -88,35 +87,77 @@ export class SiteLifecycleWorker {
             })
           }
         },
+        { operationId: operation.operationId, siteId: operation.siteId },
       )
     }
 
     const duePurges = await this.repository.findDuePurges(now)
     for (const { siteId } of duePurges) {
-      await this.withLease('site_purge', async () => {
-        const result = await this.repository.purge({
-          siteId,
-          operationId: generateId('sop'),
-          requestedAt: now,
-        })
-        if (result.status !== 'completed') return
-        await this.onPurgedSite?.({ siteId, now })
-      })
+      let operationId: string
+      try {
+        operationId = generateId('sop')
+      } catch (error) {
+        this.reportError(error, { operation: 'site.lifecycle', stage: 'site-purge', siteId })
+        continue
+      }
+      await this.withLease(
+        'site_purge',
+        async () => {
+          const result = await this.repository.purge({
+            siteId,
+            operationId,
+            requestedAt: now,
+          })
+          if (result.status !== 'completed') return
+          await this.onPurgedSite?.({ siteId, now })
+        },
+        { operationId, siteId },
+      )
     }
   }
 
   private async withLease(
     kind: 'site_deletion' | 'site_recovery' | 'site_purge',
     work: () => Promise<void>,
+    context: { operationId?: string; siteId?: string } = {},
   ): Promise<void> {
-    const lease = await this.lock.acquire(kind)
+    let lease: Awaited<ReturnType<LifecycleLock['acquire']>> | undefined
+    try {
+      lease = await this.lock.acquire(kind)
+    } catch (error) {
+      this.reportError(error, { operation: 'site.lifecycle', stage: 'acquire', ...context })
+      return
+    }
     if (lease === undefined) return
     try {
       await work()
     } catch (error) {
-      this.onError(error)
+      this.reportError(error, {
+        operation: 'site.lifecycle',
+        stage:
+          kind === 'site_deletion'
+            ? 'site-delete'
+            : kind === 'site_recovery'
+              ? 'site-recover'
+              : 'site-purge',
+        ...context,
+      })
     } finally {
-      await lease.release()
+      try {
+        await lease.release()
+      } catch (error) {
+        this.reportError(error, { operation: 'site.lifecycle', stage: 'release', ...context })
+      }
     }
+  }
+
+  private reportError(error: unknown, context: LogOperationContext): void {
+    if (this.onError === undefined) {
+      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      return
+    }
+    try {
+      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+    } catch {}
   }
 }
