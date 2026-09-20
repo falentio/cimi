@@ -2,7 +2,9 @@ import { call } from '@orpc/server'
 import { expect, test } from 'vitest'
 import { createApiE2eFixture } from './fixture.ts'
 
-const REPORT_DATE = '2026-09-18'
+const REPORT_DATE = new Date().toISOString().slice(0, 10)
+const PAGE_VIEW_TIME = `${REPORT_DATE}T00:00:00.000Z`
+const CUSTOM_EVENT_TIME = `${REPORT_DATE}T00:00:30.000Z`
 
 test('projects public ingestion into traffic and event reports through the file-backed stores', async () => {
   await using fixture = await createApiE2eFixture()
@@ -38,7 +40,7 @@ test('projects public ingestion into traffic and event reports through the file-
       ingestionIdentifier: site.ingestionIdentifier,
       kind: 'page_view',
       pagePath: '/pricing',
-      occurrenceTime: `${REPORT_DATE}T06:00:00.000Z`,
+      occurrenceTime: PAGE_VIEW_TIME,
       anonymousIdentityId: 'anonymous_reporting',
     },
     { context: fixture.unauthenticatedContext() },
@@ -52,7 +54,7 @@ test('projects public ingestion into traffic and event reports through the file-
         ingestionIdentifier: site.ingestionIdentifier,
         kind: 'custom_event',
         name: 'signup',
-        occurrenceTime: `${REPORT_DATE}T06:01:00.000Z`,
+        occurrenceTime: CUSTOM_EVENT_TIME,
         anonymousIdentityId: 'anonymous_reporting',
       },
       { context: fixture.unauthenticatedContext() },

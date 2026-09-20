@@ -14,6 +14,7 @@ import {
 } from '@cimi/db'
 import type { ApiApp } from './index.ts'
 import { createApiApp } from './index.ts'
+import { createApiServerShutdown } from './lifecycle/api-server-shutdown.ts'
 
 export type ApiServerApp = ApiApp & {
   close(): Promise<void>
@@ -61,6 +62,11 @@ export async function createApiServerApp(
         dataDirectoryPath: cfg.dataDir,
       })
       const closeApiApp = app.close.bind(app)
+      const shutdown = createApiServerShutdown({
+        closeComposition: closeApiApp,
+        closeAnalytics: () => analytics.close(),
+        closeControlDb: () => closeDb(db),
+      })
       let closePromise: Promise<void> | undefined
 
       return Object.assign(app, {
@@ -75,19 +81,7 @@ export async function createApiServerApp(
       })
 
       async function closeResources(): Promise<void> {
-        await closeApiApp()
-        const failures: unknown[] = []
-        try {
-          await analytics.close()
-        } catch (error) {
-          failures.push(error)
-        }
-        try {
-          closeDb(db)
-        } catch (error) {
-          failures.push(error)
-        }
-        if (failures.length > 0) throw new AggregateError(failures, 'API server shutdown failed')
+        await shutdown.close()
       }
     } catch (error) {
       try {

@@ -27,8 +27,8 @@ export function createDb(options: CreateDbOptions) {
     isOpen: () => !closed,
     close: () => {
       if (closed) return
-      closed = true
       current.close()
+      closed = true
     },
     replaceFromFile: (sourcePath, destinationPath) => {
       if (closed) {

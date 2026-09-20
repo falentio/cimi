@@ -23,6 +23,7 @@ import {
 } from '../src/composition.ts'
 import { createApiHttpApp, type ApiApp } from '../src/http-app.ts'
 import { createSerializedOperationQueue } from '../src/lifecycle/operation-queue.ts'
+import { createShutdownCoordinator } from '../src/lifecycle/shutdown-coordinator.ts'
 import type { ApiContext } from '../src/orpc.ts'
 import { SqliteUpgradeExecutor, type UpgradeExecutor } from '../src/resources/installation/index.ts'
 import {
@@ -32,6 +33,7 @@ import {
   type BackupRestoreCleanupPort,
   type BackupRestoreExecutor,
 } from '../src/resources/backup-restore/index.ts'
+import type { RetentionCleanupPort } from '../src/resources/retention-policy/index.ts'
 import {
   InsufficientStorageError as UpgradeInsufficientStorageError,
   UpgradeIncompatibilityError,
@@ -61,11 +63,14 @@ export type RestoreStage =
 
 export type CleanupStage = 'derivedCleanup' | 'backupCleanup'
 
+export type RetentionCleanupStage = 'derived' | 'backup'
+
 export type FaultPoint =
   | { readonly domain: 'upgrade'; readonly stage: UpgradeStage }
   | { readonly domain: 'backup'; readonly stage: BackupStage }
   | { readonly domain: 'restore'; readonly stage: RestoreStage }
   | { readonly domain: 'cleanup'; readonly stage: CleanupStage }
+  | { readonly domain: 'retentionCleanup'; readonly stage: RetentionCleanupStage }
 
 export type FaultError = 'internal' | 'backupFailed' | 'incompatible' | 'insufficientStorage'
 
@@ -164,6 +169,8 @@ export type InterruptedState = InterruptedUpgrade | InterruptedBackup | Interrup
 export interface FixtureStateTools {
   readonly interruptedOperationId: string
   seedInterrupted(input: InterruptedState): Promise<void>
+  seedInterruptedRetentionCleanup(input: { readonly kind: 'derived' | 'backup' }): Promise<void>
+  backdateAcceptedEvent(input: { readonly eventId: string; readonly at: Date }): void
   appendFutureMigrationHistory(): void
   repairMigrationHistory(): void
   createIncompatibleBackupVariant(input: {
@@ -177,6 +184,9 @@ export interface FixtureStateTools {
 export interface DatabaseManagementFixtureOptions {
   readonly timeoutMs?: number
   readonly intervalMs?: number
+  readonly startRetentionCleanupWorker?: boolean
+  readonly retentionCleanupIntervalMs?: number
+  readonly wrapCompositionClose?: ((composition: ApiComposition) => ApiComposition) | undefined
 }
 
 export interface ApiE2eFixture {
@@ -216,6 +226,7 @@ interface GenerationOwnership {
   composition: ApiComposition | undefined
   analytics: AnalyticsDb | undefined
   db: Db | undefined
+  close(): Promise<void>
 }
 
 interface StoredArtifact {
@@ -280,11 +291,7 @@ export async function createApiE2eFixture(
 
   const open = async (removeRootOnFailure: boolean): Promise<FixtureGeneration> => {
     const faultGeneration = faults.beginGeneration()
-    const ownership: GenerationOwnership = {
-      composition: undefined,
-      analytics: undefined,
-      db: undefined,
-    }
+    const ownership = createGenerationOwnership()
     try {
       const openedDb = createDb({ path: paths.controlDatabasePath })
       ownership.db = openedDb
@@ -320,7 +327,8 @@ export async function createApiE2eFixture(
         dataDirectoryReady: () => existsSync(paths.dataDirectoryPath),
         controlDatabasePath: paths.controlDatabasePath,
         dataDirectoryPath: paths.dataDirectoryPath,
-        startRetentionCleanupWorker: false,
+        startRetentionCleanupWorker: options.startRetentionCleanupWorker ?? false,
+        retentionCleanupIntervalMs: options.retentionCleanupIntervalMs,
         upgradeExecutor: new FaultingUpgradeExecutor(realUpgradeExecutor, faults, faultGeneration),
         backupRestoreExecutor: new FaultingBackupRestoreExecutor(
           realBackupRestoreExecutor,
@@ -329,18 +337,21 @@ export async function createApiE2eFixture(
         ),
         wrapBackupRestoreCleanup: (cleanup) =>
           new FaultingCleanup(cleanup, faults, faultGeneration),
+        wrapRetentionCleanup: (cleanup) =>
+          new FaultingRetentionCleanup(cleanup, faults, faultGeneration),
       }
       const composition = createApiComposition(deps)
-      ownership.composition = composition
-      const app = createApiHttpApp(deps, composition)
-      await composition.ready
+      const ownedComposition = options.wrapCompositionClose?.(composition) ?? composition
+      ownership.composition = ownedComposition
+      const app = createApiHttpApp(deps, ownedComposition)
+      await ownedComposition.ready
       generationNumber += 1
       return {
         number: generationNumber,
         db: openedDb,
         analytics: openedAnalytics,
         auth,
-        composition,
+        composition: ownedComposition,
         app,
         faultGeneration,
         ownership,
@@ -363,6 +374,26 @@ export async function createApiE2eFixture(
       throw constructionFailure(error, cleanupError)
     }
   }
+
+  const fixtureShutdown = createShutdownCoordinator([
+    {
+      label: 'E2E fault gates',
+      close: () => faults.cancelHeldGates(faults.currentGeneration()),
+    },
+    {
+      label: 'E2E generation',
+      close: async () => {
+        const generation = current
+        if (generation === undefined) return
+        await closeGeneration(generation.ownership)
+        current = undefined
+      },
+    },
+    {
+      label: 'E2E fixture root',
+      close: () => rm(rootDirectory, { recursive: true, force: true }),
+    },
+  ])
 
   const requireGeneration = (): FixtureGeneration => {
     if (current === undefined) throw new Error('The E2E fixture is stopped')
@@ -401,12 +432,7 @@ export async function createApiE2eFixture(
       if (closed) return
       closing = true
       try {
-        if (current !== undefined) {
-          await drainGeneration(current)
-          current = undefined
-        }
-        await faults.cancelHeldGates(faults.currentGeneration())
-        await rm(rootDirectory, { recursive: true, force: true })
+        await fixtureShutdown.close()
         closed = true
       } finally {
         closing = false
@@ -586,6 +612,57 @@ export async function createApiE2eFixture(
         })
       })
       interruptedOperationId = operationId
+    },
+    async seedInterruptedRetentionCleanup({ kind }) {
+      if (current !== undefined)
+        throw new Error('seedInterruptedRetentionCleanup requires a stopped fixture')
+      if (closed || closing) throw new Error('The E2E fixture is closed')
+      await withStateDb(async (db) => {
+        const run = db.$client
+          .prepare(
+            `SELECT id FROM retention_cleanup_run
+             WHERE cleanup_kind = ? AND status = 'queued'
+             ORDER BY created_at LIMIT 1`,
+          )
+          .get(kind) as { readonly id: string } | undefined
+        if (run === undefined) throw new Error('No queued retention cleanup run exists')
+        const now = Date.now()
+        db.$client.transaction(() => {
+          db.$client
+            .prepare(
+              `UPDATE retention_cleanup_run
+               SET status = 'running', started_at = ?, updated_at = ?
+               WHERE id = ?`,
+            )
+            .run(now, now, run.id)
+          db.$client
+            .prepare(
+              `UPDATE retention_cleanup_checkpoint
+               SET status = 'running', updated_at = ?
+               WHERE cleanup_run_id = ?`,
+            )
+            .run(now, run.id)
+        })()
+      })
+    },
+    backdateAcceptedEvent({ eventId, at }) {
+      const db = requireOpenForMutation().db
+      const event = db.$client
+        .prepare('SELECT event_pk AS eventPk FROM accepted_event WHERE event_id = ?')
+        .get(eventId) as { readonly eventPk: number } | undefined
+      if (event === undefined) throw new Error(`Accepted event ${eventId} does not exist`)
+
+      db.$client.pragma('defer_foreign_keys = ON')
+      db.$client.transaction(() => {
+        db.$client
+          .prepare(
+            'UPDATE accepted_event SET occurrence_time = ?, receipt_time = ? WHERE event_pk = ?',
+          )
+          .run(at.getTime(), at.getTime(), event.eventPk)
+        db.$client
+          .prepare('UPDATE event_acceptance_journal SET receipt_time = ? WHERE event_pk = ?')
+          .run(at.getTime(), event.eventPk)
+      })()
     },
     appendFutureMigrationHistory() {
       const db = requireOpenForMutation().db
@@ -1010,6 +1087,24 @@ class FaultingCleanup implements BackupRestoreCleanupPort {
   }
 }
 
+class FaultingRetentionCleanup implements RetentionCleanupPort {
+  constructor(
+    private readonly real: RetentionCleanupPort,
+    private readonly faults: E2eFaultController,
+    private readonly generation: number,
+  ) {}
+
+  async runDerived(input: Parameters<RetentionCleanupPort['runDerived']>[0]) {
+    await this.faults.before({ domain: 'retentionCleanup', stage: 'derived' }, this.generation)
+    return this.real.runDerived(input)
+  }
+
+  async runBackup(input: Parameters<RetentionCleanupPort['runBackup']>[0]) {
+    await this.faults.before({ domain: 'retentionCleanup', stage: 'backup' }, this.generation)
+    return this.real.runBackup(input)
+  }
+}
+
 function keyOf(point: FaultPoint): string {
   return `${point.domain}:${point.stage}`
 }
@@ -1132,28 +1227,45 @@ async function captureArtifact(
 }
 
 async function closeGeneration(input: GenerationOwnership): Promise<void> {
-  if (input.composition !== undefined) {
-    await input.composition.close()
-    input.composition = undefined
+  await input.close()
+}
+
+function createGenerationOwnership(): GenerationOwnership {
+  const resources: Omit<GenerationOwnership, 'close'> = {
+    composition: undefined,
+    analytics: undefined,
+    db: undefined,
   }
-  const failures: unknown[] = []
-  if (input.analytics !== undefined) {
-    try {
-      await input.analytics.close()
-      input.analytics = undefined
-    } catch (error) {
-      failures.push(error)
-    }
-  }
-  if (input.db !== undefined) {
-    try {
-      closeDb(input.db)
-      input.db = undefined
-    } catch (error) {
-      failures.push(error)
-    }
-  }
-  if (failures.length > 0) throw new AggregateError(failures, 'E2E generation shutdown failed')
+  const shutdown = createShutdownCoordinator([
+    {
+      label: 'API composition',
+      close: async () => {
+        const value = resources.composition
+        if (value === undefined) return
+        await value.close()
+        resources.composition = undefined
+      },
+    },
+    {
+      label: 'DuckDB analytics database',
+      close: async () => {
+        const value = resources.analytics
+        if (value === undefined) return
+        await value.close()
+        resources.analytics = undefined
+      },
+    },
+    {
+      label: 'SQLite control database',
+      close: () => {
+        const value = resources.db
+        if (value === undefined) return
+        closeDb(value)
+        resources.db = undefined
+      },
+    },
+  ])
+  return Object.assign(resources, { close: () => shutdown.close() })
 }
 
 function constructionFailure(error: unknown, cleanupError: unknown): unknown {

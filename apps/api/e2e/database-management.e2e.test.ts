@@ -1,6 +1,9 @@
 import { existsSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { call } from '@orpc/server'
 import { schema } from '@cimi/contract'
+import { closeDb, createAnalyticsDb, createDb } from '@cimi/db'
 import { expect, test } from 'vitest'
 import type { InferOutput } from 'valibot'
 import {
@@ -245,6 +248,146 @@ test('persists scoped retention and collection policy inheritance', async () => 
   })
 })
 
+test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', async () => {
+  await using fixture = await createApiE2eFixture({
+    startRetentionCleanupWorker: true,
+    retentionCleanupIntervalMs: 50,
+  })
+  const admin = await fixture.createUser(
+    'retention-worker-admin@example.com',
+    'Retention Worker Admin',
+  )
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const organization = await call(
+    fixture.router.organization.createOrganization,
+    { name: 'Retention Worker Organization' },
+    { context: await admin.context() },
+  )
+  const site = await call(
+    fixture.router.site.createSite,
+    {
+      organizationId: organization.id,
+      name: 'Retention Worker Site',
+      hostname: 'retention.example.com',
+    },
+    { context: await admin.context() },
+  )
+  const eventId = 'evt_retention_worker'
+  const expiredAt = new Date(Date.now() - 62 * 24 * 60 * 60 * 1000)
+  await call(
+    fixture.router.eventIngestion.collectEvent,
+    {
+      eventId,
+      ingestionIdentifier: site.ingestionIdentifier,
+      kind: 'page_view',
+      pagePath: '/retention',
+      occurrenceTime: expiredAt.toISOString(),
+      anonymousIdentityId: 'anonymous_retention_worker',
+    },
+    { context: fixture.unauthenticatedContext() },
+  )
+  fixture.state.backdateAcceptedEvent({ eventId, at: expiredAt })
+  await fixture.analytics.rebuild()
+
+  const started = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const backup = await waitForBackupTrace(fixture, admin, started.id)
+  assertAvailableBackup(backup.terminal)
+
+  const savePolicyDeadline = Date.now() + 10_000
+  for (;;) {
+    try {
+      await call(
+        fixture.router.retentionPolicy.updateRetentionPolicy,
+        {
+          scope: 'installation',
+          policy: { eventMonths: 1, profileMonths: 1, replayMonths: null },
+        },
+        { context: await admin.context() },
+      )
+      break
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'CONFLICT' || Date.now() > savePolicyDeadline) {
+        throw error
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+  }
+
+  const derivedGate = fixture.faults.hold({ domain: 'retentionCleanup', stage: 'derived' })
+  await derivedGate.entered
+
+  await fixture.stop()
+  await fixture.restart()
+
+  const cleanup = await fixture.waitFor({
+    read: async () =>
+      call(
+        fixture.router.retentionPolicy.getRetentionPolicy,
+        { scope: 'installation' },
+        { context: await admin.context() },
+      ),
+    done: (value) =>
+      !value.cleanup.pending &&
+      value.cleanup.derived.status === 'completed' &&
+      value.cleanup.backup.status === 'completed',
+    timeoutMs: 5_000,
+    label: 'retention cleanup worker',
+  })
+  expect(cleanup.cleanup).toMatchObject({
+    pending: false,
+    derived: { status: 'completed' },
+    backup: { status: 'completed' },
+  })
+
+  await fixture.stop()
+
+  const controlDb = createDb({ path: fixture.controlDatabasePath })
+  try {
+    expect(
+      controlDb.$client
+        .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
+        .all(eventId),
+    ).toEqual([])
+  } finally {
+    closeDb(controlDb)
+  }
+
+  const backupDb = createDb({
+    path: join(fixture.dataDirectoryPath, 'backups', `${backup.terminal.id}.sqlite`),
+  })
+  try {
+    expect(
+      backupDb.$client
+        .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
+        .all(eventId),
+    ).toEqual([])
+  } finally {
+    closeDb(backupDb)
+  }
+
+  const analytics = await createAnalyticsDb({
+    path: fixture.paths.analyticsDatabasePath,
+    tempDirectory: fixture.paths.analyticsTempDirectoryPath,
+  })
+  try {
+    await expect(
+      analytics.readWindowed((reader) =>
+        reader.read('SELECT event_id FROM events WHERE event_id = ?', [eventId]),
+      ),
+    ).resolves.toEqual([])
+  } finally {
+    await analytics.close()
+  }
+}, 30_000)
+
 test('rejects wrong lifecycle confirmation before creating an operation', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('confirmation-admin@example.com', 'Confirmation Admin')
@@ -308,6 +451,25 @@ test('holds a real upgrade, exposes accepted state, and preserves operation owne
     },
   })
   await gate.entered
+
+  const httpAdmission = await fixture.app.fetch(
+    new Request('http://localhost/api/retention-policy/updateRetentionPolicy', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: admin.cookie,
+      },
+      body: JSON.stringify({
+        scope: 'installation',
+        policy: { eventMonths: 18, profileMonths: 12, replayMonths: 6 },
+      }),
+    }),
+  )
+  expect(httpAdmission.status).toBe(503)
+  await expect(httpAdmission.json()).resolves.toMatchObject({
+    code: 'SERVICE_UNAVAILABLE',
+    status: 503,
+  })
 
   const held = await call(
     fixture.router.installation.getInstallationStatus,
@@ -467,6 +629,43 @@ test('reports backup failure, retries, lists pages, and preserves the source acr
     { context: await admin.context() },
   )
   expect(afterRestart).toMatchObject({ id: firstTrace.terminal.id, status: 'available' })
+})
+
+test('detects a corrupted backup artifact after restart', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('corrupt-backup-admin@example.com', 'Corrupt Backup Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+  const started = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+  const backup = await waitForBackupTrace(fixture, admin, started.id)
+  assertAvailableBackup(backup.terminal)
+
+  const artifactPath = join(fixture.dataDirectoryPath, 'backups', `${backup.terminal.id}.sqlite`)
+  await fixture.stop()
+  await writeFile(artifactPath, 'corrupted backup artifact')
+  await fixture.restart()
+
+  await expect(
+    call(
+      fixture.router.backupRestore.getBackupStatus,
+      { backupId: backup.terminal.id },
+      { context: await admin.context() },
+    ),
+  ).resolves.toMatchObject({ id: backup.terminal.id, status: 'available' })
+  await expect(
+    call(
+      fixture.router.backupRestore.restoreBackup,
+      { backupId: backup.terminal.id, confirmation: 'RESTORE' },
+      { context: await admin.context() },
+    ),
+  ).rejects.toMatchObject({ code: 'INCOMPATIBLE_BACKUP' })
 })
 
 test('rejects an incompatible restore manifest before creating a restore operation', async () => {
@@ -818,6 +1017,28 @@ test('closes resources before removing the root and makes disposal idempotent', 
   } finally {
     await fixture.close()
   }
+})
+
+test('continues fixture cleanup after a composition close failure', async () => {
+  let failed = false
+  const fixture = await createApiE2eFixture({
+    wrapCompositionClose(composition) {
+      return {
+        ...composition,
+        async close() {
+          await composition.close()
+          if (failed) return
+          failed = true
+          throw new Error('composition close failed')
+        },
+      }
+    },
+  })
+  const root = fixture.rootDirectory
+
+  await expect(fixture.close()).rejects.toBeInstanceOf(AggregateError)
+  expect(existsSync(root)).toBe(false)
+  await expect(fixture.close()).resolves.toBeUndefined()
 })
 
 test('reports the last lifecycle state and operation identity on polling timeout', async () => {

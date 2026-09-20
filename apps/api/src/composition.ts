@@ -33,6 +33,7 @@ import {
   type IdentitySessionResolver,
   type IngestionProtection,
 } from './resources/event-ingestion/index.ts'
+import type { RetentionCleanupPort } from './resources/retention-policy/index.ts'
 import {
   createBackupRestore,
   type BackupRestoreCleanupPort,
@@ -80,6 +81,8 @@ export interface CreateApiAppDependencies {
   eventIngestionCountryResolver?: ((headers: Headers) => string | undefined) | undefined
   eventIdentitySession?: IdentitySessionResolver | undefined
   startRetentionCleanupWorker?: boolean | undefined
+  retentionCleanupIntervalMs?: number | undefined
+  wrapRetentionCleanup?: ((cleanup: RetentionCleanupPort) => RetentionCleanupPort) | undefined
 }
 
 export interface ApiComposition {
@@ -151,6 +154,9 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     db: deps.db,
     lock,
     lifecycle: installation.service,
+    ...(deps.retentionCleanupIntervalMs === undefined
+      ? {}
+      : { intervalMs: deps.retentionCleanupIntervalMs }),
   })
   const collectionPolicy = createCollectionPolicy({
     db: deps.db,
@@ -190,14 +196,15 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
       ? eventIngestion.coalescer
       : combineAcceptanceQuiescence(eventIngestion.coalescer, deps.acceptance)
   installation.service.setAcceptanceQuiescence(upgradeAcceptance)
+  const retentionCleanup = new AcceptanceRetentionCleanup({
+    acceptance: eventIngestion.acceptanceRepository,
+    analytics: deps.analytics,
+    db: deps.db,
+    dataDirectoryPath: deps.dataDirectoryPath,
+    identityDebt: identityProjectionDebt,
+  })
   retentionPolicy.worker.setCleanupPort(
-    new AcceptanceRetentionCleanup({
-      acceptance: eventIngestion.acceptanceRepository,
-      analytics: deps.analytics,
-      db: deps.db,
-      dataDirectoryPath: deps.dataDirectoryPath,
-      identityDebt: identityProjectionDebt,
-    }),
+    deps.wrapRetentionCleanup?.(retentionCleanup) ?? retentionCleanup,
   )
   let retentionCleanupStartup = Promise.resolve()
   const backupRestore = createBackupRestore({

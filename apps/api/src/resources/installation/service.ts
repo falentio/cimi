@@ -56,6 +56,7 @@ export interface InstallationServiceDependencies {
   lock: LifecycleLock
   journal: AcceptanceJournalPort
   acceptance?: AcceptanceQuiescencePort | undefined
+  analyticsProjectionReady?: (() => Promise<boolean>) | undefined
   dataDirectoryReady: DataDirectoryReadiness
   clock?: (() => Date) | undefined
   ids?: InstallationIdFactory | undefined
@@ -124,6 +125,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
   private readonly lock: LifecycleLock
   private readonly journal: AcceptanceJournalPort
   private acceptance: AcceptanceQuiescencePort | undefined
+  private readonly analyticsProjectionReady: (() => Promise<boolean>) | undefined
   private readonly dataDirectoryReady: () => boolean
   private readonly clock: () => Date
   private readonly ids: InstallationIdFactory
@@ -136,6 +138,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     lock,
     journal,
     acceptance,
+    analyticsProjectionReady,
     dataDirectoryReady,
     clock,
     ids,
@@ -145,6 +148,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     this.lock = lock
     this.journal = journal
     this.acceptance = acceptance
+    this.analyticsProjectionReady = analyticsProjectionReady
     this.dataDirectoryReady =
       typeof dataDirectoryReady === 'function' ? dataDirectoryReady : () => dataDirectoryReady
     this.clock = clock ?? (() => new Date())
@@ -480,6 +484,13 @@ export class InstallationService implements LifecycleOperationStatusReader {
           ownershipLost = true
           throw new Error('Upgrade execution ownership was lost')
         }
+      }
+      if (
+        input.checkpoint === 'duckdb_rebuilt' &&
+        this.analyticsProjectionReady !== undefined &&
+        !(await this.analyticsProjectionReady())
+      ) {
+        await this.upgradeExecutor.rebuildAnalytics({ operationId: input.operationId })
       }
       if (!this.dataDirectoryReady()) throw new Error('Configured data directory is not ready')
       const completed = await this.repository.completeUpgrade({

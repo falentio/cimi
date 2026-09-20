@@ -132,6 +132,23 @@ describe('createDb + migrateControlDb', () => {
     expect(() => closeDb(db)).not.toThrow()
   })
 
+  it('retries a native close after the first attempt fails', () => {
+    const path = join(dir, 'retry-close.sqlite')
+    const db = createDb({ path })
+    const nativeClose = db.$client.close.bind(db.$client)
+    let attempts = 0
+    db.$client.close = () => {
+      attempts += 1
+      if (attempts === 1) throw new Error('native close failed')
+      return nativeClose()
+    }
+
+    expect(() => closeDb(db)).toThrow('native close failed')
+    expect(() => closeDb(db)).not.toThrow()
+    expect(() => closeDb(db)).not.toThrow()
+    expect(attempts).toBe(2)
+  })
+
   it('remaps cleanup checkpoints when migrating installation runs to Sites', () => {
     const path = join(dir, 'legacy.sqlite')
     const sqlite = new Database(path)
