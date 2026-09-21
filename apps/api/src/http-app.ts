@@ -126,7 +126,7 @@ export function createApiHttpApp(
     ],
   })
 
-  const app = new Hono<{ Variables: ApiContextVariables }>()
+  const app = new Hono<{ Variables: ApiContextVariables; Bindings: ApiBindings }>()
   app.use(
     '*',
     honoLogger({

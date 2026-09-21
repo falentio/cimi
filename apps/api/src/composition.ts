@@ -274,7 +274,6 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lock,
     admission: trafficReport.admission,
     query: publicDashboardQuery,
-    trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
   })
   const reportQuery = createReportQueryKernelFromInfrastructure({
     db: deps.db,
