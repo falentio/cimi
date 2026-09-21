@@ -44,6 +44,8 @@ Valibot can localize built-in messages such as `v.email()` and `v.minLength()` w
 
 Keep locale selection parse-local. Do not use global Valibot configuration. Global configuration makes the result depend on parse order and can cause English and French schemas to affect one another.
 
+`@valibot/i18n` registers messages on the Valibot module instance it imports. A workspace that resolves more than one Valibot copy leaves contract-owned schemas reading an unregistered instance, so their built-in messages stay English under `fr`. Keep `valibot` in `resolve.dedupe` in both `vite.config.ts` and `apps/web/nuxt.config.ts`. The root config covers the test and client surfaces, and the Nuxt config covers the SSR surface. Each is load-bearing; removing either one reintroduces the English leak.
+
 The locale flow is:
 
 ```text
@@ -125,6 +127,7 @@ For the web adapter, cover these cases when the change touches them.
 - An unknown stable key remains unchanged.
 - A literal custom message in a web-only schema remains unchanged.
 - An imported contract schema emits a stable `validation.*` key and renders its English and French catalog values.
+- An imported contract schema's built-in rule renders the active locale's `@valibot/i18n` message.
 - Forwarded field paths remain attached to the correct field.
 - An imported schema from `@cimi/contract` still parses through the adapter.
 - Locale changes create a new typed schema and retranslate visible form errors.

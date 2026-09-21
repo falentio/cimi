@@ -19,6 +19,9 @@ export default defineNuxtConfig({
 
   vite: {
     plugins: tailwindPlugins,
+    resolve: {
+      dedupe: ['valibot'],
+    },
   },
 
   modules: ['@pinia/nuxt', '@pinia/colada-nuxt', 'shadcn-nuxt', '@nuxtjs/i18n'],
