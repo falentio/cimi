@@ -4,7 +4,7 @@ Cimi is a self-hosted web analytics product built around embedded SQLite and Duc
 
 ## Status
 
-The resource specifications and typed contract declarations define the planned first-release behavior. They remain `draft` until their runtime handlers and persistence boundaries are implemented. The API currently serves authentication routes, `GET /api/system/health`, the illustrative `hello` routes, and the `installation`, `organization`, `membership`, `invitation`, `site`, `retention-policy`, `collection-policy`, `backup-restore`, `event-ingestion`, and `identity-profile` resource procedures; remaining first-release product procedures stay planned.
+The resource specifications and typed contract declarations define the planned first-release behavior. They remain `draft` until their runtime handlers and persistence boundaries are implemented. The API currently serves authentication routes, `GET /api/system/health`, the illustrative `hello` routes, the `installation`, `organization`, `membership`, `invitation`, `site`, `retention-policy`, `collection-policy`, `backup-restore`, `event-ingestion`, and `identity-profile` resource procedures, and the `traffic-report`, `event-report`, `goal`, `funnel`, `cohort-retention`, and `public-dashboard` reporting procedures. Other first-release product procedures remain planned.
 
 ## Set up the dev environment
 

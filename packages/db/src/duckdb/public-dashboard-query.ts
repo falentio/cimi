@@ -4,7 +4,7 @@ import {
   type PublicDashboardQueryPort,
 } from '@cimi/kernel'
 import type { AnalyticsDb } from './index.ts'
-import { renderFilterPlan } from './reporting-query.ts'
+import { renderFilterPlan, type EventColumnOverrides } from './reporting-query.ts'
 
 export interface DuckDbPublicDashboardQueryDependencies {
   readonly analytics: AnalyticsDb
@@ -19,7 +19,11 @@ export class DuckDbPublicDashboardQuery implements PublicDashboardQueryPort {
 
   async countDimensionValues(query: PublicDashboardAggregateQuery): Promise<number> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
+      const predicate = renderFilterPlan(
+        query.filterPlan,
+        query.period.interval,
+        PUBLIC_EVENT_COLUMN_OVERRIDES,
+      )
       const grouped = publicDashboardGroupedCte(query)
       const rows = await reader.read(
         `WITH ${publicDashboardFilteredCte(predicate.sql)},
@@ -47,7 +51,11 @@ WHERE group_key IS NOT NULL AND trim(CAST(group_key AS VARCHAR)) <> ''`,
 
   async countDistinctVisitors(query: PublicDashboardAggregateQuery): Promise<number> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
+      const predicate = renderFilterPlan(
+        query.filterPlan,
+        query.period.interval,
+        PUBLIC_EVENT_COLUMN_OVERRIDES,
+      )
       const rows = await reader.read(
         `WITH ${publicDashboardFilteredCte(predicate.sql)}
 SELECT count(DISTINCT visitor_id) AS total_count
@@ -62,7 +70,11 @@ FROM filtered`,
     query: PublicDashboardAggregateQuery,
   ): Promise<readonly PublicDashboardAggregateRow[]> {
     return this.deps.analytics.readWindowed(async (reader) => {
-      const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
+      const predicate = renderFilterPlan(
+        query.filterPlan,
+        query.period.interval,
+        PUBLIC_EVENT_COLUMN_OVERRIDES,
+      )
       const grouped = publicDashboardGroupedCte(query)
       const rows = await reader.read(
         `WITH ${publicDashboardFilteredCte(predicate.sql)},
@@ -208,6 +220,11 @@ function publicDashboardDimensionExpression(
 function publicUrlExpression(column: string): string {
   return `NULLIF(trim(split_part(split_part(${column}, '?', 1), '#', 1)), '')`
 }
+
+const PUBLIC_EVENT_COLUMN_OVERRIDES = {
+  'event.pagePath': publicUrlExpression('e.page_path'),
+  'event.referrer': publicUrlExpression('e.referrer'),
+} satisfies EventColumnOverrides
 
 function publicDashboardMetricExpression(metric: PublicDashboardAggregateQuery['metric']): string {
   switch (metric) {

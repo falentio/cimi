@@ -223,10 +223,6 @@ interface BreakdownSeedEvent {
   readonly utmCampaign?: string | null | undefined
 }
 
-/**
- * Seeds attributed accepted events so the projection writes session attribution columns. The first
- * event of a Session (earliest occurrence) supplies entry_page and the attribution columns.
- */
 function seedBreakdownEvents(
   db: Db,
   events: readonly BreakdownSeedEvent[],
@@ -682,6 +678,47 @@ describe('DuckDbReportingQuery.eventOverview', () => {
         },
       })
       expect(result.total).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('keeps query strings in authenticated event filters', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, [
+        ...eventKindSeeds(),
+        {
+          id: 'evt-query-string',
+          session: 's4',
+          visitor: 'v4',
+          kind: 'page_view',
+          at: EVENT_DAY + 7_000,
+          pagePath: '/pricing?email=private@example.com',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      await expect(
+        createQuery(analytics).eventOverview({
+          siteId: createSiteId(SITE),
+          period: eventPeriod(),
+          eventKind: 'page_view',
+          filterPlan: {
+            ...emptyPlan,
+            event: [
+              {
+                target: 'event.pagePath',
+                propertyKey: null,
+                operator: 'contains',
+                bind: ['email=private'],
+              },
+            ],
+          },
+        }),
+      ).resolves.toEqual({ total: 1, uniqueVisitors: 1, uniqueSessions: 1 })
     } finally {
       await analytics.close()
       closeDb(controlDb)
@@ -1434,9 +1471,6 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
         },
       })
 
-      // The predicate scopes which Sessions the report considers; the bounce and duration rules
-      // still read each Session's full event history, so s3/s5/s6 keep the engagement events that
-      // disqualify them and only s2 remains a bounce.
       expect(result.metrics.pageviews).toBe(8)
       expect(result.metrics.sessions).toBe(6)
       expect(result.metrics.bouncedSessions).toBe(1)
@@ -1846,9 +1880,6 @@ describe('session span across the window boundary', () => {
         filterPlan: emptyPlan,
       })
 
-      // Three Sessions touch DAY_TWO: s1 (the added event), s2, and s3. s1's span reads its full
-      // history, so it runs from its DAY_ONE events to the DAY_TWO event even though only the
-      // DAY_TWO event falls inside the period.
       expect(result.metrics.sessions).toBe(3)
       expect(result.metrics.sessionsWithValidDuration).toBe(2)
       expect(result.metrics.totalSessionDurationMs).toBe(
@@ -1963,6 +1994,62 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
           filterPlan: emptyPlan,
         }),
       ).resolves.toEqual([{ groupKey: 'https://search.example', value: 1, distinctVisitors: 1 }])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('filters public URL dimensions after removing query strings and fragments', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 'filtered-url-session',
+          visitor: 'filtered-url-visitor',
+          kind: 'page_view',
+          at: ATTRIBUTED_DAY,
+          pagePath: '/pricing?email=private@example.com#plans',
+          referrer: 'https://search.example?q=private#results',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+      const query = createPublicQuery(analytics)
+
+      const pageQueryStringFilter = compileTrafficFilterPlan({
+        filters: [
+          { scope: 'event', field: 'pagePath', operator: 'contains', values: ['email=private'] },
+        ],
+        profileFilterKeys: [],
+      })
+      if (!pageQueryStringFilter.ok) throw new Error('Expected a valid page path filter')
+      await expect(
+        query.aggregate({
+          siteId: createSiteId(SITE),
+          period: breakdownPeriod(),
+          metric: 'pageviews',
+          dimension: 'page',
+          filterPlan: pageQueryStringFilter.plan,
+        }),
+      ).resolves.toEqual([])
+
+      const referrerQueryStringFilter = compileTrafficFilterPlan({
+        filters: [
+          { scope: 'event', field: 'referrer', operator: 'contains', values: ['q=private'] },
+        ],
+        profileFilterKeys: [],
+      })
+      if (!referrerQueryStringFilter.ok) throw new Error('Expected a valid referrer filter')
+      await expect(
+        query.aggregate({
+          siteId: createSiteId(SITE),
+          period: breakdownPeriod(),
+          metric: 'pageviews',
+          dimension: 'referrer',
+          filterPlan: referrerQueryStringFilter.plan,
+        }),
+      ).resolves.toEqual([])
     } finally {
       await analytics.close()
       closeDb(controlDb)
