@@ -37,6 +37,7 @@ export interface CreateRetentionPolicyDependencies {
   clock?: (() => Date) | undefined
   ids?: RetentionPolicyIdFactory | undefined
   cleanup?: RetentionCleanupPort | undefined
+  intervalMs?: number | undefined
 }
 
 export function createRetentionPolicy({
@@ -47,6 +48,7 @@ export function createRetentionPolicy({
   clock,
   ids,
   cleanup,
+  intervalMs,
 }: CreateRetentionPolicyDependencies) {
   const repository = new RetentionPolicyRepositoryDrizzle({ db })
   const service = new RetentionPolicyService({
@@ -62,6 +64,7 @@ export function createRetentionPolicy({
     repository,
     lock,
     ...(cleanup === undefined ? {} : { cleanup }),
+    ...(intervalMs === undefined ? {} : { intervalMs }),
   }
   const worker = new RetentionCleanupWorker(workerDependencies)
   return { repository, service, router, worker }

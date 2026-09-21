@@ -22,6 +22,7 @@ export class SiteLifecycleWorker {
     | ((input: { siteId: string; now: Date }) => Promise<void>)
     | undefined
   private timer: ReturnType<typeof setInterval> | undefined
+  private timerGeneration = 0
   private runPromise: Promise<void> | undefined
 
   constructor({
@@ -52,7 +53,9 @@ export class SiteLifecycleWorker {
 
   start(): void {
     if (this.timer !== undefined) return
+    const timerGeneration = ++this.timerGeneration
     this.timer = setInterval(() => {
+      if (this.timerGeneration !== timerGeneration) return
       void this.runOnce()
     }, this.intervalMs)
     this.timer.unref?.()
@@ -63,6 +66,7 @@ export class SiteLifecycleWorker {
     if (this.timer !== undefined) {
       clearInterval(this.timer)
       this.timer = undefined
+      this.timerGeneration += 1
     }
     await this.runPromise
   }

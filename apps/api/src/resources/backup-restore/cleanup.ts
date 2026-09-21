@@ -29,6 +29,7 @@ export class BackupRestoreCleanupWorker {
   private readonly ownerToken: () => string
   private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
   private timer: ReturnType<typeof setInterval> | undefined
+  private timerGeneration = 0
   private runPromise: Promise<void> | undefined
 
   constructor({
@@ -63,7 +64,11 @@ export class BackupRestoreCleanupWorker {
 
   start(): void {
     if (this.cleanup === undefined || this.timer !== undefined) return
-    this.timer = setInterval(() => void this.runOnce(), this.intervalMs)
+    const timerGeneration = ++this.timerGeneration
+    this.timer = setInterval(() => {
+      if (this.timerGeneration !== timerGeneration) return
+      void this.runOnce()
+    }, this.intervalMs)
     this.timer.unref?.()
     void this.runOnce()
   }
@@ -72,6 +77,7 @@ export class BackupRestoreCleanupWorker {
     if (this.timer !== undefined) {
       clearInterval(this.timer)
       this.timer = undefined
+      this.timerGeneration += 1
     }
     await this.runPromise
   }

@@ -16,6 +16,7 @@ import {
   ANALYTICS_REQUIRED_TABLES,
   ANALYTICS_MIGRATIONS,
 } from './schema.ts'
+import { createDuckDbCloseController } from './close-progress.ts'
 
 export {
   ANALYTICS_PROJECTION_VERSION,
@@ -151,10 +152,8 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
     throw new Error('DuckDB connection was not created.')
   }
 
-  let closed = false
   let unavailable = false
   let rebuilding = false
-  let closing = false
   let serial: Promise<void> = Promise.resolve()
 
   function enqueue<T>(work: () => Promise<T>): Promise<T> {
@@ -166,9 +165,20 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
     return queued
   }
 
+  const closeController = createDuckDbCloseController({
+    operations: {
+      checkpoint: async () => {
+        await connection.run('CHECKPOINT')
+      },
+      closeConnection: () => connection.closeSync(),
+      closeInstance: () => instance.closeSync(),
+    },
+    schedule: enqueue,
+  })
+
   return {
     async ready(): Promise<boolean> {
-      if (closed || unavailable || rebuilding || closing) return false
+      if (!closeController.isOpen() || unavailable || rebuilding) return false
 
       try {
         const reader = await connection.runAndReadAll(
@@ -191,7 +201,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       }
     },
     async readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot> {
-      if (closed || closing) throw new Error('Analytics database is closed')
+      if (!closeController.isOpen()) throw new Error('Analytics database is closed')
       if (unavailable) throw new Error('Analytics database is unavailable')
       return enqueue(async () => {
         const checkpointReader = await connection.runAndReadAll(
@@ -248,7 +258,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       from: Date
       toExclusive: Date
     }): Promise<AnalyticsReportData> {
-      if (closed || closing) throw new Error('Analytics database is closed')
+      if (!closeController.isOpen()) throw new Error('Analytics database is closed')
       if (unavailable) throw new Error('Analytics database is unavailable')
       return enqueue(async () => {
         const sessionsReader = await connection.runAndReadAll(
@@ -285,7 +295,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       })
     },
     async readWindowed<T>(work: (reader: AnalyticsWindowReader) => Promise<T>): Promise<T> {
-      if (closed || closing) throw new Error('Analytics database is closed')
+      if (!closeController.isOpen()) throw new Error('Analytics database is closed')
       if (unavailable) throw new Error('Analytics database is unavailable')
       return enqueue(async () => {
         const reader: AnalyticsWindowReader = {
@@ -298,7 +308,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       })
     },
     async rebuild(input: { controlDb: Db }): Promise<void> {
-      if (closed || closing) throw new Error('Analytics database is closed')
+      if (!closeController.isOpen()) throw new Error('Analytics database is closed')
       if (unavailable) throw new Error('Analytics database is unavailable')
       if (rebuilding) throw new Error('Analytics database rebuild is already running')
       rebuilding = true
@@ -553,7 +563,6 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               await connection.run('ROLLBACK')
             } catch {
               unavailable = true
-              closeResources(connection, instance)
             }
             throw error
           }
@@ -563,7 +572,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       })
     },
     async deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number> {
-      if (closed || closing) throw new Error('Analytics database is closed')
+      if (!closeController.isOpen()) throw new Error('Analytics database is closed')
       if (unavailable) throw new Error('Analytics database is unavailable')
       if (rebuilding) throw new Error('Analytics database rebuild is already running')
       return enqueue(async () => {
@@ -750,7 +759,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       })
     },
     async purgeSite(input: { siteId: string }): Promise<void> {
-      if (closed || closing) throw new Error('Analytics database is closed')
+      if (!closeController.isOpen()) throw new Error('Analytics database is closed')
       if (unavailable) throw new Error('Analytics database is unavailable')
       if (rebuilding) throw new Error('Analytics database rebuild is already running')
       return enqueue(async () => {
@@ -772,18 +781,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       })
     },
     async close(): Promise<void> {
-      if (closed || closing) return
-      closing = true
-
-      return enqueue(async () => {
-        if (closed) return
-        closed = true
-        try {
-          await connection.run('CHECKPOINT')
-        } finally {
-          closeResources(connection, instance)
-        }
-      })
+      return closeController.close()
     },
   }
 }

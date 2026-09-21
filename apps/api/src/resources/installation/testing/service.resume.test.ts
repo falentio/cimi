@@ -253,6 +253,51 @@ describe('InstallationService.resumeOnStartup', () => {
     expect(migrate).toHaveBeenCalledWith({ operationId: 'bop_1' })
   })
 
+  it('resumes a completed upgrade without rerunning migration', async () => {
+    const completedUpgrade = {
+      ...activeOperation,
+      checkpoint: 'duckdb_rebuilt' as const,
+      progress: 0.9,
+    }
+    const migrate = vi.fn().mockRejectedValue(new Error('migration must not run'))
+    const executor = createFakeUpgradeExecutor({ migrate })
+    const { repository, service } = createInstallationFixture({
+      clock: staleClock,
+      upgradeExecutor: executor,
+    })
+    const stored = createInstallationRecord({
+      status: 'maintenance',
+      activeOperation: completedUpgrade,
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })
+    const claimed = createInstallationRecord({
+      status: 'recovering',
+      activeOperation: completedUpgrade,
+      updatedAt: '2026-09-01T00:10:00.000Z',
+    })
+    repository.find.mockResolvedValue(stored)
+    repository.claimUpgrade.mockResolvedValue(claimed)
+    repository.findSafetyArtifact.mockResolvedValue({
+      id: 'bar_1',
+      generationId: 'bop_1',
+      storageKey: 'safety/bop_1.sqlite',
+      schemaVersion: '1',
+      sizeBytes: 8,
+      checksumAlgorithm: 'sha256',
+      checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    })
+    repository.completeUpgrade.mockResolvedValue(createInstallationRecord())
+
+    await service.resumeOnStartup()
+    await service.stop()
+
+    expect(migrate).not.toHaveBeenCalled()
+    expect(repository.failUpgrade).not.toHaveBeenCalled()
+    expect(repository.completeUpgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ operationId: 'bop_1' }),
+    )
+  })
+
   it('records a failed upgrade when migration throws', async () => {
     const executor = createFakeUpgradeExecutor({
       createSafetyArtifact: vi.fn().mockResolvedValue({

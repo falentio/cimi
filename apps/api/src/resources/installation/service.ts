@@ -57,6 +57,7 @@ export interface InstallationServiceDependencies {
   lock: LifecycleLock
   journal: AcceptanceJournalPort
   acceptance?: AcceptanceQuiescencePort | undefined
+  analyticsProjectionReady?: (() => Promise<boolean>) | undefined
   dataDirectoryReady: DataDirectoryReadiness
   clock?: (() => Date) | undefined
   ids?: InstallationIdFactory | undefined
@@ -125,6 +126,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
   private readonly lock: LifecycleLock
   private readonly journal: AcceptanceJournalPort
   private acceptance: AcceptanceQuiescencePort | undefined
+  private readonly analyticsProjectionReady: (() => Promise<boolean>) | undefined
   private readonly dataDirectoryReady: () => boolean
   private readonly clock: () => Date
   private readonly ids: InstallationIdFactory
@@ -138,6 +140,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     lock,
     journal,
     acceptance,
+    analyticsProjectionReady,
     dataDirectoryReady,
     clock,
     ids,
@@ -147,6 +150,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     this.lock = lock
     this.journal = journal
     this.acceptance = acceptance
+    this.analyticsProjectionReady = analyticsProjectionReady
     this.dataDirectoryReady =
       typeof dataDirectoryReady === 'function' ? dataDirectoryReady : () => dataDirectoryReady
     this.clock = clock ?? (() => new Date())
@@ -283,6 +287,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
         operationId,
         ownerToken,
         artifactId,
+        checkpoint: 'none',
         lease,
       })
       return toPublicInstallation(record)
@@ -369,6 +374,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
         operationId,
         ownerToken,
         artifactId,
+        checkpoint: claimed.activeOperation?.checkpoint ?? 'none',
         lease,
       })
       return toPublicInstallation(claimed)
@@ -435,6 +441,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     operationId: string
     ownerToken: string
     artifactId: string
+    checkpoint: InstallationRepository.ActiveOperation['checkpoint']
     lease: LifecycleLease
   }): void {
     let task: Promise<void>
@@ -486,11 +493,17 @@ export class InstallationService implements LifecycleOperationStatusReader {
     operationId: string
     ownerToken: string
     artifactId: string
+    checkpoint: InstallationRepository.ActiveOperation['checkpoint']
   }): Promise<void> {
     let artifact: InstallationRepository.SafetyArtifactInput | undefined
     let ownershipLost = false
     try {
       artifact = await this.repository.findSafetyArtifact(input.operationId)
+      if (artifact === undefined && input.checkpoint !== 'none') {
+        throw new SafetyArtifactUnavailableError(
+          'An interrupted upgrade is missing its safety artifact',
+        )
+      }
       if (artifact === undefined) {
         artifact = await this.upgradeExecutor.createSafetyArtifact({
           operationId: input.operationId,
@@ -507,31 +520,42 @@ export class InstallationService implements LifecycleOperationStatusReader {
           throw new Error('Upgrade execution ownership was lost')
         }
       }
-      const migrationStarted = await this.repository.updateUpgradeProgress({
-        operationId: input.operationId,
-        ownerToken: input.ownerToken,
-        checkpoint: 'sqlite_captured',
-        progress: 0.5,
-        backupPhase: 'rebuilding_duckdb',
-        now: this.clock(),
-      })
-      if (migrationStarted === undefined) {
-        ownershipLost = true
-        throw new Error('Upgrade execution ownership was lost')
+      if (input.checkpoint !== 'duckdb_rebuilt' && input.checkpoint !== 'structurally_ready') {
+        if (input.checkpoint === 'none') {
+          const migrationStarted = await this.repository.updateUpgradeProgress({
+            operationId: input.operationId,
+            ownerToken: input.ownerToken,
+            checkpoint: 'sqlite_captured',
+            progress: 0.5,
+            backupPhase: 'rebuilding_duckdb',
+            now: this.clock(),
+          })
+          if (migrationStarted === undefined) {
+            ownershipLost = true
+            throw new Error('Upgrade execution ownership was lost')
+          }
+        }
+        await this.upgradeExecutor.migrate({ operationId: input.operationId })
+        await this.upgradeExecutor.rebuildAnalytics({ operationId: input.operationId })
+        const rebuilt = await this.repository.updateUpgradeProgress({
+          operationId: input.operationId,
+          ownerToken: input.ownerToken,
+          checkpoint: 'duckdb_rebuilt',
+          progress: 0.9,
+          backupPhase: 'rebuilding_duckdb',
+          now: this.clock(),
+        })
+        if (rebuilt === undefined) {
+          ownershipLost = true
+          throw new Error('Upgrade execution ownership was lost')
+        }
       }
-      await this.upgradeExecutor.migrate({ operationId: input.operationId })
-      await this.upgradeExecutor.rebuildAnalytics({ operationId: input.operationId })
-      const rebuilt = await this.repository.updateUpgradeProgress({
-        operationId: input.operationId,
-        ownerToken: input.ownerToken,
-        checkpoint: 'duckdb_rebuilt',
-        progress: 0.9,
-        backupPhase: 'rebuilding_duckdb',
-        now: this.clock(),
-      })
-      if (rebuilt === undefined) {
-        ownershipLost = true
-        throw new Error('Upgrade execution ownership was lost')
+      if (
+        input.checkpoint === 'duckdb_rebuilt' &&
+        this.analyticsProjectionReady !== undefined &&
+        !(await this.analyticsProjectionReady())
+      ) {
+        await this.upgradeExecutor.rebuildAnalytics({ operationId: input.operationId })
       }
       if (!this.dataDirectoryReady()) throw new Error('Configured data directory is not ready')
       const completed = await this.repository.completeUpgrade({

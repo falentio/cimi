@@ -8,6 +8,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -32,3 +33,18 @@ jobs:
 
       - name: Test logging benchmark contract
         run: vp test scripts/benchmark-api-logging.test.mjs
+
+      - name: API E2E
+        run: vp run --filter ./apps/api test:e2e:ci
+
+      - name: Check for leaked API E2E roots
+        if: always()
+        run: |
+          leaked=()
+          while IFS= read -r root; do
+            leaked+=("$root")
+          done < <(compgen -G '/tmp/cimi-api-e2e-*' || true)
+          if [ ${#leaked[@]} -gt 0 ]; then
+            printf '%s\n' "${leaked[@]}"
+            exit 1
+          fi

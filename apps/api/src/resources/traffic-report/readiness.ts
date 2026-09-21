@@ -1,6 +1,6 @@
 import type { AnalyticsHealth, AnalyticsReadinessPort } from '@cimi/kernel'
 import { readStoreHealth, type HealthLifecycle } from '../../health.ts'
-import type { CreateApiAppDependencies } from '../../index.ts'
+import type { CreateApiAppDependencies } from '../../composition.ts'
 
 export interface ReportingReadinessDependencies {
   readonly health: Pick<CreateApiAppDependencies, 'db' | 'analytics' | 'dataDirectoryReady'>

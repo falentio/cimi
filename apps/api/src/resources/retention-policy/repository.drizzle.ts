@@ -247,6 +247,30 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
     input: RetentionPolicyRepository.ClaimNextInput,
   ): Promise<RetentionPolicyRepository.CleanupWork | undefined> {
     return this.db.transaction((tx) => {
+      // A queued run owns the per-site active slot, so superseded failed runs are cancelled
+      // before selection instead of colliding with the partial unique index on promotion.
+      const queuedSlots = tx
+        .select({
+          installationId: schema.TRetentionCleanupRun.installationId,
+          siteId: schema.TRetentionCleanupRun.siteId,
+          cleanupKind: schema.TRetentionCleanupRun.cleanupKind,
+        })
+        .from(schema.TRetentionCleanupRun)
+        .where(eq(schema.TRetentionCleanupRun.status, 'queued'))
+        .all()
+      for (const slot of queuedSlots) {
+        tx.update(schema.TRetentionCleanupRun)
+          .set({ status: 'cancelled', completedAt: input.now, updatedAt: input.now })
+          .where(
+            and(
+              eq(schema.TRetentionCleanupRun.installationId, slot.installationId),
+              eq(schema.TRetentionCleanupRun.siteId, slot.siteId),
+              eq(schema.TRetentionCleanupRun.cleanupKind, slot.cleanupKind),
+              eq(schema.TRetentionCleanupRun.status, 'failed'),
+            ),
+          )
+          .run()
+      }
       const derived = selectNextRun(tx, 'derived')
       const candidate = derived ?? selectNextBackupRun(tx)
       if (candidate === undefined) return undefined
