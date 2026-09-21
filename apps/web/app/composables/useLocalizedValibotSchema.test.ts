@@ -164,6 +164,31 @@ describe('useLocalizedValibotSchema', () => {
     expect(result.errors?.[0]?.errors).toEqual(['Email invalide: reçu "invalid"'])
   })
 
+  it('passes the active locale to built-in messages from an imported contract schema', async () => {
+    const expected = {
+      en: 'Invalid length: Expected >=1 but received 0',
+      fr: 'Longueur invalide: attendu >=1, mais reçu 0',
+    } as const
+
+    for (const locale of ['en', 'fr'] as const) {
+      const activeLocale = shallowRef<'en' | 'fr'>(locale)
+      vi.stubGlobal('useI18n', () => ({
+        locale: activeLocale,
+        t: vi.fn(),
+        te: vi.fn(),
+      }))
+
+      const result = await useLocalizedValibotSchema(SGoalCreateInput).value.parse({
+        siteId: 'site-1',
+        name: '',
+        action: { kind: 'page_view' },
+        identityKind: 'visitor',
+      })
+
+      expect(result.errors[0]?.errors).toEqual([expected[locale]])
+    }
+  })
+
   it('accepts a schema exported by @cimi/contract', async () => {
     const locale = shallowRef<'en' | 'fr'>('en')
 
