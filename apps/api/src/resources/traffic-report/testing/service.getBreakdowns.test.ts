@@ -185,6 +185,38 @@ describe('TrafficReportService.getBreakdowns', () => {
     })
   })
 
+  it('serves exit_page breakdown rows derived from each session last page path', async () => {
+    const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
+      'report-breakdown-exit-page@example.com',
+    )
+    await using _ = fixture
+    const response = await apiTestRequest(fixture.app, breakdownPath(siteId, 'exit_page'), cookie)
+
+    expect(response.status, await response.clone().text()).toBe(200)
+    const body = await response.json()
+    expect(body.items).toEqual([
+      {
+        value: '/a',
+        metric: 'sessions',
+        grain: 'session',
+        count: 3,
+        denominator: 6,
+        percentage: 3 / 6,
+      },
+      {
+        value: '/b',
+        metric: 'sessions',
+        grain: 'session',
+        count: 3,
+        denominator: 6,
+        percentage: 3 / 6,
+      },
+    ])
+    expect(body.totalCount).toBe(2)
+    expect(body.hasMore).toBe(false)
+    expect(body.nextOffset).toBeNull()
+  })
+
   it('serves device breakdown rows excluding the NULL device while keeping the denominator', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-device@example.com',
