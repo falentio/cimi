@@ -186,6 +186,7 @@ export interface DatabaseManagementFixtureOptions {
   readonly intervalMs?: number
   readonly startRetentionCleanupWorker?: boolean
   readonly retentionCleanupIntervalMs?: number
+  readonly migrationsFolder?: string | undefined
   readonly wrapCompositionClose?: ((composition: ApiComposition) => ApiComposition) | undefined
 }
 
@@ -311,6 +312,7 @@ export async function createApiE2eFixture(
         db: openedDb,
         controlDatabasePath: paths.controlDatabasePath,
         dataDirectoryPath: paths.dataDirectoryPath,
+        migrationsFolder: options.migrationsFolder,
         analyticsRebuild: () => openedAnalytics.rebuild({ controlDb: openedDb }),
       })
       const realBackupRestoreExecutor = new ConfiguredSqliteExecutor({
@@ -318,6 +320,7 @@ export async function createApiE2eFixture(
         analytics: openedAnalytics,
         controlDatabasePath: paths.controlDatabasePath,
         dataDirectoryPath: paths.dataDirectoryPath,
+        migrationsFolder: options.migrationsFolder,
       })
       const deps: CreateApiAppDependencies = {
         db: openedDb,

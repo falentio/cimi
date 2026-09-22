@@ -73,6 +73,7 @@ export async function createApiServerApp(
         dataDirectoryReady: () => isDirectory(cfg.dataDir),
         controlDatabasePath: controlDbPath,
         dataDirectoryPath: cfg.dataDir,
+        migrationsFolder: options.migrationsFolder,
         eventIngestionTrustProxyHeaders: cfg.eventIngestion.trustProxyHeaders,
       })
       const closeApiApp = app.close.bind(app)

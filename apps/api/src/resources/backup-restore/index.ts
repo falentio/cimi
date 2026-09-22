@@ -59,6 +59,7 @@ export interface CreateBackupRestoreDependencies {
   readonly dataDirectoryReady: boolean | (() => boolean)
   readonly controlDatabasePath: string
   readonly dataDirectoryPath: string
+  readonly migrationsFolder?: string | undefined
   readonly clock?: (() => Date) | undefined
   readonly ids?: BackupRestoreIdFactory | undefined
   readonly executor?: BackupRestoreExecutor | undefined
@@ -74,6 +75,7 @@ export function createBackupRestore({
   dataDirectoryReady,
   controlDatabasePath,
   dataDirectoryPath,
+  migrationsFolder,
   clock,
   ids,
   executor,
@@ -87,6 +89,7 @@ export function createBackupRestore({
       analytics,
       controlDatabasePath,
       dataDirectoryPath,
+      migrationsFolder,
     })
   const service = new BackupRestoreService({
     repository,

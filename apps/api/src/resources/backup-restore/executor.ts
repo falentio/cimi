@@ -57,6 +57,7 @@ export interface ConfiguredSqliteExecutorDependencies {
   readonly analytics: AnalyticsDb
   readonly controlDatabasePath: string
   readonly dataDirectoryPath: string
+  readonly migrationsFolder?: string | undefined
   readonly analyticsRebuild?:
     | ((input: { readonly operationId: string }) => void | Promise<void>)
     | undefined
@@ -67,6 +68,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   private readonly analytics: AnalyticsDb
   private readonly controlDatabasePath: string
   private readonly dataDirectoryPath: string
+  private readonly migrationsFolder: string | undefined
   private readonly analyticsRebuild: (input: {
     readonly operationId: string
   }) => void | Promise<void>
@@ -76,12 +78,14 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     analytics,
     controlDatabasePath,
     dataDirectoryPath,
+    migrationsFolder,
     analyticsRebuild,
   }: ConfiguredSqliteExecutorDependencies) {
     this.db = db
     this.analytics = analytics
     this.controlDatabasePath = controlDatabasePath
     this.dataDirectoryPath = dataDirectoryPath
+    this.migrationsFolder = migrationsFolder
     this.analyticsRebuild =
       analyticsRebuild ?? (() => this.analytics.rebuild({ controlDb: this.db }))
   }
@@ -169,7 +173,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       db: this.db,
       prepare: async (stagedDb) => {
         try {
-          migrateControlDb(stagedDb)
+          migrateControlDb(stagedDb, { migrationsFolder: this.migrationsFolder })
         } catch (error) {
           if (error instanceof ControlMigrationIncompatibilityError) {
             throw new BackupIncompatibilityError('Backup migration is not compatible')
@@ -190,7 +194,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
 
   async migrate(_input: { readonly operationId: string }): Promise<void> {
     try {
-      migrateControlDb(this.db)
+      migrateControlDb(this.db, { migrationsFolder: this.migrationsFolder })
     } catch (error) {
       if (error instanceof ControlMigrationIncompatibilityError) {
         throw new BackupIncompatibilityError('Backup migration is not compatible')
