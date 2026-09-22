@@ -134,9 +134,6 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
     return this.deps.analytics.readWindowed(async (reader) => {
       const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const denominator = await this.readFilteredSessionCount(reader, query, predicate)
-      if (query.dimension === 'exit_page') {
-        return { rows: [], totalCount: 0, denominator, hasMore: false, nextOffset: null }
-      }
 
       const totalCount = await this.readBreakdownGroupCount(reader, query, predicate)
       const rows = await this.readBreakdownRows(reader, query, predicate)
@@ -729,6 +726,22 @@ function breakdownGroupCte(dimension: TrafficBreakdownDimension): BreakdownGroup
     }
   }
 
+  if (dimension === 'exit_page') {
+    return {
+      cte: `breakdown_values AS (
+  SELECT exit_events.analytics_session_id AS session_id,
+         trim(last(exit_events.page_path ORDER BY exit_events.occurrence_time, exit_events.replay_sequence)) AS value
+  FROM events exit_events
+  JOIN (SELECT DISTINCT session_id FROM windowed WHERE session_id IS NOT NULL) scoped
+    ON scoped.session_id = exit_events.analytics_session_id
+  WHERE exit_events.site_id = ?
+    AND exit_events.page_path IS NOT NULL
+    AND trim(exit_events.page_path) <> ''
+  GROUP BY exit_events.analytics_session_id
+)`,
+    }
+  }
+
   const value = breakdownSessionValueExpression(dimension)
   return {
     cte: `breakdown_values AS (
@@ -829,9 +842,7 @@ function isEventColumnTarget(target: Predicate['target']): target is EventColumn
 
 function renderSessionPredicate(predicate: Predicate): RenderedFragment {
   if (predicate.target === 'session.exitPage') {
-    throw new ReportingQueryUnsupportedError(
-      'Reporting session.exitPage filter is not supported: analytics_sessions stores no exit page',
-    )
+    return renderSessionExitPagePredicate(predicate)
   }
   const column = SESSION_COLUMNS[predicate.target]
   if (column === undefined) {
@@ -842,6 +853,23 @@ function renderSessionPredicate(predicate: Predicate): RenderedFragment {
     sql: `EXISTS (SELECT 1 FROM analytics_sessions session
        WHERE session.site_id = e.site_id AND session.session_id = e.analytics_session_id
          AND ${comparison.sql})`,
+    args: comparison.args,
+  }
+}
+
+const EXIT_PAGE_VALUE =
+  'last(exit_event.page_path ORDER BY exit_event.occurrence_time, exit_event.replay_sequence)'
+
+function renderSessionExitPagePredicate(predicate: Predicate): RenderedFragment {
+  const comparison = renderColumnComparison(EXIT_PAGE_VALUE, predicate.operator, predicate.bind)
+  return {
+    sql: `EXISTS (SELECT 1
+       FROM events exit_event
+       WHERE exit_event.site_id = e.site_id
+         AND exit_event.analytics_session_id = e.analytics_session_id
+         AND exit_event.page_path IS NOT NULL
+         AND trim(exit_event.page_path) <> ''
+       HAVING ${comparison.sql})`,
     args: comparison.args,
   }
 }
