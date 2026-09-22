@@ -1,1 +1,0 @@
-ALTER TABLE `organization_governance_operation` ADD `target_role` text;

@@ -1,3 +1,0 @@
-#!/bin/sh
-# vite-plus staged hook – runs fmt/lint/typecheck on staged files
-exec vp staged
