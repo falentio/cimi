@@ -44,7 +44,7 @@ interface RenderedFragment {
   readonly args: readonly BoundValue[]
 }
 
-const EVENT_COLUMNS: Readonly<Record<string, string>> = {
+const EVENT_COLUMNS = {
   'event.kind': 'e.event_kind',
   'event.name': 'e.name',
   'event.pagePath': 'e.page_path',
@@ -52,7 +52,11 @@ const EVENT_COLUMNS: Readonly<Record<string, string>> = {
   'event.destination': 'e.destination',
   'event.unit': 'e.unit',
   'event.code': 'e.code',
-}
+} as const
+
+type EventColumnTarget = keyof typeof EVENT_COLUMNS
+
+export type EventColumnOverrides = Readonly<Partial<Record<EventColumnTarget, string>>>
 
 const SESSION_COLUMNS: Readonly<Record<string, string>> = {
   'session.device': 'device',
@@ -680,10 +684,6 @@ function readNullableNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-/**
- * `epoch_ms` projects a TIMESTAMP as a millisecond number. Anything else is a corrupt row rather
- * than an instant, so it fails loudly instead of becoming an epoch value.
- */
 function readInstantValue(value: unknown, column: string): number {
   if (value instanceof Date) return value.getTime()
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -767,17 +767,16 @@ function timestamp(instant: number): string {
   return new Date(instant).toISOString()
 }
 
-/**
- * Renders the plan into SQL appended to the `events AS e` filter. Each fragment is introduced with
- * ` AND (...)`. Property, session, visitor, and presence predicates correlate on `e`, so they stay
- * inside the same windowed scan and share the caller's bound arguments.
- */
-function renderFilterPlan(plan: ReportFilterPlan, interval: HalfOpenInterval): RenderedFragment {
+export function renderFilterPlan(
+  plan: ReportFilterPlan,
+  interval: HalfOpenInterval,
+  eventColumnOverrides?: EventColumnOverrides,
+): RenderedFragment {
   const fragments: string[] = []
   const args: BoundValue[] = []
 
   for (const predicate of plan.event) {
-    const rendered = renderEventPredicate(predicate)
+    const rendered = renderEventPredicate(predicate, eventColumnOverrides)
     fragments.push(` AND (${rendered.sql})`)
     args.push(...rendered.args)
   }
@@ -805,7 +804,10 @@ function renderFilterPlan(plan: ReportFilterPlan, interval: HalfOpenInterval): R
   return { sql: fragments.join(''), args }
 }
 
-function renderEventPredicate(predicate: Predicate): RenderedFragment {
+function renderEventPredicate(
+  predicate: Predicate,
+  eventColumnOverrides: EventColumnOverrides | undefined,
+): RenderedFragment {
   if (predicate.target === 'event.property') {
     return renderPropertyExists(predicate)
   }
@@ -814,11 +816,15 @@ function renderEventPredicate(predicate: Predicate): RenderedFragment {
       `Reporting profile filter '${predicate.propertyKey ?? ''}' requires the profile join, which the projection does not carry`,
     )
   }
-  const column = EVENT_COLUMNS[predicate.target]
-  if (column === undefined) {
+  if (!isEventColumnTarget(predicate.target)) {
     throw new Error(`Unsupported reporting event filter target '${predicate.target}'`)
   }
+  const column = eventColumnOverrides?.[predicate.target] ?? EVENT_COLUMNS[predicate.target]
   return renderColumnComparison(column, predicate.operator, predicate.bind)
+}
+
+function isEventColumnTarget(target: Predicate['target']): target is EventColumnTarget {
+  return Object.hasOwn(EVENT_COLUMNS, target)
 }
 
 function renderSessionPredicate(predicate: Predicate): RenderedFragment {

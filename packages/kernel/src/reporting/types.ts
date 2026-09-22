@@ -124,8 +124,10 @@ export interface ProjectionGap {
 export interface ProjectionCheckpoint {
   readonly projectedAcceptanceSequence: number
   readonly projectedFactCardinality: number | null
+  readonly projectionGeneration: number
   readonly occurrenceCoveredFrom: InstantMs | null
   readonly occurrenceCoveredThrough: InstantMs | null
+  readonly statisticsRefreshedAt: InstantMs | null
 }
 
 export interface ProjectionEvidence {
@@ -183,6 +185,7 @@ export interface FactWorkEstimate {
 export interface ReportAdmissionTicket {
   readonly periods: ResolvedPeriods
   readonly evaluation: ReportEvaluationPeriods
+  readonly projectionGeneration: number | null
   readonly freshness: Readonly<{
     readonly current: FreshnessEvidence
     readonly comparison: FreshnessEvidence | null

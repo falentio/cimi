@@ -17,7 +17,7 @@ export const disablePublicDashboard = oc
     tags: ['public-dashboard'],
     successStatus: 204,
   })
-  .meta({ auth: 'admin' })
+  .meta({ auth: 'authenticated' })
   .errors({
     UNAUTHORIZED: {},
     FORBIDDEN: {},

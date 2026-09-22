@@ -11,6 +11,7 @@ export interface ApiContext {
   method: string
   path: string
   procedure?: string | undefined
+  sourceIp?: string | undefined
   admission?: IngestionAdmission | undefined
 }
 
@@ -32,6 +33,7 @@ export const api = implement({
   cohortRetention: contract.cohortRetention,
   trafficReport: contract.trafficReport,
   eventReport: contract.eventReport,
+  publicDashboard: contract.publicDashboard,
 }).$context<ApiContext>()
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {
@@ -44,6 +46,7 @@ const authenticatedMiddleware = api.middleware(({ context, next }) => {
       method: context.method,
       path: context.path,
       procedure: context.procedure,
+      sourceIp: context.sourceIp,
       admission: context.admission,
     },
   })
@@ -62,6 +65,7 @@ const adminMiddleware = api.middleware(({ context, next }) => {
       method: context.method,
       path: context.path,
       procedure: context.procedure,
+      sourceIp: context.sourceIp,
       admission: context.admission,
     },
   })

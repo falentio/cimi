@@ -43,7 +43,7 @@ describe('createDb + migrateControlDb', () => {
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
-    expect(migrationRows).toHaveLength(14)
+    expect(migrationRows).toHaveLength(16)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
     const tableRows = db.$client
@@ -147,6 +147,54 @@ describe('createDb + migrateControlDb', () => {
     expect(() => closeDb(db)).not.toThrow()
     expect(() => closeDb(db)).not.toThrow()
     expect(attempts).toBe(2)
+  })
+
+  it('normalizes disabled legacy public dashboard identifiers', () => {
+    const db = createMigratedTestDb()
+    db.$client.pragma('foreign_keys = OFF')
+    try {
+      db.$client
+        .prepare(
+          'INSERT INTO public_dashboard (site_id, enabled, public_identifier, public_identifier_hash, created_at, updated_at, rotated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('ste-legacy', 0, 'legacy-hash-legacy', 'hash-legacy', 1, 2, null)
+      db.$client
+        .prepare(
+          'INSERT INTO public_dashboard (site_id, enabled, public_identifier, public_identifier_hash, created_at, updated_at, rotated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('ste-disabled', 0, 'public-disabled', 'hash-disabled', 1, 2, null)
+      db.$client
+        .prepare(
+          'INSERT INTO public_dashboard (site_id, enabled, public_identifier, public_identifier_hash, created_at, updated_at, rotated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('ste-enabled', 1, 'legacy-hash-enabled', 'hash-enabled', 1, 2, null)
+
+      db.$client.exec(
+        readFileSync(
+          new URL('../../migrations/0015_normalize_legacy_public_dashboard.sql', import.meta.url),
+          'utf8',
+        ),
+      )
+
+      expect(
+        db.$client
+          .prepare(
+            'SELECT enabled, public_identifier, public_identifier_hash FROM public_dashboard ORDER BY site_id',
+          )
+          .all(),
+      ).toEqual([
+        {
+          enabled: 0,
+          public_identifier: 'public-disabled',
+          public_identifier_hash: 'hash-disabled',
+        },
+        { enabled: 0, public_identifier: null, public_identifier_hash: 'hash-enabled' },
+        { enabled: 0, public_identifier: null, public_identifier_hash: 'hash-legacy' },
+      ])
+    } finally {
+      db.$client.pragma('foreign_keys = ON')
+      closeDb(db)
+    }
   })
 
   it('remaps cleanup checkpoints when migrating installation runs to Sites', () => {

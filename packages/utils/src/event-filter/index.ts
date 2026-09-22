@@ -165,7 +165,13 @@ export function isCompatibleIdentityKindFilter(input: {
 }): boolean {
   if (input.values.length === 0) return false
   if (input.operator !== 'equals' && input.operator !== 'not_equals') return false
-  return input.values.every((value) => value === 'visitor' || value === 'identified_user')
+  return input.values.every(
+    (value) =>
+      value === 'visitor' ||
+      value === 'identified_user' ||
+      value === 'anonymous' ||
+      value === 'identified',
+  )
 }
 
 export function isCompatibleEventFilterForKind(input: EventKindFilterCompatibilityInput): boolean {

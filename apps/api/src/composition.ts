@@ -1,5 +1,5 @@
 import { createOrganizationAuthority, type Auth } from '@cimi/auth'
-import type { AnalyticsDb, Db } from '@cimi/db'
+import { DuckDbPublicDashboardQuery, type AnalyticsDb, type Db } from '@cimi/db'
 import { reportLogEvent } from '@cimi/logging'
 import type { LoggingConfig } from '@cimi/logging'
 import {
@@ -48,6 +48,7 @@ import { createFunnel } from './resources/funnel/index.ts'
 import { createCohort } from './resources/cohort-retention/index.ts'
 import { createReportQueryKernelFromInfrastructure } from './resources/reporting/index.ts'
 import { createEventReport } from './resources/event-report/index.ts'
+import { createPublicDashboard } from './resources/public-dashboard/index.ts'
 
 export interface CreateApiAppDependencies {
   db: Db
@@ -113,6 +114,7 @@ type ApiRouterParts = {
   cohort: ReturnType<typeof createCohort>
   trafficReport: ReturnType<typeof createTrafficReport>
   eventReport: ReturnType<typeof createEventReport>
+  publicDashboard: ReturnType<typeof createPublicDashboard>
 }
 
 export type ApiRouter = ReturnType<typeof createApiRouter>
@@ -266,6 +268,13 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     dataDirectoryReady: deps.dataDirectoryReady,
     profileFilterKeys: reportingProfileFilter,
   })
+  const publicDashboardQuery = new DuckDbPublicDashboardQuery({ analytics: deps.analytics })
+  const publicDashboard = createPublicDashboard({
+    db: deps.db,
+    lock,
+    admission: trafficReport.admission,
+    query: publicDashboardQuery,
+  })
   const reportQuery = createReportQueryKernelFromInfrastructure({
     db: deps.db,
     analytics: deps.analytics,
@@ -312,6 +321,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     cohort,
     trafficReport,
     eventReport,
+    publicDashboard,
   })
   siteLifecycleWorker.start()
   const siteLifecycleStartup = siteLifecycleWorker.runOnce()
@@ -420,6 +430,7 @@ function createApiRouter(parts: ApiRouterParts) {
     cohortRetention: parts.cohort.router,
     trafficReport: parts.trafficReport.router,
     eventReport: parts.eventReport.router,
+    publicDashboard: parts.publicDashboard.router,
   })
 }
 

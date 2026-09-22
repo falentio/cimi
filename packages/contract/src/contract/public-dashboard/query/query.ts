@@ -7,6 +7,7 @@ import {
   SPublicDashboardDimensionBucket,
   SPublicDashboardQueryFields,
   SPublicDashboardTimeBucket,
+  SPublicRateLimitAdapterResponse,
 } from '../schema.ts'
 
 export const SPublicDashboardQueryInput = SPublicDashboardQueryFields
@@ -48,7 +49,7 @@ export const queryPublicDashboard = oc
     BAD_REQUEST: {},
     NOT_FOUND: {},
     SERVICE_UNAVAILABLE: {},
-    TOO_MANY_REQUESTS: {},
+    TOO_MANY_REQUESTS: { data: SPublicRateLimitAdapterResponse },
     QUERY_LIMIT_EXCEEDED: {},
   })
   .input(SPublicDashboardQueryInput)

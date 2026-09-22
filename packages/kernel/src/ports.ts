@@ -23,6 +23,19 @@ export type LifecycleOperationKind =
 
 export type PersistedLifecycleOperationKind = Exclude<LifecycleOperationKind, 'purge'>
 
+export type LifecycleAcquireKind =
+  | LifecycleOperationKind
+  | 'initialization'
+  | 'collection_policy'
+  | 'ingestion'
+  | 'analytics-read'
+
+export type LifecycleExclusiveKind =
+  | PersistedLifecycleOperationKind
+  | 'initialization'
+  | 'collection_policy'
+  | 'ingestion'
+
 export type LifecycleErrorCode =
   | 'BACKUP_FAILED'
   | 'RESTORE_FAILED'
@@ -39,6 +52,7 @@ export type LifecycleLockKind =
   | 'initialization'
   | 'collection_policy'
   | 'ingestion'
+  | 'analytics-read'
 
 export const LIFECYCLE_OPERATION_PHASES = [
   'pre_upgrade_safety',
@@ -72,15 +86,20 @@ export function normalizeLifecycleOperationKind(
   return kind === 'purge' ? 'site_purge' : kind
 }
 
-export interface LifecycleLease {
-  readonly kind: LifecycleLockKind
-  release(): PortResult<void>
-}
+export type LifecycleLease =
+  | {
+      readonly kind: 'analytics-read'
+      readonly mode: 'shared-read'
+      release(): PortResult<void>
+    }
+  | {
+      readonly kind: LifecycleExclusiveKind
+      readonly mode: 'exclusive'
+      release(): PortResult<void>
+    }
 
 export interface LifecycleLock {
-  acquire(
-    kind: LifecycleOperationKind | 'initialization' | 'collection_policy' | 'ingestion',
-  ): PortResult<LifecycleLease | undefined>
+  acquire(kind: LifecycleAcquireKind): PortResult<LifecycleLease | undefined>
   isLocked(): PortResult<boolean>
   heldKind?(): PortResult<LifecycleLockKind | null>
 }
@@ -155,24 +174,44 @@ export class InMemoryRetentionResolver implements RetentionResolver {
 }
 
 export class InMemoryLifecycleLock implements LifecycleLock {
-  #exclusiveLease: { readonly token: symbol; readonly kind: LifecycleLockKind } | undefined
+  #exclusiveLease: { readonly token: symbol; readonly kind: LifecycleExclusiveKind } | undefined
   #ingestionLeases = new Set<symbol>()
+  #analyticsReadLeases = new Set<symbol>()
 
-  acquire(
-    kind: LifecycleOperationKind | 'initialization' | 'collection_policy' | 'ingestion',
-  ): LifecycleLease | undefined {
+  acquire(kind: LifecycleAcquireKind): LifecycleLease | undefined {
+    if (kind === 'analytics-read') {
+      if (this.#exclusiveLease !== undefined && this.#exclusiveLease.kind !== 'backup')
+        return undefined
+      if (this.#ingestionLeases.size > 0) return undefined
+      const token = Symbol('analytics-read-lease')
+      this.#analyticsReadLeases.add(token)
+      return {
+        kind: 'analytics-read',
+        mode: 'shared-read',
+        release: () => {
+          this.#analyticsReadLeases.delete(token)
+        },
+      }
+    }
     if (kind === 'ingestion') {
-      if (this.#exclusiveLease !== undefined) return undefined
+      if (this.#exclusiveLease !== undefined || this.#analyticsReadLeases.size > 0) return undefined
       const token = Symbol('ingestion-lease')
       this.#ingestionLeases.add(token)
       return {
         kind: 'ingestion',
+        mode: 'exclusive',
         release: () => {
           this.#ingestionLeases.delete(token)
         },
       }
     }
-    if (this.#exclusiveLease !== undefined || this.#ingestionLeases.size > 0) return undefined
+    if (
+      this.#exclusiveLease !== undefined ||
+      this.#ingestionLeases.size > 0 ||
+      (this.#analyticsReadLeases.size > 0 && kind !== 'backup')
+    ) {
+      return undefined
+    }
     const lease = {
       token: Symbol('lifecycle-lease'),
       kind:
@@ -183,6 +222,7 @@ export class InMemoryLifecycleLock implements LifecycleLock {
     this.#exclusiveLease = lease
     return {
       kind: lease.kind,
+      mode: 'exclusive',
       release: () => {
         if (this.#exclusiveLease?.token === lease.token) this.#exclusiveLease = undefined
       },
@@ -190,15 +230,33 @@ export class InMemoryLifecycleLock implements LifecycleLock {
   }
 
   isLocked(): boolean {
-    return this.#exclusiveLease !== undefined || this.#ingestionLeases.size > 0
+    return (
+      this.#exclusiveLease !== undefined ||
+      this.#ingestionLeases.size > 0 ||
+      this.#analyticsReadLeases.size > 0
+    )
   }
 
   heldKind(): LifecycleLockKind | null {
-    return this.#exclusiveLease?.kind ?? (this.#ingestionLeases.size > 0 ? 'ingestion' : null)
+    return (
+      this.#exclusiveLease?.kind ??
+      (this.#ingestionLeases.size > 0
+        ? 'ingestion'
+        : this.#analyticsReadLeases.size > 0
+          ? 'analytics-read'
+          : null)
+    )
   }
 
   get kind(): LifecycleLockKind | undefined {
-    return this.#exclusiveLease?.kind ?? (this.#ingestionLeases.size > 0 ? 'ingestion' : undefined)
+    return (
+      this.#exclusiveLease?.kind ??
+      (this.#ingestionLeases.size > 0
+        ? 'ingestion'
+        : this.#analyticsReadLeases.size > 0
+          ? 'analytics-read'
+          : undefined)
+    )
   }
 }
 

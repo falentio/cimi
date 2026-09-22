@@ -19,7 +19,7 @@ enabled -> disabled
 enabled -> enabled (identifier rotation)
 ```
 
-The open URL contains a random Public Dashboard Identifier, not a key. Disabling fails closed; re-enabling rotates the identifier.
+The open URL contains a random Public Dashboard Identifier, not a key. Disabling fails closed; re-enabling rotates the identifier. A legacy hash-only row is disabled until an administrator rotates it.
 
 ## 2. Base Schema
 
@@ -27,12 +27,12 @@ The raw public identifier is first-party durable configuration, while its hash r
 
 **Audience:** Both
 
-| Field                       | Schema                       | Description                                                            |
-| --------------------------- | ---------------------------- | ---------------------------------------------------------------------- |
-| `siteId`                    | `SId`                        | Site scope.                                                            |
-| `enabled`                   | `boolean`                    | Whether the public URL currently resolves.                             |
-| `publicDashboardIdentifier` | bounded string (1-128 chars) | In-house generated public URL selector, never a management credential. |
-| `updatedAt`                 | `SPublicAbsoluteDateTime`    | Configuration timestamp.                                               |
+| Field                       | Schema                                | Description                                                                                                                |
+| --------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `siteId`                    | `SId`                                 | Site scope.                                                                                                                |
+| `enabled`                   | `boolean`                             | Whether the public URL currently resolves.                                                                                 |
+| `publicDashboardIdentifier` | nullable bounded string (1-128 chars) | In-house generated public URL selector, never a management credential. A null value marks a disabled legacy hash-only row. |
+| `updatedAt`                 | `SPublicAbsoluteDateTime`             | Configuration timestamp.                                                                                                   |
 
 Public Query output contains only approved aggregate metric/dimension values and suppression-safe empty results.
 
@@ -40,6 +40,7 @@ Time buckets carry an offset-qualified local `key`, a required absolute UTC
 `at` instant, and a nullable suppressed `value`. Non-time dimension rows use a
 separate shape with `at: null`; they never represent a missing time instant.
 Dimension keys preserve the source canonical bound of 2,048 characters.
+Public page and referrer dimensions omit URL query strings and fragments.
 
 ## 3. Endpoint Quick Index
 
@@ -123,7 +124,7 @@ controls.
 
 **Purpose:** Revoke an exposed public URL while keeping public access enabled.
 
-**Behavior:** Atomically invalidate the old identifier and issue one new random identifier. Return it only to the authorized administrator. Return 200.
+**Behavior:** Atomically invalidate the old identifier and issue one new random identifier. A disabled legacy hash-only row is repaired and enabled by this operation. Return the new identifier only to the authorized administrator. Return 200.
 
 **Events Emitted:** None in MVP.
 

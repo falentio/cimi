@@ -16,11 +16,22 @@ import { configureNodeLogging } from '@cimi/logging/node'
 import { assertAuthorization, type AuthorizationLevel } from '@cimi/guard'
 import { isRecord } from '@cimi/utils'
 import { resolveRequestAdmissionGate, systemHealthHandler } from './health.ts'
+import { resolveRequestSourceIp } from './request-context.ts'
+import {
+  addPublicNoIndexHeader,
+  addPublicRateLimitHeaders,
+} from './resources/public-dashboard/response.ts'
 import { normalizeApiError } from './errors.ts'
 import { isParsedPayloadOversized } from './resources/event-ingestion/payload-size.ts'
 import type { ApiComposition, CreateApiAppDependencies } from './composition.ts'
 
-export type ApiApp = Hono<{ Variables: ApiContextVariables }> & { close(): Promise<void> }
+export interface ApiBindings {
+  readonly transportPeerIp?: string | undefined
+}
+
+export type ApiApp = Hono<{ Variables: ApiContextVariables; Bindings: ApiBindings }> & {
+  close(): Promise<void>
+}
 
 type ApiContextVariables = {
   requestId: string
@@ -115,7 +126,7 @@ export function createApiHttpApp(
     ],
   })
 
-  const app = new Hono<{ Variables: ApiContextVariables }>()
+  const app = new Hono<{ Variables: ApiContextVariables; Bindings: ApiBindings }>()
   app.use(
     '*',
     honoLogger({
@@ -229,6 +240,11 @@ export function createApiHttpApp(
       requestId: c.get('requestId'),
       method: request.method,
       path: new URL(request.url).pathname,
+      sourceIp: resolveRequestSourceIp({
+        headers: request.headers,
+        transportPeerIp: c.env?.transportPeerIp,
+        trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
+      }),
     }
     const { matched, response } = await withLogContext(context, () =>
       openAPIHandler.handle(request, {
@@ -236,7 +252,13 @@ export function createApiHttpApp(
         context,
       }),
     )
-    if (matched && response) return response
+    if (matched && response) {
+      const publicResponse =
+        new URL(request.url).pathname === '/api/public-dashboard/queryPublicDashboard'
+          ? addPublicNoIndexHeader(response)
+          : response
+      return addPublicRateLimitHeaders(publicResponse)
+    }
     return new Response('Not Found', { status: 404 })
   })
 

@@ -4,6 +4,11 @@ import { closeDb } from '../../client.ts'
 import { createMigratedTestDb, createTestAnalyticsDb } from '../../testing/index.ts'
 import { DuckDbReportingQuery, type DuckDbReportingQueryDependencies } from '../reporting-query.ts'
 import {
+  DuckDbPublicDashboardQuery,
+  type DuckDbPublicDashboardQueryDependencies,
+} from '../public-dashboard-query.ts'
+import {
+  compileTrafficFilterPlan,
   createCalendarDate,
   createInstantMs,
   createSiteId,
@@ -148,13 +153,63 @@ function dayTwoPeriod() {
   }).current
 }
 
+function publicTimePeriod() {
+  return resolveReportPeriods({
+    metadata: {
+      siteId: createSiteId(SITE),
+      reportingTimezone: 'UTC',
+      weekStartsOn: 'monday',
+    },
+    current: {
+      fromDate: createCalendarDate('2026-09-05'),
+      toDate: createCalendarDate('2026-09-05'),
+    },
+    bucket: { granularity: 'hour', maxStarts: 2_161 },
+  }).current
+}
+
+function publicFallBackPeriod() {
+  return resolveReportPeriods({
+    metadata: {
+      siteId: createSiteId(SITE),
+      reportingTimezone: 'America/New_York',
+      weekStartsOn: 'monday',
+    },
+    current: {
+      fromDate: createCalendarDate('2026-11-01'),
+      toDate: createCalendarDate('2026-11-01'),
+    },
+    bucket: { granularity: 'hour', maxStarts: 2_161 },
+  }).current
+}
+
+function publicSpringForwardPeriod() {
+  return resolveReportPeriods({
+    metadata: {
+      siteId: createSiteId(SITE),
+      reportingTimezone: 'America/New_York',
+      weekStartsOn: 'monday',
+    },
+    current: {
+      fromDate: createCalendarDate('2026-03-08'),
+      toDate: createCalendarDate('2026-03-08'),
+    },
+    bucket: { granularity: 'hour', maxStarts: 2_161 },
+  }).current
+}
+
 function createQuery(analytics: DuckDbReportingQueryDependencies['analytics']) {
   return new DuckDbReportingQuery({ analytics })
+}
+
+function createPublicQuery(analytics: DuckDbPublicDashboardQueryDependencies['analytics']) {
+  return new DuckDbPublicDashboardQuery({ analytics })
 }
 
 interface BreakdownSeedEvent {
   readonly session: string
   readonly visitor: string
+  readonly identifiedUser?: string | null | undefined
   readonly kind: string
   readonly at: number
   readonly pagePath?: string | undefined
@@ -168,11 +223,11 @@ interface BreakdownSeedEvent {
   readonly utmCampaign?: string | null | undefined
 }
 
-/**
- * Seeds attributed accepted events so the projection writes session attribution columns. The first
- * event of a Session (earliest occurrence) supplies entry_page and the attribution columns.
- */
-function seedBreakdownEvents(db: Db, events: readonly BreakdownSeedEvent[]): void {
+function seedBreakdownEvents(
+  db: Db,
+  events: readonly BreakdownSeedEvent[],
+  options: { readonly retentionLocalDay?: string; readonly eventOccurrenceCutoff?: number } = {},
+): void {
   const now = DAY_ONE
   db.$client
     .prepare(
@@ -213,10 +268,10 @@ function seedBreakdownEvents(db: Db, events: readonly BreakdownSeedEvent[]): voi
       'ins-1',
       'rtn-1',
       'UTC',
-      '2026-09-05',
-      DAY_ONE - 1,
-      DAY_ONE - 1,
-      DAY_ONE - 1,
+      options.retentionLocalDay ?? '2026-09-05',
+      options.eventOccurrenceCutoff ?? DAY_ONE - 1,
+      options.eventOccurrenceCutoff ?? DAY_ONE - 1,
+      options.eventOccurrenceCutoff ?? DAY_ONE - 1,
       now,
       now,
     )
@@ -224,10 +279,11 @@ function seedBreakdownEvents(db: Db, events: readonly BreakdownSeedEvent[]): voi
   const insertEvent = db.$client.prepare(
     `INSERT INTO accepted_event (
        event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id,
+       identified_user_id,
        analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint,
        projection_state, created_at, device_type, browser, operating_system, country,
        utm_source, utm_medium, utm_campaign
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   const insertPageView = db.$client.prepare(
     `INSERT INTO event_page_view (event_pk, page_path, referrer)
@@ -245,6 +301,7 @@ function seedBreakdownEvents(db: Db, events: readonly BreakdownSeedEvent[]): voi
       event.at,
       event.at,
       event.visitor,
+      event.identifiedUser ?? null,
       event.session,
       'pol-1',
       sequence,
@@ -621,6 +678,47 @@ describe('DuckDbReportingQuery.eventOverview', () => {
         },
       })
       expect(result.total).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('keeps query strings in authenticated event filters', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedEventKindEvents(controlDb, [
+        ...eventKindSeeds(),
+        {
+          id: 'evt-query-string',
+          session: 's4',
+          visitor: 'v4',
+          kind: 'page_view',
+          at: EVENT_DAY + 7_000,
+          pagePath: '/pricing?email=private@example.com',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      await expect(
+        createQuery(analytics).eventOverview({
+          siteId: createSiteId(SITE),
+          period: eventPeriod(),
+          eventKind: 'page_view',
+          filterPlan: {
+            ...emptyPlan,
+            event: [
+              {
+                target: 'event.pagePath',
+                propertyKey: null,
+                operator: 'contains',
+                bind: ['email=private'],
+              },
+            ],
+          },
+        }),
+      ).resolves.toEqual({ total: 1, uniqueVisitors: 1, uniqueSessions: 1 })
     } finally {
       await analytics.close()
       closeDb(controlDb)
@@ -1373,9 +1471,6 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
         },
       })
 
-      // The predicate scopes which Sessions the report considers; the bounce and duration rules
-      // still read each Session's full event history, so s3/s5/s6 keep the engagement events that
-      // disqualify them and only s2 remains a bounce.
       expect(result.metrics.pageviews).toBe(8)
       expect(result.metrics.sessions).toBe(6)
       expect(result.metrics.bouncedSessions).toBe(1)
@@ -1785,9 +1880,6 @@ describe('session span across the window boundary', () => {
         filterPlan: emptyPlan,
       })
 
-      // Three Sessions touch DAY_TWO: s1 (the added event), s2, and s3. s1's span reads its full
-      // history, so it runs from its DAY_ONE events to the DAY_TWO event even though only the
-      // DAY_TWO event falls inside the period.
       expect(result.metrics.sessions).toBe(3)
       expect(result.metrics.sessionsWithValidDuration).toBe(2)
       expect(result.metrics.totalSessionDurationMs).toBe(
@@ -1823,6 +1915,319 @@ describe('eligible Sessions apply the range before eligibility', () => {
       expect(result.metrics.pageviews).toBe(0)
       expect(result.metrics.eligibleSessions).toBe(0)
       expect(result.metrics.bouncedSessions).toBe(0)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+})
+
+describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
+  it('counts approved dimension values and time buckets without exposing identities', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+      const query = createPublicQuery(analytics)
+
+      const pageRequest = {
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        metric: 'pageviews' as const,
+        dimension: 'page' as const,
+        filterPlan: emptyPlan,
+      }
+      await expect(query.countDimensionValues(pageRequest)).resolves.toBe(2)
+      await expect(query.countDistinctVisitors(pageRequest)).resolves.toBe(5)
+      await expect(query.aggregate(pageRequest)).resolves.toEqual([
+        { groupKey: '/a', value: 3, distinctVisitors: 3 },
+        { groupKey: '/b', value: 3, distinctVisitors: 3 },
+      ])
+
+      const timeRows = await query.aggregate({
+        siteId: createSiteId(SITE),
+        period: publicTimePeriod(),
+        metric: 'events',
+        dimension: 'time',
+        filterPlan: emptyPlan,
+      })
+      expect(timeRows).toEqual([{ groupKey: 10, value: 6, distinctVisitors: 5 }])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('removes query strings and fragments from public URL dimensions', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 'url-session',
+          visitor: 'url-visitor',
+          kind: 'page_view',
+          at: ATTRIBUTED_DAY,
+          pagePath: '/pricing?email=private@example.com#plans',
+          referrer: 'https://search.example?q=private#results',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+      const query = createPublicQuery(analytics)
+
+      await expect(
+        query.aggregate({
+          siteId: createSiteId(SITE),
+          period: breakdownPeriod(),
+          metric: 'pageviews',
+          dimension: 'page',
+          filterPlan: emptyPlan,
+        }),
+      ).resolves.toEqual([{ groupKey: '/pricing', value: 1, distinctVisitors: 1 }])
+      await expect(
+        query.aggregate({
+          siteId: createSiteId(SITE),
+          period: breakdownPeriod(),
+          metric: 'pageviews',
+          dimension: 'referrer',
+          filterPlan: emptyPlan,
+        }),
+      ).resolves.toEqual([{ groupKey: 'https://search.example', value: 1, distinctVisitors: 1 }])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('filters public URL dimensions after removing query strings and fragments', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 'filtered-url-session',
+          visitor: 'filtered-url-visitor',
+          kind: 'page_view',
+          at: ATTRIBUTED_DAY,
+          pagePath: '/pricing?email=private@example.com#plans',
+          referrer: 'https://search.example?q=private#results',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+      const query = createPublicQuery(analytics)
+
+      const pageQueryStringFilter = compileTrafficFilterPlan({
+        filters: [
+          { scope: 'event', field: 'pagePath', operator: 'contains', values: ['email=private'] },
+        ],
+        profileFilterKeys: [],
+      })
+      if (!pageQueryStringFilter.ok) throw new Error('Expected a valid page path filter')
+      await expect(
+        query.aggregate({
+          siteId: createSiteId(SITE),
+          period: breakdownPeriod(),
+          metric: 'pageviews',
+          dimension: 'page',
+          filterPlan: pageQueryStringFilter.plan,
+        }),
+      ).resolves.toEqual([])
+
+      const referrerQueryStringFilter = compileTrafficFilterPlan({
+        filters: [
+          { scope: 'event', field: 'referrer', operator: 'contains', values: ['q=private'] },
+        ],
+        profileFilterKeys: [],
+      })
+      if (!referrerQueryStringFilter.ok) throw new Error('Expected a valid referrer filter')
+      await expect(
+        query.aggregate({
+          siteId: createSiteId(SITE),
+          period: breakdownPeriod(),
+          metric: 'pageviews',
+          dimension: 'referrer',
+          filterPlan: referrerQueryStringFilter.plan,
+        }),
+      ).resolves.toEqual([])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('keeps repeated fall-back hours in separate elapsed-time buckets', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 'fall-1',
+          visitor: 'fall-v1',
+          kind: 'page_view',
+          at: Date.parse('2026-11-01T05:30:00Z'),
+        },
+        {
+          session: 'fall-2',
+          visitor: 'fall-v2',
+          kind: 'page_view',
+          at: Date.parse('2026-11-01T06:30:00Z'),
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      await expect(
+        createPublicQuery(analytics).aggregate({
+          siteId: createSiteId(SITE),
+          period: publicFallBackPeriod(),
+          metric: 'events',
+          dimension: 'time',
+          filterPlan: emptyPlan,
+        }),
+      ).resolves.toEqual([
+        { groupKey: 1, value: 1, distinctVisitors: 1 },
+        { groupKey: 2, value: 1, distinctVisitors: 1 },
+      ])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('omits the nonexistent spring-forward hour', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(
+        controlDb,
+        [
+          {
+            session: 'spring-1',
+            visitor: 'spring-v1',
+            kind: 'page_view',
+            at: Date.parse('2026-03-08T06:30:00Z'),
+          },
+          {
+            session: 'spring-2',
+            visitor: 'spring-v2',
+            kind: 'page_view',
+            at: Date.parse('2026-03-08T07:30:00Z'),
+          },
+        ],
+        {
+          retentionLocalDay: '2026-03-08',
+          eventOccurrenceCutoff: Date.parse('2026-03-07T00:00:00Z'),
+        },
+      )
+      await analytics.rebuild({ controlDb })
+
+      const period = publicSpringForwardPeriod()
+      expect(period.bucketStarts?.some((start) => start.localLabel.endsWith('T02:00:00'))).toBe(
+        false,
+      )
+      await expect(
+        createPublicQuery(analytics).aggregate({
+          siteId: createSiteId(SITE),
+          period,
+          metric: 'events',
+          dimension: 'time',
+          filterPlan: emptyPlan,
+        }),
+      ).resolves.toEqual([
+        { groupKey: 1, value: 1, distinctVisitors: 1 },
+        { groupKey: 2, value: 1, distinctVisitors: 1 },
+      ])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('returns the approved anonymous and identified aggregate dimension', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 'anonymous-session',
+          visitor: 'anonymous-visitor',
+          kind: 'page_view',
+          at: ATTRIBUTED_DAY,
+        },
+        {
+          session: 'identified-session',
+          visitor: 'identified-visitor',
+          identifiedUser: 'user-1',
+          kind: 'page_view',
+          at: ATTRIBUTED_DAY + 1,
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      await expect(
+        createPublicQuery(analytics).aggregate({
+          siteId: createSiteId(SITE),
+          period: publicTimePeriod(),
+          metric: 'events',
+          dimension: 'identity_kind',
+          filterPlan: emptyPlan,
+        }),
+      ).resolves.toEqual([
+        { groupKey: 'anonymous', value: 1, distinctVisitors: 1 },
+        { groupKey: 'identified', value: 1, distinctVisitors: 1 },
+      ])
+
+      const filterPlan = compileTrafficFilterPlan({
+        filters: [
+          {
+            scope: 'visitor',
+            field: 'identityKind',
+            operator: 'equals',
+            values: ['identified'],
+          },
+        ],
+        profileFilterKeys: [],
+      })
+      if (!filterPlan.ok) throw new Error('Expected an approved public identity filter')
+      await expect(
+        createPublicQuery(analytics).aggregate({
+          siteId: createSiteId(SITE),
+          period: publicTimePeriod(),
+          metric: 'events',
+          dimension: 'identity_kind',
+          filterPlan: filterPlan.plan,
+        }),
+      ).resolves.toEqual([{ groupKey: 'identified', value: 1, distinctVisitors: 1 }])
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('bounds public dimension keys at 2048 characters', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        {
+          session: 'long-page-session',
+          visitor: 'long-page-visitor',
+          kind: 'page_view',
+          at: ATTRIBUTED_DAY,
+          pagePath: 'x'.repeat(2_049),
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const rows = await createPublicQuery(analytics).aggregate({
+        siteId: createSiteId(SITE),
+        period: publicTimePeriod(),
+        metric: 'pageviews',
+        dimension: 'page',
+        filterPlan: emptyPlan,
+      })
+
+      expect(rows).toEqual([{ groupKey: 'x'.repeat(2_048), value: 1, distinctVisitors: 1 }])
     } finally {
       await analytics.close()
       closeDb(controlDb)

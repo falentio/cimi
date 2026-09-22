@@ -124,7 +124,7 @@ export function createReportQueryKernel(
         | { readonly kind: 'success'; readonly value: TResult }
         | { readonly kind: 'failure'; readonly error: unknown }
       try {
-        lease = await dependencies.lifecycleLock.acquire('ingestion')
+        lease = await dependencies.lifecycleLock.acquire('analytics-read')
         if (lease === undefined) throw serviceUnavailable('lifecycle-locked')
 
         const planning = {
