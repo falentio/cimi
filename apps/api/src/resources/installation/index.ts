@@ -32,6 +32,7 @@ export interface CreateInstallationDependencies {
   dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
+  migrationsFolder?: string | undefined
   clock?: (() => Date) | undefined
   ids?: InstallationIdFactory | undefined
   upgradeExecutor?: UpgradeExecutor | undefined
@@ -46,6 +47,7 @@ export function createInstallation({
   dataDirectoryReady,
   controlDatabasePath,
   dataDirectoryPath,
+  migrationsFolder,
   clock,
   ids,
   upgradeExecutor,
@@ -57,6 +59,7 @@ export function createInstallation({
       db,
       controlDatabasePath,
       dataDirectoryPath,
+      migrationsFolder,
       analyticsRebuild: () => analytics.rebuild({ controlDb: db }),
     })
   const service = new InstallationService({

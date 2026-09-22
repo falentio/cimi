@@ -32,6 +32,7 @@ export interface SqliteUpgradeExecutorDependencies {
   db: Db
   controlDatabasePath: string
   dataDirectoryPath: string
+  migrationsFolder?: string | undefined
   analyticsRebuild?: ((input: { operationId: string }) => void | Promise<void>) | undefined
 }
 
@@ -39,17 +40,20 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
   private readonly db: Db
   private readonly controlDatabasePath: string
   private readonly dataDirectoryPath: string
+  private readonly migrationsFolder: string | undefined
   private readonly analyticsRebuild: (input: { operationId: string }) => void | Promise<void>
 
   constructor({
     db,
     controlDatabasePath,
     dataDirectoryPath,
+    migrationsFolder,
     analyticsRebuild,
   }: SqliteUpgradeExecutorDependencies) {
     this.db = db
     this.controlDatabasePath = controlDatabasePath
     this.dataDirectoryPath = dataDirectoryPath
+    this.migrationsFolder = migrationsFolder
     this.analyticsRebuild = analyticsRebuild ?? (() => undefined)
   }
 
@@ -94,7 +98,7 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
 
   async migrate(input: { operationId: string }): Promise<void> {
     try {
-      migrateControlDb(this.db)
+      migrateControlDb(this.db, { migrationsFolder: this.migrationsFolder })
     } catch (error) {
       if (error instanceof ControlMigrationIncompatibilityError) {
         throw new UpgradeIncompatibilityError(error.message, { cause: error })

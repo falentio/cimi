@@ -68,6 +68,7 @@ export interface CreateApiAppDependencies {
   dataDirectoryReady: DataDirectoryReadiness
   controlDatabasePath: string
   dataDirectoryPath: string
+  migrationsFolder?: string | undefined
   upgradeExecutor?: UpgradeExecutor | undefined
   backupRestoreExecutor?: BackupRestoreExecutor | undefined
   eventIngestionProtection?: IngestionProtection | undefined
@@ -139,6 +140,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     dataDirectoryReady: deps.dataDirectoryReady,
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
+    ...(deps.migrationsFolder === undefined ? {} : { migrationsFolder: deps.migrationsFolder }),
     ...(deps.upgradeExecutor === undefined ? {} : { upgradeExecutor: deps.upgradeExecutor }),
   })
   const site = createSite({
@@ -221,6 +223,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     dataDirectoryReady: deps.dataDirectoryReady,
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
+    ...(deps.migrationsFolder === undefined ? {} : { migrationsFolder: deps.migrationsFolder }),
   })
   const lifecycle: HealthLifecycle = {
     async getSnapshot() {
