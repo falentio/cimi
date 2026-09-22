@@ -11,6 +11,7 @@ import {
 } from '@/lib/auth-form'
 import { useLocalizedValibotSchema } from '@/composables/useLocalizedValibotSchema'
 import { localizeErrorMessage } from '@/utils/error-message'
+import AuthPageFooter from '@/components/AuthPageFooter.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,7 +25,6 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import type { SupportedLocale } from '@/composables/useLocalizedValibotSchema'
 
 interface AuthPanelProps {
   readonly mode: AuthMode
@@ -53,14 +53,9 @@ type AuthFormField = keyof AuthFormValues
 
 const props = defineProps<AuthPanelProps>()
 const { pending, signIn, signUp } = useAuth()
-const { locale, setLocale, t } = useI18n()
+const { locale, t } = useI18n()
 const route = useRoute()
 const feedback = shallowRef<AuthFeedback>(null)
-
-const localeOptions = [
-  { code: 'en', label: 'EN' },
-  { code: 'fr', label: 'FR' },
-] satisfies readonly { code: SupportedLocale; label: string }[]
 
 const copyByMode = {
   login: {
@@ -140,11 +135,6 @@ watch(locale, async () => {
   if (Object.keys(errors.value).length > 0) await validate()
 })
 
-async function switchLocale(nextLocale: SupportedLocale): Promise<void> {
-  if (locale.value === nextLocale) return
-  await setLocale(nextLocale)
-}
-
 const submit = handleSubmit(
   async (values) => {
     if (pending.value) return
@@ -221,175 +211,166 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
 </script>
 
 <template>
-  <main class="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-    <div class="flex w-full max-w-sm flex-col gap-6">
-      <div class="flex items-center gap-2 self-center font-medium">
-        <span
-          aria-hidden="true"
-          class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-xs font-semibold"
-        >
-          C
-        </span>
-        {{ t('auth.brand') }}
-      </div>
-
-      <div class="flex justify-end" role="group" :aria-label="t('auth.languageLabel')">
-        <Button
-          v-for="localeOption in localeOptions"
-          :key="localeOption.code"
-          class="min-w-10"
-          size="sm"
-          type="button"
-          variant="ghost"
-          :aria-pressed="locale === localeOption.code"
-          @click="switchLocale(localeOption.code)"
-        >
-          {{ localeOption.label }}
-        </Button>
-      </div>
-
-      <Card>
-        <CardHeader class="text-center">
-          <CardTitle>
-            <h1 class="text-2xl leading-tight font-semibold tracking-tight text-balance">
-              {{ t(copy.title) }}
-            </h1>
-          </CardTitle>
-          <CardDescription>{{ t(copy.description) }}</CardDescription>
-        </CardHeader>
-
-        <CardContent class="flex flex-col gap-6">
-          <Alert v-if="feedback" :variant="feedback.tone === 'error' ? 'destructive' : 'default'">
-            <AlertDescription>{{ feedbackMessage }}</AlertDescription>
-          </Alert>
-
-          <form
-            class="flex flex-col gap-6"
-            novalidate
-            :aria-busy="pending"
-            @submit.prevent="submit"
+  <main class="bg-muted flex min-h-svh flex-col p-6 md:p-10">
+    <div class="flex flex-1 flex-col items-center justify-center gap-6">
+      <div class="flex w-full max-w-sm flex-col gap-6">
+        <div class="flex items-center gap-2 self-center font-medium">
+          <span
+            aria-hidden="true"
+            class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-xs font-semibold"
           >
-            <FieldGroup class="gap-4">
-              <Field v-if="props.mode === 'signup'" :data-invalid="errors.name !== undefined">
-                <FieldLabel for="name">{{ t('auth.fields.nameLabel') }}</FieldLabel>
-                <Input
-                  id="name"
-                  v-model="name"
-                  v-bind="nameAttrs"
-                  autocomplete="name"
-                  :aria-describedby="
-                    errors.name ? 'name-description name-error' : 'name-description'
-                  "
-                  :aria-invalid="errors.name !== undefined"
-                  :disabled="pending"
-                  name="name"
-                  type="text"
-                />
-                <FieldDescription id="name-description">
-                  {{ t('auth.fields.nameDescription') }}
-                </FieldDescription>
-                <FieldError v-if="errors.name" id="name-error">
-                  {{ errors.name }}
-                </FieldError>
-              </Field>
+            C
+          </span>
+          {{ t('auth.brand') }}
+        </div>
 
-              <Field :data-invalid="errors.email !== undefined">
-                <FieldLabel for="email">{{ t('auth.fields.emailLabel') }}</FieldLabel>
-                <Input
-                  id="email"
-                  v-model="email"
-                  v-bind="emailAttrs"
-                  autocomplete="email"
-                  :aria-describedby="
-                    errors.email ? 'email-description email-error' : 'email-description'
-                  "
-                  :aria-invalid="errors.email !== undefined"
-                  :disabled="pending"
-                  inputmode="email"
-                  name="email"
-                  type="email"
-                />
-                <FieldDescription id="email-description">
-                  {{ t(copy.emailDescription) }}
-                </FieldDescription>
-                <FieldError v-if="errors.email" id="email-error">
-                  {{ errors.email }}
-                </FieldError>
-              </Field>
+        <Card>
+          <CardHeader class="text-center">
+            <CardTitle>
+              <h1 class="text-2xl leading-tight font-semibold tracking-tight text-balance">
+                {{ t(copy.title) }}
+              </h1>
+            </CardTitle>
+            <CardDescription>{{ t(copy.description) }}</CardDescription>
+          </CardHeader>
 
-              <Field :data-invalid="errors.password !== undefined">
-                <FieldLabel for="password">{{ t('auth.fields.passwordLabel') }}</FieldLabel>
-                <Input
-                  id="password"
-                  v-model="password"
-                  v-bind="passwordAttrs"
-                  :aria-describedby="
-                    errors.password ? 'password-description password-error' : 'password-description'
-                  "
-                  :aria-invalid="errors.password !== undefined"
-                  :autocomplete="props.mode === 'signup' ? 'new-password' : 'current-password'"
-                  :disabled="pending"
-                  name="password"
-                  type="password"
-                />
-                <FieldDescription id="password-description">
-                  {{ t(copy.passwordDescription) }}
-                </FieldDescription>
-                <FieldError v-if="errors.password" id="password-error">
-                  {{ errors.password }}
-                </FieldError>
-              </Field>
+          <CardContent class="flex flex-col gap-6">
+            <Alert v-if="feedback" :variant="feedback.tone === 'error' ? 'destructive' : 'default'">
+              <AlertDescription>{{ feedbackMessage }}</AlertDescription>
+            </Alert>
 
-              <Field
-                v-if="props.mode === 'signup'"
-                :data-invalid="errors.passwordConfirmation !== undefined"
-              >
-                <FieldLabel for="passwordConfirmation">
-                  {{ t('auth.fields.confirmPasswordLabel') }}
-                </FieldLabel>
-                <Input
-                  id="passwordConfirmation"
-                  v-model="passwordConfirmation"
-                  v-bind="passwordConfirmationAttrs"
-                  :aria-describedby="
-                    errors.passwordConfirmation
-                      ? 'passwordConfirmation-description passwordConfirmation-error'
-                      : 'passwordConfirmation-description'
-                  "
-                  :aria-invalid="errors.passwordConfirmation !== undefined"
-                  autocomplete="new-password"
-                  :disabled="pending"
-                  name="passwordConfirmation"
-                  type="password"
-                />
-                <FieldDescription id="passwordConfirmation-description">
-                  {{ t(copy.confirmPasswordDescription) }}
-                </FieldDescription>
-                <FieldError v-if="errors.passwordConfirmation" id="passwordConfirmation-error">
-                  {{ errors.passwordConfirmation }}
-                </FieldError>
-              </Field>
-            </FieldGroup>
-
-            <Button class="w-full" :disabled="pending" size="lg" type="submit">
-              <Spinner v-if="pending" data-icon="inline-start" />
-              {{ t(pending ? copy.pendingLabel : copy.submitLabel) }}
-            </Button>
-          </form>
-        </CardContent>
-
-        <CardFooter class="justify-center">
-          <p class="text-muted-foreground text-center text-sm">
-            {{ t(copy.alternatePrompt) }}
-            <NuxtLinkLocale
-              class="text-primary font-medium underline-offset-4 hover:underline"
-              :to="alternateLocation"
+            <form
+              class="flex flex-col gap-6"
+              novalidate
+              :aria-busy="pending"
+              @submit.prevent="submit"
             >
-              {{ t(copy.alternateLabel) }}
-            </NuxtLinkLocale>
-          </p>
-        </CardFooter>
-      </Card>
+              <FieldGroup class="gap-4">
+                <Field v-if="props.mode === 'signup'" :data-invalid="errors.name !== undefined">
+                  <FieldLabel for="name">{{ t('auth.fields.nameLabel') }}</FieldLabel>
+                  <Input
+                    id="name"
+                    v-model="name"
+                    v-bind="nameAttrs"
+                    autocomplete="name"
+                    :aria-describedby="
+                      errors.name ? 'name-description name-error' : 'name-description'
+                    "
+                    :aria-invalid="errors.name !== undefined"
+                    :disabled="pending"
+                    name="name"
+                    type="text"
+                  />
+                  <FieldDescription id="name-description">
+                    {{ t('auth.fields.nameDescription') }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.name" id="name-error">
+                    {{ errors.name }}
+                  </FieldError>
+                </Field>
+
+                <Field :data-invalid="errors.email !== undefined">
+                  <FieldLabel for="email">{{ t('auth.fields.emailLabel') }}</FieldLabel>
+                  <Input
+                    id="email"
+                    v-model="email"
+                    v-bind="emailAttrs"
+                    autocomplete="email"
+                    :aria-describedby="
+                      errors.email ? 'email-description email-error' : 'email-description'
+                    "
+                    :aria-invalid="errors.email !== undefined"
+                    :disabled="pending"
+                    inputmode="email"
+                    name="email"
+                    type="email"
+                  />
+                  <FieldDescription id="email-description">
+                    {{ t(copy.emailDescription) }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.email" id="email-error">
+                    {{ errors.email }}
+                  </FieldError>
+                </Field>
+
+                <Field :data-invalid="errors.password !== undefined">
+                  <FieldLabel for="password">{{ t('auth.fields.passwordLabel') }}</FieldLabel>
+                  <Input
+                    id="password"
+                    v-model="password"
+                    v-bind="passwordAttrs"
+                    :aria-describedby="
+                      errors.password
+                        ? 'password-description password-error'
+                        : 'password-description'
+                    "
+                    :aria-invalid="errors.password !== undefined"
+                    :autocomplete="props.mode === 'signup' ? 'new-password' : 'current-password'"
+                    :disabled="pending"
+                    name="password"
+                    type="password"
+                  />
+                  <FieldDescription id="password-description">
+                    {{ t(copy.passwordDescription) }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.password" id="password-error">
+                    {{ errors.password }}
+                  </FieldError>
+                </Field>
+
+                <Field
+                  v-if="props.mode === 'signup'"
+                  :data-invalid="errors.passwordConfirmation !== undefined"
+                >
+                  <FieldLabel for="passwordConfirmation">
+                    {{ t('auth.fields.confirmPasswordLabel') }}
+                  </FieldLabel>
+                  <Input
+                    id="passwordConfirmation"
+                    v-model="passwordConfirmation"
+                    v-bind="passwordConfirmationAttrs"
+                    :aria-describedby="
+                      errors.passwordConfirmation
+                        ? 'passwordConfirmation-description passwordConfirmation-error'
+                        : 'passwordConfirmation-description'
+                    "
+                    :aria-invalid="errors.passwordConfirmation !== undefined"
+                    autocomplete="new-password"
+                    :disabled="pending"
+                    name="passwordConfirmation"
+                    type="password"
+                  />
+                  <FieldDescription id="passwordConfirmation-description">
+                    {{ t(copy.confirmPasswordDescription) }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.passwordConfirmation" id="passwordConfirmation-error">
+                    {{ errors.passwordConfirmation }}
+                  </FieldError>
+                </Field>
+              </FieldGroup>
+
+              <Button class="w-full" :disabled="pending" size="lg" type="submit">
+                <Spinner v-if="pending" data-icon="inline-start" />
+                {{ t(pending ? copy.pendingLabel : copy.submitLabel) }}
+              </Button>
+            </form>
+          </CardContent>
+
+          <CardFooter class="justify-center">
+            <p class="text-muted-foreground text-center text-sm">
+              {{ t(copy.alternatePrompt) }}
+              <NuxtLinkLocale
+                class="text-primary font-medium underline-offset-4 hover:underline"
+                :to="alternateLocation"
+              >
+                {{ t(copy.alternateLabel) }}
+              </NuxtLinkLocale>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
+
+    <AuthPageFooter />
   </main>
 </template>
