@@ -3,8 +3,8 @@ import { loadLoggingConfig } from '@cimi/config/logging'
 import tailwindcss from '@tailwindcss/vite'
 import type { ViteOptions } from 'nuxt/schema'
 
-// @ts-expect-error Vite's plugin types are duplicated across Nuxt and Tailwind's package graph.
-const tailwindPlugins: NonNullable<ViteOptions['plugins']> = tailwindcss()
+// Nuxt and Tailwind resolve separate vite-plus-core instances, so their Plugin types differ.
+const tailwindPlugins = tailwindcss() as NonNullable<ViteOptions['plugins']>
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
