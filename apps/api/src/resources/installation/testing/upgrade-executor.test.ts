@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { closeDb, createDb, migrateControlDb } from '@cimi/db'
+import { createProbeMigrationsFolder, PROBE_MIGRATION_TABLE } from '@cimi/db/testing'
 import { describe, expect, it, vi } from 'vitest'
 import {
   classifyStorageExhausted,
@@ -98,6 +99,34 @@ describe('SqliteUpgradeExecutor', () => {
     } finally {
       closeDb(db)
       await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('migrates through the configured migrations folder', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    const migrationsFolder = await createProbeMigrationsFolder()
+    try {
+      migrateControlDb(db)
+      const executor = new SqliteUpgradeExecutor({
+        db,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+        migrationsFolder,
+      })
+
+      await executor.migrate({ operationId: 'bop_1' })
+
+      expect(
+        db.$client
+          .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+          .get(PROBE_MIGRATION_TABLE),
+      ).toBeDefined()
+    } finally {
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+      await rm(migrationsFolder, { recursive: true, force: true })
     }
   })
 

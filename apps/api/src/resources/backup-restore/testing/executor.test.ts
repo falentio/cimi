@@ -2,7 +2,11 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
-import { createTestAnalyticsDb } from '@cimi/db/testing'
+import {
+  createProbeMigrationsFolder,
+  createTestAnalyticsDb,
+  PROBE_MIGRATION_TABLE,
+} from '@cimi/db/testing'
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { ConfiguredSqliteExecutor } from '../executor.ts'
@@ -685,6 +689,80 @@ describe('ConfiguredSqliteExecutor', () => {
       await analytics.close()
       closeDb(db)
       await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('migrates through the configured migrations folder', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-backup-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    const migrationsFolder = await createProbeMigrationsFolder()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      migrateControlDb(db)
+      const executor = new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+        migrationsFolder,
+      })
+
+      await executor.migrate({ operationId: 'bop_1' })
+
+      expect(
+        db.$client
+          .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+          .get(PROBE_MIGRATION_TABLE),
+      ).toBeDefined()
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+      await rm(migrationsFolder, { recursive: true, force: true })
+    }
+  })
+
+  it('migrates the staged restore through the configured migrations folder', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-backup-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    const migrationsFolder = await createProbeMigrationsFolder()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      migrateControlDb(db)
+      const sourceExecutor = new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+      const source = await sourceExecutor.captureBackup({
+        operationId: 'bop_1',
+        artifactId: 'bar_1',
+        lastSafeSequence: 9,
+      })
+      const executor = new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+        migrationsFolder,
+      })
+
+      await executor.restoreSqlite({ operationId: 'bop_restore', source })
+
+      expect(
+        db.$client
+          .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+          .get(PROBE_MIGRATION_TABLE),
+      ).toBeDefined()
+      expect(db.$client.prepare('SELECT 1 FROM site_tombstone').get()).toBeUndefined()
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+      await rm(migrationsFolder, { recursive: true, force: true })
     }
   })
 })
