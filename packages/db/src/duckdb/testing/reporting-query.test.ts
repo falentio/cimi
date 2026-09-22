@@ -387,6 +387,20 @@ function breakdownPeriod() {
   return periods().current
 }
 
+function dayOnePeriod() {
+  return resolveReportPeriods({
+    metadata: {
+      siteId: createSiteId(SITE),
+      reportingTimezone: 'UTC',
+      weekStartsOn: 'monday',
+    },
+    current: {
+      fromDate: createCalendarDate('2026-09-05'),
+      toDate: createCalendarDate('2026-09-05'),
+    },
+  }).current
+}
+
 interface EventKindSeed {
   readonly id: string
   readonly session: string
@@ -1300,14 +1314,18 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
     }
   })
 
-  it('returns an empty page for exit_page and region while keeping the session denominator', async () => {
+  it('derives exit_page rows from the last page path of each scoped session', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
     try {
-      seedBreakdownEvents(controlDb, attributedEvents())
+      seedBreakdownEvents(controlDb, [
+        ...attributedEvents(),
+        { session: 's6', visitor: 'v6', kind: 'page_view', at: ATTRIBUTED_DAY + 6, pagePath: '/c' },
+        { session: 's6', visitor: 'v6', kind: 'custom_event', at: ATTRIBUTED_DAY + 7 },
+      ])
       await analytics.rebuild({ controlDb })
 
-      const exit = await createQuery(analytics).trafficBreakdown({
+      const result = await createQuery(analytics).trafficBreakdown({
         siteId: createSiteId(SITE),
         period: breakdownPeriod(),
         dimension: 'exit_page',
@@ -1317,9 +1335,105 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
         limit: 10,
         filterPlan: emptyPlan,
       })
-      expect(exit.rows).toEqual([])
-      expect(exit.totalCount).toBe(0)
-      expect(exit.denominator).toBe(5)
+
+      expect(result.rows).toEqual([
+        { value: '/a', count: 2 },
+        { value: '/b', count: 3 },
+        { value: '/c', count: 1 },
+      ])
+      expect(result.totalCount).toBe(3)
+      expect(result.denominator).toBe(6)
+      expect(result.hasMore).toBe(false)
+      expect(result.nextOffset).toBeNull()
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('derives the exit page from an event after the window end for a session inside the window', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY, pagePath: '/a' },
+        {
+          session: 's1',
+          visitor: 'v1',
+          kind: 'page_view',
+          at: DAY_TWO + 10 * 60 * 60 * 1000,
+          pagePath: '/b',
+        },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const result = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: dayOnePeriod(),
+        dimension: 'exit_page',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: emptyPlan,
+      })
+
+      expect(result.rows).toEqual([{ value: '/b', count: 1 }])
+      expect(result.totalCount).toBe(1)
+      expect(result.denominator).toBe(1)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('filters sessions by their derived exit page', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, [
+        { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY, pagePath: '/a' },
+        { session: 's2', visitor: 'v2', kind: 'page_view', at: ATTRIBUTED_DAY + 1, pagePath: '/a' },
+        { session: 's2', visitor: 'v2', kind: 'page_view', at: ATTRIBUTED_DAY + 2, pagePath: '/b' },
+        { session: 's3', visitor: 'v3', kind: 'page_view', at: ATTRIBUTED_DAY + 3, pagePath: '/b' },
+      ])
+      await analytics.rebuild({ controlDb })
+
+      const filter = compileTrafficFilterPlan({
+        filters: [{ scope: 'session', field: 'exitPage', operator: 'equals', values: ['/b'] }],
+        profileFilterKeys: [],
+      })
+      if (!filter.ok) throw new Error('Expected a valid exit page filter')
+
+      const result = await createQuery(analytics).trafficBreakdown({
+        siteId: createSiteId(SITE),
+        period: breakdownPeriod(),
+        dimension: 'page',
+        sort: 'value',
+        direction: 'asc',
+        offset: 0,
+        limit: 10,
+        filterPlan: filter.plan,
+      })
+
+      expect(result.rows).toEqual([
+        { value: '/a', count: 1 },
+        { value: '/b', count: 2 },
+      ])
+      expect(result.totalCount).toBe(2)
+      expect(result.denominator).toBe(2)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('returns an empty page for region while keeping the session denominator', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
 
       const region = await createQuery(analytics).trafficBreakdown({
         siteId: createSiteId(SITE),
