@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { SCollectionPolicyUpdateFields } from '../contract/collection-policy/schema.ts'
 import { SEventReportFilter, SEventTimeseries } from '../contract/event-report/schema.ts'
 import { SBatchEventResult } from '../contract/event-ingestion/schema.ts'
+import { SGoalReportInput } from '../contract/goal/query/get-report.ts'
 import { SDeletionStatusOutput } from '../contract/identity-profile/query/get-deletion-status.ts'
 import { SProfile } from '../contract/identity-profile/schema.ts'
 import { SPublicDashboardQueryOutput } from '../contract/public-dashboard/query/query.ts'
@@ -38,9 +39,30 @@ import {
   SReportInput,
   SScopedQueryFilter,
   SGranularReportInput,
+  VALIDATION_KEYS,
 } from './index.ts'
 
 describe('shared report schemas', () => {
+  it('keeps validation keys namespaced by owning package', () => {
+    expect(VALIDATION_KEYS.shared.ianaTimezone).toBe('validation.shared.ianaTimezone')
+    expect(VALIDATION_KEYS.contract.report.dateRangeOrdered).toBe(
+      'validation.contract.report.dateRangeOrdered',
+    )
+  })
+
+  it('emits a stable key for an imported contract schema issue', () => {
+    const result = v.safeParse(SGoalReportInput, {
+      goalId: 'goal-1',
+      fromDate: '2026-08-23',
+      toDate: '2026-08-22',
+    })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+
+    expect(result.issues[0]?.message).toBe('validation.contract.report.dateRangeOrdered')
+  })
+
   it('keeps shared error catalogs narrow and distinct', () => {
     expect(EAuthenticatedRead).toEqual({
       UNAUTHORIZED: { status: 401, message: 'Authentication is required.' },

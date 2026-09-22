@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { SDateTime, SId, SName, SScalarKey } from '../../schema/index.ts'
+import { SDateTime, SId, SName, SScalarKey, VALIDATION_KEYS } from '../../schema/index.ts'
 import { SCollectionContext } from '../collection-policy/transport.ts'
 
 const SEventProperty = v.union([
@@ -10,7 +10,7 @@ const SEventProperty = v.union([
 ])
 const SEventProperties = v.pipe(
   v.record(SScalarKey, SEventProperty),
-  v.check((value) => Object.keys(value).length <= 64, 'Expected at most 64 properties.'),
+  v.check((value) => Object.keys(value).length <= 64, VALIDATION_KEYS.contract.properties.maxCount),
   v.check(
     (value) =>
       !Object.keys(value).some((key) =>
@@ -48,7 +48,7 @@ const SEventProperties = v.pipe(
           'country',
         ].includes(key),
       ),
-    'Event properties must not use reserved envelope names.',
+    VALIDATION_KEYS.contract.event.propertiesReservedName,
   ),
 )
 const SUtmField = v.pipe(v.string(), v.minLength(1), v.maxLength(128))

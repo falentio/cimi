@@ -1,14 +1,15 @@
-export interface SettingsError {
-  readonly code?: string
-  readonly message: string
-}
+import type { LocalizableError } from './error-message'
+
+export interface SettingsError extends LocalizableError {}
 
 export function normalizeSettingsError(
   value: unknown,
   fallbackMessage = 'Settings request failed',
 ): SettingsError {
   if (value instanceof Error) {
-    return { message: value.message || fallbackMessage }
+    const message = value.message || fallbackMessage
+    const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
+    return code === undefined ? { message } : { code, message }
   }
 
   if (isRecord(value)) {

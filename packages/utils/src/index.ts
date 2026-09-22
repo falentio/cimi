@@ -14,6 +14,7 @@ export {
 } from './id/index.ts'
 export {
   canonicalizeHostname,
+  VALIDATION_KEYS,
   SHostname,
   SIanaTimezone,
   SId,

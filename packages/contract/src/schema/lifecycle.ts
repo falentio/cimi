@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { SDateTime } from './index.ts'
+import { SDateTime, VALIDATION_KEYS } from './index.ts'
 
 export const SLifecycleErrorCode = v.picklist([
   'BACKUP_FAILED',
@@ -40,5 +40,5 @@ export const SCleanupStage = v.pipe(
       return startedAt !== null && completedAt !== null && errorCode === null
     }
     return startedAt !== null && completedAt !== null && errorCode !== null
-  }, 'Cleanup stage timestamps and errors must match its status.'),
+  }, VALIDATION_KEYS.contract.lifecycle.cleanupStageCoherent),
 )

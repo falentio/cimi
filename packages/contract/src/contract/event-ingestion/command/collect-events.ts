@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { SId } from '../../../schema/index.ts'
+import { SId, VALIDATION_KEYS } from '../../../schema/index.ts'
 import { SCollectionContext } from '../../collection-policy/transport.ts'
 import {
   EVENT_ACCEPTANCE_FLUSH_MAX_EVENTS,
@@ -25,7 +25,7 @@ export const SCollectEventsInput = v.pipe(
           !('ingestionIdentifier' in event) || event['ingestionIdentifier'] === ingestionIdentifier
         )
       }),
-    'Every Event must use the batch Ingestion Identifier when provided.',
+    VALIDATION_KEYS.contract.batch.ingestionIdentifierMatches,
   ),
   v.check(
     ({ events }) =>
@@ -36,7 +36,7 @@ export const SCollectEventsInput = v.pipe(
           Array.isArray(event) ||
           !('collectionContext' in event),
       ),
-    'Collection context is scoped to the batch envelope.',
+    VALIDATION_KEYS.contract.batch.collectionContextScoped,
   ),
 )
 export type SCollectEventsInput = v.InferOutput<typeof SCollectEventsInput>

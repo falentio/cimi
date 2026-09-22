@@ -18,6 +18,7 @@ import {
 } from './site-settings.utils'
 import type { Site, SiteSaveState, SiteSettingsDraft } from './site-settings.types'
 import SiteGeneralFields from './SiteGeneralFields.vue'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   site: Site
@@ -33,6 +34,7 @@ const hostname = shallowRef('')
 const reportingTimezone = shallowRef<SiteSettingsDraft['reportingTimezone']>('UTC')
 const weekStartsOn = shallowRef<SiteSettingsDraft['weekStartsOn']>('monday')
 const hasSubmitted = shallowRef(false)
+const localizeError = useLocalizedErrorMessage()
 
 const draft = computed<SiteSettingsDraft>(() => ({
   name: name.value,
@@ -130,7 +132,7 @@ async function submit(): Promise<void> {
         />
 
         <FieldError v-if="saveState.status === 'error'" role="alert">
-          {{ saveState.error.message }}
+          {{ localizeError(saveState.error) }}
         </FieldError>
         <Button class="self-start" :disabled="isSaving" type="submit">
           <Spinner v-if="isSaving" aria-hidden="true" />
@@ -147,7 +149,7 @@ async function submit(): Promise<void> {
         class="text-muted-foreground text-sm"
         role="status"
       >
-        {{ saveState.warning.message }}
+        {{ localizeError(saveState.warning) }}
       </p>
       <p v-else class="text-muted-foreground text-sm">
         Changes apply to everyone who can access this site.

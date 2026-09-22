@@ -15,6 +15,7 @@ import type {
   OrganizationSettingsSnapshot,
 } from './organization-settings.types'
 import type { MembershipConfirmation } from './OrganizationMembershipConfirmationDialog.vue'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   snapshot: OrganizationSettingsSnapshot
@@ -32,6 +33,7 @@ const emit = defineEmits<{
 }>()
 
 const confirmation = shallowRef<MembershipConfirmation | undefined>()
+const localizeError = useLocalizedErrorMessage()
 const confirmationOpen = computed({
   get: () => confirmation.value !== undefined,
   set: (open: boolean) => {
@@ -83,7 +85,7 @@ function confirmAction(): void {
         <Alert v-if="snapshot.error" variant="destructive">
           <HugeiconsIcon :icon="AlertCircleIcon" aria-hidden="true" />
           <AlertTitle>Member settings could not be updated</AlertTitle>
-          <AlertDescription>{{ snapshot.error.message }}</AlertDescription>
+          <AlertDescription>{{ localizeError(snapshot.error) }}</AlertDescription>
         </Alert>
         <OrganizationMembersTable
           :is-mutating="isMutating"

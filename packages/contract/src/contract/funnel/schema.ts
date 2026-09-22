@@ -9,6 +9,7 @@ import {
   SRate,
   SPropertyFilter,
   SReportFreshness,
+  VALIDATION_KEYS,
   isValidReportRange,
 } from '../../schema/index.ts'
 
@@ -44,7 +45,7 @@ export const SFunnelSteps = v.pipe(
   v.maxLength(10),
   v.check(
     (steps) => new Set(steps.map((step) => JSON.stringify(step))).size === steps.length,
-    'Funnel steps must be distinct.',
+    VALIDATION_KEYS.contract.funnel.stepsDistinct,
   ),
 )
 export const SFunnel = v.strictObject(
@@ -73,7 +74,7 @@ export const SFunnelReportSteps = v.pipe(
   v.maxLength(10),
   v.check(
     (steps) => steps.every((step, index) => step.index === index),
-    'Funnel report steps must have contiguous indexes starting at zero.',
+    VALIDATION_KEYS.contract.funnel.reportStepsContiguous,
   ),
 )
 const SFunnelReportPeriod = v.strictObject(
@@ -100,7 +101,7 @@ export const SFunnelReport = v.pipe(
         toDate: input.toDate,
         comparison: input.comparison ?? undefined,
       }),
-    'Report output periods must be ordered.',
+    VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
 export const SFunnelSiteFields = v.strictObject({ siteId: SId })

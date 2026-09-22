@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Spinner } from '@/components/ui/spinner'
 import { useAuth } from '@/composables/useAuth'
 import { useOrpc } from '@/composables/useOrpc'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 import { normalizeSettingsError } from '@/components/features/organization-settings/organization-settings.utils'
 import type { CimiOrpc } from '~/plugins/orpc'
+import type { SettingsError } from '@/utils/settings-error'
 
 definePageMeta({
   layout: 'bare',
@@ -19,11 +21,12 @@ type AcceptedMembership = Awaited<ReturnType<CimiOrpc['invitation']['acceptInvit
 type InvitationState =
   | { readonly status: 'idle' | 'loading' }
   | { readonly status: 'accepted'; readonly membership: AcceptedMembership }
-  | { readonly status: 'error'; readonly message: string }
+  | { readonly status: 'error'; readonly error: SettingsError }
 
 const route = useRoute()
 const auth = useAuth()
 const orpc = useOrpc()
+const localizeError = useLocalizedErrorMessage()
 const token = computed(() => (typeof route.params.token === 'string' ? route.params.token : ''))
 const state = shallowRef<InvitationState>({ status: 'idle' })
 
@@ -37,7 +40,10 @@ watch(
 
 async function acceptInvitation(): Promise<void> {
   if (token.value.length === 0) {
-    state.value = { status: 'error', message: 'This invitation link is missing its token.' }
+    state.value = {
+      status: 'error',
+      error: { message: 'This invitation link is missing its token.' },
+    }
     return
   }
 
@@ -47,7 +53,7 @@ async function acceptInvitation(): Promise<void> {
     state.value = { status: 'accepted', membership }
     await navigateTo(`/org/${membership.organizationId}/settings/members`)
   } catch (error: unknown) {
-    state.value = { status: 'error', message: normalizeSettingsError(error).message }
+    state.value = { status: 'error', error: normalizeSettingsError(error) }
   }
 }
 </script>
@@ -92,7 +98,7 @@ async function acceptInvitation(): Promise<void> {
 
         <Alert v-else-if="state.status === 'error'" variant="destructive">
           <AlertTitle>Invitation could not be accepted</AlertTitle>
-          <AlertDescription>{{ state.message }}</AlertDescription>
+          <AlertDescription>{{ localizeError(state.error) }}</AlertDescription>
         </Alert>
 
         <Alert v-else-if="state.status === 'accepted'">

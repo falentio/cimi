@@ -2,6 +2,9 @@ import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   defaultPackage: 'apps/web',
+  resolve: {
+    dedupe: ['valibot'],
+  },
   check: {
     fmt: true,
     lint: true,

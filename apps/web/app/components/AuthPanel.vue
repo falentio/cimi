@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, watch } from 'vue'
-import { toTypedSchema } from '@vee-validate/valibot'
 import { useForm } from 'vee-validate'
 import type { AuthResult, SignInInput, SignUpInput } from '@/composables/useAuth'
 import {
@@ -10,6 +9,9 @@ import {
   loginSchema,
   signupSchema,
 } from '@/lib/auth-form'
+import { useLocalizedValibotSchema } from '@/composables/useLocalizedValibotSchema'
+import { localizeErrorMessage } from '@/utils/error-message'
+import AuthPageFooter from '@/components/AuthPageFooter.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,7 +30,7 @@ interface AuthPanelProps {
   readonly mode: AuthMode
 }
 
-type AuthRoute = '/login' | '/signup'
+type AuthRoute = 'login' | 'signup'
 
 interface AuthCopy {
   readonly title: string
@@ -51,33 +53,34 @@ type AuthFormField = keyof AuthFormValues
 
 const props = defineProps<AuthPanelProps>()
 const { pending, signIn, signUp } = useAuth()
+const { locale, t } = useI18n()
 const route = useRoute()
 const feedback = shallowRef<AuthFeedback>(null)
 
 const copyByMode = {
   login: {
-    title: 'Welcome back',
-    description: 'Sign in to your Cimi workspace.',
-    submitLabel: 'Sign in',
-    pendingLabel: 'Signing in...',
-    alternatePrompt: 'Need an account?',
-    alternateLabel: 'Sign up',
-    alternateRoute: '/signup',
-    emailDescription: 'Use the email address associated with your Cimi account.',
-    passwordDescription: 'Use the password for your Cimi account.',
+    title: 'auth.login.title',
+    description: 'auth.login.description',
+    submitLabel: 'auth.login.submitLabel',
+    pendingLabel: 'auth.login.pendingLabel',
+    alternatePrompt: 'auth.login.alternatePrompt',
+    alternateLabel: 'auth.login.alternateLabel',
+    alternateRoute: 'signup',
+    emailDescription: 'auth.login.emailDescription',
+    passwordDescription: 'auth.login.passwordDescription',
     confirmPasswordDescription: '',
   },
   signup: {
-    title: 'Create your account',
-    description: 'Start with a secure Cimi workspace.',
-    submitLabel: 'Create account',
-    pendingLabel: 'Creating account...',
-    alternatePrompt: 'Already have an account?',
-    alternateLabel: 'Log in',
-    alternateRoute: '/login',
-    emailDescription: 'We will use this address for account verification.',
-    passwordDescription: 'Choose a password with at least 8 characters.',
-    confirmPasswordDescription: 'Re-enter your password to confirm.',
+    title: 'auth.signup.title',
+    description: 'auth.signup.description',
+    submitLabel: 'auth.signup.submitLabel',
+    pendingLabel: 'auth.signup.pendingLabel',
+    alternatePrompt: 'auth.signup.alternatePrompt',
+    alternateLabel: 'auth.signup.alternateLabel',
+    alternateRoute: 'login',
+    emailDescription: 'auth.signup.emailDescription',
+    passwordDescription: 'auth.signup.passwordDescription',
+    confirmPasswordDescription: 'auth.signup.confirmPasswordDescription',
   },
 } satisfies Record<AuthMode, AuthCopy>
 
@@ -87,10 +90,22 @@ const fieldOrderByMode = {
 } satisfies Record<AuthMode, readonly (keyof AuthFormValues)[]>
 
 const copy = computed(() => copyByMode[props.mode])
-const validationSchema = computed(() =>
-  toTypedSchema(props.mode === 'signup' ? signupSchema : loginSchema),
+const feedbackMessage = computed(() => {
+  const currentFeedback = feedback.value
+  if (currentFeedback === null) return ''
+  if ('message' in currentFeedback) return localizeErrorMessage(currentFeedback, t)
+  return currentFeedback.values === undefined
+    ? t(currentFeedback.messageKey)
+    : t(currentFeedback.messageKey, currentFeedback.values)
+})
+const alternateLocation = computed(() => ({
+  name: copy.value.alternateRoute,
+  query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : undefined,
+}))
+const validationSchema = useLocalizedValibotSchema(() =>
+  props.mode === 'signup' ? signupSchema : loginSchema,
 )
-const { defineField, errors, handleSubmit, resetForm } = useForm<AuthFormValues>({
+const { defineField, errors, handleSubmit, resetForm, validate } = useForm<AuthFormValues>({
   initialValues: { name: '', email: '', password: '', passwordConfirmation: '' },
   validationSchema,
 })
@@ -115,6 +130,10 @@ watch(
     feedback.value = null
   },
 )
+
+watch(locale, async () => {
+  if (Object.keys(errors.value).length > 0) await validate()
+})
 
 const submit = handleSubmit(
   async (values) => {
@@ -159,21 +178,19 @@ function createSubmission(values: AuthFormValues): AuthSubmission {
 
 function feedbackForResult(result: AuthResult, mode: AuthMode): AuthFeedback {
   if (!result.ok) {
-    return { tone: 'error', message: result.error.message }
+    return { tone: 'error', code: result.error.code, message: result.error.message }
   }
 
   if (result.session === null) {
     return mode === 'signup'
-      ? { tone: 'success', message: 'Account created. Check your email to continue.' }
-      : { tone: 'error', message: 'Sign-in succeeded, but no active session was returned.' }
+      ? { tone: 'success', messageKey: 'auth.feedback.accountCreated' }
+      : { tone: 'error', messageKey: 'auth.feedback.signInWithoutSession' }
   }
 
   return {
     tone: 'success',
-    message:
-      mode === 'signup'
-        ? `Welcome to Cimi, ${result.session.user.name}.`
-        : `Welcome back, ${result.session.user.name}.`,
+    messageKey: mode === 'signup' ? 'auth.feedback.welcome' : 'auth.feedback.welcomeBack',
+    values: { name: result.session.user.name },
   }
 }
 
@@ -194,158 +211,166 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
 </script>
 
 <template>
-  <main class="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-    <div class="flex w-full max-w-sm flex-col gap-6">
-      <div class="flex items-center gap-2 self-center font-medium">
-        <span
-          aria-hidden="true"
-          class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-xs font-semibold"
-        >
-          C
-        </span>
-        Cimi workspace
-      </div>
-
-      <Card>
-        <CardHeader class="text-center">
-          <CardTitle>
-            <h1 class="text-2xl leading-tight font-semibold tracking-tight text-balance">
-              {{ copy.title }}
-            </h1>
-          </CardTitle>
-          <CardDescription>{{ copy.description }}</CardDescription>
-        </CardHeader>
-
-        <CardContent class="flex flex-col gap-6">
-          <Alert v-if="feedback" :variant="feedback.tone === 'error' ? 'destructive' : 'default'">
-            <AlertDescription>{{ feedback.message }}</AlertDescription>
-          </Alert>
-
-          <form
-            class="flex flex-col gap-6"
-            novalidate
-            :aria-busy="pending"
-            @submit.prevent="submit"
+  <main class="bg-muted flex min-h-svh flex-col p-6 md:p-10">
+    <div class="flex flex-1 flex-col items-center justify-center gap-6">
+      <div class="flex w-full max-w-sm flex-col gap-6">
+        <div class="flex items-center gap-2 self-center font-medium">
+          <span
+            aria-hidden="true"
+            class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-xs font-semibold"
           >
-            <FieldGroup class="gap-4">
-              <Field v-if="props.mode === 'signup'" :data-invalid="errors.name !== undefined">
-                <FieldLabel for="name">Name</FieldLabel>
-                <Input
-                  id="name"
-                  v-model="name"
-                  v-bind="nameAttrs"
-                  autocomplete="name"
-                  :aria-describedby="
-                    errors.name ? 'name-description name-error' : 'name-description'
-                  "
-                  :aria-invalid="errors.name !== undefined"
-                  :disabled="pending"
-                  name="name"
-                  type="text"
-                />
-                <FieldDescription id="name-description">
-                  Enter the name for your Cimi workspace.
-                </FieldDescription>
-                <FieldError v-if="errors.name" id="name-error">
-                  {{ errors.name }}
-                </FieldError>
-              </Field>
+            C
+          </span>
+          {{ t('auth.brand') }}
+        </div>
 
-              <Field :data-invalid="errors.email !== undefined">
-                <FieldLabel for="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  v-model="email"
-                  v-bind="emailAttrs"
-                  autocomplete="email"
-                  :aria-describedby="
-                    errors.email ? 'email-description email-error' : 'email-description'
-                  "
-                  :aria-invalid="errors.email !== undefined"
-                  :disabled="pending"
-                  inputmode="email"
-                  name="email"
-                  type="email"
-                />
-                <FieldDescription id="email-description">
-                  {{ copy.emailDescription }}
-                </FieldDescription>
-                <FieldError v-if="errors.email" id="email-error">
-                  {{ errors.email }}
-                </FieldError>
-              </Field>
+        <Card>
+          <CardHeader class="text-center">
+            <CardTitle>
+              <h1 class="text-2xl leading-tight font-semibold tracking-tight text-balance">
+                {{ t(copy.title) }}
+              </h1>
+            </CardTitle>
+            <CardDescription>{{ t(copy.description) }}</CardDescription>
+          </CardHeader>
 
-              <Field :data-invalid="errors.password !== undefined">
-                <FieldLabel for="password">Password</FieldLabel>
-                <Input
-                  id="password"
-                  v-model="password"
-                  v-bind="passwordAttrs"
-                  :aria-describedby="
-                    errors.password ? 'password-description password-error' : 'password-description'
-                  "
-                  :aria-invalid="errors.password !== undefined"
-                  :autocomplete="props.mode === 'signup' ? 'new-password' : 'current-password'"
-                  :disabled="pending"
-                  name="password"
-                  type="password"
-                />
-                <FieldDescription id="password-description">
-                  {{ copy.passwordDescription }}
-                </FieldDescription>
-                <FieldError v-if="errors.password" id="password-error">
-                  {{ errors.password }}
-                </FieldError>
-              </Field>
+          <CardContent class="flex flex-col gap-6">
+            <Alert v-if="feedback" :variant="feedback.tone === 'error' ? 'destructive' : 'default'">
+              <AlertDescription>{{ feedbackMessage }}</AlertDescription>
+            </Alert>
 
-              <Field
-                v-if="props.mode === 'signup'"
-                :data-invalid="errors.passwordConfirmation !== undefined"
-              >
-                <FieldLabel for="passwordConfirmation">Confirm password</FieldLabel>
-                <Input
-                  id="passwordConfirmation"
-                  v-model="passwordConfirmation"
-                  v-bind="passwordConfirmationAttrs"
-                  :aria-describedby="
-                    errors.passwordConfirmation
-                      ? 'passwordConfirmation-description passwordConfirmation-error'
-                      : 'passwordConfirmation-description'
-                  "
-                  :aria-invalid="errors.passwordConfirmation !== undefined"
-                  autocomplete="new-password"
-                  :disabled="pending"
-                  name="passwordConfirmation"
-                  type="password"
-                />
-                <FieldDescription id="passwordConfirmation-description">
-                  {{ copy.confirmPasswordDescription }}
-                </FieldDescription>
-                <FieldError v-if="errors.passwordConfirmation" id="passwordConfirmation-error">
-                  {{ errors.passwordConfirmation }}
-                </FieldError>
-              </Field>
-            </FieldGroup>
-
-            <Button class="w-full" :disabled="pending" size="lg" type="submit">
-              <Spinner v-if="pending" data-icon="inline-start" />
-              {{ pending ? copy.pendingLabel : copy.submitLabel }}
-            </Button>
-          </form>
-        </CardContent>
-
-        <CardFooter class="justify-center">
-          <p class="text-muted-foreground text-center text-sm">
-            {{ copy.alternatePrompt }}
-            <NuxtLink
-              class="text-primary font-medium underline-offset-4 hover:underline"
-              :to="copy.alternateRoute"
+            <form
+              class="flex flex-col gap-6"
+              novalidate
+              :aria-busy="pending"
+              @submit.prevent="submit"
             >
-              {{ copy.alternateLabel }}
-            </NuxtLink>
-          </p>
-        </CardFooter>
-      </Card>
+              <FieldGroup class="gap-4">
+                <Field v-if="props.mode === 'signup'" :data-invalid="errors.name !== undefined">
+                  <FieldLabel for="name">{{ t('auth.fields.nameLabel') }}</FieldLabel>
+                  <Input
+                    id="name"
+                    v-model="name"
+                    v-bind="nameAttrs"
+                    autocomplete="name"
+                    :aria-describedby="
+                      errors.name ? 'name-description name-error' : 'name-description'
+                    "
+                    :aria-invalid="errors.name !== undefined"
+                    :disabled="pending"
+                    name="name"
+                    type="text"
+                  />
+                  <FieldDescription id="name-description">
+                    {{ t('auth.fields.nameDescription') }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.name" id="name-error">
+                    {{ errors.name }}
+                  </FieldError>
+                </Field>
+
+                <Field :data-invalid="errors.email !== undefined">
+                  <FieldLabel for="email">{{ t('auth.fields.emailLabel') }}</FieldLabel>
+                  <Input
+                    id="email"
+                    v-model="email"
+                    v-bind="emailAttrs"
+                    autocomplete="email"
+                    :aria-describedby="
+                      errors.email ? 'email-description email-error' : 'email-description'
+                    "
+                    :aria-invalid="errors.email !== undefined"
+                    :disabled="pending"
+                    inputmode="email"
+                    name="email"
+                    type="email"
+                  />
+                  <FieldDescription id="email-description">
+                    {{ t(copy.emailDescription) }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.email" id="email-error">
+                    {{ errors.email }}
+                  </FieldError>
+                </Field>
+
+                <Field :data-invalid="errors.password !== undefined">
+                  <FieldLabel for="password">{{ t('auth.fields.passwordLabel') }}</FieldLabel>
+                  <Input
+                    id="password"
+                    v-model="password"
+                    v-bind="passwordAttrs"
+                    :aria-describedby="
+                      errors.password
+                        ? 'password-description password-error'
+                        : 'password-description'
+                    "
+                    :aria-invalid="errors.password !== undefined"
+                    :autocomplete="props.mode === 'signup' ? 'new-password' : 'current-password'"
+                    :disabled="pending"
+                    name="password"
+                    type="password"
+                  />
+                  <FieldDescription id="password-description">
+                    {{ t(copy.passwordDescription) }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.password" id="password-error">
+                    {{ errors.password }}
+                  </FieldError>
+                </Field>
+
+                <Field
+                  v-if="props.mode === 'signup'"
+                  :data-invalid="errors.passwordConfirmation !== undefined"
+                >
+                  <FieldLabel for="passwordConfirmation">
+                    {{ t('auth.fields.confirmPasswordLabel') }}
+                  </FieldLabel>
+                  <Input
+                    id="passwordConfirmation"
+                    v-model="passwordConfirmation"
+                    v-bind="passwordConfirmationAttrs"
+                    :aria-describedby="
+                      errors.passwordConfirmation
+                        ? 'passwordConfirmation-description passwordConfirmation-error'
+                        : 'passwordConfirmation-description'
+                    "
+                    :aria-invalid="errors.passwordConfirmation !== undefined"
+                    autocomplete="new-password"
+                    :disabled="pending"
+                    name="passwordConfirmation"
+                    type="password"
+                  />
+                  <FieldDescription id="passwordConfirmation-description">
+                    {{ t(copy.confirmPasswordDescription) }}
+                  </FieldDescription>
+                  <FieldError v-if="errors.passwordConfirmation" id="passwordConfirmation-error">
+                    {{ errors.passwordConfirmation }}
+                  </FieldError>
+                </Field>
+              </FieldGroup>
+
+              <Button class="w-full" :disabled="pending" size="lg" type="submit">
+                <Spinner v-if="pending" data-icon="inline-start" />
+                {{ t(pending ? copy.pendingLabel : copy.submitLabel) }}
+              </Button>
+            </form>
+          </CardContent>
+
+          <CardFooter class="justify-center">
+            <p class="text-muted-foreground text-center text-sm">
+              {{ t(copy.alternatePrompt) }}
+              <NuxtLinkLocale
+                class="text-primary font-medium underline-offset-4 hover:underline"
+                :to="alternateLocation"
+              >
+                {{ t(copy.alternateLabel) }}
+              </NuxtLinkLocale>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
+
+    <AuthPageFooter />
   </main>
 </template>
