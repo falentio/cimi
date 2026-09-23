@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,6 +7,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { useAuth } from '@/composables/useAuth'
 import { useOrpc } from '@/composables/useOrpc'
 import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
+import { invitationViewFor, type InvitationStatus } from '@/components/features/invite/invite.utils'
 import { normalizeSettingsError } from '@/components/features/organization-settings/organization-settings.utils'
 import type { CimiOrpc } from '~/plugins/orpc'
 import type { SettingsError } from '@/utils/settings-error'
@@ -23,7 +24,7 @@ type InvitationFailure =
   | { readonly kind: 'remote'; readonly error: SettingsError }
 
 type InvitationState =
-  | { readonly status: 'idle' | 'loading' }
+  | { readonly status: Extract<InvitationStatus, 'idle' | 'loading'> }
   | { readonly status: 'accepted'; readonly membership: AcceptedMembership }
   | { readonly status: 'error'; readonly failure: InvitationFailure }
 
@@ -34,6 +35,15 @@ const orpc = useOrpc()
 const localizeError = useLocalizedErrorMessage()
 const token = computed(() => (typeof route.params.token === 'string' ? route.params.token : ''))
 const state = shallowRef<InvitationState>({ status: 'idle' })
+const hydrated = ref(false)
+
+const view = computed(() =>
+  invitationViewFor({
+    hydrated: hydrated.value,
+    sessionStatus: auth.session.value.status,
+    invitationStatus: state.value.status,
+  }),
+)
 const errorMessage = computed(() => {
   const currentState = state.value
   if (currentState.status !== 'error') return ''
@@ -41,6 +51,10 @@ const errorMessage = computed(() => {
   return currentState.failure.kind === 'local'
     ? t(currentState.failure.messageKey)
     : localizeError(currentState.failure.error)
+})
+
+onMounted(() => {
+  hydrated.value = true
 })
 
 watch(
@@ -82,7 +96,7 @@ async function acceptInvitation(): Promise<void> {
       </CardHeader>
       <CardContent class="flex flex-col gap-4">
         <div
-          v-if="auth.session.value.status === 'loading' || state.status === 'loading'"
+          v-if="view === 'loading'"
           class="text-muted-foreground flex items-center gap-2 text-sm"
           role="status"
           aria-live="polite"
@@ -97,7 +111,7 @@ async function acceptInvitation(): Promise<void> {
           }}
         </div>
 
-        <template v-else-if="auth.session.value.status !== 'authenticated'">
+        <template v-else-if="view === 'signedOut'">
           <p class="text-sm">{{ t('invite.signedOutPrompt') }}</p>
           <div class="flex flex-wrap gap-2">
             <Button as-child>
@@ -113,12 +127,12 @@ async function acceptInvitation(): Promise<void> {
           </div>
         </template>
 
-        <Alert v-else-if="state.status === 'error'" variant="destructive">
+        <Alert v-else-if="view === 'error'" variant="destructive">
           <AlertTitle>{{ t('invite.errorTitle') }}</AlertTitle>
           <AlertDescription>{{ errorMessage }}</AlertDescription>
         </Alert>
 
-        <Alert v-else-if="state.status === 'accepted'">
+        <Alert v-else-if="view === 'accepted'">
           <AlertTitle>{{ t('invite.acceptedTitle') }}</AlertTitle>
           <AlertDescription>{{ t('invite.acceptedDescription') }}</AlertDescription>
         </Alert>
