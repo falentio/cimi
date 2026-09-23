@@ -59,6 +59,14 @@ describe('localizeErrorMessage', () => {
       'Server message',
     )
   })
+
+  it('does not treat inherited object properties as error codes', () => {
+    for (const code of ['toString', 'constructor', 'hasOwnProperty', '__proto__']) {
+      expect(localizeErrorMessage({ code, message: 'Server message' }, passthrough), code).toBe(
+        'Server message',
+      )
+    }
+  })
 })
 
 describe('isLocalizableError', () => {
@@ -71,5 +79,6 @@ describe('isLocalizableError', () => {
     expect(isLocalizableError({ message: 'raw server text' })).toBe(false)
     expect(isLocalizableError({ code: 'UNKNOWN_CODE', message: 'raw' })).toBe(false)
     expect(isLocalizableError({ status: 422, message: 'raw' })).toBe(false)
+    expect(isLocalizableError({ code: 'toString', message: 'raw' })).toBe(false)
   })
 })

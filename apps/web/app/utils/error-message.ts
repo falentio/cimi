@@ -47,10 +47,14 @@ export type BetterAuthErrorCode =
   | 'FAILED_TO_GET_USER_INFO'
   | 'FIELD_NOT_ALLOWED'
   | 'ID_TOKEN_NOT_SUPPORTED'
+  | 'INVALID_CALLBACK_URL'
   | 'INVALID_EMAIL'
   | 'INVALID_EMAIL_OR_PASSWORD'
+  | 'INVALID_ERROR_CALLBACK_URL'
+  | 'INVALID_NEW_USER_CALLBACK_URL'
   | 'INVALID_ORIGIN'
   | 'INVALID_PASSWORD'
+  | 'INVALID_REDIRECT_URL'
   | 'INVALID_TOKEN'
   | 'METHOD_NOT_ALLOWED_DEFER_SESSION_REQUIRED'
   | 'MISSING_OR_NULL_ORIGIN'
@@ -104,10 +108,14 @@ export const authErrorMessageKeys = {
   FAILED_TO_GET_USER_INFO: 'authErrors.FAILED_TO_GET_USER_INFO',
   FIELD_NOT_ALLOWED: 'authErrors.FIELD_NOT_ALLOWED',
   ID_TOKEN_NOT_SUPPORTED: 'authErrors.ID_TOKEN_NOT_SUPPORTED',
+  INVALID_CALLBACK_URL: 'authErrors.INVALID_CALLBACK_URL',
   INVALID_EMAIL: 'authErrors.INVALID_EMAIL',
   INVALID_EMAIL_OR_PASSWORD: 'authErrors.INVALID_EMAIL_OR_PASSWORD',
+  INVALID_ERROR_CALLBACK_URL: 'authErrors.INVALID_ERROR_CALLBACK_URL',
+  INVALID_NEW_USER_CALLBACK_URL: 'authErrors.INVALID_NEW_USER_CALLBACK_URL',
   INVALID_ORIGIN: 'authErrors.INVALID_ORIGIN',
   INVALID_PASSWORD: 'authErrors.INVALID_PASSWORD',
+  INVALID_REDIRECT_URL: 'authErrors.INVALID_REDIRECT_URL',
   INVALID_TOKEN: 'authErrors.INVALID_TOKEN',
   METHOD_NOT_ALLOWED_DEFER_SESSION_REQUIRED: 'authErrors.METHOD_NOT_ALLOWED_DEFER_SESSION_REQUIRED',
   MISSING_OR_NULL_ORIGIN: 'authErrors.MISSING_OR_NULL_ORIGIN',
@@ -148,15 +156,16 @@ const statusFallbackCodes = {
 } satisfies Record<number, ContractErrorCode>
 
 function errorMessageKey(error: LocalizableError): string | undefined {
-  if (error.code !== undefined) {
-    const key = errorMessageKeys[error.code]
-    if (key !== undefined) return key
+  if (error.code !== undefined && Object.hasOwn(errorMessageKeys, error.code)) {
+    return errorMessageKeys[error.code]
   }
 
   if (error.status === undefined) return undefined
 
+  if (!Object.hasOwn(statusFallbackCodes, error.status)) return undefined
+
   const fallbackCode = statusFallbackCodes[error.status as keyof typeof statusFallbackCodes]
-  return fallbackCode === undefined ? undefined : contractErrorMessageKeys[fallbackCode]
+  return contractErrorMessageKeys[fallbackCode]
 }
 
 /**
