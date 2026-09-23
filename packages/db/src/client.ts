@@ -101,6 +101,8 @@ export function createDb(options: CreateDbOptions) {
       }
       try {
         unlinkIfPresent(previousPath)
+        unlinkIfPresent(`${previousPath}-wal`)
+        unlinkIfPresent(`${previousPath}-shm`)
       } catch {}
     },
   })
@@ -154,7 +156,6 @@ export async function restoreDbFromBackup(input: {
   prepare?: ((db: Db) => void | Promise<void>) | undefined
 }): Promise<void> {
   const tmpPath = `${input.destinationPath}.tmp.${randomBytes(8).toString('hex')}`
-  let installed = false
   try {
     const backup = new Database(input.backupPath, { fileMustExist: true, readonly: true })
     try {
@@ -196,13 +197,10 @@ export async function restoreDbFromBackup(input: {
     } else {
       renameSync(tmpPath, input.destinationPath)
     }
-    installed = true
   } finally {
-    if (!installed) {
-      try {
-        unlinkSync(tmpPath)
-      } catch {}
-    }
+    unlinkIfPresent(tmpPath)
+    unlinkIfPresent(`${tmpPath}-wal`)
+    unlinkIfPresent(`${tmpPath}-shm`)
   }
 }
 
