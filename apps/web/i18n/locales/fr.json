@@ -37,6 +37,26 @@
       "welcomeBack": "Bon retour sur Cimi, {name}."
     }
   },
+  "authErrors": {
+    "EMAIL_NOT_VERIFIED": "Vérifiez votre adresse e-mail avant de vous connecter.",
+    "EMAIL_PASSWORD_DISABLED": "La connexion par e-mail et mot de passe n'est pas activée.",
+    "EMAIL_PASSWORD_SIGN_UP_DISABLED": "L'inscription par e-mail et mot de passe n'est pas activée.",
+    "FAILED_TO_CREATE_SESSION": "Votre session n'a pas pu être créée. Réessayez de vous connecter.",
+    "FAILED_TO_CREATE_USER": "Votre compte n'a pas pu être créé. Réessayez.",
+    "FAILED_TO_GET_SESSION": "Votre session n'a pas pu être chargée. Réessayez de vous connecter.",
+    "FAILED_TO_GET_USER_INFO": "Les informations de votre compte n'ont pas pu être chargées. Réessayez.",
+    "ID_TOKEN_NOT_SUPPORTED": "Cette méthode de connexion n'est pas prise en charge.",
+    "INVALID_EMAIL": "Saisissez une adresse e-mail valide.",
+    "INVALID_EMAIL_OR_PASSWORD": "Adresse e-mail ou mot de passe incorrect.",
+    "INVALID_PASSWORD": "Mot de passe incorrect.",
+    "INVALID_TOKEN": "Ce lien est invalide. Demandez-en un nouveau.",
+    "OAUTH_LINK_ERROR": "Ce compte n'a pas pu être associé. Réessayez.",
+    "PASSWORD_TOO_LONG": "Choisissez un mot de passe plus court.",
+    "PASSWORD_TOO_SHORT": "Choisissez un mot de passe plus long.",
+    "PROVIDER_NOT_FOUND": "Cette méthode de connexion n'est pas disponible.",
+    "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Un compte utilise déjà cette adresse e-mail. Utilisez-en une autre.",
+    "USER_EMAIL_NOT_FOUND": "Aucun compte ne correspond à cette adresse e-mail."
+  },
   "validation": {
     "auth": {
       "name": {

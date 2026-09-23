@@ -37,6 +37,26 @@
       "welcomeBack": "Welcome back, {name}."
     }
   },
+  "authErrors": {
+    "EMAIL_NOT_VERIFIED": "Verify your email address before signing in.",
+    "EMAIL_PASSWORD_DISABLED": "Email and password sign-in is not enabled.",
+    "EMAIL_PASSWORD_SIGN_UP_DISABLED": "Email and password sign-up is not enabled.",
+    "FAILED_TO_CREATE_SESSION": "Your session could not be created. Try signing in again.",
+    "FAILED_TO_CREATE_USER": "Your account could not be created. Try again.",
+    "FAILED_TO_GET_SESSION": "Your session could not be loaded. Try signing in again.",
+    "FAILED_TO_GET_USER_INFO": "Your account details could not be loaded. Try again.",
+    "ID_TOKEN_NOT_SUPPORTED": "This sign-in method is not supported.",
+    "INVALID_EMAIL": "Enter a valid email address.",
+    "INVALID_EMAIL_OR_PASSWORD": "Incorrect email or password.",
+    "INVALID_PASSWORD": "Incorrect password.",
+    "INVALID_TOKEN": "This link is invalid. Request a new one.",
+    "OAUTH_LINK_ERROR": "This account could not be linked. Try again.",
+    "PASSWORD_TOO_LONG": "Choose a shorter password.",
+    "PASSWORD_TOO_SHORT": "Choose a longer password.",
+    "PROVIDER_NOT_FOUND": "This sign-in method is not available.",
+    "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "An account with this email already exists. Use another email.",
+    "USER_EMAIL_NOT_FOUND": "No account matches this email address."
+  },
   "validation": {
     "auth": {
       "name": {
