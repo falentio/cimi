@@ -57,6 +57,19 @@
     "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Un compte utilise déjà cette adresse e-mail. Utilisez-en une autre.",
     "USER_EMAIL_NOT_FOUND": "Aucun compte ne correspond à cette adresse e-mail."
   },
+  "invite": {
+    "title": "Invitation à une organisation",
+    "description": "Rejoignez une organisation dans votre espace de travail Cimi.",
+    "checkingSession": "Vérification de votre session…",
+    "accepting": "Acceptation de l'invitation…",
+    "signedOutPrompt": "Connectez-vous ou créez un compte pour accepter cette invitation.",
+    "signIn": "Se connecter pour accepter",
+    "createAccount": "Créer un compte",
+    "errorTitle": "L'invitation n'a pas pu être acceptée",
+    "missingToken": "Ce lien d'invitation ne contient pas de jeton.",
+    "acceptedTitle": "Invitation acceptée",
+    "acceptedDescription": "Ouverture de la page des membres de votre organisation."
+  },
   "validation": {
     "auth": {
       "name": {

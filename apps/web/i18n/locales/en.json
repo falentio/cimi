@@ -57,6 +57,19 @@
     "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "An account with this email already exists. Use another email.",
     "USER_EMAIL_NOT_FOUND": "No account matches this email address."
   },
+  "invite": {
+    "title": "Organization invitation",
+    "description": "Join an organization in your Cimi workspace.",
+    "checkingSession": "Checking your session…",
+    "accepting": "Accepting invitation…",
+    "signedOutPrompt": "Sign in or create an account to accept this invitation.",
+    "signIn": "Sign in to accept",
+    "createAccount": "Create an account",
+    "errorTitle": "Invitation could not be accepted",
+    "missingToken": "This invitation link is missing its token.",
+    "acceptedTitle": "Invitation accepted",
+    "acceptedDescription": "Opening your organization members page."
+  },
   "validation": {
     "auth": {
       "name": {

@@ -37,6 +37,9 @@ const frenchErrorsByPath = new Map(frenchErrorLeaves.map((leaf) => [leaf.path, l
 const englishAuthErrorLeaves = collectLeaves(en.authErrors)
 const frenchAuthErrorLeaves = collectLeaves(fr.authErrors)
 const frenchAuthErrorsByPath = new Map(frenchAuthErrorLeaves.map((leaf) => [leaf.path, leaf]))
+const englishInviteLeaves = collectLeaves(en.invite)
+const frenchInviteLeaves = collectLeaves(fr.invite)
+const frenchInviteByPath = new Map(frenchInviteLeaves.map((leaf) => [leaf.path, leaf]))
 
 describe('auth validation locale messages', () => {
   it('keeps the validation.auth key tree and interpolation shapes aligned', () => {
@@ -103,6 +106,23 @@ describe('auth validation locale messages', () => {
 
     for (const { message, path } of englishAuthErrorLeaves) {
       const frenchLeaf = frenchAuthErrorsByPath.get(path)
+
+      expect(frenchLeaf?.message, path).toBeDefined()
+      if (!frenchLeaf) continue
+
+      expect(frenchLeaf.message.trim(), path).not.toBe('')
+      expect(frenchLeaf.message, path).not.toBe(message)
+      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+    }
+  })
+
+  it('keeps the invite page key tree aligned', () => {
+    expect(frenchInviteLeaves.map(({ path }) => path).sort()).toEqual(
+      englishInviteLeaves.map(({ path }) => path).sort(),
+    )
+
+    for (const { message, path } of englishInviteLeaves) {
+      const frenchLeaf = frenchInviteByPath.get(path)
 
       expect(frenchLeaf?.message, path).toBeDefined()
       if (!frenchLeaf) continue

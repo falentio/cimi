@@ -18,17 +18,30 @@ definePageMeta({
 
 type AcceptedMembership = Awaited<ReturnType<CimiOrpc['invitation']['acceptInvitation']['call']>>
 
+type InvitationFailure =
+  | { readonly kind: 'local'; readonly messageKey: 'invite.missingToken' }
+  | { readonly kind: 'remote'; readonly error: SettingsError }
+
 type InvitationState =
   | { readonly status: 'idle' | 'loading' }
   | { readonly status: 'accepted'; readonly membership: AcceptedMembership }
-  | { readonly status: 'error'; readonly error: SettingsError }
+  | { readonly status: 'error'; readonly failure: InvitationFailure }
 
 const route = useRoute()
+const { t } = useI18n()
 const auth = useAuth()
 const orpc = useOrpc()
 const localizeError = useLocalizedErrorMessage()
 const token = computed(() => (typeof route.params.token === 'string' ? route.params.token : ''))
 const state = shallowRef<InvitationState>({ status: 'idle' })
+const errorMessage = computed(() => {
+  const currentState = state.value
+  if (currentState.status !== 'error') return ''
+
+  return currentState.failure.kind === 'local'
+    ? t(currentState.failure.messageKey)
+    : localizeError(currentState.failure.error)
+})
 
 watch(
   () => auth.session.value.status,
@@ -40,10 +53,7 @@ watch(
 
 async function acceptInvitation(): Promise<void> {
   if (token.value.length === 0) {
-    state.value = {
-      status: 'error',
-      error: { message: 'This invitation link is missing its token.' },
-    }
+    state.value = { status: 'error', failure: { kind: 'local', messageKey: 'invite.missingToken' } }
     return
   }
 
@@ -53,7 +63,10 @@ async function acceptInvitation(): Promise<void> {
     state.value = { status: 'accepted', membership }
     await navigateTo(`/org/${membership.organizationId}/settings/members`)
   } catch (error: unknown) {
-    state.value = { status: 'error', error: normalizeSettingsError(error) }
+    state.value = {
+      status: 'error',
+      failure: { kind: 'remote', error: normalizeSettingsError(error) },
+    }
   }
 }
 </script>
@@ -62,8 +75,10 @@ async function acceptInvitation(): Promise<void> {
   <main class="bg-muted flex min-h-svh items-center justify-center p-6 md:p-10">
     <Card class="w-full max-w-md">
       <CardHeader>
-        <CardTitle><h1>Organization invitation</h1></CardTitle>
-        <CardDescription>Join an organization in your Cimi workspace.</CardDescription>
+        <CardTitle
+          ><h1>{{ t('invite.title') }}</h1></CardTitle
+        >
+        <CardDescription>{{ t('invite.description') }}</CardDescription>
       </CardHeader>
       <CardContent class="flex flex-col gap-4">
         <div
@@ -74,36 +89,38 @@ async function acceptInvitation(): Promise<void> {
         >
           <Spinner aria-hidden="true" />
           {{
-            auth.session.value.status === 'loading'
-              ? 'Checking your session…'
-              : 'Accepting invitation…'
+            t(
+              auth.session.value.status === 'loading'
+                ? 'invite.checkingSession'
+                : 'invite.accepting',
+            )
           }}
         </div>
 
         <template v-else-if="auth.session.value.status !== 'authenticated'">
-          <p class="text-sm">Sign in or create an account to accept this invitation.</p>
+          <p class="text-sm">{{ t('invite.signedOutPrompt') }}</p>
           <div class="flex flex-wrap gap-2">
             <Button as-child>
-              <NuxtLink :to="{ path: '/login', query: { redirect: route.fullPath } }">
-                Sign in to accept
-              </NuxtLink>
+              <NuxtLinkLocale :to="{ path: '/login', query: { redirect: route.fullPath } }">
+                {{ t('invite.signIn') }}
+              </NuxtLinkLocale>
             </Button>
             <Button as-child variant="outline">
-              <NuxtLink :to="{ path: '/signup', query: { redirect: route.fullPath } }">
-                Create an account
-              </NuxtLink>
+              <NuxtLinkLocale :to="{ path: '/signup', query: { redirect: route.fullPath } }">
+                {{ t('invite.createAccount') }}
+              </NuxtLinkLocale>
             </Button>
           </div>
         </template>
 
         <Alert v-else-if="state.status === 'error'" variant="destructive">
-          <AlertTitle>Invitation could not be accepted</AlertTitle>
-          <AlertDescription>{{ localizeError(state.error) }}</AlertDescription>
+          <AlertTitle>{{ t('invite.errorTitle') }}</AlertTitle>
+          <AlertDescription>{{ errorMessage }}</AlertDescription>
         </Alert>
 
         <Alert v-else-if="state.status === 'accepted'">
-          <AlertTitle>Invitation accepted</AlertTitle>
-          <AlertDescription>Opening your organization members page.</AlertDescription>
+          <AlertTitle>{{ t('invite.acceptedTitle') }}</AlertTitle>
+          <AlertDescription>{{ t('invite.acceptedDescription') }}</AlertDescription>
         </Alert>
       </CardContent>
     </Card>
