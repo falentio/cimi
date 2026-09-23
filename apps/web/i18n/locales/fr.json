@@ -34,10 +34,13 @@
       "accountCreated": "Compte créé. Consultez votre e-mail pour continuer.",
       "signInWithoutSession": "La connexion a réussi, mais aucune session active n'a été renvoyée.",
       "welcome": "Bienvenue sur Cimi, {name}.",
-      "welcomeBack": "Bon retour sur Cimi, {name}."
+      "welcomeBack": "Bon retour sur Cimi, {name}.",
+      "requestFailed": "Une erreur est survenue. Réessayez."
     }
   },
   "authErrors": {
+    "BANNED_USER": "Ce compte a été suspendu. Contactez le support si vous pensez qu'il s'agit d'une erreur.",
+    "CROSS_SITE_NAVIGATION_LOGIN_BLOCKED": "La connexion a été bloquée pour des raisons de sécurité. Ouvrez le site directement et réessayez.",
     "EMAIL_NOT_VERIFIED": "Vérifiez votre adresse e-mail avant de vous connecter.",
     "EMAIL_PASSWORD_DISABLED": "La connexion par e-mail et mot de passe n'est pas activée.",
     "EMAIL_PASSWORD_SIGN_UP_DISABLED": "L'inscription par e-mail et mot de passe n'est pas activée.",
@@ -45,17 +48,23 @@
     "FAILED_TO_CREATE_USER": "Votre compte n'a pas pu être créé. Réessayez.",
     "FAILED_TO_GET_SESSION": "Votre session n'a pas pu être chargée. Réessayez de vous connecter.",
     "FAILED_TO_GET_USER_INFO": "Les informations de votre compte n'ont pas pu être chargées. Réessayez.",
+    "FIELD_NOT_ALLOWED": "La requête contient un champ qui n'est pas autorisé.",
     "ID_TOKEN_NOT_SUPPORTED": "Cette méthode de connexion n'est pas prise en charge.",
     "INVALID_EMAIL": "Saisissez une adresse e-mail valide.",
     "INVALID_EMAIL_OR_PASSWORD": "Adresse e-mail ou mot de passe incorrect.",
+    "INVALID_ORIGIN": "La connexion a été bloquée pour des raisons de sécurité. Ouvrez le site directement et réessayez.",
     "INVALID_PASSWORD": "Mot de passe incorrect.",
     "INVALID_TOKEN": "Ce lien est invalide. Demandez-en un nouveau.",
+    "METHOD_NOT_ALLOWED_DEFER_SESSION_REQUIRED": "La requête n'a pas pu être traitée. Rechargez la page et réessayez.",
+    "MISSING_OR_NULL_ORIGIN": "La connexion a été bloquée pour des raisons de sécurité. Ouvrez le site directement et réessayez.",
     "OAUTH_LINK_ERROR": "Ce compte n'a pas pu être associé. Réessayez.",
     "PASSWORD_TOO_LONG": "Choisissez un mot de passe plus court.",
     "PASSWORD_TOO_SHORT": "Choisissez un mot de passe plus long.",
     "PROVIDER_NOT_FOUND": "Cette méthode de connexion n'est pas disponible.",
+    "UNSUPPORTED_MEDIA_TYPE": "La requête utilise un format non pris en charge.",
     "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Un compte utilise déjà cette adresse e-mail. Utilisez-en une autre.",
-    "USER_EMAIL_NOT_FOUND": "Aucun compte ne correspond à cette adresse e-mail."
+    "USER_EMAIL_NOT_FOUND": "Aucun compte ne correspond à cette adresse e-mail.",
+    "VALIDATION_ERROR": "La requête est invalide."
   },
   "invite": {
     "title": "Invitation à une organisation",
@@ -66,6 +75,7 @@
     "signIn": "Se connecter pour accepter",
     "createAccount": "Créer un compte",
     "errorTitle": "L'invitation n'a pas pu être acceptée",
+    "acceptFailed": "L'invitation n'a pas pu être acceptée. Réessayez.",
     "missingToken": "Ce lien d'invitation ne contient pas de jeton.",
     "acceptedTitle": "Invitation acceptée",
     "acceptedDescription": "Ouverture de la page des membres de votre organisation."

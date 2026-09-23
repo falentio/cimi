@@ -10,7 +10,7 @@ import {
   signupSchema,
 } from '@/lib/auth-form'
 import { useLocalizedValibotSchema } from '@/composables/useLocalizedValibotSchema'
-import { localizeErrorMessage } from '@/utils/error-message'
+import { isLocalizableError, localizeErrorMessage } from '@/utils/error-message'
 import AuthPageFooter from '@/components/AuthPageFooter.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -93,7 +93,11 @@ const copy = computed(() => copyByMode[props.mode])
 const feedbackMessage = computed(() => {
   const currentFeedback = feedback.value
   if (currentFeedback === null) return ''
-  if ('message' in currentFeedback) return localizeErrorMessage(currentFeedback, t)
+  if ('message' in currentFeedback) {
+    return isLocalizableError(currentFeedback)
+      ? localizeErrorMessage(currentFeedback, t)
+      : t('auth.feedback.requestFailed')
+  }
   return currentFeedback.values === undefined
     ? t(currentFeedback.messageKey)
     : t(currentFeedback.messageKey, currentFeedback.values)
@@ -178,7 +182,12 @@ function createSubmission(values: AuthFormValues): AuthSubmission {
 
 function feedbackForResult(result: AuthResult, mode: AuthMode): AuthFeedback {
   if (!result.ok) {
-    return { tone: 'error', code: result.error.code, message: result.error.message }
+    return {
+      tone: 'error',
+      code: result.error.code,
+      status: result.error.status,
+      message: result.error.message,
+    }
   }
 
   if (result.session === null) {

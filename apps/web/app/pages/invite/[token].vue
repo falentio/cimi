@@ -7,8 +7,11 @@ import { Spinner } from '@/components/ui/spinner'
 import { useAuth } from '@/composables/useAuth'
 import { useOrpc } from '@/composables/useOrpc'
 import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
-import { invitationViewFor, type InvitationStatus } from '@/components/features/invite/invite.utils'
-import { normalizeSettingsError } from '@/components/features/organization-settings/organization-settings.utils'
+import { invitationRenderFor } from '@/components/features/invite/invite.utils'
+import {
+  normalizeSettingsError,
+  isLocalizableSettingsError,
+} from '@/components/features/organization-settings/organization-settings.utils'
 import type { CimiOrpc } from '~/plugins/orpc'
 import type { SettingsError } from '@/utils/settings-error'
 
@@ -20,11 +23,13 @@ definePageMeta({
 type AcceptedMembership = Awaited<ReturnType<CimiOrpc['invitation']['acceptInvitation']['call']>>
 
 type InvitationFailure =
-  | { readonly kind: 'local'; readonly messageKey: 'invite.missingToken' }
+  | { readonly kind: 'local'; readonly messageKey: InviteMessageKey }
   | { readonly kind: 'remote'; readonly error: SettingsError }
 
+type InviteMessageKey = 'invite.missingToken' | 'invite.acceptFailed'
+
 type InvitationState =
-  | { readonly status: Extract<InvitationStatus, 'idle' | 'loading'> }
+  | { readonly status: 'idle' | 'loading' }
   | { readonly status: 'accepted'; readonly membership: AcceptedMembership }
   | { readonly status: 'error'; readonly failure: InvitationFailure }
 
@@ -37,8 +42,8 @@ const token = computed(() => (typeof route.params.token === 'string' ? route.par
 const state = shallowRef<InvitationState>({ status: 'idle' })
 const hydrated = ref(false)
 
-const view = computed(() =>
-  invitationViewFor({
+const render = computed(() =>
+  invitationRenderFor({
     hydrated: hydrated.value,
     sessionStatus: auth.session.value.status,
     invitationStatus: state.value.status,
@@ -47,10 +52,10 @@ const view = computed(() =>
 const errorMessage = computed(() => {
   const currentState = state.value
   if (currentState.status !== 'error') return ''
+  if (currentState.failure.kind === 'local') return t(currentState.failure.messageKey)
 
-  return currentState.failure.kind === 'local'
-    ? t(currentState.failure.messageKey)
-    : localizeError(currentState.failure.error)
+  const { error } = currentState.failure
+  return isLocalizableSettingsError(error) ? localizeError(error) : t('invite.acceptFailed')
 })
 
 onMounted(() => {
@@ -96,22 +101,16 @@ async function acceptInvitation(): Promise<void> {
       </CardHeader>
       <CardContent class="flex flex-col gap-4">
         <div
-          v-if="view === 'loading'"
+          v-if="render.view === 'loading'"
           class="text-muted-foreground flex items-center gap-2 text-sm"
           role="status"
           aria-live="polite"
         >
           <Spinner aria-hidden="true" />
-          {{
-            t(
-              auth.session.value.status === 'loading'
-                ? 'invite.checkingSession'
-                : 'invite.accepting',
-            )
-          }}
+          {{ t(render.loadingMessageKey) }}
         </div>
 
-        <template v-else-if="view === 'signedOut'">
+        <template v-else-if="render.view === 'signedOut'">
           <p class="text-sm">{{ t('invite.signedOutPrompt') }}</p>
           <div class="flex flex-wrap gap-2">
             <Button as-child>
@@ -127,12 +126,12 @@ async function acceptInvitation(): Promise<void> {
           </div>
         </template>
 
-        <Alert v-else-if="view === 'error'" variant="destructive">
+        <Alert v-else-if="render.view === 'error'" variant="destructive">
           <AlertTitle>{{ t('invite.errorTitle') }}</AlertTitle>
           <AlertDescription>{{ errorMessage }}</AlertDescription>
         </Alert>
 
-        <Alert v-else-if="view === 'accepted'">
+        <Alert v-else-if="render.view === 'accepted'">
           <AlertTitle>{{ t('invite.acceptedTitle') }}</AlertTitle>
           <AlertDescription>{{ t('invite.acceptedDescription') }}</AlertDescription>
         </Alert>

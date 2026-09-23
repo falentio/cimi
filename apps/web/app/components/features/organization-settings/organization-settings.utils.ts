@@ -1,5 +1,8 @@
 import type { WorkspaceSite, WorkspaceTeam } from '@/components/features/app-shell/workspace'
-import { normalizeSettingsError as normalizeSharedSettingsError } from '../../../utils/settings-error'
+import {
+  isLocalizableSettingsError as isLocalizableSharedSettingsError,
+  normalizeSettingsError as normalizeSharedSettingsError,
+} from '../../../utils/settings-error'
 import type { SettingsError } from './organization-settings.types'
 
 export function normalizeSettingsError(
@@ -7,6 +10,10 @@ export function normalizeSettingsError(
   fallbackMessage = 'Organization settings request failed',
 ): SettingsError {
   return normalizeSharedSettingsError(value, fallbackMessage)
+}
+
+export function isLocalizableSettingsError(error: SettingsError): boolean {
+  return isLocalizableSharedSettingsError(error)
 }
 
 export function resolveActiveOrganizationId(input: {

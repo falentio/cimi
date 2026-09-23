@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  betterAuthErrorMessageKeys,
-  localizeErrorMessage,
-  type BetterAuthErrorCode,
-} from './error-message'
+import { isLocalizableError, localizeErrorMessage } from './error-message'
+const passthrough = (key: string) => key
 
 describe('localizeErrorMessage', () => {
   it('translates known contract error codes', () => {
@@ -18,30 +15,61 @@ describe('localizeErrorMessage', () => {
     expect(
       localizeErrorMessage(
         { code: 'INVALID_EMAIL_OR_PASSWORD', message: 'Invalid email or password' },
-        (key) =>
-          key === 'authErrors.INVALID_EMAIL_OR_PASSWORD'
-            ? 'Adresse e-mail ou mot de passe incorrect.'
-            : key,
+        (key) => (key === 'authErrors.INVALID_EMAIL_OR_PASSWORD' ? 'Mot de passe incorrect.' : key),
       ),
-    ).toBe('Adresse e-mail ou mot de passe incorrect.')
+    ).toBe('Mot de passe incorrect.')
   })
 
-  it('resolves a message key for every better auth code the auth routes can return', () => {
-    const translate = (key: string) => key
+  it('translates the banned-user code the admin plugin raises on sign-in', () => {
+    expect(
+      localizeErrorMessage({ code: 'BANNED_USER', message: 'You have been banned' }, passthrough),
+    ).toBe('authErrors.BANNED_USER')
+  })
 
-    for (const code of Object.keys(betterAuthErrorMessageKeys) as BetterAuthErrorCode[]) {
-      expect(localizeErrorMessage({ code, message: 'raw server message' }, translate), code).toBe(
-        betterAuthErrorMessageKeys[code],
-      )
-    }
+  it('falls back to the status for a response that carries no code', () => {
+    expect(
+      localizeErrorMessage(
+        { status: 429, message: 'Too many requests. Please try again later.' },
+        passthrough,
+      ),
+    ).toBe('errors.TOO_MANY_REQUESTS')
+  })
+
+  it('prefers the code over the status', () => {
+    expect(
+      localizeErrorMessage({ code: 'BANNED_USER', status: 403, message: 'banned' }, passthrough),
+    ).toBe('authErrors.BANNED_USER')
+  })
+
+  it('does not localize a status that has no unambiguous contract code', () => {
+    expect(localizeErrorMessage({ status: 422, message: 'Server message' }, passthrough)).toBe(
+      'Server message',
+    )
   })
 
   it('keeps unknown codes and uncoded errors as fallbacks', () => {
-    const translate = (key: string) => key
-
-    expect(localizeErrorMessage({ code: 'NEW_CODE', message: 'Server message' }, translate)).toBe(
+    expect(localizeErrorMessage({ code: 'NEW_CODE', message: 'Server message' }, passthrough)).toBe(
       'Server message',
     )
-    expect(localizeErrorMessage({ message: 'Local failure' }, translate)).toBe('Local failure')
+    expect(localizeErrorMessage({ message: 'Local failure' }, passthrough)).toBe('Local failure')
+  })
+
+  it('ignores an unknown status and keeps the server message', () => {
+    expect(localizeErrorMessage({ status: 599, message: 'Server message' }, passthrough)).toBe(
+      'Server message',
+    )
+  })
+})
+
+describe('isLocalizableError', () => {
+  it('accepts an error the translator can resolve', () => {
+    expect(isLocalizableError({ code: 'BANNED_USER', message: 'banned' })).toBe(true)
+    expect(isLocalizableError({ status: 429, message: 'too many' })).toBe(true)
+  })
+
+  it('rejects an error that would leak the raw server message', () => {
+    expect(isLocalizableError({ message: 'raw server text' })).toBe(false)
+    expect(isLocalizableError({ code: 'UNKNOWN_CODE', message: 'raw' })).toBe(false)
+    expect(isLocalizableError({ status: 422, message: 'raw' })).toBe(false)
   })
 })

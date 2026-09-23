@@ -9,7 +9,7 @@ export type AuthFeedbackMessageKey =
   | 'auth.feedback.welcomeBack'
 
 export type AuthFeedback =
-  | { tone: 'error'; code?: string; message: string }
+  | { tone: 'error'; code?: string; status?: number; message: string }
   | {
       tone: 'error' | 'success'
       messageKey: AuthFeedbackMessageKey

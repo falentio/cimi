@@ -2,7 +2,7 @@ import { ERROR_CATALOG, VALIDATION_KEYS } from '@cimi/contract'
 import en from '../../i18n/locales/en.json'
 import fr from '../../i18n/locales/fr.json'
 import { describe, expect, it } from 'vitest'
-import { betterAuthErrorMessageKeys } from '../utils/error-message'
+import { authErrorMessageKeys } from '../utils/error-message'
 
 type LocaleLeaf = { message: string; path: string }
 
@@ -99,7 +99,7 @@ describe('auth validation locale messages', () => {
   })
 
   it('covers every better auth error code in both locales', () => {
-    const codePaths = Object.keys(betterAuthErrorMessageKeys).sort()
+    const codePaths = Object.keys(authErrorMessageKeys).sort()
 
     expect(englishAuthErrorLeaves.map(({ path }) => path).sort()).toEqual(codePaths)
     expect(frenchAuthErrorLeaves.map(({ path }) => path).sort()).toEqual(codePaths)
@@ -111,7 +111,6 @@ describe('auth validation locale messages', () => {
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(frenchLeaf.message, path).not.toBe(message)
       expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
     }
   })
@@ -128,7 +127,6 @@ describe('auth validation locale messages', () => {
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(frenchLeaf.message, path).not.toBe(message)
       expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
     }
   })

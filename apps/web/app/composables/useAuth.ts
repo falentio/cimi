@@ -18,6 +18,7 @@ export interface AuthSession {
 export interface AuthError {
   readonly message: string
   readonly code?: string
+  readonly status?: number
 }
 
 export type AuthState =
@@ -185,7 +186,8 @@ function normalizeAuthError(value: unknown): AuthError {
   if (value instanceof Error) {
     const message = value.message || DEFAULT_ERROR_MESSAGE
     const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
-    return code === undefined ? { message } : { message, code }
+    const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+    return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
   }
 
   if (typeof value === 'object' && value !== null) {
@@ -194,7 +196,8 @@ function normalizeAuthError(value: unknown): AuthError {
         ? value.message
         : DEFAULT_ERROR_MESSAGE
     const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
-    return code === undefined ? { message } : { message, code }
+    const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+    return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
   }
 
   return { message: DEFAULT_ERROR_MESSAGE }

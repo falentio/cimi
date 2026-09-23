@@ -34,10 +34,13 @@
       "accountCreated": "Account created. Check your email to continue.",
       "signInWithoutSession": "Sign-in succeeded, but no active session was returned.",
       "welcome": "Welcome to Cimi, {name}.",
-      "welcomeBack": "Welcome back, {name}."
+      "welcomeBack": "Welcome back, {name}.",
+      "requestFailed": "Something went wrong. Try again."
     }
   },
   "authErrors": {
+    "BANNED_USER": "This account has been suspended. Contact support if you think this is a mistake.",
+    "CROSS_SITE_NAVIGATION_LOGIN_BLOCKED": "Sign-in was blocked for security reasons. Open the site directly and try again.",
     "EMAIL_NOT_VERIFIED": "Verify your email address before signing in.",
     "EMAIL_PASSWORD_DISABLED": "Email and password sign-in is not enabled.",
     "EMAIL_PASSWORD_SIGN_UP_DISABLED": "Email and password sign-up is not enabled.",
@@ -45,17 +48,23 @@
     "FAILED_TO_CREATE_USER": "Your account could not be created. Try again.",
     "FAILED_TO_GET_SESSION": "Your session could not be loaded. Try signing in again.",
     "FAILED_TO_GET_USER_INFO": "Your account details could not be loaded. Try again.",
+    "FIELD_NOT_ALLOWED": "The request contained a field that is not allowed.",
     "ID_TOKEN_NOT_SUPPORTED": "This sign-in method is not supported.",
     "INVALID_EMAIL": "Enter a valid email address.",
     "INVALID_EMAIL_OR_PASSWORD": "Incorrect email or password.",
+    "INVALID_ORIGIN": "Sign-in was blocked for security reasons. Open the site directly and try again.",
     "INVALID_PASSWORD": "Incorrect password.",
     "INVALID_TOKEN": "This link is invalid. Request a new one.",
+    "METHOD_NOT_ALLOWED_DEFER_SESSION_REQUIRED": "The request could not be completed. Reload the page and try again.",
+    "MISSING_OR_NULL_ORIGIN": "Sign-in was blocked for security reasons. Open the site directly and try again.",
     "OAUTH_LINK_ERROR": "This account could not be linked. Try again.",
     "PASSWORD_TOO_LONG": "Choose a shorter password.",
     "PASSWORD_TOO_SHORT": "Choose a longer password.",
     "PROVIDER_NOT_FOUND": "This sign-in method is not available.",
+    "UNSUPPORTED_MEDIA_TYPE": "The request used an unsupported format.",
     "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "An account with this email already exists. Use another email.",
-    "USER_EMAIL_NOT_FOUND": "No account matches this email address."
+    "USER_EMAIL_NOT_FOUND": "No account matches this email address.",
+    "VALIDATION_ERROR": "The request is invalid."
   },
   "invite": {
     "title": "Organization invitation",
@@ -66,6 +75,7 @@
     "signIn": "Sign in to accept",
     "createAccount": "Create an account",
     "errorTitle": "Invitation could not be accepted",
+    "acceptFailed": "The invitation could not be accepted. Try again.",
     "missingToken": "This invitation link is missing its token.",
     "acceptedTitle": "Invitation accepted",
     "acceptedDescription": "Opening your organization members page."
