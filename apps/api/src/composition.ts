@@ -71,6 +71,7 @@ export interface CreateApiAppDependencies {
   migrationsFolder?: string | undefined
   upgradeExecutor?: UpgradeExecutor | undefined
   backupRestoreExecutor?: BackupRestoreExecutor | undefined
+  backupLeaseAcquisitionTimeoutMs?: number | undefined
   eventIngestionProtection?: IngestionProtection | undefined
   eventIngestionProtectionThresholds?:
     | {
@@ -221,6 +222,9 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     ...(deps.backupRestoreExecutor === undefined ? {} : { executor: deps.backupRestoreExecutor }),
     cleanup: deps.cleanup ?? createBackupRestoreCleanup(deps, eventIngestion.acceptanceRepository),
     dataDirectoryReady: deps.dataDirectoryReady,
+    ...(deps.backupLeaseAcquisitionTimeoutMs === undefined
+      ? {}
+      : { leaseAcquisitionTimeoutMs: deps.backupLeaseAcquisitionTimeoutMs }),
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
     ...(deps.migrationsFolder === undefined ? {} : { migrationsFolder: deps.migrationsFolder }),

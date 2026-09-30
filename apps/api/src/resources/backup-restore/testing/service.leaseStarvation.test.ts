@@ -13,7 +13,7 @@ import { createBackupOperation, createSourceManifest } from './fixture.ts'
 
 const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
 
-function createStarvationFixture() {
+function createStarvationFixture(leaseAcquisitionTimeoutMs = 2_000) {
   const lock = new InMemoryLifecycleLock()
   const repository = mock<BackupRestoreRepository>()
   const executor = mock<BackupRestoreExecutor>()
@@ -39,6 +39,7 @@ function createStarvationFixture() {
     acceptance: new InMemoryAcceptanceQuiescencePort(async () => ({ lastSafeSequence: 42 })),
     reads: new InMemoryReadQuiescencePort(),
     dataDirectoryReady: true,
+    leaseAcquisitionTimeoutMs,
     clock: () => new Date('2026-09-01T00:00:00.000Z'),
     ids: {
       operationId: () => 'bop_1',
@@ -56,9 +57,45 @@ describe('BackupRestoreService.leaseStarvation', () => {
     expect(ingestionLease).toBeDefined()
 
     const pending = service.createBackup({}, admin)
+    expect(lock.acquire('ingestion')).toBeUndefined()
     ingestionLease?.release()
 
     await expect(pending).resolves.toMatchObject({ status: 'creating', id: 'bop_1' })
+    await service.stop()
+  })
+
+  it('reports CONFLICT without waiting while another exclusive lease is held', async () => {
+    const { lock, service } = createStarvationFixture()
+    const restoreLease = lock.acquire('restore')
+    expect(restoreLease).toBeDefined()
+
+    await expect(service.createBackup({}, admin)).rejects.toMatchObject({
+      code: 'CONFLICT',
+      status: 409,
+    })
+    expect(lock.acquire('backup')).toBeUndefined()
+
+    restoreLease?.release()
+    const ingestionLease = lock.acquire('ingestion')
+    expect(ingestionLease).toBeDefined()
+    ingestionLease?.release()
+    await service.stop()
+  })
+
+  it('gives up with CONFLICT and re-admits ingestion when the wait exceeds its budget', async () => {
+    const { lock, service } = createStarvationFixture(50)
+    const ingestionLease = lock.acquire('ingestion')
+    expect(ingestionLease).toBeDefined()
+
+    await expect(service.createBackup({}, admin)).rejects.toMatchObject({
+      code: 'CONFLICT',
+      status: 409,
+    })
+
+    const readmitted = lock.acquire('ingestion')
+    expect(readmitted).toBeDefined()
+    readmitted?.release()
+    ingestionLease?.release()
     await service.stop()
   })
 })
