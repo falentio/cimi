@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed } from 'vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import CollectionPolicyEditor from './CollectionPolicyEditor.vue'
-import type {
-  CollectionFieldPatch,
-  SiteCollectionPolicyController,
-} from './collection-policy.types'
+import type { SiteCollectionPolicyController } from './collection-policy.types'
 
 const props = defineProps<{
   controller: SiteCollectionPolicyController
@@ -15,29 +12,10 @@ const props = defineProps<{
 }>()
 
 const view = computed(() => props.controller.view.value)
-const refreshing = shallowRef(false)
+const refreshing = computed(() => (view.value.kind === 'ready' ? view.value.refreshing : false))
 
 async function refresh(): Promise<void> {
-  refreshing.value = true
-  try {
-    await props.controller.refresh()
-  } catch {
-    return
-  } finally {
-    refreshing.value = false
-  }
-}
-
-async function save(): Promise<void> {
-  await props.controller.save()
-}
-
-async function confirmClear(): Promise<void> {
-  await props.controller.clearOverride()
-}
-
-function patch(value: CollectionFieldPatch): void {
-  props.controller.edit(value)
+  await props.controller.refresh()
 }
 
 const settingsPath = computed(() => `/sites/${props.siteId}/settings/general`)
@@ -139,9 +117,9 @@ const settingsPath = computed(() => `/sites/${props.siteId}/settings/general`)
         :editor="view.editor"
         @begin-edit="controller.beginEdit"
         @cancel-edit="controller.cancelEdit"
-        @confirm-clear="confirmClear"
-        @patch="patch"
-        @save="save"
+        @confirm-clear="controller.clearOverride"
+        @patch="controller.edit"
+        @save="controller.save"
       />
 
       <p class="text-muted-foreground text-sm">

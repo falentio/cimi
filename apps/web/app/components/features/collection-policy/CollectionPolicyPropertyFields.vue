@@ -7,7 +7,14 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field'
-import { fieldErrorFor, PROPERTY_SWITCH_SPECS } from './collection-policy.utils'
+import {
+  fieldErrorFor,
+  MAX_KEY_LIST_LENGTH,
+  MAX_PROPERTIES,
+  MAX_VALUE_LENGTH,
+  PROPERTY_SWITCH_SPECS,
+  switchStateLabel,
+} from './collection-policy.utils'
 import type { CollectionFieldPatch, CollectionPolicyEditorView } from './collection-policy.types'
 import CollectionPolicyListField from './CollectionPolicyListField.vue'
 
@@ -15,15 +22,13 @@ const props = defineProps<{ editor: CollectionPolicyEditorView }>()
 
 const emit = defineEmits<{ patch: [patch: CollectionFieldPatch] }>()
 
-const MAX_PROPERTIES = 64
-const MAX_VALUE_LENGTH = 512
-const MAX_RESERVED_NAMES = 64
-
 function propertyValue(): CollectionPolicyEditorView['draft']['propertyPolicy'] {
   return props.editor.draft.propertyPolicy
 }
 
-function propertyError(field: string): string | null {
+type PropertyKey = 'allowScalarProperties' | 'maxProperties' | 'maxValueLength' | 'reservedNames'
+
+function propertyError(field: PropertyKey): string | null {
   return fieldErrorFor(props.editor.validation, `propertyPolicy.${field}`)
 }
 
@@ -44,10 +49,6 @@ function handleMaxValueLength(value: number | null): void {
 
 function handleReservedNames(value: string[]): void {
   emit('patch', { field: 'propertyPolicy', value: { ...propertyValue(), reservedNames: value } })
-}
-
-function switchStateLabel(value: boolean): string {
-  return value ? 'On' : 'Off'
 }
 </script>
 
@@ -161,7 +162,7 @@ function switchStateLabel(value: boolean): string {
         placeholder="Add a reserved name"
         :model-value="propertyValue().reservedNames"
         :error="propertyError('reservedNames')"
-        :max="MAX_RESERVED_NAMES"
+        :max="MAX_KEY_LIST_LENGTH"
         :disabled="editor.saving"
         @update:model-value="handleReservedNames"
       />

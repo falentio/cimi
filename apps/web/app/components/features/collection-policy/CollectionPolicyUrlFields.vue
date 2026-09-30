@@ -7,7 +7,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field'
-import { fieldErrorFor, URL_POLICY_SPECS } from './collection-policy.utils'
+import { fieldErrorFor, switchStateLabel, URL_POLICY_SPECS } from './collection-policy.utils'
 import type {
   CollectionFieldPatch,
   CollectionPolicyEditorView,
@@ -31,10 +31,6 @@ function handleUrlSwitch(field: keyof UrlPolicyValues, value: unknown): void {
     field: 'urlPolicy',
     value: { ...props.editor.draft.urlPolicy, [field]: value === true },
   })
-}
-
-function switchStateLabel(value: boolean): string {
-  return value ? 'On' : 'Off'
 }
 </script>
 

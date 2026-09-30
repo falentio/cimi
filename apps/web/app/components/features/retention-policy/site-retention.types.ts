@@ -96,7 +96,6 @@ export type SiteRetentionAction =
     }
 export type SiteRetentionEditorView = {
   readonly draft: RetentionDraft
-  readonly current: RetentionPolicy
   readonly siteOverride: RetentionPolicy | null
   readonly installationDefault: RetentionPolicy
   readonly effective: RetentionPolicy
@@ -110,8 +109,6 @@ export type SiteRetentionEditorView = {
   readonly canClear: boolean
   readonly clearShortens: boolean
   readonly disabledReason: string | null
-  readonly serverError: RetentionFailure | null
-  readonly updatedAt: SiteRetentionResult['updatedAt']
 }
 
 export type SiteRetentionViewModel =

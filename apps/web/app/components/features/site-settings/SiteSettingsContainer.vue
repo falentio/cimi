@@ -6,7 +6,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
-import { siteSettingsPath } from '@/components/features/app-shell/organization-nav-config'
+import {
+  siteCollectionSettingsPath,
+  siteRetentionSettingsPath,
+  siteSettingsPath,
+} from '@/components/features/app-shell/organization-nav-config'
 import type { SiteSettingsSnapshot } from './site-settings.types'
 import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
@@ -25,12 +29,11 @@ const sectionLinks = computed(() => {
   const siteId = props.snapshot.siteId
   if (siteId === undefined) return []
 
-  const basePath = siteSettingsPath(siteId)
   return [
-    { label: 'General', section: 'general' as const, to: `${basePath}/general` },
-    { label: 'Collection', section: 'collection' as const, to: `${basePath}/collection` },
-    { label: 'Retention', section: 'retention' as const, to: `${basePath}/retention` },
-    { label: 'Danger zone', section: 'danger' as const, to: `${basePath}/danger` },
+    { label: 'General', section: 'general' as const, to: `${siteSettingsPath(siteId)}/general` },
+    { label: 'Collection', section: 'collection' as const, to: siteCollectionSettingsPath(siteId) },
+    { label: 'Retention', section: 'retention' as const, to: siteRetentionSettingsPath(siteId) },
+    { label: 'Danger zone', section: 'danger' as const, to: `${siteSettingsPath(siteId)}/danger` },
   ]
 })
 

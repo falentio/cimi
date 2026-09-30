@@ -14,6 +14,7 @@ import {
   optionDescription,
   POLICY_FIELD_LABELS,
   policyFieldDescription,
+  switchStateLabel,
 } from './collection-policy.utils'
 import type {
   CollectionFieldPatch,
@@ -58,10 +59,6 @@ function switchError(field: SwitchSpec['field']): string | null {
 
 function handleSwitch(field: SwitchSpec['field'], value: unknown): void {
   emit('patch', { field, value: value === true })
-}
-
-function switchStateLabel(value: boolean): string {
-  return value ? 'On' : 'Off'
 }
 </script>
 

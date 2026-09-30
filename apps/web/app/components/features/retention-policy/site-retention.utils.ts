@@ -85,7 +85,6 @@ export function toSiteRetentionView(state: SiteRetentionState): SiteRetentionVie
     result,
     policy: {
       draft,
-      current: result.effectivePolicy,
       siteOverride: result.siteOverride,
       installationDefault: result.installationDefault,
       effective: result.effectivePolicy,
@@ -99,8 +98,6 @@ export function toSiteRetentionView(state: SiteRetentionState): SiteRetentionVie
       canClear: result.siteOverride !== null && !saving && !stale,
       clearShortens,
       disabledReason: siteRetentionDisabledReason({ stale, saving, dirty, validation }),
-      serverError: state.command.kind === 'failed' ? state.command.error : null,
-      updatedAt: result.updatedAt,
     },
     cleanup: toRetentionCleanupProjection(result.cleanup),
     provenance: siteRetentionProvenance(result.siteOverride),

@@ -5,10 +5,8 @@ import type { CollectionPolicyEditorView } from './collection-policy.types'
 
 const props = defineProps<{ editor: CollectionPolicyEditorView }>()
 
-const summary = computed(() => props.editor.summary)
-
 const exclusionTotal = computed(() =>
-  summary.value.exclusions.reduce((total, entry) => total + entry.count, 0),
+  props.editor.summary.exclusions.reduce((total, entry) => total + entry.count, 0),
 )
 </script>
 
@@ -24,33 +22,33 @@ const exclusionTotal = computed(() =>
       <dl class="grid gap-3">
         <div class="flex flex-wrap justify-between gap-2">
           <dt class="text-muted-foreground">Anonymous traffic</dt>
-          <dd class="font-medium">{{ summary.anonymousStance }}</dd>
+          <dd class="font-medium">{{ editor.summary.anonymousStance }}</dd>
         </div>
         <div class="flex flex-wrap justify-between gap-2">
           <dt class="text-muted-foreground">Privacy signals</dt>
-          <dd class="font-medium">{{ summary.signalRespect }}</dd>
+          <dd class="font-medium">{{ editor.summary.signalRespect }}</dd>
         </div>
         <div class="flex flex-wrap justify-between gap-2">
           <dt class="text-muted-foreground">Consent</dt>
-          <dd class="font-medium">{{ summary.consentStance }}</dd>
+          <dd class="font-medium">{{ editor.summary.consentStance }}</dd>
         </div>
         <div class="flex flex-wrap justify-between gap-2">
           <dt class="text-muted-foreground">Automated traffic</dt>
-          <dd class="font-medium">{{ summary.botStance }}</dd>
+          <dd class="font-medium">{{ editor.summary.botStance }}</dd>
         </div>
       </dl>
 
       <div>
         <h4 class="font-medium">URL capture</h4>
         <ul class="text-muted-foreground mt-1 list-inside list-disc">
-          <li v-for="line in summary.urlCapture" :key="line">{{ line }}</li>
+          <li v-for="line in editor.summary.urlCapture" :key="line">{{ line }}</li>
         </ul>
       </div>
 
       <div>
         <h4 class="font-medium">Property capture</h4>
         <ul class="text-muted-foreground mt-1 list-inside list-disc">
-          <li v-for="line in summary.propertyCapture" :key="line">{{ line }}</li>
+          <li v-for="line in editor.summary.propertyCapture" :key="line">{{ line }}</li>
         </ul>
       </div>
 
@@ -60,7 +58,7 @@ const exclusionTotal = computed(() =>
           Nothing is excluded. Every request that passes the rules above can create a record.
         </p>
         <ul v-else class="text-muted-foreground mt-1 list-inside list-disc">
-          <li v-for="entry in summary.exclusions" :key="entry.label">
+          <li v-for="entry in editor.summary.exclusions" :key="entry.label">
             {{ entry.label }}: {{ entry.count }}
           </li>
         </ul>

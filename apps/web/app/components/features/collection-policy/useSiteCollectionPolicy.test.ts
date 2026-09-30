@@ -232,7 +232,6 @@ describe('useSiteCollectionPolicy', () => {
         draft: { honorGpcDnt: false },
         serverError: { kind: 'bad-request', action: 'edit' },
       },
-      command: { kind: 'failed', operation: 'save' },
     })
     expect(JSON.stringify(controller.view.value)).not.toContain('/srv/private')
     scope.stop()
@@ -274,7 +273,7 @@ describe('useSiteCollectionPolicy', () => {
     scope.stop()
   })
 
-  it('clears a failed command after a successful refresh', async () => {
+  it('clears a failed save after a successful refresh', async () => {
     mocks.updateCollectionPolicy.mockRejectedValue({ code: 'CONFLICT' })
     const { controller, scope } = createController()
     await controller.refresh()
@@ -284,12 +283,15 @@ describe('useSiteCollectionPolicy', () => {
 
     expect(controller.view.value).toMatchObject({
       kind: 'ready',
-      command: { kind: 'failed', error: { kind: 'conflict' } },
+      editor: { serverError: { kind: 'conflict' } },
     })
 
     await controller.refresh()
 
-    expect(controller.view.value).toMatchObject({ kind: 'ready', command: { kind: 'idle' } })
+    expect(controller.view.value).toMatchObject({
+      kind: 'ready',
+      editor: { serverError: null },
+    })
     scope.stop()
   })
 

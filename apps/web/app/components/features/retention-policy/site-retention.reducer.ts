@@ -48,10 +48,11 @@ export function reduceSiteRetention(
             : { kind: 'failed', error: action.error },
       }
     case 'field-edited':
+      if (state.draft === null) return state
       return {
         ...state,
         draft: {
-          ...(state.draft ?? emptyDraft()),
+          ...state.draft,
           [action.field]: action.value,
         },
       }
@@ -157,8 +158,4 @@ function getResult(state: SiteRetentionState): SiteRetentionResult | null {
 function beginRefresh(state: SiteRetentionResource): SiteRetentionResource {
   if (state.kind === 'ready' || state.kind === 'stale') return { ...state, refreshing: true }
   return state
-}
-
-function emptyDraft() {
-  return { eventMonths: '', profileMonths: '', replayMonths: '' }
 }

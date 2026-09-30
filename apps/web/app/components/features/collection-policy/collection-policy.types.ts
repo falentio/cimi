@@ -53,7 +53,6 @@ export type CollectionFieldKey =
 
 export type CollectionValidation = {
   readonly fieldErrors: Readonly<Partial<Record<CollectionFieldKey, string>>>
-  readonly formError: string | null
 }
 
 export type ParsedCollectionDraft =
@@ -194,7 +193,6 @@ export type CollectionPolicyEditorView = {
   readonly mode: 'view' | 'edit'
   readonly draft: CollectionDraft
   readonly effective: PolicyValues
-  readonly baseline: PolicyValues
   readonly source: CollectionPolicyResult['source']
   readonly hasOverride: boolean
   readonly validation: ParsedCollectionDraft
@@ -204,7 +202,6 @@ export type CollectionPolicyEditorView = {
   readonly saving: boolean
   readonly operation: CollectionOperation | null
   readonly canEdit: boolean
-  readonly canAttemptSubmit: boolean
   readonly canSubmit: boolean
   readonly canClear: boolean
   readonly disabledReason: string | null
@@ -220,9 +217,7 @@ export type CollectionPolicyViewModel =
   | { readonly kind: 'error'; readonly error: CollectionPolicyFailure }
   | {
       readonly kind: 'ready'
-      readonly result: CollectionPolicyResult
       readonly editor: CollectionPolicyEditorView
-      readonly command: CollectionCommand
       readonly notice: CollectionNotice | null
       readonly stale: boolean
       readonly resourceError: CollectionPolicyFailure | null

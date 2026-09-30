@@ -19,11 +19,11 @@ import type {
   UrlPolicyValues,
 } from './collection-policy.types'
 
-const MAX_LIST_LENGTH = 128
-const MAX_KEY_LIST_LENGTH = 64
+export const MAX_LIST_LENGTH = 128
+export const MAX_KEY_LIST_LENGTH = 64
 const MAX_SCALAR_KEY_LENGTH = 64
-const MAX_PROPERTIES = 64
-const MAX_VALUE_LENGTH = 512
+export const MAX_PROPERTIES = 64
+export const MAX_VALUE_LENGTH = 512
 
 export const ANONYMOUS_COLLECTION_OPTIONS = [
   {
@@ -268,6 +268,10 @@ export function fieldErrorFor(
   return validation.validation.fieldErrors[key] ?? null
 }
 
+export function switchStateLabel(value: boolean): string {
+  return value ? 'On' : 'Off'
+}
+
 export function describeEffectiveField(policy: PolicyValues, field: PolicyField): string {
   switch (field) {
     case 'anonymousCollection':
@@ -429,7 +433,7 @@ export function toPolicyValues(draft: CollectionDraft): ParsedCollectionDraft {
   ) {
     return {
       kind: 'invalid',
-      validation: { fieldErrors, formError: null } satisfies CollectionValidation,
+      validation: { fieldErrors } satisfies CollectionValidation,
     }
   }
 
@@ -536,7 +540,7 @@ export function summarizeCollectionPolicy(draft: CollectionDraft): CollectionPol
 
 export function normalizeCollectionPolicyError(
   error: unknown,
-  source: 'read' | 'update' | 'clear',
+  source: 'read' | 'update',
 ): CollectionPolicyFailure {
   const details = readErrorDetails(error)
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
@@ -636,7 +640,6 @@ export function toCollectionPolicyView(state: CollectionPolicyState): Collection
     mode: state.editing ? 'edit' : 'view',
     draft,
     effective,
-    baseline,
     source: result.source,
     hasOverride,
     validation,
@@ -646,7 +649,6 @@ export function toCollectionPolicyView(state: CollectionPolicyState): Collection
     saving,
     operation: state.command.kind === 'submitting' ? state.command.operation : null,
     canEdit: !saving && !stale,
-    canAttemptSubmit,
     canSubmit: validation.kind === 'valid' && canAttemptSubmit,
     canClear: hasOverride && !saving && !stale,
     disabledReason,
@@ -655,9 +657,7 @@ export function toCollectionPolicyView(state: CollectionPolicyState): Collection
 
   return {
     kind: 'ready',
-    result,
     editor,
-    command: state.command,
     notice: state.notice,
     stale,
     resourceError: state.policy.kind === 'stale' ? state.policy.error : null,
@@ -698,7 +698,7 @@ export function collectionBaseline(result: CollectionPolicyResult): PolicyValues
   return policyValuesFromEffective(result.effective)
 }
 
-const POLICY_FIELD_ORDER: readonly PolicyField[] = [
+export const POLICY_FIELD_ORDER: readonly PolicyField[] = [
   'anonymousCollection',
   'honorGpcDnt',
   'consentMode',
@@ -910,19 +910,11 @@ function readErrorDetails(error: unknown): {
   readonly code: string | undefined
   readonly status: number | undefined
 } {
-  const candidates: unknown[] = [error]
-  if (isRecord(error)) candidates.push(error.data, error.error, error.cause, error.response)
-
-  let code: string | undefined
-  let status: number | undefined
-  for (const candidate of candidates) {
-    if (!isRecord(candidate)) continue
-    if (code === undefined && typeof candidate.code === 'string') code = candidate.code
-    if (status === undefined && typeof candidate.status === 'number') status = candidate.status
-    if (status === undefined && typeof candidate.statusCode === 'number')
-      status = candidate.statusCode
+  if (!isRecord(error)) return { code: undefined, status: undefined }
+  return {
+    code: typeof error.code === 'string' ? error.code : undefined,
+    status: typeof error.status === 'number' ? error.status : undefined,
   }
-  return { code, status }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

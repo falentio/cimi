@@ -4,27 +4,15 @@ import type {
   CollectionPolicyAction,
   CollectionPolicyResult,
   CollectionPolicyState,
-  PolicyField,
   PolicyValues,
 } from './collection-policy.types'
 import {
+  POLICY_FIELD_ORDER,
   collectionBaseline,
   draftFromPolicy,
   isCollectionDraftDirty,
   policyValuesFromEffective,
 } from './collection-policy.utils'
-
-const POLICY_FIELD_ORDER: readonly PolicyField[] = [
-  'anonymousCollection',
-  'honorGpcDnt',
-  'consentMode',
-  'botPolicy',
-  'captureQueryStrings',
-  'urlPolicy',
-  'propertyPolicy',
-  'profileFilterKeys',
-  'exclusions',
-]
 
 export function createInitialCollectionPolicyState(): CollectionPolicyState {
   return {
@@ -101,30 +89,7 @@ export function reduceCollectionPolicy(
 }
 
 function applyPatch(draft: CollectionDraft, patch: CollectionFieldPatch): CollectionDraft {
-  switch (patch.field) {
-    case 'anonymousCollection':
-      return { ...draft, anonymousCollection: patch.value }
-    case 'honorGpcDnt':
-      return { ...draft, honorGpcDnt: patch.value }
-    case 'consentMode':
-      return { ...draft, consentMode: patch.value }
-    case 'botPolicy':
-      return { ...draft, botPolicy: patch.value }
-    case 'captureQueryStrings':
-      return { ...draft, captureQueryStrings: patch.value }
-    case 'urlPolicy':
-      return { ...draft, urlPolicy: patch.value }
-    case 'propertyPolicy':
-      return { ...draft, propertyPolicy: patch.value }
-    case 'profileFilterKeys':
-      return { ...draft, profileFilterKeys: patch.value }
-    case 'exclusions':
-      return { ...draft, exclusions: patch.value }
-    default: {
-      const _exhaustive: never = patch
-      return _exhaustive
-    }
-  }
+  return { ...draft, [patch.field]: patch.value }
 }
 
 function adoptResult(

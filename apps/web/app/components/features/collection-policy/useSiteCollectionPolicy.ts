@@ -102,10 +102,7 @@ export function useSiteCollectionPolicy(
       })
     } catch (error: unknown) {
       if (disposed) return
-      fail(
-        operation,
-        normalizeCollectionPolicyError(error, operation === 'clear' ? 'clear' : 'update'),
-      )
+      fail(operation, normalizeCollectionPolicyError(error, 'update'))
       return
     }
 

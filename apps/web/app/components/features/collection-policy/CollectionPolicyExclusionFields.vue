@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { FieldDescription, FieldGroup } from '@/components/ui/field'
 import type { CollectionFieldPatch, CollectionPolicyEditorView } from './collection-policy.types'
-import { fieldErrorFor } from './collection-policy.utils'
+import { fieldErrorFor, MAX_LIST_LENGTH } from './collection-policy.utils'
 import CollectionPolicyListField from './CollectionPolicyListField.vue'
 
 const props = defineProps<{ editor: CollectionPolicyEditorView }>()
 
 const emit = defineEmits<{ patch: [patch: CollectionFieldPatch] }>()
-
-const MAX_EXCLUSION_ENTRIES = 128
-
 type ExclusionKey = 'hostnames' | 'paths' | 'countries' | 'ipRanges'
 
 const EXCLUSION_SPECS = [
@@ -85,12 +82,12 @@ function handleUpdate(key: ExclusionKey, value: string[]): void {
         :placeholder="spec.placeholder"
         :model-value="exclusionValues(spec.key)"
         :error="exclusionError(spec.key)"
-        :max="MAX_EXCLUSION_ENTRIES"
+        :max="MAX_LIST_LENGTH"
         :disabled="editor.saving"
         @update:model-value="(value) => handleUpdate(spec.key, value)"
       />
       <FieldDescription>
-        Every list is capped at {{ MAX_EXCLUSION_ENTRIES }} entries and keeps the order you type.
+        Every list is capped at {{ MAX_LIST_LENGTH }} entries and keeps the order you type.
       </FieldDescription>
     </FieldGroup>
   </fieldset>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { AcceptableInputValue } from 'reka-ui'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 
 const props = defineProps<{
@@ -21,8 +22,11 @@ const describedBy = computed(() =>
 
 const overLimit = computed(() => props.modelValue.length >= props.max)
 
-function handleUpdate(value: string[] | null): void {
-  emit('update:modelValue', value ?? [])
+function handleUpdate(value: AcceptableInputValue[]): void {
+  emit(
+    'update:modelValue',
+    value.filter((tag): tag is string => typeof tag === 'string'),
+  )
 }
 </script>
 
