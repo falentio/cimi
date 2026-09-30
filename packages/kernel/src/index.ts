@@ -1,4 +1,5 @@
 export {
+  DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS,
   DEFAULT_RETENTION_POLICY,
   InMemoryAcceptanceJournalPort,
   InMemoryAcceptanceQuiescencePort,
@@ -21,6 +22,7 @@ export {
   type LifecycleAcquireKind,
   type LifecycleAdmissionMode,
   type LifecycleExclusiveKind,
+  type LifecycleExclusiveAcquireOptions,
   type LifecycleLock,
   type LifecycleLockKind,
   type LifecycleOperationKind,

@@ -64,6 +64,50 @@ describe('in-memory kernel ports', () => {
     expect(lock.isLocked()).toBe(false)
   })
 
+  it('waits out in-flight ingestion leases for an exclusive acquire', async () => {
+    const lock = new InMemoryLifecycleLock()
+    const ingestion = lock.acquire('ingestion')
+    expect(ingestion).toBeDefined()
+
+    const pending = lock.acquireExclusive('backup', { timeoutMs: 1_000 })
+    expect(pending).toBeDefined()
+    expect(lock.acquire('ingestion')).toBeUndefined()
+
+    ingestion?.release()
+
+    const lease = await pending
+    expect(lease?.kind).toBe('backup')
+    const admitted = lock.acquire('ingestion')
+    expect(admitted).toBeUndefined()
+    lease?.release()
+    expect(lock.acquire('ingestion')).toBeDefined()
+  })
+
+  it('gives up an exclusive acquire at its budget and re-admits ingestion', async () => {
+    const lock = new InMemoryLifecycleLock()
+    const ingestion = lock.acquire('ingestion')
+
+    const lease = await lock.acquireExclusive('backup', { timeoutMs: 20 })
+
+    expect(lease).toBeUndefined()
+    const readmitted = lock.acquire('ingestion')
+    expect(readmitted).toBeDefined()
+    readmitted?.release()
+    ingestion?.release()
+  })
+
+  it('does not wait for an exclusive acquire when another exclusive lease is held', async () => {
+    const lock = new InMemoryLifecycleLock()
+    const restore = lock.acquire('restore')
+    expect(restore).toBeDefined()
+
+    const lease = await lock.acquireExclusive('backup', { timeoutMs: 1_000 })
+
+    expect(lease).toBeUndefined()
+    expect(lock.acquire('backup')).toBeUndefined()
+    restore?.release()
+  })
+
   it('shares analytics reads, overlaps backup, and excludes other lifecycle modes', () => {
     const lock = new InMemoryLifecycleLock()
 
