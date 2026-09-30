@@ -1,21 +1,42 @@
 import { expect } from 'vitest'
 import { closeDb, schema } from '@cimi/db'
+import type { AnalyticsDb } from '@cimi/db'
 import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
 import type { LoggingConfig } from '@cimi/logging'
+import type { LifecycleLock } from '@cimi/kernel'
 import { createApiApp } from '../index.ts'
 import type { HealthLifecycle } from '../health.ts'
 import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 import type { UpgradeExecutor } from '../resources/installation/service.ts'
 import type { IngestionProtection } from '../resources/event-ingestion/index.ts'
+import type { BackupRestoreExecutor } from '../resources/backup-restore/index.ts'
+
+/**
+ * Wraps a live AnalyticsDb so only the readiness probe is overridden. The store stays usable for
+ * fixture setup and for the ingestion path the test exercises, while the readiness probe reports
+ * the store unavailable, which is what the admission gate reads.
+ */
+function withAnalyticsReady(analytics: AnalyticsDb, ready: () => boolean): AnalyticsDb {
+  return new Proxy(analytics, {
+    get(target, property, receiver) {
+      if (property === 'ready') return async () => ready()
+      const value = Reflect.get(target, property, receiver) as unknown
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
 
 export async function createApiTestFixture(
   options: {
     upgradeExecutor?: UpgradeExecutor
+    backupRestoreExecutor?: BackupRestoreExecutor
+    analyticsReady?: () => boolean
     eventIngestionProtection?: IngestionProtection
     eventIngestionTrustProxyHeaders?: boolean
     logging?: LoggingConfig
     lifecycle?: HealthLifecycle
+    lock?: LifecycleLock
   } = {},
 ) {
   const db = createMigratedTestDb()
@@ -31,7 +52,10 @@ export async function createApiTestFixture(
       const app = createApiApp({
         db,
         auth,
-        analytics,
+        analytics:
+          options.analyticsReady === undefined
+            ? analytics
+            : withAnalyticsReady(analytics, options.analyticsReady),
         baseUrl: 'http://localhost',
         dataDirectoryReady: true,
         controlDatabasePath: ':memory:',
@@ -41,9 +65,13 @@ export async function createApiTestFixture(
         eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
         startRetentionCleanupWorker: false,
         ...(options.lifecycle === undefined ? {} : { lifecycle: options.lifecycle }),
+        ...(options.lock === undefined ? {} : { lock: options.lock }),
         ...(options.eventIngestionProtection === undefined
           ? {}
           : { eventIngestionProtection: options.eventIngestionProtection }),
+        ...(options.backupRestoreExecutor === undefined
+          ? {}
+          : { backupRestoreExecutor: options.backupRestoreExecutor }),
       })
       return {
         app,
