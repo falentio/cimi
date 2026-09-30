@@ -24,6 +24,14 @@ export function siteSettingsPath(siteId: WorkspaceSite['id']): string {
   return `${siteOverviewPath(siteId)}/settings`
 }
 
+export function siteCollectionSettingsPath(siteId: WorkspaceSite['id']): string {
+  return `${siteSettingsPath(siteId)}/collection`
+}
+
+export function siteRetentionSettingsPath(siteId: WorkspaceSite['id']): string {
+  return `${siteSettingsPath(siteId)}/retention`
+}
+
 export function createOrganizationNav(input: CreateOrganizationNavInput): NavGroup {
   return {
     label: input.label,

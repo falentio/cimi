@@ -19,7 +19,7 @@ const route = useRoute()
 const retrying = shallowRef(false)
 const localizeError = useLocalizedErrorMessage()
 
-type SettingsSection = 'general' | 'danger'
+type SettingsSection = 'general' | 'collection' | 'retention' | 'danger'
 
 const sectionLinks = computed(() => {
   const siteId = props.snapshot.siteId
@@ -28,6 +28,8 @@ const sectionLinks = computed(() => {
   const basePath = siteSettingsPath(siteId)
   return [
     { label: 'General', section: 'general' as const, to: `${basePath}/general` },
+    { label: 'Collection', section: 'collection' as const, to: `${basePath}/collection` },
+    { label: 'Retention', section: 'retention' as const, to: `${basePath}/retention` },
     { label: 'Danger zone', section: 'danger' as const, to: `${basePath}/danger` },
   ]
 })
