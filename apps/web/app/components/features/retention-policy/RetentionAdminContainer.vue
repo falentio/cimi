@@ -7,7 +7,32 @@ import { Spinner } from '@/components/ui/spinner'
 import RetentionCleanupSection from './RetentionCleanupSection.vue'
 import RetentionConfirmationDialog from './RetentionConfirmationDialog.vue'
 import RetentionPolicyForm from './RetentionPolicyForm.vue'
+import RetentionCleanupRegister from './cleanup-variants/RetentionCleanupRegister.vue'
+import RetentionCleanupStrip from './cleanup-variants/RetentionCleanupStrip.vue'
+import RetentionCleanupTimeline from './cleanup-variants/RetentionCleanupTimeline.vue'
+import VariantPicker from './cleanup-variants/VariantPicker.vue'
 import { useRetentionAdmin } from './useRetentionAdmin'
+
+// TEMPORARY variant harness — delete at promotion (variants + picker + this wiring).
+const route = useRoute()
+const CLEANUP_SECTIONS = {
+  timeline: RetentionCleanupTimeline,
+  register: RetentionCleanupRegister,
+  strip: RetentionCleanupStrip,
+} as const
+const cleanupSection = computed(() => {
+  const variant = route.query.variant
+  if (typeof variant === 'string' && variant in CLEANUP_SECTIONS) {
+    return CLEANUP_SECTIONS[variant as keyof typeof CLEANUP_SECTIONS]
+  }
+  return RetentionCleanupSection
+})
+const PICKER_VARIANTS = [
+  { id: 'stacked', label: 'Stacked (current)' },
+  { id: 'timeline', label: 'Timeline' },
+  { id: 'register', label: 'Register' },
+  { id: 'strip', label: 'Strip' },
+] as const
 
 const controller = useRetentionAdmin()
 const view = computed(() => controller.view.value)
@@ -164,7 +189,9 @@ async function confirmShortening(confirmation: string): Promise<void> {
         </div>
       </section>
 
-      <RetentionCleanupSection :cleanup="view.cleanup" />
+      <VariantPicker v-if="route.query.variant !== undefined" :variants="PICKER_VARIANTS" />
+
+      <component :is="cleanupSection" :cleanup="view.cleanup" />
 
       <RetentionConfirmationDialog
         v-if="view.command.kind === 'confirming' || view.command.kind === 'submitting'"
