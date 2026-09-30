@@ -46,8 +46,7 @@ export function createDb(options: CreateDbOptions) {
       const destinationPath = location.path
       current.pragma('wal_checkpoint(TRUNCATE)')
       current.close()
-      unlinkIfPresent(`${destinationPath}-wal`)
-      unlinkIfPresent(`${destinationPath}-shm`)
+      removeSidecars(destinationPath)
       const recoveryPath = `${destinationPath}.recovery.${randomBytes(8).toString('hex')}`
       let recoveryHoldsOriginal = false
       try {
@@ -61,16 +60,14 @@ export function createDb(options: CreateDbOptions) {
           renameSync(stagedPath, destinationPath)
           current = openConfiguredDatabase(destinationPath)
         } catch (error) {
-          unlinkIfPresent(destinationPath)
-          unlinkIfPresent(`${destinationPath}-wal`)
-          unlinkIfPresent(`${destinationPath}-shm`)
+          removeSqliteFile(destinationPath)
           renameSync(recoveryPath, destinationPath)
           recoveryHoldsOriginal = false
           current = openConfiguredDatabase(destinationPath)
           throw error
         }
       } finally {
-        if (recoveryHoldsOriginal) unlinkIfPresent(recoveryPath)
+        if (recoveryHoldsOriginal) discardSqliteFile(recoveryPath)
       }
     },
     replaceFromFile: (sourcePath, destinationPath) => {
@@ -82,8 +79,7 @@ export function createDb(options: CreateDbOptions) {
       let previousMoved = false
       current.pragma('wal_checkpoint(TRUNCATE)')
       current.close()
-      unlinkIfPresent(`${destinationPath}-wal`)
-      unlinkIfPresent(`${destinationPath}-shm`)
+      removeSidecars(destinationPath)
       try {
         renameSync(destinationPath, previousPath)
         previousMoved = true
@@ -91,19 +87,13 @@ export function createDb(options: CreateDbOptions) {
         current = openConfiguredDatabase(destinationPath)
       } catch (error) {
         if (previousMoved) {
-          unlinkIfPresent(destinationPath)
-          unlinkIfPresent(`${destinationPath}-wal`)
-          unlinkIfPresent(`${destinationPath}-shm`)
+          removeSqliteFile(destinationPath)
           renameSync(previousPath, destinationPath)
           current = openConfiguredDatabase(destinationPath)
         }
         throw error
       }
-      try {
-        unlinkIfPresent(previousPath)
-        unlinkIfPresent(`${previousPath}-wal`)
-        unlinkIfPresent(`${previousPath}-shm`)
-      } catch {}
+      discardSqliteFile(previousPath)
     },
   })
   return db
@@ -195,12 +185,11 @@ export async function restoreDbFromBackup(input: {
     if (handle?.isOpen()) {
       handle.replaceFromFile(tmpPath, input.destinationPath)
     } else {
+      removeSidecars(input.destinationPath)
       renameSync(tmpPath, input.destinationPath)
     }
   } finally {
-    unlinkIfPresent(tmpPath)
-    unlinkIfPresent(`${tmpPath}-wal`)
-    unlinkIfPresent(`${tmpPath}-shm`)
+    discardSqliteFile(tmpPath)
   }
 }
 
@@ -254,5 +243,23 @@ function unlinkIfPresent(path: string): void {
     unlinkSync(path)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+}
+
+function removeSidecars(path: string): void {
+  unlinkIfPresent(`${path}-wal`)
+  unlinkIfPresent(`${path}-shm`)
+}
+
+function removeSqliteFile(path: string): void {
+  unlinkIfPresent(path)
+  removeSidecars(path)
+}
+
+function discardSqliteFile(path: string): void {
+  for (const candidate of [path, `${path}-wal`, `${path}-shm`]) {
+    try {
+      unlinkSync(candidate)
+    } catch {}
   }
 }
