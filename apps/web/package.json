@@ -16,15 +16,18 @@
     "@cimi/auth": "workspace:*",
     "@cimi/client": "workspace:*",
     "@cimi/config": "workspace:*",
+    "@cimi/contract": "workspace:*",
     "@cimi/logging": "workspace:*",
     "@hugeicons/core-free-icons": "^4.3.0",
     "@hugeicons/vue": "^1.0.8",
     "@internationalized/date": "^3.12.4",
+    "@nuxtjs/i18n": "catalog:",
     "@orpc/vue-colada": "^1.15.0",
     "@pinia/colada": "^1.4.4",
     "@pinia/colada-nuxt": "^1.1.0",
     "@pinia/nuxt": "^1.0.2",
     "@unovis/vue": "^1.6.7",
+    "@valibot/i18n": "catalog:",
     "@vee-validate/valibot": "^4.15.1",
     "@vue/devtools-api": "^8.2.1",
     "@vueuse/core": "^14.4.0",
@@ -48,6 +51,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
     "tailwindcss": "catalog:",
+    "typescript": "catalog:vue-compiler",
     "vitest": "catalog:",
     "vue-tsc": "^3.3.11"
   }

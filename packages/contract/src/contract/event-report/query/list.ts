@@ -3,6 +3,7 @@ import { oc } from '../../../orpc/index.ts'
 import {
   SOffsetPaginationInput,
   SSortDirection,
+  VALIDATION_KEYS,
   isValidReportRange,
 } from '../../../schema/index.ts'
 import {
@@ -26,9 +27,9 @@ export const SEventListInput = v.pipe(
   ),
   v.check(
     (input) => areEventFiltersCompatibleWithKind(input),
-    'Event filters are incompatible with the selected Event Kind.',
+    VALIDATION_KEYS.contract.event.filtersCompatibleWithKind,
   ),
-  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
+  v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
 export type SEventListInput = v.InferOutput<typeof SEventListInput>
 export const SEventListOutput = SEventPageResult

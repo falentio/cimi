@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { SDateTime, SId } from '../../../schema/index.ts'
+import { SDateTime, SId, VALIDATION_KEYS } from '../../../schema/index.ts'
 import { SSiteDeletionCleanupStatus, SSiteIdFields, SSiteLifecycleStatus } from '../schema.ts'
 
 export const SSiteDeletionStatusInput = SSiteIdFields
@@ -36,7 +36,7 @@ export const SSiteDeletionStatusOutput = v.pipe(
       recoveryDeadline !== null &&
       purgeAt !== null
     )
-  }, 'Site lifecycle timestamps must match the reported status.'),
+  }, VALIDATION_KEYS.contract.site.lifecycleTimestampsMatchStatus),
 )
 export type SSiteDeletionStatusOutput = v.InferOutput<typeof SSiteDeletionStatusOutput>
 

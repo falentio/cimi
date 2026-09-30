@@ -8,6 +8,7 @@ import {
   SNonNegativeInteger,
   SReportFreshness,
   SRate,
+  VALIDATION_KEYS,
   isValidReportRange,
 } from '../../schema/index.ts'
 
@@ -42,7 +43,7 @@ export const SCohort = v.pipe(
   SCohortRecord,
   v.check(
     (input: v.InferOutput<typeof SCohortRecord>) => areDistinctCohortActions(input),
-    'Entry and retention actions must be distinct.',
+    VALIDATION_KEYS.contract.cohort.actionsDistinct,
   ),
 )
 const SCohortReportPeriod = v.strictObject(
@@ -81,7 +82,7 @@ export const SCohortReport = v.pipe(
         toDate: input.toDate,
         comparison: input.comparison ?? undefined,
       }),
-    'Report output periods must be ordered.',
+    VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
 export const SCohortSiteFields = v.strictObject({ siteId: SId })

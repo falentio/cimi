@@ -7,6 +7,7 @@ import {
   SOffsetPage,
   SReportFreshness,
   SRate,
+  VALIDATION_KEYS,
   isValidReportRange,
 } from '../../schema/index.ts'
 
@@ -159,7 +160,7 @@ export const STrafficOverview = v.pipe(
         toDate: input.toDate,
         comparison: input.comparison ?? undefined,
       }),
-    'Report output periods must be ordered.',
+    VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
 export const STrafficBreakdownFields = v.strictObject({

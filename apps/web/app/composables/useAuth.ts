@@ -1,4 +1,4 @@
-import { computed, type ComputedRef, type Ref } from 'vue'
+import { computed, getCurrentInstance, type ComputedRef, type Ref } from 'vue'
 import type { createCimiAuthClient } from '@cimi/auth/client'
 
 type AuthClient = ReturnType<typeof createCimiAuthClient>
@@ -18,6 +18,7 @@ export interface AuthSession {
 export interface AuthError {
   readonly message: string
   readonly code?: string
+  readonly status?: number
 }
 
 export type AuthState =
@@ -54,11 +55,13 @@ export function useAuth(): AuthApi {
   const initialized = useState('auth:initialized', () => false)
   const pending = computed(() => pendingCount.value > 0)
 
-  onMounted(() => {
-    if (initialized.value) return
-    initialized.value = true
-    void refreshSession()
-  })
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      if (initialized.value) return
+      initialized.value = true
+      void refreshSession()
+    })
+  }
 
   async function refreshSession(): Promise<AuthResult> {
     return withPending(async () => {
@@ -181,7 +184,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeAuthError(value: unknown): AuthError {
   if (value instanceof Error) {
-    return { message: value.message || DEFAULT_ERROR_MESSAGE }
+    const message = value.message || DEFAULT_ERROR_MESSAGE
+    const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
+    const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+    return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
   }
 
   if (typeof value === 'object' && value !== null) {
@@ -190,7 +196,8 @@ function normalizeAuthError(value: unknown): AuthError {
         ? value.message
         : DEFAULT_ERROR_MESSAGE
     const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
-    return code === undefined ? { message } : { message, code }
+    const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+    return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
   }
 
   return { message: DEFAULT_ERROR_MESSAGE }

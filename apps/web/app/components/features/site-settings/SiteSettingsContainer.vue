@@ -8,6 +8,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Spinner } from '@/components/ui/spinner'
 import { siteSettingsPath } from '@/components/features/app-shell/organization-nav-config'
 import type { SiteSettingsSnapshot } from './site-settings.types'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   snapshot: SiteSettingsSnapshot
@@ -16,6 +17,7 @@ const props = defineProps<{
 
 const route = useRoute()
 const retrying = shallowRef(false)
+const localizeError = useLocalizedErrorMessage()
 
 type SettingsSection = 'general' | 'danger'
 
@@ -94,7 +96,7 @@ async function handleRetry(): Promise<void> {
     <Alert v-else-if="snapshot.load.status === 'error'" variant="destructive">
       <HugeiconsIcon :icon="AlertCircleIcon" aria-hidden="true" />
       <AlertTitle>Site settings could not be loaded</AlertTitle>
-      <AlertDescription>{{ snapshot.load.error.message }}</AlertDescription>
+      <AlertDescription>{{ localizeError(snapshot.load.error) }}</AlertDescription>
       <Button class="mt-3" size="sm" variant="outline" :disabled="retrying" @click="handleRetry">
         <Spinner v-if="retrying" aria-hidden="true" />
         {{ retrying ? 'Retrying…' : 'Retry' }}
@@ -114,7 +116,7 @@ async function handleRetry(): Promise<void> {
       <Alert v-if="snapshot.load.status === 'stale-error'" variant="destructive" role="alert">
         <HugeiconsIcon :icon="AlertCircleIcon" aria-hidden="true" />
         <AlertTitle>Latest site settings could not be loaded</AlertTitle>
-        <AlertDescription>{{ snapshot.load.error.message }}</AlertDescription>
+        <AlertDescription>{{ localizeError(snapshot.load.error) }}</AlertDescription>
         <Button class="mt-3" size="sm" variant="outline" :disabled="retrying" @click="handleRetry">
           <Spinner v-if="retrying" aria-hidden="true" />
           {{ retrying ? 'Retrying…' : 'Retry' }}

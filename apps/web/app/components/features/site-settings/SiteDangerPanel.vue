@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import type { Site, SiteDeletionState } from './site-settings.types'
+import { useLocalizedErrorMessage } from '@/composables/useLocalizedErrorMessage'
 
 const props = defineProps<{
   site: Site
@@ -28,6 +29,7 @@ const confirmationOpen = computed({
 })
 const isSubmitting = computed(() => props.deletionState.status === 'submitting')
 const isAccepted = computed(() => props.deletionState.status === 'accepted')
+const localizeError = useLocalizedErrorMessage()
 </script>
 
 <template>
@@ -46,7 +48,7 @@ const isAccepted = computed(() => props.deletionState.status === 'accepted')
       </Alert>
 
       <p v-if="deletionState.status === 'error'" class="text-destructive text-sm" role="alert">
-        {{ deletionState.error.message }}
+        {{ localizeError(deletionState.error) }}
       </p>
       <p v-if="deletionState.status === 'accepted'" class="text-sm" role="status">
         Deletion started. The site is recoverable until the server's purge deadline.
@@ -56,7 +58,7 @@ const isAccepted = computed(() => props.deletionState.status === 'accepted')
         class="text-muted-foreground text-sm"
         role="status"
       >
-        {{ deletionState.warning.message }}
+        {{ localizeError(deletionState.warning) }}
       </p>
 
       <Button

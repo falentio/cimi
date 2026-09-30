@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { SDateTime, SId } from '../../schema/index.ts'
+import { SDateTime, SId, VALIDATION_KEYS } from '../../schema/index.ts'
 
 export const SBackupStatus = v.picklist(['creating', 'available', 'restoring', 'failed'])
 export const SBackupPhase = v.picklist([
@@ -41,7 +41,7 @@ export const SBackupCleanupStage = v.pipe(
     if (status === 'completed')
       return startedAt !== null && completedAt !== null && errorCode === null
     return startedAt !== null && completedAt !== null && errorCode !== null
-  }, 'Cleanup stage timestamps and errors must match its status.'),
+  }, VALIDATION_KEYS.contract.lifecycle.cleanupStageCoherent),
 )
 export const SBackupReadiness = v.strictObject({
   controlStore: v.picklist(['not_ready', 'ready']),
@@ -66,7 +66,7 @@ export const SPreRestoreSafetyArtifact = v.pipe(
   v.check(({ status, errorCode }) => {
     if (status === 'failed') return errorCode !== null
     return errorCode === null
-  }, 'Safety artifact errors must match the artifact status.'),
+  }, VALIDATION_KEYS.contract.backup.safetyArtifactCoherent),
 )
 const isCleanupPending = (status: v.InferOutput<typeof SBackupCleanupStageStatus>) =>
   status !== 'not_applicable' && status !== 'completed'
@@ -159,7 +159,7 @@ export const SBackup = v.pipe(
       }
       return false
     },
-    'Backup status, phase, readiness, cleanup, and timestamp fields must describe one lifecycle state.',
+    VALIDATION_KEYS.contract.backup.stateCoherent,
   ),
 )
 export const SBackupIdFields = v.strictObject({ backupId: SId })

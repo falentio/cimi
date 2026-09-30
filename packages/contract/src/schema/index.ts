@@ -11,6 +11,9 @@ import {
 } from '@cimi/utils'
 import { toORPCErrorMap } from './errors.ts'
 
+export { VALIDATION_KEYS } from './validation-keys.ts'
+import { VALIDATION_KEYS } from './validation-keys.ts'
+
 export {
   canonicalizeHostname,
   SHostname,
@@ -78,11 +81,11 @@ export const SDateTime = v.pipe(
       (offsetHour === undefined || offsetHour <= 23) &&
       (offsetMinute === undefined || offsetMinute <= 59)
     )
-  }, 'Expected a valid ISO date-time.'),
+  }, VALIDATION_KEYS.contract.dateTime.invalid),
 )
 export const SUtcDateTime = v.pipe(
   SDateTime,
-  v.check((value) => value.endsWith('Z'), 'Expected a UTC date-time.'),
+  v.check((value) => value.endsWith('Z'), VALIDATION_KEYS.contract.dateTime.utc),
 )
 export const SDate = v.pipe(
   v.string(),
@@ -93,7 +96,7 @@ export const SDate = v.pipe(
     const month = Number(monthString)
     const day = Number(dayString)
     return isValidCalendarDate(year, month, day)
-  }, 'Expected a valid calendar date.'),
+  }, VALIDATION_KEYS.contract.date.invalid),
 )
 export const SPageSize = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))
 export const SOffset = v.pipe(v.number(), v.integer(), v.minValue(0))
@@ -228,7 +231,7 @@ export const SScopedQueryFilter = v.pipe(
       return isCompatibleIdentityKindFilter(input)
     }
     return isCompatibleSessionFilter(input)
-  }, 'Report filters require values compatible with the selected field.'),
+  }, VALIDATION_KEYS.contract.report.filtersCompatible),
 )
 
 export const SCursor = v.pipe(v.string(), v.minLength(1), v.maxLength(4096))
@@ -291,7 +294,7 @@ export const isValidGranularReportRange = (input: {
 }
 export const SReportInput = v.pipe(
   SReportFieldsSchema,
-  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
+  v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
 export const SGranularReportFields = {
   ...SReportFields,
@@ -302,7 +305,7 @@ export const SGranularReportInput = v.pipe(
   SGranularReportFieldsSchema,
   v.check(
     (input) => isValidGranularReportRange(input),
-    'Report range is invalid for its granularity.',
+    VALIDATION_KEYS.contract.report.granularRangeInvalid,
   ),
 )
 export const SReportFreshness = v.strictObject({

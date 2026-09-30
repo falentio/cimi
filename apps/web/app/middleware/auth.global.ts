@@ -4,6 +4,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
 
   const auth = useAuth()
+  const localePath = useLocalePath()
 
   if (auth.session.value.status !== 'authenticated') {
     await auth.refreshSession()
@@ -13,5 +14,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const userRole = state.status === 'authenticated' ? state.session.user.role : null
   const decision = resolveAuthDecision(to, state.status, userRole)
 
-  return decision ? navigateTo(decision) : undefined
+  if (!decision) return undefined
+
+  if (decision.path === '/login') {
+    return navigateTo({ ...decision, path: localePath('login') })
+  }
+
+  if (decision.path === '/') {
+    return navigateTo({ ...decision, path: localePath('index') })
+  }
+
+  return navigateTo(decision)
 })

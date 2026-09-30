@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { SDateTime, SId } from '../../schema/index.ts'
+import { SDateTime, SId, VALIDATION_KEYS } from '../../schema/index.ts'
 import { SCleanupStage, SCleanupStageStatus, SLifecycleErrorCode } from '../../schema/lifecycle.ts'
 import { SRetentionPolicy } from '../retention-policy/schema.ts'
 
@@ -66,7 +66,7 @@ export const SInstallation = v.pipe(
       return false
     }
     return true
-  }, 'Installation readiness, cleanup, and lifecycle fields must agree.'),
+  }, VALIDATION_KEYS.contract.installation.stateCoherent),
 )
 
 export const DEFAULT_RETENTION_POLICY = {

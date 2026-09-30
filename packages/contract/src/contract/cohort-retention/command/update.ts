@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
+import { VALIDATION_KEYS } from '../../../schema/index.ts'
 import {
   areDistinctCohortActions,
   SCohort,
@@ -14,7 +15,7 @@ export const SCohortUpdateInput = v.pipe(
   SCohortUpdateRecord,
   v.check(
     (input: v.InferOutput<typeof SCohortUpdateRecord>) => areDistinctCohortActions(input),
-    'Entry and retention actions must be distinct.',
+    VALIDATION_KEYS.contract.cohort.actionsDistinct,
   ),
 )
 export type SCohortUpdateInput = v.InferOutput<typeof SCohortUpdateInput>

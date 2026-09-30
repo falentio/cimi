@@ -1,5 +1,6 @@
 export * as schema from './schema.ts'
 export { contract } from './contract.ts'
+export { VALIDATION_KEYS } from './schema/validation-keys.ts'
 export {
   ERRORS,
   ERROR_CATALOG,

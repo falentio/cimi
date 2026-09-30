@@ -1,11 +1,16 @@
 import * as v from 'valibot'
 import { oc } from '../../../orpc/index.ts'
-import { SId, SReportFieldsSchema, isValidReportRange } from '../../../schema/index.ts'
+import {
+  SId,
+  SReportFieldsSchema,
+  VALIDATION_KEYS,
+  isValidReportRange,
+} from '../../../schema/index.ts'
 import { SCohortReport } from '../schema.ts'
 
 export const SCohortReportInput = v.pipe(
   v.strictObject(v.entriesFromObjects([v.strictObject({ cohortId: SId }), SReportFieldsSchema])),
-  v.check((input) => isValidReportRange(input), 'Report date ranges must be ordered.'),
+  v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
 export const SCohortReportOutput = SCohortReport
 export type SCohortReportInput = v.InferOutput<typeof SCohortReportInput>
