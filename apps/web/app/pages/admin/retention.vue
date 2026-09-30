@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import Unimplemented from '@/components/features/unimplemented/Unimplemented.vue'
+import RetentionAdminContainer from '@/components/features/retention-policy/RetentionAdminContainer.vue'
 
 definePageMeta({
   admin: true,
 })
+
+useHead({ title: 'Retention settings' })
 </script>
 
 <template>
-  <Unimplemented />
+  <RetentionAdminContainer />
 </template>
