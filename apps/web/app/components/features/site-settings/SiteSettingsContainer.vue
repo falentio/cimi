@@ -62,7 +62,7 @@ async function handleRetry(): Promise<void> {
       </p>
     </header>
 
-    <nav v-if="sectionLinks.length > 0" aria-label="Site settings">
+    <nav v-if="sectionLinks.length > 0" aria-label="Site settings" class="overflow-x-auto">
       <UITabs :model-value="activeSection" activation-mode="manual" class="w-full">
         <UITabsList aria-label="Site settings sections" class="min-w-max justify-start">
           <UITabsTrigger
