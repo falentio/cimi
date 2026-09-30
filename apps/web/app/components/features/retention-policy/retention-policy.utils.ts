@@ -8,6 +8,8 @@ import type {
   RetentionField,
   RetentionLockView,
   RetentionPolicy,
+  RetentionPolicyRow,
+  RetentionProposal,
   RetentionResource,
   RetentionState,
   RetentionValidation,
@@ -17,6 +19,8 @@ import type {
 } from './retention-policy.types'
 
 export const SHORTEN_RETENTION_CONFIRMATION = 'SHORTEN RETENTION' as const
+
+export type RetentionScope = 'installation' | 'site'
 
 export const RETENTION_MONTH_FIELDS = [
   {
@@ -118,6 +122,25 @@ export function isRetentionDirty(policy: RetentionPolicy, draft: RetentionDraft)
   )
 }
 
+export function proposedPolicy(proposal: RetentionProposal): RetentionPolicy {
+  return proposal.kind === 'policy' ? proposal.policy : proposal.installationDefault
+}
+
+export function retentionPolicyRows(policy: RetentionPolicy): readonly RetentionPolicyRow[] {
+  return [
+    { label: 'Events', value: monthsLabel(policy.eventMonths) },
+    { label: 'Profiles', value: monthsLabel(policy.profileMonths) },
+    {
+      label: 'Replay',
+      value: policy.replayMonths === null ? 'Disabled' : monthsLabel(policy.replayMonths),
+    },
+  ]
+}
+
+function monthsLabel(value: number): string {
+  return `${value} months`
+}
+
 export function isRetentionShortening(current: RetentionPolicy, next: RetentionPolicy): boolean {
   return (
     next.eventMonths < current.eventMonths ||
@@ -166,14 +189,18 @@ export function formatRetentionDate(value: string): string {
 export function normalizeRetentionError(
   error: unknown,
   source: 'read' | 'update' | 'status',
+  scope: RetentionScope,
 ): RetentionFailure {
   const details = readErrorDetails(error)
+  const installation = scope === 'installation'
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return {
       kind: 'authentication',
       code: 'UNAUTHORIZED',
       httpStatus: 401,
-      message: 'Sign in as an installation administrator to continue.',
+      message: installation
+        ? 'Sign in as an installation administrator to continue.'
+        : 'Sign in to continue.',
       action: 'sign-in',
     }
   }
@@ -182,7 +209,9 @@ export function normalizeRetentionError(
       kind: 'forbidden',
       code: 'FORBIDDEN',
       httpStatus: 403,
-      message: 'Your account is not an installation administrator.',
+      message: installation
+        ? 'Your account is not an installation administrator.'
+        : 'Your account cannot manage retention for this Site. Ask an administrator for access.',
       action: 'contact-admin',
     }
   }
@@ -191,11 +220,12 @@ export function normalizeRetentionError(
       kind: 'not-found',
       code: 'NOT_FOUND',
       httpStatus: 404,
-      message:
-        source === 'status'
+      message: installation
+        ? source === 'status'
           ? 'The installation is not available. Refresh or initialize it before changing retention.'
-          : 'Retention settings are not available. Refresh or initialize the installation.',
-      action: source === 'status' ? 'refresh' : 'setup',
+          : 'Retention settings are not available. Refresh or initialize the installation.'
+        : 'This Site is unavailable. Refresh or choose another Site.',
+      action: installation && source !== 'status' ? 'setup' : 'refresh',
     }
   }
   if (details.code === 'BAD_REQUEST' || details.status === 400) {
@@ -203,10 +233,11 @@ export function normalizeRetentionError(
       kind: 'bad-request',
       code: 'BAD_REQUEST',
       httpStatus: 400,
-      message:
-        source === 'update'
+      message: installation
+        ? source === 'update'
           ? 'The retention values were rejected. Review the horizon rules and try again.'
-          : 'The retention request was invalid. Refresh and try again.',
+          : 'The retention request was invalid. Refresh and try again.'
+        : 'The retention values were rejected. Review the horizon rules and try again.',
       action: 'edit',
     }
   }
@@ -215,7 +246,9 @@ export function normalizeRetentionError(
       kind: 'conflict',
       code: 'CONFLICT',
       httpStatus: 409,
-      message: 'Another installation operation is active. Refresh before trying again.',
+      message: installation
+        ? 'Another installation operation is active. Refresh before trying again.'
+        : 'Retention settings changed or another operation is active. Refresh and review again.',
       action: 'refresh',
     }
   }
@@ -224,7 +257,11 @@ export function normalizeRetentionError(
       kind: 'server',
       code: 'INTERNAL_SERVER_ERROR',
       httpStatus: 500,
-      message: 'Retention status could not be completed safely. Refresh and try again.',
+      message: installation
+        ? 'Retention status could not be completed safely. Refresh and try again.'
+        : source === 'update'
+          ? 'Retention settings could not be saved safely. Refresh and try again.'
+          : 'Retention settings could not be loaded. Refresh and try again.',
       action: 'refresh',
     }
   }
@@ -233,12 +270,15 @@ export function normalizeRetentionError(
     kind: 'retryable',
     code: details.code,
     httpStatus: details.status,
-    message:
-      source === 'status'
+    message: installation
+      ? source === 'status'
         ? 'Installation status could not be verified. Refresh before acting.'
         : source === 'update'
           ? 'The retention policy could not be saved safely. Refresh and try again.'
-          : 'Retention settings could not be loaded. Refresh and try again.',
+          : 'Retention settings could not be loaded. Refresh and try again.'
+      : source === 'update'
+        ? 'The retention override could not be saved safely. Refresh and try again.'
+        : 'Retention settings could not be loaded. Refresh and try again.',
     action: source === 'update' ? 'retry' : 'refresh',
   }
 }

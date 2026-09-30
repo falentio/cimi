@@ -192,9 +192,9 @@ async function confirmShortening(confirmation: string): Promise<void> {
       <VariantPicker v-if="route.query.variant !== undefined" :variants="PICKER_VARIANTS" />
 
       <component :is="cleanupSection" :cleanup="view.cleanup" />
-
       <RetentionConfirmationDialog
         v-if="view.command.kind === 'confirming' || view.command.kind === 'submitting'"
+        subject="installation"
         :command="view.command"
         @cancel="controller.cancelConfirmation"
         @confirm="confirmShortening"
