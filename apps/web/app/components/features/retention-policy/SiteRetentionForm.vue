@@ -25,7 +25,7 @@ const emit = defineEmits<{
 
 const editing = shallowRef(false)
 
-// Matching the controller's gating: stale data, an in-flight save, or invalid horizons block saving.
+// The entry button reflects only an in-flight save; staleness and invalid horizons gate submission.
 const entryDisabled = computed(() => props.policy.saving)
 
 function updateField(field: RetentionField, value: string): void {

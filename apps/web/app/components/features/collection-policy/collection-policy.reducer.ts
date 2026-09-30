@@ -144,10 +144,6 @@ function adoptResult(
   }
 }
 
-/**
- * The write response is only the layer, so the committed layer is projected onto
- * the previous result immediately and the follow-up refresh confirms it.
- */
 function adoptCommittedLayer(
   state: CollectionPolicyState,
   operation: 'save' | 'clear',

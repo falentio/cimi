@@ -15,7 +15,6 @@ import type {
   CollectionValidation,
   ParsedCollectionDraft,
   PolicyField,
-  PolicyProvenance,
   PolicyValues,
   UrlPolicyValues,
 } from './collection-policy.types'
@@ -269,10 +268,6 @@ export function fieldErrorFor(
   return validation.validation.fieldErrors[key] ?? null
 }
 
-export function provenanceLabel(source: PolicyProvenance): string {
-  return source === 'site' ? 'Site override' : 'Installation default'
-}
-
 export function describeEffectiveField(policy: PolicyValues, field: PolicyField): string {
   switch (field) {
     case 'anonymousCollection':
@@ -323,14 +318,6 @@ export function describeEffectiveField(policy: PolicyValues, field: PolicyField)
       return _exhaustive
     }
   }
-}
-
-export function describeExclusionList(
-  field: 'hostnames' | 'paths' | 'countries' | 'ipRanges',
-  policy: PolicyValues,
-): string {
-  const values = policy.exclusions[field]
-  return values.length === 0 ? 'None' : values.join(', ')
 }
 
 const SUBFIELD_LABELS = {

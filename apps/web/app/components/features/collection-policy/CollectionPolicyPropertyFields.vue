@@ -7,11 +7,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field'
-import {
-  fieldErrorFor,
-  PROPERTY_SWITCH_SPECS,
-  policyFieldDescription,
-} from './collection-policy.utils'
+import { fieldErrorFor, PROPERTY_SWITCH_SPECS } from './collection-policy.utils'
 import type { CollectionFieldPatch, CollectionPolicyEditorView } from './collection-policy.types'
 import CollectionPolicyListField from './CollectionPolicyListField.vue'
 

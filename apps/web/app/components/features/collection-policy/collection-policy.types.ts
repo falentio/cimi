@@ -7,7 +7,6 @@ type UpdateCollectionPolicyCall = CimiOrpc['collectionPolicy']['updateCollection
 
 export type CollectionPolicyResult = Awaited<ReturnType<GetCollectionPolicyCall>>
 export type CollectionPolicyUpdateInput = Parameters<UpdateCollectionPolicyCall>[0]
-export type CollectionPolicyUpdateResult = Awaited<ReturnType<UpdateCollectionPolicyCall>>
 export type PolicyField = keyof CollectionPolicyResult['source']
 export type PolicyProvenance = CollectionPolicyResult['source'][PolicyField]
 export type PolicyValues = Omit<CollectionPolicyResult['effective'], 'scope' | 'siteId'>
@@ -22,8 +21,8 @@ export type EditablePropertyPolicy = Omit<
 }
 
 /**
- * The draft keeps every declared contract field. Only the two bounded integers
- * become `number | null` so an emptied input is a validation error, not a `0`.
+ * The two bounded integers become `number | null` so an emptied input is a
+ * validation error, not a `0`, which the contract itself would accept.
  */
 export type EditableValue<K extends PolicyField> = K extends 'propertyPolicy'
   ? EditablePropertyPolicy
