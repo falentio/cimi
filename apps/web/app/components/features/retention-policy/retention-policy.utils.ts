@@ -5,6 +5,7 @@ import type {
   RetentionCleanupStatus,
   RetentionDraft,
   RetentionFailure,
+  RetentionField,
   RetentionLockView,
   RetentionPolicy,
   RetentionResource,
@@ -16,6 +17,32 @@ import type {
 } from './retention-policy.types'
 
 export const SHORTEN_RETENTION_CONFIRMATION = 'SHORTEN RETENTION' as const
+
+export const RETENTION_MONTH_FIELDS = [
+  {
+    field: 'eventMonths',
+    id: 'retention-event-months',
+    label: 'Event retention',
+    help: 'Months, from 1 to 120.',
+  },
+  {
+    field: 'profileMonths',
+    id: 'retention-profile-months',
+    label: 'Profile retention',
+    help: 'Must not exceed Event retention.',
+  },
+  {
+    field: 'replayMonths',
+    id: 'retention-replay-months',
+    label: 'Replay retention',
+    help: 'Leave blank to disable. If set, it must be shorter than both other horizons.',
+  },
+] as const satisfies ReadonlyArray<{
+  field: RetentionField
+  id: string
+  label: string
+  help: string
+}>
 
 const CLEANUP_STATUS_LABELS: Record<RetentionCleanupStatus, string> = {
   not_applicable: 'Not required',
