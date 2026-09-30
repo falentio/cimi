@@ -103,7 +103,16 @@ Transport errors are not Valibot messages.
 - `packages/contract/src/schema/errors.ts` defines `ContractErrorCode` and fallback metadata.
 - `apps/web/app/utils/error-message.ts` maps each known code to an `errors.*` key.
 - The web translates the code, not the server's English fallback message.
-- An unknown code or an error without a code keeps its existing message.
+- An unknown code keeps its existing message.
+
+There are two code catalogs behind this path, and they stay separate.
+
+- `errors.*` mirrors `ERROR_CATALOG` one-to-one. A test enforces that parity, so do not add keys that are not contract codes.
+- `authErrors.*` covers the codes the Better Auth routes can return. Better Auth publishes no union for these, so `BetterAuthErrorCode` pins the reachable set and the `BetterAuthErrorCodeAssertion` type fails the build when a listed code is not a real key of `Auth['$ERROR_CODES']`. Codes the routes raise outside that registry (inline `code:` literals and `better-call` transport codes) go in `AuthTransportErrorCode`. A locale test enforces coverage of every listed code in both catalogs.
+
+A response can also carry no code at all. Better Auth answers a throttled sign-in with a bare `{"message":"Too many requests. Please try again later."}`, and a network failure carries only a message. `LocalizableError` therefore accepts a `status`, and `statusFallbackCodes` maps a status onto the contract code that means the same thing. The lookup prefers the code and falls back to the status.
+
+Use `isLocalizableError` before rendering. An error with neither a code nor a status cannot be translated, so showing its message would leak whatever the server sent. Render a translated generic message instead.
 
 Keep this path separate from `validation.*` keys. A form issue and a failed API request have different owners and different fallback behavior.
 
