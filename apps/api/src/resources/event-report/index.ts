@@ -1,6 +1,10 @@
 import { DuckDbReportingQuery, type AnalyticsDb, type Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import { ReportingAdmissionService, type ReportingProfileFilterPort } from '@cimi/kernel'
+import {
+  ReportingAdmissionService,
+  type LifecycleLock,
+  type ReportingProfileFilterPort,
+} from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import type { HealthLifecycle } from '../../health.ts'
 import {
@@ -32,6 +36,7 @@ export interface CreateEventReportDependencies {
   readonly dataDirectoryReady: boolean | (() => boolean)
   readonly scope?: SiteScopeGuardDependencies | undefined
   readonly profileFilterKeys: ReportingProfileFilterPort
+  readonly lifecycleLock: LifecycleLock
 }
 
 export function createEventReport({
@@ -41,6 +46,7 @@ export function createEventReport({
   dataDirectoryReady,
   scope,
   profileFilterKeys,
+  lifecycleLock,
 }: CreateEventReportDependencies) {
   const metadata = new ReportingMetadataDrizzle({ db })
   const evidence = new ReportingEvidenceDrizzleDuckDb({ db, analytics })
@@ -58,6 +64,7 @@ export function createEventReport({
     query,
     profileFilterKeys,
     scope: scope ?? createSiteScopeDependencies({ db }),
+    lifecycleLock,
   })
   return { metadata, evidence, admission, query, service, router: eventReportRouter(service) }
 }

@@ -263,6 +263,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
     profileFilterKeys: reportingProfileFilter,
+    lifecycleLock: lock,
   })
   const eventReport = createEventReport({
     db: deps.db,
@@ -270,6 +271,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
     profileFilterKeys: reportingProfileFilter,
+    lifecycleLock: lock,
   })
   const publicDashboardQuery = new DuckDbPublicDashboardQuery({ analytics: deps.analytics })
   const publicDashboard = createPublicDashboard({
