@@ -12,20 +12,24 @@ const replayLabel = computed(() =>
   props.effective.replayMonths === null ? 'Disabled' : `${props.effective.replayMonths} months`,
 )
 
-const rows = computed(
-  () =>
-    [
-      { label: 'Events', value: `${props.effective.eventMonths} months` },
-      { label: 'Profiles', value: `${props.effective.profileMonths} months` },
-      { label: 'Replay', value: replayLabel.value },
-      {
-        label: 'Updated',
-        value: formatRetentionDate(props.updatedAt),
-        datetime: props.updatedAt,
-        divided: true,
-      },
-    ] as const,
-)
+type SummaryRow = {
+  label: string
+  value: string
+  datetime?: string
+  divided?: boolean
+}
+
+const rows = computed<SummaryRow[]>(() => [
+  { label: 'Events', value: `${props.effective.eventMonths} months` },
+  { label: 'Profiles', value: `${props.effective.profileMonths} months` },
+  { label: 'Replay', value: replayLabel.value },
+  {
+    label: 'Updated',
+    value: formatRetentionDate(props.updatedAt),
+    datetime: props.updatedAt,
+    divided: true,
+  },
+])
 </script>
 
 <template>
