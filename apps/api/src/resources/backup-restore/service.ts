@@ -8,6 +8,7 @@ import type {
   LifecycleLock,
   ReadQuiescencePort,
 } from '@cimi/kernel'
+import { DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS } from '@cimi/kernel'
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -47,6 +48,7 @@ export interface BackupRestoreServiceDependencies {
   readonly acceptance: AcceptanceQuiescencePort
   readonly reads: ReadQuiescencePort
   readonly dataDirectoryReady: boolean | (() => boolean)
+  readonly leaseAcquisitionTimeoutMs?: number | undefined
   readonly clock?: (() => Date) | undefined
   readonly ids?: BackupRestoreIdFactory | undefined
   readonly onError?: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
@@ -73,6 +75,7 @@ export class BackupRestoreService {
   private readonly acceptance: AcceptanceQuiescencePort
   private readonly reads: ReadQuiescencePort
   private readonly dataDirectoryReady: () => boolean
+  private readonly leaseAcquisitionTimeoutMs: number
   private readonly clock: () => Date
   private readonly ids: BackupRestoreIdFactory
   private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
@@ -87,6 +90,7 @@ export class BackupRestoreService {
     acceptance,
     reads,
     dataDirectoryReady,
+    leaseAcquisitionTimeoutMs,
     clock,
     ids,
     onError,
@@ -98,6 +102,8 @@ export class BackupRestoreService {
     this.reads = reads
     this.dataDirectoryReady =
       typeof dataDirectoryReady === 'function' ? dataDirectoryReady : () => dataDirectoryReady
+    this.leaseAcquisitionTimeoutMs =
+      leaseAcquisitionTimeoutMs ?? DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS
     this.clock = clock ?? (() => new Date())
     this.ids = ids ?? {
       operationId: () => generateId('bop'),
@@ -115,7 +121,9 @@ export class BackupRestoreService {
     this.beginStart()
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
     try {
-      lease = await this.lock.acquire('backup')
+      lease = await this.lock.acquireExclusive('backup', {
+        timeoutMs: this.leaseAcquisitionTimeoutMs,
+      })
     } catch (error) {
       this.endStart()
       this.reportError(error, { operation: 'backup.create', stage: 'acquire', operationId })
@@ -198,7 +206,9 @@ export class BackupRestoreService {
     }
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
     try {
-      lease = await this.lock.acquire('restore')
+      lease = await this.lock.acquireExclusive('restore', {
+        timeoutMs: this.leaseAcquisitionTimeoutMs,
+      })
     } catch (error) {
       this.endStart()
       this.reportError(error, { operation: 'backup.restore', stage: 'acquire', operationId })

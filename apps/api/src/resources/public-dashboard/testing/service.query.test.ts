@@ -199,6 +199,7 @@ describe('PublicDashboardService.query', () => {
     repository.findByIdentifierHash.mockResolvedValue(undefined)
     const lock: LifecycleLock = {
       acquire: () => undefined,
+      acquireExclusive: async () => undefined,
       isLocked: () => true,
     }
     const service = new PublicDashboardService({
@@ -412,6 +413,7 @@ describe('PublicDashboardService.query', () => {
           releaseCount += 1
         },
       }),
+      acquireExclusive: async () => undefined,
       isLocked: () => false,
     }
     const service = new PublicDashboardService({

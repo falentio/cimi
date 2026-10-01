@@ -186,6 +186,7 @@ export interface DatabaseManagementFixtureOptions {
   readonly intervalMs?: number
   readonly startRetentionCleanupWorker?: boolean
   readonly retentionCleanupIntervalMs?: number
+  readonly backupLeaseAcquisitionTimeoutMs?: number
   readonly migrationsFolder?: string | undefined
   readonly wrapCompositionClose?: ((composition: ApiComposition) => ApiComposition) | undefined
 }
@@ -332,6 +333,9 @@ export async function createApiE2eFixture(
         dataDirectoryPath: paths.dataDirectoryPath,
         startRetentionCleanupWorker: options.startRetentionCleanupWorker ?? false,
         retentionCleanupIntervalMs: options.retentionCleanupIntervalMs,
+        ...(options.backupLeaseAcquisitionTimeoutMs === undefined
+          ? {}
+          : { backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs }),
         upgradeExecutor: new FaultingUpgradeExecutor(realUpgradeExecutor, faults, faultGeneration),
         backupRestoreExecutor: new FaultingBackupRestoreExecutor(
           realBackupRestoreExecutor,

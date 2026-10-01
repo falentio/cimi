@@ -57,6 +57,7 @@ export interface CreateBackupRestoreDependencies {
   readonly acceptance?: AcceptanceQuiescencePort | undefined
   readonly reads?: ReadQuiescencePort | undefined
   readonly dataDirectoryReady: boolean | (() => boolean)
+  readonly leaseAcquisitionTimeoutMs?: number | undefined
   readonly controlDatabasePath: string
   readonly dataDirectoryPath: string
   readonly migrationsFolder?: string | undefined
@@ -73,6 +74,7 @@ export function createBackupRestore({
   acceptance,
   reads,
   dataDirectoryReady,
+  leaseAcquisitionTimeoutMs,
   controlDatabasePath,
   dataDirectoryPath,
   migrationsFolder,
@@ -98,6 +100,7 @@ export function createBackupRestore({
     acceptance: acceptance ?? new InMemoryAcceptanceQuiescencePort(),
     reads: reads ?? new InMemoryReadQuiescencePort(),
     dataDirectoryReady,
+    ...(leaseAcquisitionTimeoutMs === undefined ? {} : { leaseAcquisitionTimeoutMs }),
     ...(clock === undefined ? {} : { clock }),
     ...(ids === undefined ? {} : { ids }),
   })
