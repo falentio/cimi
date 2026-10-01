@@ -26,6 +26,7 @@ import {
   type EventKind,
   type EventRowFacts,
   type FreshnessEvidence,
+  type LifecycleLock,
   type ReportFilterPlan,
   type ReportingProfileFilterPort,
   type ReportingQueryPort,
@@ -34,6 +35,7 @@ import {
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from '../../errors.ts'
+import { withAnalyticsReadLease } from '../../lifecycle/analytics-read-lease.ts'
 
 export type EventOverviewInput = v.InferOutput<typeof SEventOverviewInput>
 export type EventOverviewOutput = v.InferOutput<typeof SEventOverviewOutput>
@@ -55,12 +57,49 @@ export interface EventReportServiceDependencies {
   readonly query: ReportingQueryPort
   readonly profileFilterKeys: ReportingProfileFilterPort
   readonly scope: SiteScopeGuardDependencies
+  readonly lifecycleLock: LifecycleLock
 }
 
 export class EventReportService {
   constructor(private readonly deps: EventReportServiceDependencies) {}
 
   async getOverview(
+    input: EventOverviewInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventOverviewOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getOverviewAdmitted(input, user),
+    )
+  }
+
+  async getTimeseries(
+    input: EventTimeseriesInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventTimeseriesOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getTimeseriesAdmitted(input, user),
+    )
+  }
+
+  async listEvents(
+    input: EventListInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventListOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.listEventsAdmitted(input, user),
+    )
+  }
+
+  async getBreakdowns(
+    input: EventBreakdownsInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventBreakdownsOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getBreakdownsAdmitted(input, user),
+    )
+  }
+
+  private async getOverviewAdmitted(
     input: EventOverviewInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventOverviewOutput> {
@@ -92,7 +131,7 @@ export class EventReportService {
     }
   }
 
-  async getTimeseries(
+  private async getTimeseriesAdmitted(
     input: EventTimeseriesInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventTimeseriesOutput> {
@@ -124,7 +163,7 @@ export class EventReportService {
     }
   }
 
-  async listEvents(
+  private async listEventsAdmitted(
     input: EventListInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventListOutput> {
@@ -158,7 +197,7 @@ export class EventReportService {
     }
   }
 
-  async getBreakdowns(
+  private async getBreakdownsAdmitted(
     input: EventBreakdownsInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventBreakdownsOutput> {

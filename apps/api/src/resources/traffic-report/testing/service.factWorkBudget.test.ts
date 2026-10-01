@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { DuckDbReportingQuery } from '@cimi/db'
-import { ReportingAdmissionService } from '@cimi/kernel'
+import { InMemoryLifecycleLock, ReportingAdmissionService } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../../site/scope.ts'
 import {
   ReportingEvidenceDrizzleDuckDb,
@@ -55,6 +55,7 @@ async function buildOwner() {
       },
     },
     scope: createSiteScopeDependencies({ db: fixture.db }),
+    lifecycleLock: new InMemoryLifecycleLock(),
   })
   const owner = fixture.db.$client
     .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')

@@ -19,6 +19,7 @@ import {
   type BreakdownSort,
   type BucketCount,
   type FreshnessEvidence,
+  type LifecycleLock,
   type ReportFilterPlan,
   type ReportingProfileFilterPort,
   type ReportingQueryPort,
@@ -31,6 +32,7 @@ import {
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from '../../errors.ts'
+import { withAnalyticsReadLease } from '../../lifecycle/analytics-read-lease.ts'
 
 export type TrafficOverviewInput = v.InferOutput<typeof STrafficOverviewInput>
 export type TrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput>
@@ -54,12 +56,31 @@ export interface TrafficReportServiceDependencies {
   readonly query: ReportingQueryPort
   readonly profileFilterKeys: ReportingProfileFilterPort
   readonly scope: SiteScopeGuardDependencies
+  readonly lifecycleLock: LifecycleLock
 }
 
 export class TrafficReportService {
   constructor(private readonly deps: TrafficReportServiceDependencies) {}
 
   async getOverview(
+    input: TrafficOverviewInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<TrafficOverviewOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getOverviewAdmitted(input, user),
+    )
+  }
+
+  async getBreakdowns(
+    input: TrafficBreakdownsInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<TrafficBreakdownsOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getBreakdownsAdmitted(input, user),
+    )
+  }
+
+  private async getOverviewAdmitted(
     input: TrafficOverviewInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<TrafficOverviewOutput> {
@@ -88,7 +109,7 @@ export class TrafficReportService {
     }
   }
 
-  async getBreakdowns(
+  private async getBreakdownsAdmitted(
     input: TrafficBreakdownsInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<TrafficBreakdownsOutput> {

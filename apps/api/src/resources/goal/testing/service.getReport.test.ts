@@ -102,6 +102,7 @@ async function createReportFixture(repository: GoalRepository) {
     await analytics.rebuild({ controlDb: db })
 
     const scope = createSiteScopeDependencies({ db })
+    const lifecycleLock = new InMemoryLifecycleLock()
     const collectionPolicy = new CollectionPolicyService({
       repository: new CollectionPolicyRepositoryDrizzle({ db }),
       lock: new InMemoryLifecycleLock(),
@@ -124,6 +125,7 @@ async function createReportFixture(repository: GoalRepository) {
       dataDirectoryReady: true,
       scope,
       profileFilterKeys: new CollectionPolicyReportingProfileFilter({ collectionPolicy }),
+      lifecycleLock,
     })
 
     return {
@@ -131,7 +133,7 @@ async function createReportFixture(repository: GoalRepository) {
         repository,
         scope,
         admission: trafficReport.admission,
-        lifecycleLock: new InMemoryLifecycleLock(),
+        lifecycleLock,
         analytics,
         db,
       }),

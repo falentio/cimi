@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ERROR_CATALOG } from '@cimi/contract'
+import { InMemoryLifecycleLock } from '@cimi/kernel'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
 import {
   createOwnerSite,
@@ -202,6 +203,7 @@ describe('EventReportService.admission', () => {
           return []
         },
       },
+      lifecycleLock: new InMemoryLifecycleLock(),
     })
     const eventBuckets = vi.spyOn(report.query, 'eventBuckets')
 
