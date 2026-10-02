@@ -3,7 +3,10 @@ import { computed, shallowRef } from 'vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { siteSettingsPath } from '@/components/features/app-shell/organization-nav-config'
+import {
+  siteRetentionSettingsPath,
+  siteSettingsPath,
+} from '@/components/features/app-shell/organization-nav-config'
 import type { SiteId } from '../site-settings/site-settings.types'
 import RetentionCleanupSection from './RetentionCleanupSection.vue'
 import RetentionConfirmationDialog from './RetentionConfirmationDialog.vue'
@@ -50,7 +53,7 @@ function confirmClear(): void {
 </script>
 
 <template>
-  <main aria-labelledby="site-retention-title" class="flex min-w-0 w-full flex-col gap-6">
+  <section aria-labelledby="site-retention-title" class="flex min-w-0 w-full flex-col gap-6">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div class="min-w-0">
         <h2 id="site-retention-title" class="text-xl font-semibold tracking-tight">Retention</h2>
@@ -82,7 +85,13 @@ function confirmClear(): void {
       <AlertTitle>Retention settings require Site administrator access</AlertTitle>
       <AlertDescription>{{ view.error.message }}</AlertDescription>
       <Button v-if="view.error.kind === 'authentication'" class="mt-3" size="sm" as-child>
-        <NuxtLink to="/login">Sign in</NuxtLink>
+        <NuxtLink
+          :to="
+            siteId === undefined ? '/login' : `/login?redirect=${siteRetentionSettingsPath(siteId)}`
+          "
+        >
+          Sign in
+        </NuxtLink>
       </Button>
       <Button v-else class="mt-3" size="sm" variant="outline" as-child>
         <NuxtLink :to="siteId === undefined ? '/' : siteSettingsPath(siteId)">
@@ -151,13 +160,13 @@ function confirmClear(): void {
         @submit="(policy) => emit('submit', policy)"
       />
 
-      <section aria-labelledby="site-retention-cleanup-title" class="grid min-w-0 gap-3">
-        <p id="site-retention-cleanup-title" class="text-muted-foreground text-sm">
+      <div class="grid min-w-0 gap-3">
+        <p class="text-muted-foreground text-sm">
           Cleanup status is installation-wide and covers every Site. Hiding this Site's data is
           immediate.
         </p>
         <RetentionCleanupSection :cleanup="view.cleanup" />
-      </section>
+      </div>
 
       <RetentionConfirmationDialog
         v-if="view.command.kind === 'confirming' || view.command.kind === 'submitting'"
@@ -174,5 +183,5 @@ function confirmClear(): void {
         @confirm="confirmClear"
       />
     </template>
-  </main>
+  </section>
 </template>
