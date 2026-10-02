@@ -138,6 +138,7 @@ describe('loadLoggingConfig', () => {
   })
 
   it('rejects an invalid runtime logging configuration', () => {
+    // @ts-expect-error: intentionally invalid level to prove runtime rejection.
     expect(() => parseLoggingConfig({ lowestLevel: 'verbose' })).toThrowError(/lowestLevel/)
   })
 

@@ -286,7 +286,7 @@ function toPublicSite(site: SiteRepository.SiteRecord): SiteRepository.Site {
   }
 }
 
-function isConstraintError(cause: unknown): boolean {
+function isConstraintError(cause: unknown): cause is Error {
   if (!(cause instanceof Error)) return false
 
   return /constraint|unique|reserved/i.test(cause.message)

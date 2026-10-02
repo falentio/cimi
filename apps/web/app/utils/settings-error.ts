@@ -3,19 +3,19 @@ import { isLocalizableError, type LocalizableError } from './error-message'
 export interface SettingsError extends LocalizableError {}
 
 export function normalizeSettingsError(
-  value: unknown,
+  cause: unknown,
   fallbackMessage = 'Settings request failed',
 ): SettingsError {
-  if (value instanceof Error) {
-    const message = value.message || fallbackMessage
+  if (cause instanceof Error) {
+    const message = cause.message || fallbackMessage
 
-    return withDetails(value, message)
+    return withDetails(cause, message)
   }
 
-  if (isRecord(value)) {
-    const message = typeof value.message === 'string' ? value.message : undefined
+  if (isRecord(cause)) {
+    const message = typeof cause.message === 'string' ? cause.message : undefined
 
-    if (message !== undefined) return withDetails(value, message)
+    if (message !== undefined) return withDetails(cause, message)
   }
 
   return { message: fallbackMessage }
@@ -30,11 +30,11 @@ export function isLocalizableSettingsError(error: SettingsError): boolean {
   return isLocalizableError(error)
 }
 
-function withDetails(value: unknown, message: string): SettingsError {
-  if (!isRecord(value)) return { message }
+function withDetails(cause: unknown, message: string): SettingsError {
+  if (!isRecord(cause)) return { message }
 
-  const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
-  const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+  const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
+  const status = 'status' in cause && typeof cause.status === 'number' ? cause.status : undefined
 
   return {
     message,

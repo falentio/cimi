@@ -48,13 +48,13 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
 class ShutdownPhaseError extends Error {
   constructor(
     readonly label: string,
-    readonly original: unknown,
+    cause: unknown,
   ) {
-    super(`${label}: ${errorMessage(original)}`, { cause: original })
+    super(`${label}: ${errorMessage(cause)}`, { cause })
     this.name = 'ShutdownPhaseError'
   }
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
 }

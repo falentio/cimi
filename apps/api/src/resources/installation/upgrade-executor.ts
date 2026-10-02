@@ -19,13 +19,13 @@ export class SafetyArtifactUnavailableError extends Error {}
 
 export class SafetyArtifactChecksumMismatchError extends Error {}
 
-export function classifyStorageExhausted(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException)?.code
+export function classifyStorageExhausted(cause: unknown): boolean {
+  const code = (cause as NodeJS.ErrnoException)?.code
 
   if (code === 'ENOSPC' || code === 'SQLITE_FULL') return true
 
   if (typeof code === 'string' && code.startsWith('SQLITE_IOERR')) return true
-  const message = error instanceof Error ? error.message : String(error)
+  const message = cause instanceof Error ? cause.message : String(cause)
 
   return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)
 }

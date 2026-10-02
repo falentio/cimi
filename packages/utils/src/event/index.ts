@@ -19,8 +19,9 @@ export interface EventEmitterOptions {
 }
 
 export class EventEmitter {
+  // eslint-disable-next-line anti-slop/no-unknown-parameters -- heterogeneous per-event handler dispatch; unknown is the correct element type.
   #listeners = new Map<string, Set<(data: unknown) => void | Promise<void>>>()
-  #errorHandlers = new Set<(error: unknown, event: string) => void>()
+  #errorHandlers = new Set<(cause: unknown, event: string) => void>()
   #pending = 0
   #settledResolvers: (() => void)[] = []
   #waitUntil: ((promise: Promise<unknown>) => void) | undefined
@@ -40,10 +41,10 @@ export class EventEmitter {
       work.push(
         Promise.resolve()
           .then(() => handler(data))
-          .catch((error: unknown) => {
+          .catch((cause: unknown) => {
             for (const errorHandler of this.#errorHandlers) {
               try {
-                errorHandler(error, name)
+                errorHandler(cause, name)
               } catch {}
             }
           })
@@ -62,12 +63,16 @@ export class EventEmitter {
       this.#listeners.set(name, new Set())
     }
 
+    // SAFETY: emit() only invokes handlers with their own event's payload type.
+    // eslint-disable-next-line anti-slop/no-unknown-parameters -- heterogeneous dispatch; the cast preserves the per-event type.
     this.#listeners.get(name)!.add(callback as (data: unknown) => void | Promise<void>)
 
     return () => {
       const handlers = this.#listeners.get(name)
 
       if (!handlers) return
+      // SAFETY: same registration invariant as on(); the stored handler is this callback.
+      // eslint-disable-next-line anti-slop/no-unknown-parameters -- heterogeneous dispatch; the cast preserves the per-event type.
       handlers.delete(callback as (data: unknown) => void | Promise<void>)
 
       if (handlers.size === 0) {

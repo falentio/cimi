@@ -28,7 +28,7 @@ const selectedRangeLabel = computed(
     props.ranges.find((range) => range.value === props.selectedRange)?.label ?? 'Choose a range',
 )
 
-function handleRangeChange(value: unknown): void {
+function handleRangeChange(value: string): void {
   if (typeof value !== 'string') return
   const range = props.ranges.find((option) => option.value === value)
 

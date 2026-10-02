@@ -89,10 +89,10 @@ export function formatBackupDate(value: string): string {
 }
 
 export function normalizeBackupRestoreError(
-  error: unknown,
+  cause: unknown,
   source: ErrorSource,
 ): BackupRestoreFailure {
-  const details = readErrorDetails(error)
+  const details = readErrorDetails(cause)
   const code = details.code
   const status = details.status
 
@@ -751,16 +751,16 @@ function getLockReason(lock: LockSectionView): string {
   }
 }
 
-function toErrorRecord(error: unknown): Record<string, unknown> | null {
-  return isRecord(error) ? error : null
+function toErrorRecord(cause: unknown): Record<string, unknown> | null {
+  return isRecord(cause) ? cause : null
 }
 
-function readErrorDetails(error: unknown): {
+function readErrorDetails(cause: unknown): {
   readonly code: string | undefined
   readonly status: number | undefined
 } {
-  const candidates: unknown[] = [error]
-  const record = toErrorRecord(error)
+  const candidates: unknown[] = [cause]
+  const record = toErrorRecord(cause)
 
   if (record !== null) {
     candidates.push(record.data, record.error, record.cause, record.response)

@@ -59,7 +59,7 @@ export function createXoroshiro128PlusPlus(
   }
 }
 
-function parseOptions(options: unknown): Xoroshiro128PlusPlusState {
+function parseOptions(options: Xoroshiro128PlusPlusOptions): Xoroshiro128PlusPlusState {
   if (options === null || typeof options !== 'object') {
     throw new TypeError('Options must contain exactly one seed or state')
   }
@@ -79,7 +79,7 @@ function parseOptions(options: unknown): Xoroshiro128PlusPlusState {
   return parseState(options.state)
 }
 
-function parseState(value: unknown): Xoroshiro128PlusPlusState {
+function parseState(value: Xoroshiro128PlusPlusState): Xoroshiro128PlusPlusState {
   if (!Array.isArray(value) || value.length !== 2) {
     throw new TypeError('State must contain exactly two unsigned 64-bit words')
   }
@@ -94,7 +94,7 @@ function parseState(value: unknown): Xoroshiro128PlusPlusState {
   return [s0, s1]
 }
 
-function parseUint64(value: unknown): bigint {
+function parseUint64(value: bigint | undefined): bigint {
   if (typeof value !== 'bigint') {
     throw new TypeError('State words must be bigint values')
   }

@@ -255,6 +255,6 @@ function funnelReportPeriod(period: ReportRun<readonly FunnelReportStep[]>['curr
   } as const
 }
 
-function isConstraintError(cause: unknown): boolean {
+function isConstraintError(cause: unknown): cause is Error {
   return cause instanceof Error && /constraint|unique|reserved/i.test(cause.message)
 }

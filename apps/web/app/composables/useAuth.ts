@@ -144,8 +144,8 @@ export function useAuth(): AuthApi {
     })
   }
 
-  function setError(error: unknown): AuthResult {
-    const normalized = normalizeAuthError(error)
+  function setError(cause: unknown): AuthResult {
+    const normalized = normalizeAuthError(cause)
     session.value = { status: 'error', error: normalized }
 
     return { ok: false, error: normalized }
@@ -172,7 +172,7 @@ function getAuthClient(): AuthClient {
   return useNuxtApp().$authClient
 }
 
-function toAuthSession(value: unknown): AuthSession {
+function toAuthSession(value: RawAuthSession): AuthSession {
   if (!isRecord(value) || !isAuthUser(value.user)) {
     throw new Error('Invalid authentication session response')
   }
@@ -200,23 +200,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function normalizeAuthError(value: unknown): AuthError {
-  if (value instanceof Error) {
-    const message = value.message || DEFAULT_ERROR_MESSAGE
-    const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
-    const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+function normalizeAuthError(cause: unknown): AuthError {
+  if (cause instanceof Error) {
+    const message = cause.message || DEFAULT_ERROR_MESSAGE
+    const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
+    const status = 'status' in cause && typeof cause.status === 'number' ? cause.status : undefined
 
     return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
   }
 
-  if (typeof value === 'object' && value !== null) {
+  if (typeof cause === 'object' && cause !== null) {
     const message =
-      'message' in value && typeof value.message === 'string'
-        ? value.message
+      'message' in cause && typeof cause.message === 'string'
+        ? cause.message
         : DEFAULT_ERROR_MESSAGE
 
-    const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
-    const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+    const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
+    const status = 'status' in cause && typeof cause.status === 'number' ? cause.status : undefined
 
     return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
   }

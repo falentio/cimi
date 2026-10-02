@@ -45,7 +45,7 @@ function roleLabel(role: OrganizationMember['role']): string {
   return role === 'admin' ? 'Administrator' : 'Member'
 }
 
-function changeRole(userId: string, value: unknown): void {
+function changeRole(userId: string, value: string): void {
   if (value !== 'admin' && value !== 'member') return
   emit('changeRole', { userId, role: value })
 }

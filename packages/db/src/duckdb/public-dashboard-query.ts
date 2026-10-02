@@ -4,6 +4,7 @@ import {
   type PublicDashboardQueryPort,
 } from '@cimi/kernel'
 import type { AnalyticsDb } from './index.ts'
+import type { DuckDBValue } from '@duckdb/node-api'
 import { renderFilterPlan, type EventColumnOverrides } from './reporting-query.ts'
 
 export interface DuckDbPublicDashboardQueryDependencies {
@@ -290,13 +291,13 @@ function publicDashboardArgs(
   return args
 }
 
-function readCount(value: unknown): number {
+function readCount(value: DuckDBValue | undefined): number {
   const parsed = Number(value ?? 0)
 
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function readGroupKey(value: unknown): string | number | null {
+function readGroupKey(value: DuckDBValue | undefined): string | number | null {
   if (typeof value === 'string') {
     return value.length > PUBLIC_DIMENSION_KEY_MAX_LENGTH
       ? value.slice(0, PUBLIC_DIMENSION_KEY_MAX_LENGTH)

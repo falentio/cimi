@@ -6,10 +6,10 @@ import {
 import type { SettingsError } from './organization-settings.types'
 
 export function normalizeSettingsError(
-  value: unknown,
+  cause: unknown,
   fallbackMessage = 'Organization settings request failed',
 ): SettingsError {
-  return normalizeSharedSettingsError(value, fallbackMessage)
+  return normalizeSharedSettingsError(cause, fallbackMessage)
 }
 
 export function isLocalizableSettingsError(error: SettingsError): boolean {

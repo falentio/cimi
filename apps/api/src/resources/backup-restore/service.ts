@@ -755,12 +755,12 @@ export class BackupRestoreService {
   private async recordFailure(
     operationId: string,
     ownerToken: string,
-    error: unknown,
+    cause: unknown,
     safety: SafetyManifest | undefined,
     context: LogOperationContext,
     fallbackErrorCode: 'BACKUP_FAILED' | 'INTERNAL_SERVER_ERROR' = 'INTERNAL_SERVER_ERROR',
   ): Promise<void> {
-    if (error instanceof OwnershipLostError) return
+    if (cause instanceof OwnershipLostError) return
 
     if (safety !== undefined) {
       try {
@@ -786,7 +786,7 @@ export class BackupRestoreService {
     await this.repository.fail({
       operationId,
       ownerToken,
-      errorCode: errorCodeFor(error, fallbackErrorCode),
+      errorCode: errorCodeFor(cause, fallbackErrorCode),
       now: this.clock(),
     })
   }
@@ -878,15 +878,15 @@ export class BackupRestoreService {
     }
   }
 
-  private reportError(error: unknown, context: LogOperationContext): void {
+  private reportError(cause: unknown, context: LogOperationContext): void {
     if (this.onError === undefined) {
-      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      reportLogEvent({ kind: 'operation.failure', ...context, error: cause })
 
       return
     }
 
     try {
-      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+      void Promise.resolve(this.onError(cause, context)).catch(() => undefined)
     } catch {}
   }
 }
@@ -896,7 +896,7 @@ function assertAdmin(user: AuthUser | undefined): void {
 }
 
 function errorCodeFor(
-  error: unknown,
+  cause: unknown,
   fallback: 'BACKUP_FAILED' | 'INTERNAL_SERVER_ERROR',
 ):
   | 'BACKUP_FAILED'
@@ -904,15 +904,15 @@ function errorCodeFor(
   | 'INSUFFICIENT_STORAGE'
   | 'CONFLICT'
   | 'INTERNAL_SERVER_ERROR' {
-  if (error instanceof BackupIncompatibilityError) return 'INCOMPATIBLE_BACKUP'
+  if (cause instanceof BackupIncompatibilityError) return 'INCOMPATIBLE_BACKUP'
 
-  if (error instanceof InsufficientStorageError) return 'INSUFFICIENT_STORAGE'
+  if (cause instanceof InsufficientStorageError) return 'INSUFFICIENT_STORAGE'
 
-  if (error instanceof SafetyArtifactUnavailableError) return 'INSUFFICIENT_STORAGE'
+  if (cause instanceof SafetyArtifactUnavailableError) return 'INSUFFICIENT_STORAGE'
 
-  if (error instanceof SafetyArtifactChecksumMismatchError) return 'INTERNAL_SERVER_ERROR'
+  if (cause instanceof SafetyArtifactChecksumMismatchError) return 'INTERNAL_SERVER_ERROR'
 
-  if (error instanceof ORPCError && error.code === 'CONFLICT') return 'CONFLICT'
+  if (cause instanceof ORPCError && cause.code === 'CONFLICT') return 'CONFLICT'
 
   return fallback
 }

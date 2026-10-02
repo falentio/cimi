@@ -52,7 +52,7 @@ export class AcceptanceAdmissionStoppedError extends Error {
 interface Deferred {
   readonly promise: Promise<void>
   resolve(): void
-  reject(error: unknown): void
+  reject(cause: unknown): void
 }
 
 interface ReservationState {
@@ -427,12 +427,12 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
         this.committedCandidates += acceptedCount
         this.lastSafeSequence = lastAcceptedSequence
       })
-      .catch((error: unknown) => {
+      .catch((cause: unknown) => {
         this.failureCount += 1
-        this.reportError(error, batch.length)
+        this.reportError(cause, batch.length)
 
-        for (const state of batch) state.deferred.reject(error)
-        throw error
+        for (const state of batch) state.deferred.reject(cause)
+        throw cause
       })
       .finally(() => {
         for (const state of batch)
@@ -460,9 +460,9 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     this.active.push(...next)
   }
 
-  private rejectQueued(error: unknown): void {
+  private rejectQueued(cause: unknown): void {
     for (const state of [...this.active, ...this.pending]) {
-      state.deferred.reject(error)
+      state.deferred.reject(cause)
       this.deleteReservation(
         state.candidate.siteId,
         acceptanceReservationKey(state.candidate.event),
@@ -490,7 +490,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     if (siteReservations.size === 0) this.reservations.delete(siteId)
   }
 
-  private reportError(error: unknown, batchSize?: number): void {
+  private reportError(cause: unknown, batchSize?: number): void {
     const context: LogOperationContext = {
       operation: 'event-ingestion.flush',
       stage: 'flush',
@@ -498,13 +498,13 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     }
 
     if (this.onError === undefined) {
-      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      reportLogEvent({ kind: 'operation.failure', ...context, error: cause })
 
       return
     }
 
     try {
-      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+      void Promise.resolve(this.onError(cause, context)).catch(() => undefined)
     } catch {}
   }
 }

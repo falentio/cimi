@@ -63,22 +63,24 @@ function isAnalyticsReportScalar(value: unknown): value is AnalyticsReportScalar
   )
 }
 
-function readJsonObject(value: unknown): JsonObject {
+function readJsonObject(value: JsonObject): JsonObject {
   if (!isRecord(value)) throw new Error('Profile traits are not a JSON object')
   const result: JsonObject = {}
 
-  for (const [key, child] of Object.entries(value)) result[key] = readJsonValue(child)
+  for (const [key, child] of Object.entries(value)) {
+    // SAFETY: readJsonValue validates each entry and throws on non-JSON values.
+    result[key] = readJsonValue(child as JsonValue)
+  }
 
   return result
 }
 
-function readJsonValue(value: unknown): JsonValue {
-  if (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'boolean' ||
-    (typeof value === 'number' && Number.isFinite(value))
-  ) {
+function readJsonValue(value: JsonValue): JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('Profile traits are not a JSON object')
+
     return value
   }
 

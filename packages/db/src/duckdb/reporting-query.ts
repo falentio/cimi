@@ -32,6 +32,7 @@ import {
 } from '@cimi/kernel'
 import { isEventKind } from '@cimi/utils'
 import type { AnalyticsDb, AnalyticsWindowReader } from './index.ts'
+import type { DuckDBValue } from '@duckdb/node-api'
 
 export interface DuckDbReportingQueryDependencies {
   readonly analytics: AnalyticsDb
@@ -699,7 +700,7 @@ ORDER BY buckets.bucket_index`
   }
 }
 
-function readCount(value: unknown): number {
+function readCount(value: DuckDBValue | undefined): number {
   const parsed = Number(value ?? 0)
 
   return Number.isFinite(parsed) ? parsed : 0
@@ -721,32 +722,32 @@ function eventBreakdownValueExpression(field: EventBreakdownField): string {
   return column
 }
 
-function readEventKind(value: unknown): EventKind | null {
+function readEventKind(value: DuckDBValue | undefined): EventKind | null {
   return typeof value === 'string' && isEventKind(value) ? value : null
 }
 
-function readString(value: unknown): string | null {
+function readString(value: DuckDBValue | undefined): string | null {
   return typeof value === 'string' ? value : null
 }
 
-function readNullableString(value: unknown): string | null {
+function readNullableString(value: DuckDBValue | undefined): string | null {
   return typeof value === 'string' ? value : null
 }
 
-function clampNullableString(value: unknown, maxLength: number): string | null {
+function clampNullableString(value: DuckDBValue | undefined, maxLength: number): string | null {
   if (typeof value !== 'string') return null
 
   return value.length > maxLength ? value.slice(0, maxLength) : value
 }
 
-function readNullableNumber(value: unknown): number | null {
+function readNullableNumber(value: DuckDBValue | undefined): number | null {
   if (value === null || value === undefined) return null
   const parsed = Number(value)
 
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function readInstantValue(value: unknown, column: string): number {
+function readInstantValue(value: DuckDBValue | undefined, column: string): number {
   if (value instanceof Date) return value.getTime()
 
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -755,7 +756,7 @@ function readInstantValue(value: unknown, column: string): number {
   throw new Error(`Expected a numeric ${column} from the events projection`)
 }
 
-function readPropertyValue(row: Record<string, unknown>): string | number | boolean | null {
+function readPropertyValue(row: Record<string, DuckDBValue>): string | number | boolean | null {
   const type = readString(row['value_type'])
 
   if (type === 'number') return readNullableNumber(row['number_value']) ?? 0

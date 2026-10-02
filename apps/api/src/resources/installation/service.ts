@@ -511,7 +511,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
   }): void {
     let task: Promise<void>
     task = this.executeUpgrade(input)
-      .catch((error: unknown) => reportInstallationError(error, 'execute', input.operationId))
+      .catch((cause: unknown) => reportInstallationError(cause, 'execute', input.operationId))
       .finally(async () => {
         await this.resumeAcceptance(input.operationId)
 
@@ -540,11 +540,11 @@ export class InstallationService implements LifecycleOperationStatusReader {
   }
 
   private async recordExecutionFailure(
-    error: unknown,
+    cause: unknown,
     operationId: string,
     ownerToken: string,
   ): Promise<void> {
-    reportInstallationError(error, 'execute', operationId)
+    reportInstallationError(cause, 'execute', operationId)
 
     try {
       await this.repository.failUpgrade({
@@ -739,7 +739,7 @@ function toPublicInstallation(
   }
 }
 
-function isConstraintError(cause: unknown): boolean {
+function isConstraintError(cause: unknown): cause is Error {
   if (!(cause instanceof Error)) return false
 
   return /constraint|unique|reserved|lifecycle operation is active/i.test(cause.message)
@@ -750,7 +750,7 @@ function isSiteLifecycleOperation(kind: InstallationRepository.ActiveOperation['
 }
 
 function reportInstallationError(
-  error: unknown,
+  cause: unknown,
   stage:
     | 'drain'
     | 'execute'
@@ -766,6 +766,6 @@ function reportInstallationError(
     operation: 'installation.upgrade',
     stage,
     ...(operationId !== undefined && { operationId }),
-    error,
+    error: cause,
   })
 }

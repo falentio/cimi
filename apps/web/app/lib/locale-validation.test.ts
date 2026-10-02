@@ -6,7 +6,13 @@ import { authErrorMessageKeys } from '../utils/error-message'
 
 type LocaleLeaf = { message: string; path: string }
 
-function collectLeaves(value: unknown, path = ''): LocaleLeaf[] {
+type LocaleJson = string | number | boolean | null | undefined | LocaleJsonObject | LocaleJson[]
+
+interface LocaleJsonObject {
+  [key: string]: LocaleJson
+}
+
+function collectLeaves(value: LocaleJson, path = ''): LocaleLeaf[] {
   if (typeof value === 'string') return [{ message: value, path }]
 
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return []

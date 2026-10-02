@@ -18,7 +18,7 @@ const usage = `Usage:
   pnpm opencode create
   pnpm opencode chat --session <id> --text <message> [--model-id <id>] [--provider-id <id>]`
 
-function requiredOption(value: unknown, option: string): string {
+function requiredOption(value: string | undefined, option: string): string {
   if (typeof value !== 'string' || value.length === 0 || value.startsWith('--')) {
     throw new UsageError(`Missing value for ${option}.\n${usage}`)
   }
@@ -27,7 +27,7 @@ function requiredOption(value: unknown, option: string): string {
 }
 
 function parseChat(
-  args: readonly unknown[],
+  args: readonly string[],
   environment: Readonly<Record<string, string | undefined>>,
 ): Command {
   let sessionId: string | undefined
@@ -96,7 +96,7 @@ function parseChat(
 }
 
 function parseArgs(
-  args: readonly unknown[],
+  args: readonly string[],
   environment: Readonly<Record<string, string | undefined>>,
 ): Command {
   const command = args[0]

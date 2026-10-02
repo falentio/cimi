@@ -42,8 +42,8 @@ export class SiteLifecycleWorker {
   runOnce(now = new Date()): Promise<void> {
     if (this.runPromise !== undefined) return this.runPromise
     this.runPromise = this.process(now)
-      .catch((error: unknown) =>
-        this.reportError(error, { operation: 'site.lifecycle', stage: 'scan' }),
+      .catch((cause: unknown) =>
+        this.reportError(cause, { operation: 'site.lifecycle', stage: 'scan' }),
       )
       .finally(() => {
         this.runPromise = undefined
@@ -166,15 +166,15 @@ export class SiteLifecycleWorker {
     }
   }
 
-  private reportError(error: unknown, context: LogOperationContext): void {
+  private reportError(cause: unknown, context: LogOperationContext): void {
     if (this.onError === undefined) {
-      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      reportLogEvent({ kind: 'operation.failure', ...context, error: cause })
 
       return
     }
 
     try {
-      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+      void Promise.resolve(this.onError(cause, context)).catch(() => undefined)
     } catch {}
   }
 }

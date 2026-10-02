@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api'
+import { DuckDBInstance, type DuckDBConnection, type DuckDBValue } from '@duckdb/node-api'
 import {
   getNestedMapValue,
   mergeEventAttribution,
@@ -103,7 +103,7 @@ export interface AnalyticsWindowReader {
   read(
     sql: string,
     args: readonly (string | number | boolean | null)[],
-  ): Promise<readonly Record<string, unknown>[]>
+  ): Promise<readonly Record<string, DuckDBValue>[]>
 }
 
 export interface AnalyticsDb {
@@ -1330,7 +1330,7 @@ function timestamp(value: number | null): string | null {
  * `Date` through the host timezone, so the projection reads select epoch milliseconds and rebuild
  * the instant here instead.
  */
-function readInstant(value: unknown): Date | null {
+function readInstant(value: DuckDBValue | undefined): Date | null {
   if (value === null || value === undefined) return null
 
   if (value instanceof Date) return value
@@ -1347,7 +1347,7 @@ function readInstant(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-function readRequiredInstant(value: unknown, field: string): Date {
+function readRequiredInstant(value: DuckDBValue | undefined, field: string): Date {
   const instant = readInstant(value)
 
   if (instant === null) throw new Error(`Analytics report row has no ${field}`)
@@ -1355,7 +1355,7 @@ function readRequiredInstant(value: unknown, field: string): Date {
   return instant
 }
 
-function readReportSession(row: Record<string, unknown>): AnalyticsReportSession {
+function readReportSession(row: Record<string, DuckDBValue>): AnalyticsReportSession {
   return {
     sessionId: String(row['session_id']),
     visitorId: nullableString(row['visitor_id']),
@@ -1377,7 +1377,7 @@ function readReportSession(row: Record<string, unknown>): AnalyticsReportSession
   }
 }
 
-function readReportEvent(row: Record<string, unknown>): AnalyticsReportEvent {
+function readReportEvent(row: Record<string, DuckDBValue>): AnalyticsReportEvent {
   return {
     eventId: String(row['event_id']),
     eventKind: String(row['event_kind']),
@@ -1395,7 +1395,7 @@ function readReportEvent(row: Record<string, unknown>): AnalyticsReportEvent {
   }
 }
 
-function nullableString(value: unknown): string | null {
+function nullableString(value: DuckDBValue | undefined): string | null {
   if (value === null || value === undefined) return null
 
   if (typeof value === 'string') return value
@@ -1407,7 +1407,7 @@ function nullableString(value: unknown): string | null {
   return null
 }
 
-function readReportProperties(value: unknown): Readonly<Record<string, AnalyticsReportScalar>> {
+function readReportProperties(value: DuckDBValue | undefined): Readonly<Record<string, AnalyticsReportScalar>> {
   if (value === null || value === undefined) return {}
   const parsed = typeof value === 'string' ? JSON.parse(value) : value
 
@@ -1430,7 +1430,7 @@ function readReportProperties(value: unknown): Readonly<Record<string, Analytics
   return properties
 }
 
-function readGapRows(rows: readonly Record<string, unknown>[]): AnalyticsProjectionGap[] {
+function readGapRows(rows: readonly Record<string, DuckDBValue>[]): AnalyticsProjectionGap[] {
   return rows.map((row) => ({
     id: String(row['id']),
     occurrenceFrom: readInstant(row['occurrence_from']),

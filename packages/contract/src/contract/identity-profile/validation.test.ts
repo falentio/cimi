@@ -18,7 +18,7 @@ const timestamps = {
   updatedAt: '2026-08-23T01:00:00Z',
 }
 
-const serializedBytes = (value: unknown) =>
+const serializedBytes = (value: Record<string, string>) =>
   new TextEncoder().encode(JSON.stringify(value)).byteLength
 
 const exactLimitTraits = () => {

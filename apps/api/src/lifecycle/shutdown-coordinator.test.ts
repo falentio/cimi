@@ -28,7 +28,7 @@ describe('createShutdownCoordinator', () => {
       },
     ])
 
-    const failure = await coordinator.close().catch((error: unknown) => error)
+    const failure = await coordinator.close().catch((cause: unknown) => cause)
 
     expect(events).toEqual(['first worker', 'second worker', 'third worker'])
     expect(failure).toBeInstanceOf(AggregateError)

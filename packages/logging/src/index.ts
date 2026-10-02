@@ -250,21 +250,21 @@ export function toLogProperties(event: LogEvent): Record<string, unknown> {
   }
 }
 
-export function toLogError(error: unknown): LogError {
-  if (error instanceof Error) {
+export function toLogError(cause: unknown): LogError {
+  if (cause instanceof Error) {
     return {
-      name: safeField(error.name),
-      message: safeErrorField(error.message),
-      ...(error.stack !== undefined && { stack: safeStack(error.stack) }),
+      name: safeField(cause.name),
+      message: safeErrorField(cause.message),
+      ...(cause.stack !== undefined && { stack: safeStack(cause.stack) }),
     }
   }
 
-  return { name: 'UnknownError', message: safeErrorField(safeString(error)) }
+  return { name: 'UnknownError', message: safeErrorField(safeString(cause)) }
 }
 
-function safeString(value: unknown): string {
+function safeString(cause: unknown): string {
   try {
-    return String(value).slice(0, 4096)
+    return String(cause).slice(0, 4096)
   } catch {
     return 'Unknown error'
   }

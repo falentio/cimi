@@ -171,10 +171,10 @@ export function formatRetentionDate(value: string): string {
 }
 
 export function normalizeRetentionError(
-  error: unknown,
+  cause: unknown,
   source: 'read' | 'update' | 'status',
 ): RetentionFailure {
-  const details = readErrorDetails(error)
+  const details = readErrorDetails(cause)
 
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return {
@@ -527,13 +527,13 @@ function buildAnnouncement(state: RetentionState): string {
   return ''
 }
 
-function readErrorDetails(error: unknown): {
+function readErrorDetails(cause: unknown): {
   readonly code: string | undefined
   readonly status: number | undefined
 } {
-  const candidates: unknown[] = [error]
+  const candidates: unknown[] = [cause]
 
-  if (isRecord(error)) candidates.push(error.data, error.error, error.cause, error.response)
+  if (isRecord(cause)) candidates.push(cause.data, cause.error, cause.cause, cause.response)
 
   let code: string | undefined
   let status: number | undefined

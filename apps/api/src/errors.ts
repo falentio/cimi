@@ -7,18 +7,18 @@ import { ORPCError, validateORPCError, type ErrorMap } from '@orpc/server'
  * The kernel decides; this keeps the kernel free of oRPC. A filter the store cannot serve is a
  * caller error, so it maps to BAD_REQUEST rather than implying a transient outage.
  */
-export function toOrpcReportingError(error: unknown): ORPCError<string, unknown> {
-  if (error instanceof ORPCError) return error
+export function toOrpcReportingError(cause: unknown): ORPCError<string, unknown> {
+  if (cause instanceof ORPCError) return cause
 
-  if (error instanceof ReportingAdmissionError) {
-    return new ORPCError(error.code, { cause: error })
+  if (cause instanceof ReportingAdmissionError) {
+    return new ORPCError(cause.code, { cause })
   }
 
-  if (error instanceof ReportingQueryUnsupportedError) {
-    return new ORPCError('BAD_REQUEST', { cause: error })
+  if (cause instanceof ReportingQueryUnsupportedError) {
+    return new ORPCError('BAD_REQUEST', { cause })
   }
 
-  return new ORPCError('SERVICE_UNAVAILABLE', { cause: error })
+  return new ORPCError('SERVICE_UNAVAILABLE', { cause })
 }
 
 export interface ApiProcedureErrorSource {
@@ -28,23 +28,23 @@ export interface ApiProcedureErrorSource {
 }
 
 export async function normalizeApiError(
-  error: unknown,
+  cause: unknown,
   procedure: ApiProcedureErrorSource,
 ): Promise<ORPCError<string, unknown>> {
   try {
-    if (!(error instanceof ORPCError)) return internalServerError(error)
+    if (!(cause instanceof ORPCError)) return internalServerError(cause)
 
-    const definition = getCatalogDefinition(error.code)
+    const definition = getCatalogDefinition(cause.code)
 
-    if (definition === undefined) return internalServerError(error)
+    if (definition === undefined) return internalServerError(cause)
 
     const errorMap = procedure['~orpc'].errorMap
 
-    const declaration = Object.prototype.hasOwnProperty.call(errorMap, error.code)
-      ? errorMap[error.code]
+    const declaration = Object.prototype.hasOwnProperty.call(errorMap, cause.code)
+      ? errorMap[cause.code]
       : undefined
 
-    const validated = await validateORPCError(errorMap, error)
+    const validated = await validateORPCError(errorMap, cause)
 
     const data =
       declaration?.data !== undefined && validated.defined ? { data: validated.data } : {}
@@ -53,11 +53,11 @@ export async function normalizeApiError(
       defined: declaration !== undefined && validated.defined,
       status: definition.status,
       message: definition.message,
-      cause: error,
+      cause,
       ...data,
     })
-  } catch (cause) {
-    return internalServerError(cause)
+  } catch (error) {
+    return internalServerError(error)
   }
 }
 

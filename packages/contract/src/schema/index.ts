@@ -38,12 +38,6 @@ export {
   type ContractErrorDefinition,
 } from './errors.ts'
 
-export const isWithinSerializedByteLimit = (value: unknown, maxBytes: number) => {
-  const serialized = JSON.stringify(value)
-
-  return serialized !== undefined && new TextEncoder().encode(serialized).byteLength <= maxBytes
-}
-
 const isValidCalendarDate = (year: number, month: number, day: number) => {
   const date = new Date(Date.UTC(year, month - 1, day))
 

@@ -80,7 +80,7 @@ export function encodeRetentionManifest(manifest: RetentionManifest): RetentionM
   return { retentionManifest: { version: 1, boundaries } }
 }
 
-export function decodeRetentionManifest(metadata: unknown): RetentionManifest | null {
+export function decodeRetentionManifest(metadata: JsonObject | null | undefined): RetentionManifest | null {
   if (metadata === null || metadata === undefined) return null
 
   if (!isRecord(metadata)) throw incompatible('Retention metadata is malformed')
@@ -90,7 +90,7 @@ export function decodeRetentionManifest(metadata: unknown): RetentionManifest | 
   return decodeManifest(metadata['retentionManifest'])
 }
 
-function decodeManifest(value: unknown): RetentionManifest {
+function decodeManifest(value: JsonValue): RetentionManifest {
   if (!isRecord(value) || value['version'] !== 1 || !isUnknownArray(value['boundaries'])) {
     throw incompatible('Retention manifest version or shape is unsupported')
   }
@@ -98,7 +98,8 @@ function decodeManifest(value: unknown): RetentionManifest {
   const siteIds = new Set<string>()
 
   const boundaries = value['boundaries'].map((boundary) => {
-    const decoded = decodeBoundary(boundary)
+    // SAFETY: decodeBoundary validates the element shape and throws incompatible on malformed input.
+    const decoded = decodeBoundary(boundary as JsonValue)
     assertUniqueSite(siteIds, decoded.siteId)
 
     return decoded
@@ -107,7 +108,7 @@ function decodeManifest(value: unknown): RetentionManifest {
   return { version: 1, boundaries }
 }
 
-function decodeBoundary(value: unknown): RetentionManifestBoundary {
+function decodeBoundary(value: JsonValue): RetentionManifestBoundary {
   if (!isRecord(value)) throw incompatible('Retention boundary is malformed')
   const siteId = readString(value, 'siteId')
   const installationId = readString(value, 'installationId')

@@ -1,6 +1,6 @@
 import { schema } from '@cimi/contract'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
-import { isRecord, redactDiagnosticMessage, resolveSiteLocalCutoff } from '@cimi/utils'
+import { isRecord, redactDiagnosticMessage, resolveSiteLocalCutoff, type JsonValue } from '@cimi/utils'
 import { createHash } from 'node:crypto'
 import { ORPCError } from '@orpc/server'
 import { safeParse, type InferOutput } from 'valibot'
@@ -309,13 +309,14 @@ export class EventIngestionService {
 
     try {
       for (const [index, rawEvent] of input.events.entries()) {
-        const eventInput = withBatchContext(rawEvent, input)
+        // SAFETY: transport delivers parsed JSON; safeParse(SEvent) validates per item below.
+        const eventInput = withBatchContext(rawEvent as JsonValue, input)
         const parsed = safeParse(SEvent, eventInput)
 
         if (!parsed.success) {
           results[index] = {
             status: 'itemError',
-            eventId: validEventId(rawEvent),
+            eventId: validEventId(rawEvent as JsonValue),
             code: isParsedPayloadOversized(rawEvent) ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST',
           }
           continue
@@ -671,8 +672,8 @@ export class EventIngestionService {
   }
 
   private reserve(candidates: readonly ReservableCandidate[]): Promise<readonly Reservation[]> {
-    return this.coalescer.reserveMany(candidates).catch((error: unknown) => {
-      throw acceptanceError(error)
+    return this.coalescer.reserveMany(candidates).catch((cause: unknown) => {
+      throw acceptanceError(cause)
     })
   }
 
@@ -736,21 +737,21 @@ function isPolicyRejection(error: unknown): error is PolicyRejectionError {
   return error instanceof PolicyRejectionError
 }
 
-function acceptanceError(error: unknown): ORPCError<string, unknown> {
-  if (error instanceof ORPCError) return error
+function acceptanceError(cause: unknown): ORPCError<string, unknown> {
+  if (cause instanceof ORPCError) return cause
 
-  if (error instanceof AcceptanceReservationConflictError) {
+  if (cause instanceof AcceptanceReservationConflictError) {
     return new ORPCError('CONFLICT', { status: 409 })
   }
 
   if (
-    error instanceof AcceptanceQueueSaturatedError ||
-    error instanceof AcceptanceAdmissionStoppedError
+    cause instanceof AcceptanceQueueSaturatedError ||
+    cause instanceof AcceptanceAdmissionStoppedError
   ) {
     return new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
   }
 
-  return new ORPCError('SERVICE_UNAVAILABLE', { status: 503, cause: error })
+  return new ORPCError('SERVICE_UNAVAILABLE', { status: 503, cause })
 }
 
 function normalizeEvent(
@@ -834,7 +835,7 @@ function normalizeEvent(
   }
 }
 
-function withBatchContext(rawEvent: unknown, input: CollectEventsInput) {
+function withBatchContext(rawEvent: JsonValue, input: CollectEventsInput) {
   if (!isRecord(rawEvent)) return rawEvent
   const event = { ...rawEvent }
 
@@ -847,7 +848,7 @@ function withBatchContext(rawEvent: unknown, input: CollectEventsInput) {
   return event
 }
 
-function validEventId(value: unknown): string | null {
+function validEventId(value: JsonValue): string | null {
   if (!isRecord(value)) return null
   const parsed = safeParse(schema.SId, value['eventId'])
 

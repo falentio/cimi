@@ -17,7 +17,7 @@ export const WEEK_START_OPTIONS: readonly {
   { value: 'sunday', label: 'Sunday' },
 ]
 
-export function parseSiteId(value: unknown): SiteId | undefined {
+export function parseSiteId(value: string | readonly string[] | undefined): SiteId | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined
 }
 

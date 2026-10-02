@@ -349,7 +349,7 @@ const getErrorMap = (path: string): ErrorMap => {
   return procedure['~orpc'].errorMap
 }
 
-const getMissingSuccessStatuses = (node: unknown, path: string[] = []): string[] => {
+const getMissingSuccessStatuses = <T extends object>(node: T, path: string[] = []): string[] => {
   if (isContractProcedure(node)) {
     return node['~orpc'].route.successStatus === undefined ? [path.join('.')] : []
   }
@@ -382,8 +382,8 @@ const resourcePaths = {
   trafficReport: 'traffic-report',
 } as const
 
-const getRoutes = (
-  node: unknown,
+const getRoutes = <T extends object>(
+  node: T,
   path: string[] = [],
 ): Array<{ contractPath: string; method: string; routePath: string }> => {
   if (isContractProcedure(node)) {

@@ -113,7 +113,9 @@ export function hasAllowedProfileTraitKeys(
   )
 }
 
-export function isProfileTraitsPayloadOversized(value: unknown): boolean {
+export function isProfileTraitsPayloadOversized(
+  value: unknown,
+): value is v.InferOutput<typeof SScalarMap> {
   const parsed = v.safeParse(SScalarMap, value)
 
   return (

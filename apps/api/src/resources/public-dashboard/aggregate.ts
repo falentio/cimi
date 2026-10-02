@@ -175,12 +175,12 @@ export class PublicDashboardAggregatePlanner {
   }
 }
 
-function toPublicAdmissionError(error: unknown) {
-  if (error instanceof ReportingAdmissionError && error.reason === 'bucket-bound') {
-    return new ORPCError('BAD_REQUEST', { status: 400, cause: error })
+function toPublicAdmissionError(cause: unknown) {
+  if (cause instanceof ReportingAdmissionError && cause.reason === 'bucket-bound') {
+    return new ORPCError('BAD_REQUEST', { status: 400, cause })
   }
 
-  return toOrpcReportingError(error)
+  return toOrpcReportingError(cause)
 }
 
 function timeBuckets(

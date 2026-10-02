@@ -4,7 +4,7 @@ const LONG_TEXT_KEYS = new Set(['pagePath', 'referrer', 'destination'])
 
 const IDE_KEYS = new Set(['eventId', 'ingestionIdentifier'])
 
-export function isParsedPayloadOversized(value: unknown): boolean {
+export function isParsedPayloadOversized(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false
 
   for (const [key, entry] of Object.entries(value)) {

@@ -3,7 +3,7 @@ import { ConfigError } from './error.ts'
 
 export function parseConfig<TInput, TOutput, TIssue extends v.BaseIssue<unknown>>(
   schema: v.BaseSchema<TInput, TOutput, TIssue>,
-  input: unknown,
+  input: TInput,
   source: 'environment' | 'logging',
 ): TOutput {
   const result = v.safeParse(schema, input)

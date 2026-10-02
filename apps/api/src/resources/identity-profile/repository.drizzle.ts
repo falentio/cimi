@@ -668,7 +668,7 @@ function cleanupStatus(status: 'not-required' | 'pending' | 'complete', updatedA
   return { status, updatedAt: updatedAt.toISOString() }
 }
 
-function isConstraintError(cause: unknown): boolean {
+function isConstraintError(cause: unknown): cause is Error {
   return cause instanceof Error && /constraint|unique|foreign key/i.test(cause.message)
 }
 

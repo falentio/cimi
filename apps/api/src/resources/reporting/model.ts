@@ -5,6 +5,7 @@ import type {
   JsonObject,
 } from '@cimi/db'
 import type { InferOutput } from 'valibot'
+import type { JsonValue as CanonicalJsonValue } from '@cimi/utils'
 import { schema as contractSchema } from '@cimi/contract'
 import type { ResolvedPeriod } from '@cimi/kernel'
 import { readProfileTrait, type ReportingProfileTraits } from './profiles.ts'
@@ -223,7 +224,7 @@ function matchesValue(
   return operator === 'greater_than' ? actual > expected : actual < expected
 }
 
-export function toJsonObject(value: unknown): JsonObject {
+export function toJsonObject(value: CanonicalJsonValue): JsonObject {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new TypeError('Expected a JSON object')
   }
@@ -237,7 +238,7 @@ export function toJsonObject(value: unknown): JsonObject {
   return object
 }
 
-export function toJsonValue(value: unknown): import('@cimi/db').JsonValue {
+export function toJsonValue(value: CanonicalJsonValue): import('@cimi/db').JsonValue {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
 
   if (typeof value === 'number') {

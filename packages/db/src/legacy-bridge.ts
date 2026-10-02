@@ -293,6 +293,9 @@ const LEGACY_BASELINE_TAG = '0000_clammy_trish_tilby'
 
 const LEGACY_FINAL_TAG = '0015_normalize_legacy_public_dashboard'
 
+/** Scalar values produced by SQLite driver cells and snapshot rows. */
+type SqliteScalar = string | number | bigint | boolean | Buffer | null | undefined
+
 interface CopyTableProjection {
   readonly column: string
   readonly value: null
@@ -821,7 +824,7 @@ const LEGACY_COPY_PLAN: readonly LegacyCopyTable[] = [
 interface LegacyTableSnapshot {
   readonly table: string
   readonly columns: readonly string[]
-  readonly rows: readonly unknown[][]
+  readonly rows: readonly SqliteScalar[][]
   readonly primaryKeyIndices: readonly number[]
 }
 
@@ -946,7 +949,7 @@ function readLegacySnapshot(
         `SELECT ${spec.columns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(spec.table)}`,
       )
       .raw()
-      .all() as Array<unknown[]>
+      .all() as Array<SqliteScalar[]>
 
     if (spec.table === 'account') {
       validateAccountPreconditions(spec.columns, rows)
@@ -961,7 +964,7 @@ function readLegacySnapshot(
 
 function validateAccountPreconditions(
   columns: readonly string[],
-  rows: readonly unknown[][],
+  rows: readonly SqliteScalar[][],
 ): void {
   const issuerIndex = columns.indexOf('issuer')
   const accountIdIndex = columns.indexOf('account_id')
@@ -976,7 +979,7 @@ function validateAccountPreconditions(
   }
 
   const seen = new Set<string>()
-  const duplicateRows: unknown[][] = []
+  const duplicateRows: SqliteScalar[][] = []
 
   for (const row of rows) {
     const key = `${serializeScalar(row[issuerIndex])}\u0000${serializeScalar(row[accountIdIndex])}`
@@ -995,7 +998,7 @@ function validateAccountPreconditions(
   }
 }
 
-function formatSamples(rows: readonly unknown[][], idIndex: number, userIdIndex: number): string {
+function formatSamples(rows: readonly SqliteScalar[][], idIndex: number, userIdIndex: number): string {
   return rows
     .slice(0, 5)
     .map((row) => `(${JSON.stringify(row[idIndex])}, ${JSON.stringify(row[userIdIndex])})`)
@@ -1164,7 +1167,7 @@ function assertPreservation(
         `SELECT ${readColumns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(snapshotTable.table)}`,
       )
       .raw()
-      .all() as Array<unknown[]>
+      .all() as Array<SqliteScalar[]>
 
     const digest = computeDigest(rows, snapshotTable.primaryKeyIndices, undefined)
     const expected = snapshot.digests.get(snapshotTable.table)
@@ -1182,7 +1185,7 @@ function assertPreservation(
 }
 
 function computeDigest(
-  rows: readonly unknown[][],
+  rows: readonly SqliteScalar[][],
   primaryKeyIndices: readonly number[],
   projections: readonly CopyTableProjection[] | undefined,
 ): TableDigest {
@@ -1199,9 +1202,9 @@ function computeDigest(
 }
 
 function sortRowsByPrimaryKey(
-  rows: readonly unknown[][],
+  rows: readonly SqliteScalar[][],
   primaryKeyIndices: readonly number[],
-): readonly unknown[][] {
+): readonly SqliteScalar[][] {
   return rows.toSorted((left, right) => {
     for (const index of primaryKeyIndices) {
       const result = compareScalars(left[index], right[index])
@@ -1213,7 +1216,7 @@ function sortRowsByPrimaryKey(
   })
 }
 
-function compareScalars(left: unknown, right: unknown): number {
+function compareScalars(left: SqliteScalar, right: SqliteScalar): number {
   if (typeof left === 'number' && typeof right === 'number') return left - right
 
   if (typeof left === 'bigint' && typeof right === 'bigint') {
@@ -1226,7 +1229,7 @@ function compareScalars(left: unknown, right: unknown): number {
   return leftText < rightText ? -1 : leftText > rightText ? 1 : 0
 }
 
-function serializeScalar(value: unknown): string {
+function serializeScalar(value: SqliteScalar): string {
   if (value === null || value === undefined) return 'null'
 
   if (Buffer.isBuffer(value)) return `blob:${value.toString('hex')}`

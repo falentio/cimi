@@ -19,15 +19,15 @@ const emit = defineEmits<{
   updateWeekStart: [value: SiteSettingsDraft['weekStartsOn']]
 }>()
 
-function updateName(value: unknown): void {
+function updateName(value: string | number): void {
   if (typeof value === 'string' || typeof value === 'number') emit('updateName', String(value))
 }
 
-function updateHostname(value: unknown): void {
+function updateHostname(value: string | number): void {
   if (typeof value === 'string' || typeof value === 'number') emit('updateHostname', String(value))
 }
 
-function updateTimezone(value: unknown): void {
+function updateTimezone(value: string): void {
   if (typeof value === 'string') emit('updateTimezone', value)
 }
 
@@ -35,7 +35,7 @@ function isWeekStart(value: string): value is SiteSettingsDraft['weekStartsOn'] 
   return WEEK_START_OPTIONS.some((option) => option.value === value)
 }
 
-function updateWeekStart(value: unknown): void {
+function updateWeekStart(value: string): void {
   if (typeof value === 'string' && isWeekStart(value)) emit('updateWeekStart', value)
 }
 </script>

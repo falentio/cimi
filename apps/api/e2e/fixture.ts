@@ -1390,7 +1390,7 @@ function createGenerationOwnership(): GenerationOwnership {
   return Object.assign(resources, { close: () => shutdown.close() })
 }
 
-function operationIdOf(value: unknown): string | undefined {
+function operationIdOf<T>(value: T): string | undefined {
   if (!isRecord(value)) return undefined
 
   if (typeof value['id'] === 'string') return value['id']
@@ -1403,7 +1403,7 @@ function operationIdOf(value: unknown): string | undefined {
   return undefined
 }
 
-function formatState(value: unknown): string {
+function formatState<T>(value: T): string {
   try {
     return JSON.stringify(value)
   } catch {

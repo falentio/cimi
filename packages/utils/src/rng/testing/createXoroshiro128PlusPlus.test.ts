@@ -9,12 +9,12 @@ import {
 
 const MASK = (1n << 64n) - 1n
 
-function createAtRuntime(value: unknown): void {
-  createXoroshiro128PlusPlus(value as Xoroshiro128PlusPlusOptions)
+function createAtRuntime(value: Xoroshiro128PlusPlusOptions): void {
+  createXoroshiro128PlusPlus(value)
 }
 
-function nextIntAtRuntime(generator: Xoroshiro128PlusPlus, maxExclusive: unknown): void {
-  generator.nextInt(maxExclusive as number)
+function nextIntAtRuntime(generator: Xoroshiro128PlusPlus, maxExclusive: number): void {
+  generator.nextInt(maxExclusive)
 }
 
 describe('createXoroshiro128PlusPlus', () => {
@@ -111,11 +111,17 @@ describe('createXoroshiro128PlusPlus', () => {
   })
 
   it('rejects invalid options and explicit states at the boundary', () => {
+    // @ts-expect-error: intentionally invalid input to prove runtime rejection.
     expect(() => createAtRuntime(null)).toThrowError(TypeError)
+    // @ts-expect-error: intentionally invalid input to prove runtime rejection.
     expect(() => createAtRuntime({})).toThrowError(TypeError)
+    // @ts-expect-error: intentionally invalid input to prove runtime rejection.
     expect(() => createAtRuntime({ seed: 1n, state: [1n, 2n] })).toThrowError(TypeError)
+    // @ts-expect-error: intentionally invalid input to prove runtime rejection.
     expect(() => createAtRuntime({ seed: 1 })).toThrowError(TypeError)
+    // @ts-expect-error: intentionally invalid input to prove runtime rejection.
     expect(() => createAtRuntime({ state: [1n] })).toThrowError(TypeError)
+    // @ts-expect-error: intentionally invalid input to prove runtime rejection.
     expect(() => createAtRuntime({ state: [1n, 2] })).toThrowError(TypeError)
     expect(() => createAtRuntime({ seed: -1n })).toThrowError(RangeError)
     expect(() => createAtRuntime({ seed: MASK + 1n })).toThrowError(RangeError)
@@ -161,6 +167,7 @@ describe('createXoroshiro128PlusPlus', () => {
       )
     }
 
+    // @ts-expect-error: intentionally invalid input to prove runtime rejection.
     expect(() => nextIntAtRuntime(createXoroshiro128PlusPlus({ seed: 1n }), '10')).toThrowError(
       TypeError,
     )

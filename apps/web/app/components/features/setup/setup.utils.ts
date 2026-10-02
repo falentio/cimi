@@ -234,8 +234,8 @@ export function deriveSetupView(input: DeriveSetupViewInput): SetupViewModel {
   }
 }
 
-export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFailure {
-  const details = readErrorDetails(error)
+export function mapSetupError(cause: unknown, source: SetupErrorSource): SetupFailure {
+  const details = readErrorDetails(cause)
 
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return {
@@ -405,14 +405,14 @@ function pickHealth(health: Health): SetupHealth {
   }
 }
 
-function readErrorDetails(error: unknown): {
+function readErrorDetails(cause: unknown): {
   readonly code: string | undefined
   readonly status: number | undefined
 } {
-  const candidates: unknown[] = [error]
+  const candidates: unknown[] = [cause]
 
-  if (isRecord(error)) {
-    candidates.push(error.data, error.error, error.cause, error.response)
+  if (isRecord(cause)) {
+    candidates.push(cause.data, cause.error, cause.cause, cause.response)
   }
 
   let code: string | undefined

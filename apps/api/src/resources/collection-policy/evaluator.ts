@@ -161,7 +161,11 @@ export function sanitizeProperties(
     if (Object.keys(sanitized).length >= policy.propertyPolicy.maxProperties) break
 
     if (key.length === 0 || key.length > 64 || reserved.has(key)) continue
-    const scalar = toScalar(value)
+
+    const scalar =
+      value === null || typeof value === 'string' || typeof value === 'boolean' ? value
+      : typeof value === 'number' && Number.isFinite(value) ? value
+      : undefined
 
     if (scalar === undefined) continue
     sanitized[key] =
@@ -351,14 +355,6 @@ function isSensitiveQueryKey(key: string): boolean {
   const normalized = key.replace(/([a-z\d])([A-Z])/g, '$1_$2')
 
   return /(^|_|-)(token|secret|password|passwd|auth|api[_-]?key|email)(_|-|$)/i.test(normalized)
-}
-
-function toScalar(value: unknown): ScalarValue | undefined {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
-
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-
-  return undefined
 }
 
 function freezePolicyValues(values: PolicyValues): FrozenPolicyValues {
