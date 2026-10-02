@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { parseLoggingConfig } from '@cimi/config/logging'
+import type { LoggingConfig } from '@cimi/logging/level'
 import { createApiServerApp, type ApiServerApp } from '@cimi/api/server'
 
 let apiAppPromise: Promise<ApiServerApp> | undefined
@@ -27,9 +28,11 @@ async function createWebApiApp(): Promise<ApiServerApp> {
   migrationsFolder = folder
 
   try {
+    // SAFETY: nitro-serialized runtime config built by loadLoggingConfig; parseLoggingConfig validates or throws.
+    const logging = useRuntimeConfig().public.logging as LoggingConfig
     return await createApiServerApp({
       migrationsFolder: folder,
-      logging: parseLoggingConfig(useRuntimeConfig().public.logging),
+      logging: parseLoggingConfig(logging),
     })
   } catch (error) {
     await rm(folder, { recursive: true, force: true })
