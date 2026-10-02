@@ -2,6 +2,7 @@ import { computed, type ComputedRef } from 'vue'
 import { organizationHomePath } from '@/components/features/app-shell/organization-nav-config'
 import type { OrganizationId } from '@/components/features/organization-settings/organization-settings.types'
 import { resolveActiveOrganizationId } from '@/components/features/organization-settings/organization-settings.utils'
+import { isStringValue } from '../utils/type-guards'
 
 export interface WorkspaceSelectionApi {
   readonly activeOrganizationId: Readonly<ComputedRef<OrganizationId | undefined>>
@@ -23,13 +24,13 @@ export function useWorkspaceSelection(): WorkspaceSelectionApi {
   const routeSiteId = computed(() => {
     const value = route.params.siteId
 
-    return typeof value === 'string' ? value : undefined
+    return isStringValue(value) ? value : undefined
   })
 
   const routeOrganizationId = computed(() => {
     const value = route.params.organizationId
 
-    return typeof value === 'string' ? value : undefined
+    return isStringValue(value) ? value : undefined
   })
 
   const activeOrganizationId = computed(() =>

@@ -1,5 +1,5 @@
 import { ERROR_CATALOG } from '@cimi/contract'
-import { isRecord } from '@cimi/utils'
+import { isStringValue, isRecord } from '@cimi/utils'
 
 export async function addPublicRateLimitHeaders(response: Response): Promise<Response> {
   if (response.status !== ERROR_CATALOG.TOO_MANY_REQUESTS.status) return response
@@ -27,7 +27,7 @@ export async function addPublicRateLimitHeaders(response: Response): Promise<Res
     for (const [source, target] of mappings) {
       const value = rateHeaders[source]
 
-      if (typeof value === 'string') headers.set(target, value)
+      if (isStringValue(value)) headers.set(target, value)
     }
 
     return new Response(response.body, {

@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { isRecord } from '@cimi/utils'
 import { oc } from '../../../orpc/index.ts'
 import { SId, VALIDATION_KEYS } from '../../../schema/index.ts'
 import { SCollectionContext } from '../../collection-policy/transport.ts'
@@ -22,7 +23,7 @@ export const SCollectEventsInput = v.pipe(
   v.check(
     ({ ingestionIdentifier, events }) =>
       events.every((event) => {
-        if (typeof event !== 'object' || event === null || Array.isArray(event)) return true
+        if (!isRecord(event)) return true
 
         return (
           !('ingestionIdentifier' in event) || event['ingestionIdentifier'] === ingestionIdentifier
@@ -34,10 +35,7 @@ export const SCollectEventsInput = v.pipe(
     ({ events }) =>
       events.every(
         (event) =>
-          typeof event !== 'object' ||
-          event === null ||
-          Array.isArray(event) ||
-          !('collectionContext' in event),
+          !isRecord(event) || !('collectionContext' in event),
       ),
     VALIDATION_KEYS.contract.batch.collectionContextScoped,
   ),

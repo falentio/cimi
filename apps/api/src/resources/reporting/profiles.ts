@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { schema, type Db, type JsonObject, type JsonValue } from '@cimi/db'
 import type { AnalyticsReportScalar } from '@cimi/db'
-import { isRecord } from '@cimi/utils'
+import { isBooleanValue, isNumberValue, isStringValue, isRecord } from '@cimi/utils'
 
 export type ReportingProfileTraits = ReadonlyMap<string, JsonObject>
 
@@ -57,9 +57,9 @@ export function readProfileTrait(
 function isAnalyticsReportScalar(value: unknown): value is AnalyticsReportScalar {
   return (
     value === null ||
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
+    isStringValue(value) ||
+    isNumberValue(value) ||
+    isBooleanValue(value)
   )
 }
 
@@ -76,9 +76,9 @@ function readJsonObject(value: JsonObject): JsonObject {
 }
 
 function readJsonValue(value: JsonValue): JsonValue {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
+  if (value === null || isStringValue(value) || isBooleanValue(value)) return value
 
-  if (typeof value === 'number') {
+  if (isNumberValue(value)) {
     if (!Number.isFinite(value)) throw new Error('Profile traits are not a JSON object')
 
     return value

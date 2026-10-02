@@ -1,4 +1,5 @@
 import { isRecord, type JsonValue } from '../canonical-json/index.ts'
+import { isStringValue } from '../predicates.ts'
 
 export interface EventAttribution {
   readonly utmSource: string | null
@@ -60,5 +61,5 @@ function emptyEventAttribution(): EventAttribution {
 }
 
 function stringValue(value: JsonValue): string | null {
-  return typeof value === 'string' ? value : null
+  return isStringValue(value) ? value : null
 }

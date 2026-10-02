@@ -2,6 +2,7 @@
 import type { HTMLAttributes } from 'vue'
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
+import { isStringValue } from '../../../utils/type-guards'
 
 const props = defineProps<{
   class?: HTMLAttributes['class']
@@ -14,7 +15,7 @@ const content = computed(() => {
   const uniqueErrors = [
     ...new Map(
       props.errors.filter(Boolean).map((error) => {
-        const message = typeof error === 'string' ? error : error?.message
+        const message = isStringValue(error) ? error : error?.message
 
         return [message, error]
       }),
@@ -22,10 +23,10 @@ const content = computed(() => {
   ]
 
   if (uniqueErrors.length === 1 && uniqueErrors[0]) {
-    return typeof uniqueErrors[0] === 'string' ? uniqueErrors[0] : uniqueErrors[0].message
+    return isStringValue(uniqueErrors[0]) ? uniqueErrors[0] : uniqueErrors[0].message
   }
 
-  return uniqueErrors.map((error) => (typeof error === 'string' ? error : error?.message))
+  return uniqueErrors.map((error) => (isStringValue(error) ? error : error?.message))
 })
 </script>
 
@@ -38,7 +39,7 @@ const content = computed(() => {
   >
     <slot v-if="$slots.default" />
 
-    <template v-else-if="typeof content === 'string'">
+    <template v-else-if="isStringValue(content)">
       {{ content }}
     </template>
 

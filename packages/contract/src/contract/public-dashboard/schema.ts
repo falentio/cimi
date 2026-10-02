@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { isEventKind } from '@cimi/utils'
+import { isStringValue, isEventKind } from '@cimi/utils'
 import {
   SDate,
   SId,
@@ -62,8 +62,8 @@ export const SPublicDashboardFilter = v.pipe(
     (input) =>
       input.scope === 'visitor' ||
       (input.field === 'kind'
-        ? input.values.every((value) => typeof value === 'string' && isEventKind(value))
-        : input.values.every((value) => typeof value === 'string')),
+        ? input.values.every((value) => isStringValue(value) && isEventKind(value))
+        : input.values.every((value) => isStringValue(value))),
     VALIDATION_KEYS.contract.publicDashboard.dimensionFiltersString,
   ),
 )

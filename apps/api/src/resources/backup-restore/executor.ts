@@ -21,6 +21,7 @@ import {
   type RetentionManifestBoundary,
 } from './retention-manifest.ts'
 import { scrubAcceptedEventIdentity, scrubCanonicalEventPayloads } from './identity-redaction.ts'
+import { isStringValue } from '@cimi/utils'
 
 export { BackupIncompatibilityError } from './errors.ts'
 
@@ -989,7 +990,7 @@ export function classifyStorageExhausted(cause: unknown): boolean {
 
   if (code === 'ENOSPC' || code === 'SQLITE_FULL') return true
 
-  if (typeof code === 'string' && code.startsWith('SQLITE_IOERR')) return true
+  if (isStringValue(code) && code.startsWith('SQLITE_IOERR')) return true
   const message = cause instanceof Error ? cause.message : String(cause)
 
   return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)

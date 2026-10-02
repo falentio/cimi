@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { OverviewRange, OverviewRangeOption } from './site-overview.types'
+import { isStringValue } from '../../../utils/type-guards'
 
 const props = defineProps<{
   readonly ranges: readonly OverviewRangeOption[]
@@ -29,7 +30,7 @@ const selectedRangeLabel = computed(
 )
 
 function handleRangeChange(value: string): void {
-  if (typeof value !== 'string') return
+  if (!isStringValue(value)) return
   const range = props.ranges.find((option) => option.value === value)
 
   if (range === undefined) return

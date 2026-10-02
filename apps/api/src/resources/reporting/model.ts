@@ -9,6 +9,7 @@ import type { JsonValue as CanonicalJsonValue } from '@cimi/utils'
 import { schema as contractSchema } from '@cimi/contract'
 import type { ResolvedPeriod } from '@cimi/kernel'
 import { readProfileTrait, type ReportingProfileTraits } from './profiles.ts'
+import { isBooleanValue, isNumberValue, isRecord, isStringValue } from '@cimi/utils'
 
 export type PropertyFilter = InferOutput<typeof contractSchema.SPropertyFilter>
 
@@ -216,16 +217,16 @@ function matchesValue(
   if (operator === 'not_equals') return actual !== expected
 
   if (operator === 'contains') {
-    return typeof actual === 'string' && typeof expected === 'string' && actual.includes(expected)
+    return isStringValue(actual) && isStringValue(expected) && actual.includes(expected)
   }
 
-  if (typeof actual !== 'number' || typeof expected !== 'number') return false
+  if (!isNumberValue(actual) || !isNumberValue(expected)) return false
 
   return operator === 'greater_than' ? actual > expected : actual < expected
 }
 
 export function toJsonObject(value: CanonicalJsonValue): JsonObject {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+  if (!isRecord(value)) {
     throw new TypeError('Expected a JSON object')
   }
 
@@ -239,9 +240,9 @@ export function toJsonObject(value: CanonicalJsonValue): JsonObject {
 }
 
 export function toJsonValue(value: CanonicalJsonValue): import('@cimi/db').JsonValue {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
+  if (value === null || isStringValue(value) || isBooleanValue(value)) return value
 
-  if (typeof value === 'number') {
+  if (isNumberValue(value)) {
     if (!Number.isFinite(value)) throw new TypeError('Expected a finite JSON number')
 
     return value

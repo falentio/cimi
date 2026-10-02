@@ -1,5 +1,6 @@
 import type { Asn, City } from '@maxmind/geoip2-node'
 import { Reader } from '@maxmind/geoip2-node'
+import { isNumberValue } from '@cimi/utils'
 
 const DEFAULT_CACHE_SIZE = 10_000
 
@@ -146,7 +147,7 @@ function lookupAsn(reader: AsnReader | null, ip: string): AsnInfo | null {
   try {
     const response = reader.asn(ip)
 
-    if (typeof response.autonomousSystemNumber !== 'number') return null
+    if (!isNumberValue(response.autonomousSystemNumber)) return null
 
     return {
       asn: response.autonomousSystemNumber,

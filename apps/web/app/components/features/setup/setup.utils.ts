@@ -18,6 +18,7 @@ import type {
   SetupViewModel,
   UpgradeView,
 } from './setup.types'
+import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 
 type SetupErrorSource = 'status' | 'health' | 'initialize' | 'upgrade'
 
@@ -418,11 +419,11 @@ function readErrorDetails(cause: unknown) {
   for (const candidate of candidates) {
     if (!isRecord(candidate)) continue
 
-    if (code === undefined && typeof candidate.code === 'string') code = candidate.code
+    if (code === undefined && isStringValue(candidate.code)) code = candidate.code
 
-    if (status === undefined && typeof candidate.status === 'number') status = candidate.status
+    if (status === undefined && isNumberValue(candidate.status)) status = candidate.status
 
-    if (status === undefined && typeof candidate.statusCode === 'number')
+    if (status === undefined && isNumberValue(candidate.statusCode))
       status = candidate.statusCode
   }
 

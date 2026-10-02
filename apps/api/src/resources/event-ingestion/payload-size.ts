@@ -1,4 +1,4 @@
-import { isRecord, type JsonValue } from '@cimi/utils'
+import { isStringValue, isRecord, type JsonValue } from '@cimi/utils'
 
 const LONG_TEXT_KEYS = new Set(['pagePath', 'referrer', 'destination'])
 
@@ -15,14 +15,14 @@ export function isParsedPayloadOversized(value: unknown): value is Record<string
 
       if (
         Object.values(entry).some(
-          (propertyValue) => typeof propertyValue === 'string' && propertyValue.length > 512,
+          (propertyValue) => isStringValue(propertyValue) && propertyValue.length > 512,
         )
       )
         return true
       continue
     }
 
-    if (typeof entry !== 'string') continue
+    if (!isStringValue(entry)) continue
 
     if (IDE_KEYS.has(key)) continue
 

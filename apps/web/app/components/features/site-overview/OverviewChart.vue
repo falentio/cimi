@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/chart'
 import type { OverviewMetric, OverviewRange, OverviewTrend } from './site-overview.types'
 import OverviewChartTooltip from './OverviewChartTooltip.vue'
+import { isNumberValue } from '../../../utils/type-guards'
 
 interface ChartDatum {
   readonly index: number
@@ -89,11 +90,11 @@ const tooltipTemplate = (datum: ChartDatum): string => {
 }
 
 function formatXTick(value: number | Date): string {
-  return typeof value === 'number' ? (chartData.value[value]?.label ?? '') : ''
+  return isNumberValue(value) ? (chartData.value[value]?.label ?? '') : ''
 }
 
 function formatYTick(value: number | Date): string {
-  if (typeof value !== 'number') return ''
+  if (!isNumberValue(value)) return ''
 
   return props.metric.unit === 'percent' ? `${value}%` : value.toLocaleString()
 }

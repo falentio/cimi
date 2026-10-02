@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { and, eq, lt, max } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
-import { mergeEventAttribution, parseEventAttribution, type EventAttribution } from '@cimi/utils'
+import { isNumberValue, isStringValue, mergeEventAttribution, parseEventAttribution, type EventAttribution } from '@cimi/utils'
 import type { AcceptanceCandidate, AcceptanceRepository, AppendOutcome } from './repository.ts'
 import type { DerivedAttribution } from './attribution.ts'
 
@@ -365,14 +365,14 @@ function appendProperties(
     const typed =
       value === null
         ? { valueType: 'null' as const, stringValue: null, numberValue: null, booleanValue: null }
-        : typeof value === 'string'
+        : isStringValue(value)
           ? {
               valueType: 'string' as const,
               stringValue: value,
               numberValue: null,
               booleanValue: null,
             }
-          : typeof value === 'number'
+          : isNumberValue(value)
             ? {
                 valueType: 'number' as const,
                 stringValue: null,

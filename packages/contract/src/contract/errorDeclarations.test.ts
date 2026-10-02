@@ -340,7 +340,7 @@ const expectedErrors = {
   'trafficReport.getTrafficBreakdowns': analyticsReport,
 } satisfies Record<string, ErrorMap>
 
-type ContractNode = AnyContractProcedure | { readonly [key: string]: ContractNode | undefined }
+type ContractNode = AnyContractProcedure | { readonly [key: string]: ContractNode }
 
 const getErrorMap = (path: string): ErrorMap => {
   // SAFETY: errorMap presence is verified by the catalog assertions below.
@@ -359,12 +359,10 @@ const getErrorMap = (path: string): ErrorMap => {
   return node['~orpc'].errorMap
 }
 
-const getMissingSuccessStatuses = <T extends object>(node: T, path: string[] = []): string[] => {
+const getMissingSuccessStatuses = (node: ContractNode, path: string[] = []): string[] => {
   if (isContractProcedure(node)) {
     return node['~orpc'].route.successStatus === undefined ? [path.join('.')] : []
   }
-
-  if (node === null || typeof node !== 'object') return []
 
   return Object.entries(node).flatMap(([key, value]) =>
     getMissingSuccessStatuses(value, [...path, key]),
@@ -392,8 +390,8 @@ const resourcePaths = {
   trafficReport: 'traffic-report',
 } as const
 
-const getRoutes = <T extends object>(
-  node: T,
+const getRoutes = (
+  node: ContractNode,
   path: string[] = [],
 ): Array<{ contractPath: string; method: string; routePath: string }> => {
   if (isContractProcedure(node)) {
@@ -405,8 +403,6 @@ const getRoutes = <T extends object>(
 
     return [{ contractPath: path.join('.'), method: route.method, routePath: route.path }]
   }
-
-  if (node === null || typeof node !== 'object') return []
 
   return Object.entries(node).flatMap(([key, value]) => getRoutes(value, [...path, key]))
 }

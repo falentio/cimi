@@ -1,5 +1,5 @@
 import type { schema, SEvent } from '@cimi/contract'
-import { canonicalizeHostname, createIpMatcher } from '@cimi/utils'
+import { isBooleanValue, isNumberValue, isStringValue, canonicalizeHostname, createIpMatcher } from '@cimi/utils'
 import type { InferOutput } from 'valibot'
 import type { IdentifyInput } from '../identity-profile/service.ts'
 import {
@@ -164,13 +164,13 @@ export function sanitizeProperties(
     if (key.length === 0 || key.length > 64 || reserved.has(key)) continue
 
     const scalar =
-      value === null || typeof value === 'string' || typeof value === 'boolean' ? value
-      : typeof value === 'number' && Number.isFinite(value) ? value
+      value === null || isStringValue(value) || isBooleanValue(value) ? value
+      : isNumberValue(value) && Number.isFinite(value) ? value
       : undefined
 
     if (scalar === undefined) continue
     sanitized[key] =
-      typeof scalar === 'string' ? scalar.slice(0, policy.propertyPolicy.maxValueLength) : scalar
+      isStringValue(scalar) ? scalar.slice(0, policy.propertyPolicy.maxValueLength) : scalar
   }
 
   return Object.freeze(sanitized)

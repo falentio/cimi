@@ -480,29 +480,27 @@ function toRole(value: string): AuthorityRole {
   }
 }
 
+function isErrorWithCode(cause: unknown): cause is { readonly body: { readonly code: unknown } } {
+  return (
+    typeof cause === 'object' &&
+    cause !== null &&
+    'body' in cause &&
+    typeof cause.body === 'object' &&
+    cause.body !== null &&
+    'code' in cause.body
+  )
+}
+
 function isOrganizationNotFound(cause: unknown): boolean {
-  if (typeof cause !== 'object' || cause === null || !('body' in cause)) return false
-  const body = cause.body
-
-  if (typeof body !== 'object' || body === null || !('code' in body)) return false
-
-  return body.code === 'ORGANIZATION_NOT_FOUND'
+  return isErrorWithCode(cause) && cause.body.code === 'ORGANIZATION_NOT_FOUND'
 }
 
 function isRequesterNotOrganizationMember(cause: unknown): boolean {
-  if (typeof cause !== 'object' || cause === null || !('body' in cause)) return false
-  const body = cause.body
-
-  if (typeof body !== 'object' || body === null || !('code' in body)) return false
-
-  return body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
+  return (
+    isErrorWithCode(cause) && cause.body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
+  )
 }
 
 function isAlreadyMember(cause: unknown): boolean {
-  if (typeof cause !== 'object' || cause === null || !('body' in cause)) return false
-  const body = cause.body
-
-  if (typeof body !== 'object' || body === null || !('code' in body)) return false
-
-  return body.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION'
+  return isErrorWithCode(cause) && cause.body.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION'
 }

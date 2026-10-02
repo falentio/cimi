@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DuckDBInstance, type DuckDBConnection, type DuckDBValue } from '@duckdb/node-api'
-import {
+import { isBigintValue, isBooleanValue, isNumberValue, isStringValue,
   getNestedMapValue,
   mergeEventAttribution,
   nestedMapValues,
@@ -1335,13 +1335,13 @@ function readInstant(value: DuckDBValue | undefined): Date | null {
 
   if (value instanceof Date) return value
 
-  if (typeof value === 'bigint' || typeof value === 'number') {
+  if (isBigintValue(value) || isNumberValue(value)) {
     const parsed = new Date(Number(value))
 
     return Number.isNaN(parsed.getTime()) ? null : parsed
   }
 
-  if (typeof value !== 'string') return null
+  if (!isStringValue(value)) return null
   const parsed = new Date(value)
 
   return Number.isNaN(parsed.getTime()) ? null : parsed
@@ -1398,9 +1398,9 @@ function readReportEvent(row: Record<string, DuckDBValue>): AnalyticsReportEvent
 function nullableString(value: DuckDBValue | undefined): string | null {
   if (value === null || value === undefined) return null
 
-  if (typeof value === 'string') return value
+  if (isStringValue(value)) return value
 
-  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+  if (isNumberValue(value) || isBigintValue(value) || isBooleanValue(value)) {
     return String(value)
   }
 
@@ -1409,7 +1409,7 @@ function nullableString(value: DuckDBValue | undefined): string | null {
 
 function readReportProperties(value: DuckDBValue | undefined) {
   if (value === null || value === undefined) return {}
-  const parsed = typeof value === 'string' ? JSON.parse(value) : value
+  const parsed = isStringValue(value) ? JSON.parse(value) : value
 
   if (!isRecord(parsed)) throw new Error('Analytics report properties are not an object')
   const properties: Record<string, AnalyticsReportScalar> = {}
@@ -1417,9 +1417,9 @@ function readReportProperties(value: DuckDBValue | undefined) {
   for (const [key, property] of Object.entries(parsed)) {
     if (
       property === null ||
-      typeof property === 'string' ||
-      typeof property === 'boolean' ||
-      (typeof property === 'number' && Number.isFinite(property))
+      isStringValue(property) ||
+      isBooleanValue(property) ||
+      (isNumberValue(property) && Number.isFinite(property))
     ) {
       properties[key] = property
     } else {

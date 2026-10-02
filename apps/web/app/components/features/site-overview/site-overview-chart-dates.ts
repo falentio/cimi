@@ -1,4 +1,5 @@
 import type { OverviewRange } from './site-overview.types'
+import { isStringValue } from '../../../utils/type-guards'
 
 /** How far the previous period is shifted back from the current one, per range. */
 const PREVIOUS_PERIOD_OFFSET: Readonly<Record<OverviewRange, { days: number; months: number }>> = {
@@ -17,7 +18,7 @@ const dayMonthFormatter = new Intl.DateTimeFormat('en-GB', {
 
 /** Formats a date or ISO string as `DD MMMM`, e.g. `12 May`. */
 export function formatDayMonth(value: string | Date): string {
-  const date = typeof value === 'string' ? new Date(value) : value
+  const date = isStringValue(value) ? new Date(value) : value
 
   if (Number.isNaN(date.getTime())) return ''
 
@@ -30,7 +31,7 @@ export function formatDayMonth(value: string | Date): string {
  * never drift a day on hosts in a negative timezone offset.
  */
 export function resolvePreviousDate(value: string | Date, range: OverviewRange): Date {
-  const date = typeof value === 'string' ? new Date(value) : new Date(value.getTime())
+  const date = isStringValue(value) ? new Date(value) : new Date(value.getTime())
   const { days, months } = PREVIOUS_PERIOD_OFFSET[range]
   date.setUTCMonth(date.getUTCMonth() - months)
   date.setUTCDate(date.getUTCDate() - days)

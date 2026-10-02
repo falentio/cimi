@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { WEEK_START_OPTIONS } from './site-settings.utils'
 import type { SiteSettingsDraft } from './site-settings.types'
+import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 
 defineProps<{
   draft: SiteSettingsDraft
@@ -20,15 +21,15 @@ const emit = defineEmits<{
 }>()
 
 function updateName(value: string | number): void {
-  if (typeof value === 'string' || typeof value === 'number') emit('updateName', String(value))
+  if (isStringValue(value) || isNumberValue(value)) emit('updateName', String(value))
 }
 
 function updateHostname(value: string | number): void {
-  if (typeof value === 'string' || typeof value === 'number') emit('updateHostname', String(value))
+  if (isStringValue(value) || isNumberValue(value)) emit('updateHostname', String(value))
 }
 
 function updateTimezone(value: string): void {
-  if (typeof value === 'string') emit('updateTimezone', value)
+  if (isStringValue(value)) emit('updateTimezone', value)
 }
 
 function isWeekStart(value: string): value is SiteSettingsDraft['weekStartsOn'] {
@@ -36,7 +37,7 @@ function isWeekStart(value: string): value is SiteSettingsDraft['weekStartsOn'] 
 }
 
 function updateWeekStart(value: string): void {
-  if (typeof value === 'string' && isWeekStart(value)) emit('updateWeekStart', value)
+  if (isStringValue(value) && isWeekStart(value)) emit('updateWeekStart', value)
 }
 </script>
 

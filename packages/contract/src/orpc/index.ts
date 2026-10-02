@@ -1,9 +1,14 @@
 import { oc as baseOc } from '@orpc/contract'
-import type { JsonValue } from '@cimi/utils'
+import { isFunctionValue, isRecord, type JsonValue } from '@cimi/utils'
 import type { AuthMeta } from './meta.ts'
 import { ERROR_CATALOG, type ContractErrorCode } from '../schema/errors.ts'
 
 type Builder = ReturnType<typeof baseOc.$meta<AuthMeta>>
+
+/** Non-null object test preserving arrays, for proxy wrapping decisions. */
+function isWrappableValue(value: unknown): value is object {
+  return typeof value === 'object' && value !== null
+}
 
 /** A builder method forwarded through the proxy; its result is narrowed by the caller. */
 interface ForwardedBuilderMethod {
@@ -17,7 +22,7 @@ function wrapBuilder<T extends object>(builder: T): T {
     get(target, property) {
       const value: unknown = target[property as keyof T]
 
-      if (typeof value !== 'function') return value
+      if (!isFunctionValue(value)) return value
 
       return (...args: unknown[]) => {
         // SAFETY: .errors() receives object literals; withCentralErrorMessages validates or throws.
@@ -28,7 +33,7 @@ function wrapBuilder<T extends object>(builder: T): T {
 
         const result = (value as ForwardedBuilderMethod).call(target, ...nextArgs)
 
-        return result !== null && typeof result === 'object' ? wrapBuilder(result) : result
+        return isWrappableValue(result) ? wrapBuilder(result) : result
       }
     },
   })
@@ -45,7 +50,7 @@ function withCentralErrorMessages(
         throw new TypeError(`Unknown contract error code: ${code}`)
       }
 
-      if (definition === null || typeof definition !== 'object') {
+      if (definition === null || !isRecord(definition)) {
         throw new TypeError(`Contract error ${code} must use an object definition`)
       }
 
@@ -59,14 +64,13 @@ function withCentralErrorMessages(
         throw new TypeError(`Contract error ${code} must not define catalog message`)
       }
 
-      return [
-        code,
-        {
-          ...definition,
-          status: catalogDefinition.status,
-          message: catalogDefinition.message,
-        },
-      ]
+      const output: Record<string, JsonValue> = {}
+
+      for (const [key, val] of Object.entries(definition)) output[key] = val
+      output['status'] = catalogDefinition.status
+      output['message'] = catalogDefinition.message
+
+      return [code, output]
     }),
   )
 }

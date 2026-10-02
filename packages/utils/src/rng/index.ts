@@ -1,3 +1,6 @@
+import { isBigintValue, isNumberValue } from '../predicates.ts'
+import { isRecord } from '../canonical-json/index.ts'
+
 const MASK_64 = (1n << 64n) - 1n
 
 const UINT64_RANGE = 1n << 64n
@@ -60,7 +63,7 @@ export function createXoroshiro128PlusPlus(
 }
 
 function parseOptions(options: Xoroshiro128PlusPlusOptions): Xoroshiro128PlusPlusState {
-  if (options === null || typeof options !== 'object') {
+  if (options === null || !isRecord(options)) {
     throw new TypeError('Options must contain exactly one seed or state')
   }
 
@@ -95,7 +98,7 @@ function parseState(value: Xoroshiro128PlusPlusState): Xoroshiro128PlusPlusState
 }
 
 function parseUint64(value: bigint | undefined): bigint {
-  if (typeof value !== 'bigint') {
+  if (!isBigintValue(value)) {
     throw new TypeError('State words must be bigint values')
   }
 
@@ -128,7 +131,7 @@ function rotateLeft(value: bigint, shift: bigint): bigint {
 }
 
 function validateMaxExclusive(maxExclusive: number): void {
-  if (typeof maxExclusive !== 'number') {
+  if (!isNumberValue(maxExclusive)) {
     throw new TypeError('maxExclusive must be a number')
   }
 

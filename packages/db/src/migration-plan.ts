@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { isRecord } from '@cimi/utils'
+import { isNumberValue, isStringValue, isRecord } from '@cimi/utils'
 
 export class ControlMigrationIncompatibilityError extends Error {
   constructor(message: string) {
@@ -54,7 +54,7 @@ export function loadMigrationManifest(migrationsFolder: string): readonly Migrat
   }
 
   return parsed['entries'].map((entry) => {
-    if (!isRecord(entry) || typeof entry['tag'] !== 'string' || typeof entry['when'] !== 'number') {
+    if (!isRecord(entry) || !isStringValue(entry['tag']) || !isNumberValue(entry['when'])) {
       throw new Error('Control migration journal entry is invalid')
     }
 

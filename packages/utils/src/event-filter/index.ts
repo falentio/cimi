@@ -1,3 +1,5 @@
+import { isBooleanValue, isNumberValue, isStringValue } from '../predicates.ts'
+
 export const EVENT_KINDS = [
   'page_view',
   'custom_event',
@@ -83,8 +85,8 @@ const EVENT_KIND_SET: ReadonlySet<string> = new Set(EVENT_KINDS)
 
 const EVENT_FIELD_SET: ReadonlySet<string> = new Set(EVENT_FIELDS)
 
-function isFiniteNumber(value: EventFilterValue): boolean {
-  return typeof value === 'number' && Number.isFinite(value)
+function isFiniteNumber(value: EventFilterValue): value is number {
+  return isNumberValue(value) && Number.isFinite(value)
 }
 
 export function isEventKind(value: string): value is EventKind {
@@ -118,19 +120,19 @@ export function isCompatibleDirectEventFilter(input: EventFilterCompatibilityInp
   if (input.field === 'kind') {
     if (input.operator !== 'equals' && input.operator !== 'not_equals') return false
 
-    return input.values.every((value) => typeof value === 'string' && EVENT_KIND_SET.has(value))
+    return input.values.every((value) => isStringValue(value) && EVENT_KIND_SET.has(value))
   }
 
   if (input.operator === 'contains') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
 
   if (input.operator === 'equals') {
-    return input.values.every((value) => value === null || typeof value === 'string')
+    return input.values.every((value) => value === null || isStringValue(value))
   }
 
   if (input.operator === 'not_equals') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
 
   return false
@@ -143,8 +145,8 @@ export function isCompatiblePropertyFilter(input: PropertyFilterCompatibilityInp
     !input.values.every(
       (value) =>
         value === null ||
-        typeof value === 'string' ||
-        typeof value === 'boolean' ||
+        isStringValue(value) ||
+        isBooleanValue(value) ||
         isFiniteNumber(value),
     )
   ) {
@@ -152,7 +154,7 @@ export function isCompatiblePropertyFilter(input: PropertyFilterCompatibilityInp
   }
 
   if (input.operator === 'contains') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
 
   if (input.operator === 'greater_than' || input.operator === 'less_than') {
@@ -169,12 +171,12 @@ export function isCompatibleSessionFilter(input: {
   if (input.values.length === 0) return false
 
   if (input.operator === 'contains') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
 
   if (input.operator === 'greater_than' || input.operator === 'less_than') return false
 
-  return input.values.every((value) => typeof value === 'string')
+  return input.values.every((value) => isStringValue(value))
 }
 
 export function isCompatibleIdentityKindFilter(input: {

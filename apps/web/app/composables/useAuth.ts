@@ -1,5 +1,6 @@
 import { computed, getCurrentInstance, type ComputedRef, type Ref } from 'vue'
 import type { createCimiAuthClient } from '@cimi/auth/client'
+import { isBooleanValue, isNumberValue, isStringValue } from '../utils/type-guards'
 
 type AuthClient = ReturnType<typeof createCimiAuthClient>
 
@@ -187,12 +188,12 @@ function isAuthUser(value: unknown): value is AuthUser {
   const role = value.role
 
   return (
-    typeof value.id === 'string' &&
-    typeof value.name === 'string' &&
-    typeof value.email === 'string' &&
-    typeof value.emailVerified === 'boolean' &&
-    (value.image === null || typeof value.image === 'string') &&
-    (role === undefined || role === null || typeof role === 'string')
+    isStringValue(value.id) &&
+    isStringValue(value.name) &&
+    isStringValue(value.email) &&
+    isBooleanValue(value.emailVerified) &&
+    (value.image === null || isStringValue(value.image)) &&
+    (role === undefined || role === null || isStringValue(role))
   )
 }
 
@@ -204,6 +205,9 @@ interface AuthResponse {
   readonly email?: unknown
   readonly emailVerified?: unknown
   readonly image?: unknown
+  readonly message?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
 }
 
 function isRecord<T>(value: T): value is T & AuthResponse {
@@ -213,23 +217,23 @@ function isRecord<T>(value: T): value is T & AuthResponse {
 function normalizeAuthError(cause: unknown): AuthError {
   if (cause instanceof Error) {
     const message = cause.message || DEFAULT_ERROR_MESSAGE
-    const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
-    const status = 'status' in cause && typeof cause.status === 'number' ? cause.status : undefined
+    const code = 'code' in cause && isStringValue(cause.code) ? cause.code : undefined
+    const status = 'status' in cause && isNumberValue(cause.status) ? cause.status : undefined
 
     return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
   }
 
-  if (typeof cause === 'object' && cause !== null) {
-    const message =
-      'message' in cause && typeof cause.message === 'string'
-        ? cause.message
-        : DEFAULT_ERROR_MESSAGE
-
-    const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
-    const status = 'status' in cause && typeof cause.status === 'number' ? cause.status : undefined
-
-    return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
+  if (!isRecord(cause)) {
+    return { message: DEFAULT_ERROR_MESSAGE }
   }
 
-  return { message: DEFAULT_ERROR_MESSAGE }
+  const message =
+    'message' in cause && isStringValue(cause.message)
+      ? cause.message
+      : DEFAULT_ERROR_MESSAGE
+
+  const code = 'code' in cause && isStringValue(cause.code) ? cause.code : undefined
+  const status = 'status' in cause && isNumberValue(cause.status) ? cause.status : undefined
+
+  return { message, ...(code !== undefined && { code }), ...(status !== undefined && { status }) }
 }

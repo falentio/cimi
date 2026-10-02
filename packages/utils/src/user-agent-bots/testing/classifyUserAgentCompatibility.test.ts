@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isStringValue } from '../../predicates.ts'
 
 import { classifyUAAhoDense } from '../aho-dense.ts'
 import { ALL_BOT_PATTERNS } from '../patterns.ts'
@@ -82,7 +83,7 @@ function literalProbe(rule: LiteralRule): string {
 }
 
 function regexOracle(userAgent: string | null | undefined): BotClassification {
-  if (typeof userAgent !== 'string' || userAgent.length === 0) {
+  if (!isStringValue(userAgent) || userAgent.length === 0) {
     return NON_BOT
   }
 

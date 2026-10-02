@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isRecord } from '@cimi/utils'
+import { isNumberValue, isRecord } from '@cimi/utils'
 import Database from 'better-sqlite3'
 
 const LEGACY_FIXTURE_FOLDER = fileURLToPath(new URL('./fixtures/legacy-471c10d', import.meta.url))
@@ -254,7 +254,7 @@ function readLegacyJournal(): readonly LegacyJournalEntry[] {
   }
 
   return parsed['entries'].map((entry) => {
-    if (!isRecord(entry) || typeof entry['idx'] !== 'number' || typeof entry['when'] !== 'number') {
+    if (!isRecord(entry) || !isNumberValue(entry['idx']) || !isNumberValue(entry['when'])) {
       throw new Error('Legacy migration journal entry is invalid')
     }
 

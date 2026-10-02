@@ -106,6 +106,7 @@ export class BackupRestoreService {
     this.acceptance = acceptance
     this.reads = reads
     this.dataDirectoryReady =
+      // eslint-disable-next-line anti-slop/no-runtime-typeof -- closed boolean-or-function union; typeof is the sole discriminator.
       typeof dataDirectoryReady === 'function' ? dataDirectoryReady : () => dataDirectoryReady
     this.leaseAcquisitionTimeoutMs =
       leaseAcquisitionTimeoutMs ?? DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS

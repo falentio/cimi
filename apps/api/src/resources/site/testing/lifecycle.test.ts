@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mock } from 'vitest-mock-extended'
+import { isFunctionValue } from '@cimi/utils'
 import { InMemoryLifecycleLock } from '@cimi/kernel'
 import type { SiteRepository } from '../repository.ts'
 import { SiteLifecycleWorker } from '../lifecycle.ts'
@@ -128,7 +129,7 @@ describe('SiteLifecycleWorker', () => {
     worker.start()
     const callback = interval.mock.calls.at(-1)?.[0]
 
-    if (typeof callback !== 'function') throw new Error('Expected an interval callback')
+    if (!isFunctionValue(callback)) throw new Error('Expected an interval callback')
 
     await worker.stop()
     callback()

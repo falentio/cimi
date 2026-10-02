@@ -10,6 +10,7 @@ import {
   type CurrentMigrationPlan,
   ControlMigrationIncompatibilityError,
 } from './migration-plan.ts'
+import { isBigintValue, isNumberValue, isStringValue } from '@cimi/utils'
 
 export interface LegacyLedgerEntry {
   readonly id: number
@@ -1217,9 +1218,9 @@ function sortRowsByPrimaryKey(
 }
 
 function compareScalars(left: SqliteScalar, right: SqliteScalar): number {
-  if (typeof left === 'number' && typeof right === 'number') return left - right
+  if (isNumberValue(left) && isNumberValue(right)) return left - right
 
-  if (typeof left === 'bigint' && typeof right === 'bigint') {
+  if (isBigintValue(left) && isBigintValue(right)) {
     return left < right ? -1 : left > right ? 1 : 0
   }
 
@@ -1234,11 +1235,11 @@ function serializeScalar(value: SqliteScalar): string {
 
   if (Buffer.isBuffer(value)) return `blob:${value.toString('hex')}`
 
-  if (typeof value === 'number') return `num:${value}`
+  if (isNumberValue(value)) return `num:${value}`
 
-  if (typeof value === 'bigint') return `int:${value}`
+  if (isBigintValue(value)) return `int:${value}`
 
-  if (typeof value === 'string') return `str:${JSON.stringify(value)}`
+  if (isStringValue(value)) return `str:${JSON.stringify(value)}`
   throw new Error(`Unsupported SQLite scalar type: ${typeof value}`)
 }
 

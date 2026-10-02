@@ -1,4 +1,5 @@
 import type { Site, SiteId, SiteSettingsDraft } from './site-settings.types'
+import { isFunctionValue, isStringValue } from '../../../utils/type-guards'
 
 const SITE_NAME_MAX_LENGTH = 256
 
@@ -18,7 +19,7 @@ export const WEEK_START_OPTIONS: readonly {
 ]
 
 export function parseSiteId(value: string | readonly string[] | undefined): SiteId | undefined {
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined
+  return isStringValue(value) && value.trim() !== '' ? value : undefined
 }
 
 export function normalizeSiteSettingsDraft(draft: SiteSettingsDraft): SiteSettingsDraft {
@@ -72,7 +73,7 @@ export function getTimezoneOptions(currentTimezone?: Site['reportingTimezone']):
   readonly label: string
 }[] {
   const supportedTimezones =
-    typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : []
+    isFunctionValue(Intl.supportedValuesOf) ? Intl.supportedValuesOf('timeZone') : []
 
   const values = new Set([...(supportedTimezones ?? []), 'UTC'])
 

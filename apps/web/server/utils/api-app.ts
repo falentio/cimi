@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { parseLoggingConfig } from '@cimi/config/logging'
 import type { LoggingConfig } from '@cimi/logging/level'
 import { createApiServerApp, type ApiServerApp } from '@cimi/api/server'
+import { isStringValue } from '../../app/utils/type-guards'
 
 let apiAppPromise: Promise<ApiServerApp> | undefined
 
@@ -66,7 +67,7 @@ async function materializeMigrations(): Promise<string> {
       const content: unknown = await storage.getItem(key)
 
       if (content === null) throw new Error(`Control migration asset is missing: ${key}`)
-      const serialized = typeof content === 'string' ? content : JSON.stringify(content)
+      const serialized = isStringValue(content) ? content : JSON.stringify(content)
 
       if (serialized === undefined) throw new Error(`Control migration asset is invalid: ${key}`)
       const path = join(folder, key.replaceAll(':', '/'))

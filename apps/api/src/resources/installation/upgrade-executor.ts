@@ -10,6 +10,7 @@ import {
 import { ORPCError } from '@orpc/server'
 import type { InstallationRepository } from './repository.ts'
 import type { UpgradeExecutor } from './service.ts'
+import { isStringValue } from '@cimi/utils'
 
 export class UpgradeIncompatibilityError extends Error {}
 
@@ -24,7 +25,7 @@ export function classifyStorageExhausted(cause: unknown): boolean {
 
   if (code === 'ENOSPC' || code === 'SQLITE_FULL') return true
 
-  if (typeof code === 'string' && code.startsWith('SQLITE_IOERR')) return true
+  if (isStringValue(code) && code.startsWith('SQLITE_IOERR')) return true
   const message = cause instanceof Error ? cause.message : String(cause)
 
   return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)

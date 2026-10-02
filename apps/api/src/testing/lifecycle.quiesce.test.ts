@@ -227,7 +227,7 @@ test('backup quiesces ingestion writes while analytics reads stay available', as
   expect(created.status, await created.clone().text()).toBe(202)
   const createdBody = await created.json()
   const backupId = createdBody.id as string
-  expect(typeof backupId).toBe('string')
+  expect(backupId).toEqual(expect.any(String))
 
   // Lock ownership is observable through safe operation status: the kind is named, the id is an
   // opaque operation id, and no path, storage key, credential, or Site identifier appears.

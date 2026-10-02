@@ -98,6 +98,14 @@ export {
 export { redactDiagnosticMessage } from './diagnostic-message/index.ts'
 
 export {
+  isBigintValue,
+  isBooleanValue,
+  isFunctionValue,
+  isNumberValue,
+  isStringValue,
+} from './predicates.ts'
+
+export {
   EVENT_FIELD_STATES,
   EVENT_FIELDS,
   EVENT_KINDS,

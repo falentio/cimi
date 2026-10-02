@@ -14,7 +14,7 @@ import {
   type Db,
 } from '@cimi/db'
 import { eq } from 'drizzle-orm'
-import { generateId, isRecord } from '@cimi/utils'
+import { isStringValue, generateId, isRecord } from '@cimi/utils'
 import {
   createApiComposition,
   type ApiComposition,
@@ -494,6 +494,7 @@ export async function createApiE2eFixture(
     done?: (value: T) => boolean,
   ): Promise<T> => {
     const options: PollOptions<T> =
+      // eslint-disable-next-line anti-slop/no-runtime-typeof -- discriminates a closed union; the result is immediately called.
       typeof optionsOrRead === 'function'
         ? { read: optionsOrRead, done: done ?? (() => false) }
         : optionsOrRead
@@ -1395,10 +1396,10 @@ function createGenerationOwnership(): GenerationOwnership {
 function operationIdOf<T>(value: T): string | undefined {
   if (!isRecord(value)) return undefined
 
-  if (typeof value['id'] === 'string') return value['id']
+  if (isStringValue(value['id'])) return value['id']
   const activeOperation = value['activeOperation']
 
-  if (isRecord(activeOperation) && typeof activeOperation['operationId'] === 'string') {
+  if (isRecord(activeOperation) && isStringValue(activeOperation['operationId'])) {
     return activeOperation['operationId']
   }
 

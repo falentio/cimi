@@ -12,6 +12,7 @@ import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 import type { UpgradeExecutor } from '../resources/installation/service.ts'
 import type { IngestionProtection } from '../resources/event-ingestion/index.ts'
 import type { BackupRestoreExecutor } from '../resources/backup-restore/index.ts'
+import { isFunctionValue } from '@cimi/utils'
 
 /**
  * Wraps a live AnalyticsDb so only the readiness probe is overridden. The store stays usable for
@@ -24,7 +25,7 @@ function withAnalyticsReady(analytics: AnalyticsDb, ready: () => boolean): Analy
       if (property === 'ready') return async () => ready()
       const value: unknown = target[property as keyof AnalyticsDb]
 
-      return typeof value === 'function' ? value.bind(target) : value
+      return isFunctionValue(value) ? value.bind(target) : value
     },
   })
 }

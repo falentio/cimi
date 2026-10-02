@@ -1,4 +1,5 @@
 import { isLocalizableError, type LocalizableError } from './error-message'
+import { isNumberValue, isStringValue } from './type-guards'
 
 export interface SettingsError extends LocalizableError {}
 
@@ -13,7 +14,7 @@ export function normalizeSettingsError(
   }
 
   if (isRecord(cause)) {
-    const message = typeof cause.message === 'string' ? cause.message : undefined
+    const message = isStringValue(cause.message) ? cause.message : undefined
 
     if (message !== undefined) return withDetails(cause, message)
   }
@@ -33,8 +34,8 @@ export function isLocalizableSettingsError(error: SettingsError): boolean {
 function withDetails(cause: unknown, message: string): SettingsError {
   if (!isRecord(cause)) return { message }
 
-  const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
-  const status = 'status' in cause && typeof cause.status === 'number' ? cause.status : undefined
+  const code = 'code' in cause && isStringValue(cause.code) ? cause.code : undefined
+  const status = 'status' in cause && isNumberValue(cause.status) ? cause.status : undefined
 
   return {
     message,

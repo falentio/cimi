@@ -25,6 +25,7 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { isStringValue } from '../utils/type-guards'
 
 interface AuthPanelProps {
   readonly mode: AuthMode
@@ -113,7 +114,7 @@ const feedbackMessage = computed(() => {
 
 const alternateLocation = computed(() => ({
   name: copy.value.alternateRoute,
-  query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : undefined,
+  query: isStringValue(route.query.redirect) ? { redirect: route.query.redirect } : undefined,
 }))
 
 const validationSchema = useLocalizedValibotSchema(() =>
@@ -232,7 +233,7 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
 
   const redirect = route.query.redirect
 
-  if (typeof redirect !== 'string' || !redirect.startsWith('/') || redirect.startsWith('//')) return
+  if (!isStringValue(redirect) || !redirect.startsWith('/') || redirect.startsWith('//')) return
 
   await navigateTo(redirect)
 }

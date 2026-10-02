@@ -6,6 +6,7 @@ import {
 import type { AnalyticsDb } from './index.ts'
 import type { DuckDBValue } from '@duckdb/node-api'
 import { renderFilterPlan, type EventColumnOverrides } from './reporting-query.ts'
+import { isBigintValue, isNumberValue, isStringValue } from '@cimi/utils'
 
 export interface DuckDbPublicDashboardQueryDependencies {
   readonly analytics: AnalyticsDb
@@ -298,15 +299,15 @@ function readCount(value: DuckDBValue | undefined): number {
 }
 
 function readGroupKey(value: DuckDBValue | undefined): string | number | null {
-  if (typeof value === 'string') {
+  if (isStringValue(value)) {
     return value.length > PUBLIC_DIMENSION_KEY_MAX_LENGTH
       ? value.slice(0, PUBLIC_DIMENSION_KEY_MAX_LENGTH)
       : value
   }
 
-  if (typeof value === 'number') return value
+  if (isNumberValue(value)) return value
 
-  if (typeof value === 'bigint') return Number(value)
+  if (isBigintValue(value)) return Number(value)
 
   return null
 }

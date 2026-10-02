@@ -4,6 +4,7 @@ import type {
   SettingsError,
 } from '@/components/features/organization-settings/organization-settings.types'
 import type { OrganizationHomeState } from './organization-home.types'
+import { isStringValue } from '../../../utils/type-guards'
 
 export interface DeriveOrganizationHomeStateInput {
   readonly organizationId: OrganizationId | undefined
@@ -14,7 +15,7 @@ export interface DeriveOrganizationHomeStateInput {
 }
 
 export function parseOrganizationId(value: string | readonly string[] | undefined): OrganizationId | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+  return isStringValue(value) && value.trim().length > 0 ? value : undefined
 }
 
 export function getOrganizationSiteDraftError(

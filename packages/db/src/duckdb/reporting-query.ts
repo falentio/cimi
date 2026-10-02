@@ -30,7 +30,7 @@ import {
   type TrafficTrendBucket,
   type HalfOpenInterval,
 } from '@cimi/kernel'
-import { isEventKind } from '@cimi/utils'
+import { isBigintValue, isBooleanValue, isNumberValue, isStringValue, isEventKind } from '@cimi/utils'
 import type { AnalyticsDb, AnalyticsWindowReader } from './index.ts'
 import type { DuckDBValue } from '@duckdb/node-api'
 
@@ -562,7 +562,7 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
     for (const row of rows) {
       const raw = row['value']
 
-      if (typeof raw !== 'string' || raw.length === 0) continue
+      if (!isStringValue(raw) || raw.length === 0) continue
       facts.push({ value: clampValue(raw), count: readCount(row['session_count']) })
     }
 
@@ -723,19 +723,19 @@ function eventBreakdownValueExpression(field: EventBreakdownField): string {
 }
 
 function readEventKind(value: DuckDBValue | undefined): EventKind | null {
-  return typeof value === 'string' && isEventKind(value) ? value : null
+  return isStringValue(value) && isEventKind(value) ? value : null
 }
 
 function readString(value: DuckDBValue | undefined): string | null {
-  return typeof value === 'string' ? value : null
+  return isStringValue(value) ? value : null
 }
 
 function readNullableString(value: DuckDBValue | undefined): string | null {
-  return typeof value === 'string' ? value : null
+  return isStringValue(value) ? value : null
 }
 
 function clampNullableString(value: DuckDBValue | undefined, maxLength: number): string | null {
-  if (typeof value !== 'string') return null
+  if (!isStringValue(value)) return null
 
   return value.length > maxLength ? value.slice(0, maxLength) : value
 }
@@ -750,9 +750,9 @@ function readNullableNumber(value: DuckDBValue | undefined): number | null {
 function readInstantValue(value: DuckDBValue | undefined, column: string): number {
   if (value instanceof Date) return value.getTime()
 
-  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (isNumberValue(value) && Number.isFinite(value)) return value
 
-  if (typeof value === 'bigint') return Number(value)
+  if (isBigintValue(value)) return Number(value)
   throw new Error(`Expected a numeric ${column} from the events projection`)
 }
 
@@ -971,7 +971,7 @@ function renderVisitorPredicate(predicate: Predicate): RenderedFragment {
   }
 
   const values = predicate.bind.map((value) =>
-    typeof value === 'string' ? (IDENTITY_KIND_TO_STORE.get(value) ?? value) : value,
+    isStringValue(value) ? (IDENTITY_KIND_TO_STORE.get(value) ?? value) : value,
   )
 
   const comparison = renderColumnComparison('visitor.identity_kind', predicate.operator, values)
@@ -992,7 +992,7 @@ function renderPropertyExists(predicate: Predicate): RenderedFragment {
     const parts: string[] = []
 
     for (const value of predicate.bind) {
-      if (typeof value !== 'string') {
+      if (!isStringValue(value)) {
         throw new Error('Reporting property contains filter requires string values')
       }
 
@@ -1032,13 +1032,13 @@ function renderPropertyComparison(predicate: Predicate, args: BoundValue[]): str
       continue
     }
 
-    if (typeof value === 'number') {
+    if (isNumberValue(value)) {
       parts.push(`property.number_value ${operatorSql(predicate.operator)} ?`)
       args.push(value)
       continue
     }
 
-    if (typeof value === 'boolean') {
+    if (isBooleanValue(value)) {
       parts.push(`property.boolean_value ${operatorSql(predicate.operator)} ?`)
       args.push(value)
       continue
@@ -1107,10 +1107,10 @@ function renderPropertyFilterComparison(
       parts.push(
         operator === 'neq' ? "property.value_type <> 'null'" : "property.value_type = 'null'",
       )
-    } else if (typeof value === 'number') {
+    } else if (isNumberValue(value)) {
       parts.push(`property.number_value ${operatorSql(operator)} ?`)
       args.push(value)
-    } else if (typeof value === 'boolean') {
+    } else if (isBooleanValue(value)) {
       parts.push(`property.boolean_value ${operatorSql(operator)} ?`)
       args.push(value)
     } else if (operator === 'contains') {
@@ -1140,7 +1140,7 @@ function renderColumnComparison(
     }
 
     if (operator === 'contains') {
-      if (typeof value !== 'string') {
+      if (!isStringValue(value)) {
         throw new Error('Reporting contains filter requires string values')
       }
 

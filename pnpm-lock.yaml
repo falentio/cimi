@@ -501,6 +501,9 @@ importers:
 
   packages/maxmindb:
     dependencies:
+      '@cimi/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@maxmind/geoip2-node':
         specifier: 'catalog:'
         version: 6.1.0
@@ -517,6 +520,9 @@ importers:
 
   packages/testing:
     dependencies:
+      '@cimi/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@orpc/server':
         specifier: 'catalog:'
         version: 1.15.0(crossws@0.3.5)(ws@8.21.3)

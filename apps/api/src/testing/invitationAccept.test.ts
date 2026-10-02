@@ -49,7 +49,7 @@ test('an unauthenticated replay consumes nothing', async () => {
 
   expect(invitationResponse.status, await invitationResponse.clone().text()).toBe(201)
   const invitation = await invitationResponse.json()
-  expect(typeof invitation.token).toBe('string')
+  expect(invitation.token).toEqual(expect.any(String))
 
   const replay = await app.fetch(
     new Request('http://localhost/api/invitation/acceptInvitation', {

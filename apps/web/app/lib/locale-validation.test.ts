@@ -3,6 +3,7 @@ import en from '../../i18n/locales/en.json'
 import fr from '../../i18n/locales/fr.json'
 import { describe, expect, it } from 'vitest'
 import { authErrorMessageKeys } from '../utils/error-message'
+import { isStringValue } from '../utils/type-guards'
 
 type LocaleLeaf = { message: string; path: string }
 
@@ -13,13 +14,17 @@ interface LocaleJsonObject {
 }
 
 function collectLeaves(value: LocaleJson, path = ''): LocaleLeaf[] {
-  if (typeof value === 'string') return [{ message: value, path }]
+  if (isStringValue(value)) return [{ message: value, path }]
 
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return []
+  if (!isLocaleObject(value)) return []
 
   return Object.entries(value).flatMap(([key, child]) =>
     collectLeaves(child, path ? `${path}.${key}` : key),
   )
+}
+
+function isLocaleObject(value: LocaleJson): value is LocaleJsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function interpolationKeys(message: string): string[] {

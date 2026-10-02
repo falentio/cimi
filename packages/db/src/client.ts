@@ -3,6 +3,7 @@ import { closeSync, fsyncSync, linkSync, openSync, renameSync, unlinkSync } from
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema/index.ts'
+import { isFunctionValue } from '@cimi/utils'
 
 export const CONTROL_DB_FILENAME = 'control.sqlite'
 
@@ -23,7 +24,7 @@ export function createDb(options: CreateDbOptions) {
     get(_target, property) {
       const value: unknown = current[property as keyof typeof current]
 
-      return typeof value === 'function' ? value.bind(current) : value
+      return isFunctionValue(value) ? value.bind(current) : value
     },
     set(_target, property, value) {
       return Reflect.set(current, property, value, current)

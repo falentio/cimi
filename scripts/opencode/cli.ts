@@ -18,8 +18,12 @@ const usage = `Usage:
   pnpm opencode create
   pnpm opencode chat --session <id> --text <message> [--model-id <id>] [--provider-id <id>]`
 
+function isStringValue<T>(value: T): value is T & string {
+  return typeof value === 'string'
+}
+
 function requiredOption(value: string | undefined, option: string): string {
-  if (typeof value !== 'string' || value.length === 0 || value.startsWith('--')) {
+  if (!isStringValue(value) || value.length === 0 || value.startsWith('--')) {
     throw new UsageError(`Missing value for ${option}.\n${usage}`)
   }
 
@@ -38,7 +42,7 @@ function parseChat(
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
 
-    if (typeof argument !== 'string') {
+    if (!isStringValue(argument)) {
       throw new UsageError(`Invalid argument.\n${usage}`)
     }
 

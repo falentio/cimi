@@ -94,7 +94,7 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
   expect(deleteResponse.status, await deleteResponse.clone().text()).toBe(202)
   const deletion = await deleteResponse.json()
   expect(deletion).toMatchObject({ accepted: true, status: 'deleting' })
-  expect(typeof deletion.operationId).toBe('string')
+  expect(deletion.operationId).toEqual(expect.any(String))
 
   const statusResponse = await apiTestRequest(
     app,

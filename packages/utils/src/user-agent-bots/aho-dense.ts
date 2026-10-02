@@ -1,4 +1,5 @@
 import { LRUCache } from 'lru-cache'
+import { isStringValue } from '../predicates.ts'
 
 import {
   COMBINED_COMPLEX_REGEX,
@@ -41,7 +42,7 @@ const AUTOMATON = buildAutomaton(LITERAL_RULES)
  * patterns and regex fallback for complex patterns.
  */
 export function classifyUAAhoDense(userAgent: string | null | undefined): BotClassification {
-  if (typeof userAgent !== 'string' || userAgent.length === 0) {
+  if (!isStringValue(userAgent) || userAgent.length === 0) {
     return NON_BOT
   }
 

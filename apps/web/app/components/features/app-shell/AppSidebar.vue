@@ -10,6 +10,7 @@ import NavSecondary from './NavSecondary.vue'
 import NavUser from './NavUser.vue'
 import { createSiteSectionNav } from './site-nav-config'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
+import { isStringValue } from '../../../utils/type-guards'
 
 const props = withDefaults(defineProps<SidebarProps>(), {
   collapsible: 'icon',
@@ -30,13 +31,13 @@ const { activeOrganizationId, selectOrganization: selectWorkspaceOrganization } 
 const routeSiteId = computed<string | undefined>(() => {
   const value = route.params.siteId
 
-  return typeof value === 'string' ? value : undefined
+  return isStringValue(value) ? value : undefined
 })
 
 const routeOrganizationId = computed<string | undefined>(() => {
   const value = route.params.organizationId
 
-  return typeof value === 'string' ? value : undefined
+  return isStringValue(value) ? value : undefined
 })
 
 const isOrganizationRoute = computed(() => route.path === '/org' || route.path.startsWith('/org/'))

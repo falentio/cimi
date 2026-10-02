@@ -36,7 +36,7 @@ test('deletes and recovers a site through 202 lifecycle routes', async () => {
   expect(deleteResponse.status, await deleteResponse.clone().text()).toBe(202)
   const deletion = await deleteResponse.json()
   expect(deletion).toMatchObject({ accepted: true, status: 'deleting' })
-  expect(typeof deletion.operationId).toBe('string')
+  expect(deletion.operationId).toEqual(expect.any(String))
 
   const recoverResponse = await apiTestRequest(app, '/site/recoverSite', owner.cookie, {
     siteId: site.id,
@@ -45,7 +45,7 @@ test('deletes and recovers a site through 202 lifecycle routes', async () => {
   expect(recoverResponse.status, await recoverResponse.clone().text()).toBe(202)
   const recovery = await recoverResponse.json()
   expect(recovery).toMatchObject({ accepted: true, status: 'recovering' })
-  expect(typeof recovery.operationId).toBe('string')
+  expect(recovery.operationId).toEqual(expect.any(String))
 
   const getResponse = await apiTestRequest(
     app,

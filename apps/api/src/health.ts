@@ -201,6 +201,7 @@ export async function readStoreHealth(
 
   try {
     dataDirectoryReady =
+      // eslint-disable-next-line anti-slop/no-runtime-typeof -- closed union narrow; the result is immediately called.
       typeof deps.dataDirectoryReady === 'function'
         ? deps.dataDirectoryReady()
         : deps.dataDirectoryReady

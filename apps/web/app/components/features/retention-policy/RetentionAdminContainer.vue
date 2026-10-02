@@ -12,6 +12,7 @@ import RetentionCleanupStrip from './cleanup-variants/RetentionCleanupStrip.vue'
 import RetentionCleanupTimeline from './cleanup-variants/RetentionCleanupTimeline.vue'
 import VariantPicker from './cleanup-variants/VariantPicker.vue'
 import { useRetentionAdmin } from './useRetentionAdmin'
+import { isStringValue } from '../../../utils/type-guards'
 
 // TEMPORARY variant harness — delete at promotion (variants + picker + this wiring).
 const route = useRoute()
@@ -25,7 +26,7 @@ const CLEANUP_SECTIONS = {
 const cleanupSection = computed(() => {
   const variant = route.query.variant
 
-  if (typeof variant === 'string' && variant in CLEANUP_SECTIONS) {
+  if (isStringValue(variant) && variant in CLEANUP_SECTIONS) {
     return CLEANUP_SECTIONS[variant as keyof typeof CLEANUP_SECTIONS]
   }
 

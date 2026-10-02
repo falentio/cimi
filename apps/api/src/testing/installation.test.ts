@@ -113,7 +113,7 @@ test('installation initializes convergently, upgrades, and polls the operation',
   expect(v.parse(schema.SInstallation, upgraded)).toBeDefined()
   expect(upgraded.status).toBe('maintenance')
   expect(upgraded.activeOperation).toMatchObject({ kind: 'upgrade' })
-  expect(typeof upgraded.activeOperation.operationId).toBe('string')
+  expect(upgraded.activeOperation.operationId).toEqual(expect.any(String))
 
   const poll = await apiTestRequest(app, '/installation/getInstallationStatus', owner.cookie)
   expect(poll.status).toBe(200)

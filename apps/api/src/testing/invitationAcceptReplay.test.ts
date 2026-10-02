@@ -28,7 +28,7 @@ test('an authenticated replay of a consumed invitation returns not found', async
 
   expect(invitationResponse.status, await invitationResponse.clone().text()).toBe(201)
   const invitation = await invitationResponse.json()
-  expect(typeof invitation.token).toBe('string')
+  expect(invitation.token).toEqual(expect.any(String))
 
   const accept = await app.fetch(
     new Request('http://localhost/api/invitation/acceptInvitation', {

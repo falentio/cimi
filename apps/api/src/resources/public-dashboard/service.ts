@@ -30,6 +30,7 @@ import {
   type PublicDashboardRateLimiter,
 } from './protection.ts'
 import type { PublicDashboardRepository } from './repository.ts'
+import { isStringValue } from '@cimi/utils'
 
 export interface PublicDashboardIdentifierFactory {
   mint(): { readonly identifier: string; readonly hash: string }
@@ -320,7 +321,7 @@ function hasSensitivePublicUrlValue(filters: QueryInput['filters']): boolean {
     (filter) =>
       filter.scope === 'event' &&
       (filter.field === 'pagePath' || filter.field === 'referrer') &&
-      filter.values.some((value) => typeof value === 'string' && /[?#]/.test(value)),
+      filter.values.some((value) => isStringValue(value) && /[?#]/.test(value)),
   )
 }
 

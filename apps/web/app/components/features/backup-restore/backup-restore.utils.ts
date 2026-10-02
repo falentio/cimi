@@ -14,6 +14,7 @@ import type {
   PollingState,
   RestoreConfirmationAvailability,
 } from './backup-restore.types'
+import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 
 const STATUS_LABELS: Record<Backup['status'], string> = {
   creating: 'Creating',
@@ -781,12 +782,12 @@ function readErrorDetails(cause: unknown) {
 
     if (candidateRecord === null) continue
 
-    if (code === undefined && typeof candidateRecord.code === 'string') code = candidateRecord.code
+    if (code === undefined && isStringValue(candidateRecord.code)) code = candidateRecord.code
 
-    if (status === undefined && typeof candidateRecord.status === 'number')
+    if (status === undefined && isNumberValue(candidateRecord.status))
       status = candidateRecord.status
 
-    if (status === undefined && typeof candidateRecord.statusCode === 'number') {
+    if (status === undefined && isNumberValue(candidateRecord.statusCode)) {
       status = candidateRecord.statusCode
     }
   }

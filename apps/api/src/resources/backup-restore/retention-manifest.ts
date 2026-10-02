@@ -1,4 +1,4 @@
-import { isRecord } from '@cimi/utils'
+import { isStringValue, isRecord } from '@cimi/utils'
 import { BackupIncompatibilityError } from './errors.ts'
 
 export interface RetentionManifestBoundary {
@@ -155,7 +155,7 @@ function assertUniqueSite(siteIds: Set<string>, siteId: string): void {
 function readString(value: JsonObject, name: string): string {
   const field = value[name]
 
-  if (typeof field !== 'string' || field.length === 0) {
+  if (!isStringValue(field) || field.length === 0) {
     throw incompatible(`Retention boundary ${name} is invalid`)
   }
 
@@ -174,7 +174,7 @@ function decodeDate(value: JsonObject, name: string): Date {
   if (!isRecord(value)) throw incompatible(`Retention boundary ${name} is invalid`)
   const field = value[name]
 
-  if (typeof field !== 'string') throw incompatible(`Retention boundary ${name} is invalid`)
+  if (!isStringValue(field)) throw incompatible(`Retention boundary ${name} is invalid`)
   const date = new Date(field)
 
   if (!Number.isFinite(date.getTime()) || date.toISOString() !== field) {

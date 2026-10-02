@@ -1,10 +1,11 @@
 import { ORPCError } from '@orpc/server'
 import { expect, vi } from 'vitest'
+import { isStringValue } from '@cimi/utils'
 
 type MessageExpectation = string | RegExp | Array<string | RegExp>
 
 function assertMessageMatches(actual: string, expected: MessageExpectation): void {
-  if (typeof expected === 'string') {
+  if (isStringValue(expected)) {
     expect(actual).toContain(expected)
 
     return
@@ -17,7 +18,7 @@ function assertMessageMatches(actual: string, expected: MessageExpectation): voi
   }
 
   for (const entry of expected) {
-    if (typeof entry === 'string') expect(actual).toContain(entry)
+    if (isStringValue(entry)) expect(actual).toContain(entry)
     else expect(actual).toMatch(entry)
   }
 }

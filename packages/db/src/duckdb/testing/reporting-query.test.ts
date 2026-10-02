@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isBooleanValue, isNumberValue } from '@cimi/utils'
 import type { Db } from '../../client.ts'
 import { closeDb } from '../../client.ts'
 import { createMigratedTestDb, createTestAnalyticsDb } from '../../testing/index.ts'
@@ -543,9 +544,9 @@ function seedEventKindEvents(db: Db, events: readonly EventKindSeed[]): void {
     for (const [key, value] of Object.entries(event.properties ?? {})) {
       if (value === null) {
         insertProperty.run(eventPk, key, 'null', null, null, null)
-      } else if (typeof value === 'number') {
+      } else if (isNumberValue(value)) {
         insertProperty.run(eventPk, key, 'number', null, value, null)
-      } else if (typeof value === 'boolean') {
+      } else if (isBooleanValue(value)) {
         insertProperty.run(eventPk, key, 'boolean', null, null, value ? 1 : 0)
       } else {
         insertProperty.run(eventPk, key, 'string', value, null, null)

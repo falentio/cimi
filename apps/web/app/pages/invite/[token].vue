@@ -14,6 +14,7 @@ import {
 } from '@/components/features/organization-settings/organization-settings.utils'
 import type { CimiOrpc } from '~/plugins/orpc'
 import type { SettingsError } from '@/utils/settings-error'
+import { isStringValue } from '../../utils/type-guards'
 
 definePageMeta({
   layout: 'bare',
@@ -43,7 +44,7 @@ const orpc = useOrpc()
 
 const localizeError = useLocalizedErrorMessage()
 
-const token = computed(() => (typeof route.params.token === 'string' ? route.params.token : ''))
+const token = computed(() => (isStringValue(route.params.token) ? route.params.token : ''))
 
 const state = shallowRef<InvitationState>({ status: 'idle' })
 

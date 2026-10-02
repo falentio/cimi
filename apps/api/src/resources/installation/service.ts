@@ -161,6 +161,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     this.acceptance = acceptance
     this.analyticsProjectionReady = analyticsProjectionReady
     this.dataDirectoryReady =
+      // eslint-disable-next-line anti-slop/no-runtime-typeof -- closed boolean-or-function union; typeof is the sole discriminator.
       typeof dataDirectoryReady === 'function' ? dataDirectoryReady : () => dataDirectoryReady
     this.clock = clock ?? (() => new Date())
     this.ids = ids ?? {

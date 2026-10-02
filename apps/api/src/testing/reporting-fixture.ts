@@ -3,6 +3,7 @@ import type { Db } from '@cimi/db'
 import { schema as contractSchema } from '@cimi/contract'
 import { apiTestRequest, signUpTestUser } from './fixture.ts'
 import type { createApiApp } from '../index.ts'
+import { isBooleanValue, isNumberValue } from '@cimi/utils'
 
 type App = ReturnType<typeof createApiApp>
 
@@ -229,9 +230,9 @@ function insertProperty(
 
   if (value === null) {
     statement.run(eventPk, key, 'null', null, null, null)
-  } else if (typeof value === 'number') {
+  } else if (isNumberValue(value)) {
     statement.run(eventPk, key, 'number', null, value, null)
-  } else if (typeof value === 'boolean') {
+  } else if (isBooleanValue(value)) {
     statement.run(eventPk, key, 'boolean', null, null, value ? 1 : 0)
   } else {
     statement.run(eventPk, key, 'string', value, null, null)
