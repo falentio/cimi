@@ -59,6 +59,7 @@ export class BackupRestoreCleanupWorker {
       .finally(() => {
         this.runPromise = undefined
       })
+
     return this.runPromise
   }
 
@@ -79,34 +80,46 @@ export class BackupRestoreCleanupWorker {
       this.timer = undefined
       this.timerGeneration += 1
     }
+
     await this.runPromise
   }
 
   private async process(): Promise<void> {
     if (this.cleanup === undefined) return
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>> | undefined
+
     try {
       lease = await this.lock.acquire('cleanup')
     } catch (error) {
       this.reportError(error, { operation: 'backup.cleanup', stage: 'acquire' })
+
       return
     }
+
     if (lease === undefined) return
     let operationId: string | undefined
+
     try {
       const operation = await this.repository.findCleanupPending()
+
       if (operation === undefined) return
       operationId = operation.id
+
       const stage =
         operation.derivedCleanup.status === 'completed' ? 'backup_cleanup' : 'derived_cleanup'
+
       let ownerToken: string
+
       try {
         ownerToken = this.ownerToken()
       } catch (error) {
         this.reportError(error, { operation: 'backup.cleanup', stage: 'claim', operationId })
+
         return
       }
+
       let work
+
       try {
         work = await this.repository.claimCleanupStage({
           operationId: operation.id,
@@ -116,15 +129,19 @@ export class BackupRestoreCleanupWorker {
         })
       } catch (error) {
         this.reportError(error, { operation: 'backup.cleanup', stage: 'claim', operationId })
+
         return
       }
+
       if (work === undefined) return
+
       try {
         if (work.stage === 'derived_cleanup') {
           await this.cleanup.runDerived({ operationId: work.operationId })
         } else {
           await this.cleanup.runBackup({ operationId: work.operationId })
         }
+
         await this.repository.completeCleanupStage({
           operationId: work.operationId,
           stage: work.stage,
@@ -137,7 +154,9 @@ export class BackupRestoreCleanupWorker {
           stage: work.stage === 'derived_cleanup' ? 'derived-cleanup' : 'backup-cleanup',
           operationId: work.operationId,
         }
+
         this.reportError(error, context)
+
         try {
           await this.repository.failCleanupStage({
             operationId: work.operationId,
@@ -170,8 +189,10 @@ export class BackupRestoreCleanupWorker {
   private reportError(error: unknown, context: LogOperationContext): void {
     if (this.onError === undefined) {
       reportLogEvent({ kind: 'operation.failure', ...context, error })
+
       return
     }
+
     try {
       void Promise.resolve(this.onError(error, context)).catch(() => undefined)
     } catch {}

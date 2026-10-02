@@ -14,6 +14,7 @@ import {
 export { BASE_SKELETON_TABLES, ControlMigrationIncompatibilityError } from './migration-plan.ts'
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL('./migrations', import.meta.url))
+
 const WORKSPACE_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 
 export interface ControlMigrationOptions {
@@ -22,13 +23,16 @@ export interface ControlMigrationOptions {
 
 export function migrateControlDb(db: Db, options: ControlMigrationOptions = {}): void {
   const lineage = classifyControlLineage(db.$client)
+
   if (lineage.kind === 'legacy-471c10d') {
     bridgeLegacyControlDb({
       source: db,
       plan: loadCurrentMigrationPlan(options.migrationsFolder ?? MIGRATIONS_FOLDER),
     })
+
     return
   }
+
   validateControlMigrationHistory(db, options)
   migrate(db, {
     migrationsFolder: options.migrationsFolder ?? MIGRATIONS_FOLDER,
@@ -45,15 +49,18 @@ export function validateControlMigrationHistory(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'",
     )
     .get() as { name: string } | undefined
+
   if (table === undefined) return
 
   const rows = db.$client
     .prepare('SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at, id')
     .all() as Array<{ hash: string; created_at: number }>
+
   const manifest =
     options.migrationsFolder === undefined
       ? getDefaultControlMigrationManifest()
       : loadControlMigrationManifest(options.migrationsFolder)
+
   if (rows.length > manifest.length) {
     throw new ControlMigrationIncompatibilityError(
       'Control migration history is newer than this release',
@@ -62,6 +69,7 @@ export function validateControlMigrationHistory(
 
   for (const [index, row] of rows.entries()) {
     const expected = manifest[index]
+
     if (
       expected === undefined ||
       row.created_at !== expected.createdAt ||
@@ -76,8 +84,10 @@ export function validateBaseSchema(db: Db): void {
   const rows = db.$client
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
     .all() as Array<{ name: string }>
+
   const tables = new Set(rows.map((row) => row.name))
   const missing = BASE_SKELETON_TABLES.filter((table) => !tables.has(table))
+
   if (missing.length > 0) {
     throw new Error(`Base control schema is missing tables: ${missing.join(', ')}`)
   }
@@ -86,6 +96,7 @@ export function validateBaseSchema(db: Db): void {
 export function migrateControlDbAtPath(path: string, options: ControlMigrationOptions = {}): void {
   mkdirSync(dirname(path), { recursive: true })
   const db = createDb({ path })
+
   try {
     migrateControlDb(db, options)
     validateBaseSchema(db)
@@ -99,9 +110,11 @@ export function resolveControlDbPath(
   workingDirectory: string = WORKSPACE_ROOT,
 ): string {
   const configuredPath = env['CIMI_CONTROL_DB_PATH']
+
   if (configuredPath !== undefined) return resolve(workingDirectory, configuredPath)
 
   const dataDirectory = env['CIMI_DATA_DIR'] ?? '.cimi'
+
   return resolve(workingDirectory, dataDirectory, 'control.sqlite')
 }
 

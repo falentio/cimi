@@ -36,9 +36,11 @@ export function loadCurrentMigrationPlan(migrationsFolder: string): CurrentMigra
   const entries = loadMigrationManifest(migrationsFolder)
   const baseline = entries[0]
   const final = entries[entries.length - 1]
+
   if (baseline === undefined || final === undefined) {
     throw new Error('Control migration journal is invalid')
   }
+
   return { folder: migrationsFolder, entries, baseline, final }
 }
 
@@ -46,6 +48,7 @@ export function loadMigrationManifest(migrationsFolder: string): readonly Migrat
   const parsed: unknown = JSON.parse(
     readFileSync(join(migrationsFolder, 'meta/_journal.json'), 'utf8'),
   )
+
   if (!isRecord(parsed) || !Array.isArray(parsed['entries'])) {
     throw new Error('Control migration journal is invalid')
   }
@@ -54,7 +57,9 @@ export function loadMigrationManifest(migrationsFolder: string): readonly Migrat
     if (!isRecord(entry) || typeof entry['tag'] !== 'string' || typeof entry['when'] !== 'number') {
       throw new Error('Control migration journal entry is invalid')
     }
+
     const sql = readFileSync(join(migrationsFolder, `${entry['tag']}.sql`))
+
     return {
       tag: entry['tag'],
       createdAt: entry['when'],

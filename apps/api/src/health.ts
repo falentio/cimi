@@ -7,7 +7,9 @@ import type { CreateApiAppDependencies } from './composition.ts'
 import type { AcceptanceDiagnosticsSnapshot } from './resources/event-ingestion/index.ts'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'recovering' | 'maintenance' | 'unavailable'
+
 export type StoreHealth = 'ready' | 'degraded' | 'rebuilding' | 'unavailable'
+
 export type InstallationStatus =
   | 'uninitialized'
   | 'ready'
@@ -48,10 +50,15 @@ const LEGACY_INSTALLATION_STATUS_MAP: Record<string, InstallationStatus> = {
 
 export function resolveInstallationHealth(input: InstallationHealthInput): HealthStatus {
   if (input.controlStore !== 'ready') return 'unavailable'
+
   if (input.installationStatus === 'recovering') return 'recovering'
+
   if (input.installationStatus === 'maintenance') return 'maintenance'
+
   if (input.installationStatus === 'uninitialized') return 'recovering'
+
   if (input.analyticsStore !== 'ready' || input.cleanupPending) return 'degraded'
+
   return 'healthy'
 }
 
@@ -70,6 +77,7 @@ export function resolveHealthStatus(
 }
 
 export type IngestionAdmission = 'accept' | 'accept-only' | 'paused'
+
 export type AnalyticsReadAdmission = 'ok' | 'unavailable'
 
 export interface AdmissionGate {
@@ -89,14 +97,19 @@ export function resolveAdmissionGate(
   if (status === 'unavailable' || status === 'recovering') {
     return { ingestion: 'paused', analyticsReads: 'unavailable' }
   }
+
   if (admissionMode === 'restore-read-write-quiesced') {
     return { ingestion: 'paused', analyticsReads: 'unavailable' }
   }
+
   if (admissionMode === 'backup-write-quiesced' && status !== 'degraded') {
     return { ingestion: 'paused', analyticsReads: 'ok' }
   }
+
   if (status === 'healthy') return { ingestion: 'accept', analyticsReads: 'ok' }
+
   if (status === 'degraded') return { ingestion: 'accept-only', analyticsReads: 'unavailable' }
+
   return { ingestion: 'paused', analyticsReads: 'unavailable' }
 }
 
@@ -107,6 +120,7 @@ export async function resolveRequestAdmissionGate(
     const lifecycle = await getLifecycleSnapshot(deps.lifecycle)
     const health = await systemHealthHandler(deps, lifecycle)
     const admissionMode = lifecycle.admissionMode ?? 'normal'
+
     return {
       ...resolveAdmissionGate(health.status, admissionMode),
       status: health.status,
@@ -119,6 +133,7 @@ export async function resolveRequestAdmissionGate(
       stage: 'fallback',
       error,
     })
+
     return {
       ingestion: 'paused',
       analyticsReads: 'unavailable',
@@ -145,8 +160,10 @@ export async function readStoreHealth(
   reportFailures = true,
 ): Promise<StoreHealthReport> {
   let controlDatabase = false
+
   try {
     const result = deps.db.$client.prepare('select 1').get()
+
     if (result !== undefined) {
       validateBaseSchema(deps.db)
       controlDatabase = true
@@ -160,10 +177,12 @@ export async function readStoreHealth(
         error,
       })
     }
+
     controlDatabase = false
   }
 
   let analyticsDatabase = false
+
   try {
     analyticsDatabase = await deps.analytics.ready()
   } catch (error: unknown) {
@@ -175,11 +194,13 @@ export async function readStoreHealth(
         error,
       })
     }
+
     analyticsDatabase = false
   }
 
   const lifecycle = lifecycleSnapshot ?? (await getLifecycleSnapshot(deps.lifecycle))
   let dataDirectoryReady = false
+
   try {
     dataDirectoryReady =
       typeof deps.dataDirectoryReady === 'function'
@@ -195,6 +216,7 @@ export async function readStoreHealth(
       })
     }
   }
+
   return {
     controlStore:
       controlDatabase && dataDirectoryReady ? (lifecycle.controlStore ?? 'ready') : 'unavailable',
@@ -233,6 +255,7 @@ export async function systemHealthHandler(
     checkedAt: new Date().toISOString(),
     ...(lifecycle.ingestion === undefined ? {} : { ingestion: lifecycle.ingestion }),
   }
+
   return v.parse(schema.SHealth, response)
 }
 
@@ -250,11 +273,13 @@ async function getLifecycleSnapshot(
       stage: 'fallback',
       error,
     })
+
     return { installationStatus: 'recovering' }
   }
 }
 
 function toInstallationStatus(status: HealthStatus | undefined): InstallationStatus | undefined {
   if (status === undefined) return undefined
+
   return LEGACY_INSTALLATION_STATUS_MAP[status] ?? 'recovering'
 }

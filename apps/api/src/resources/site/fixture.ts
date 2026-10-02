@@ -10,6 +10,7 @@ import type { SiteRepository } from './repository.ts'
 import { SiteService } from './service.ts'
 
 const createdAt = '2026-08-31T00:00:00.000Z'
+
 const updatedAt = '2026-08-31T00:00:00.000Z'
 
 export interface SiteFixtureOptions {
@@ -20,13 +21,16 @@ export interface SiteFixtureOptions {
 
 export function createSiteFixture({ membership, sites, memberships }: SiteFixtureOptions = {}) {
   const repository = mock<SiteRepository>()
+
   const scope = new InMemorySiteScopePort(
     sites ?? [{ siteId: 'ste_1', organizationId: 'org_1' }],
     memberships ?? [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
   )
+
   const reconciler = membership ?? createReconcilerMock()
   const lock = new InMemoryLifecycleLock()
   const lifecycle = new InMemoryLifecycleOperationStatusReader()
+
   const service = new SiteService({
     repository,
     scope: { siteScope: scope, membership: scope },
@@ -34,12 +38,14 @@ export function createSiteFixture({ membership, sites, memberships }: SiteFixtur
     lifecycle,
     membership: reconciler,
   })
+
   return { repository, scope, lock, lifecycle, membership: reconciler, service }
 }
 
 function createReconcilerMock(): OrganizationMembershipReconciler {
   const reconciler = mock<OrganizationMembershipReconciler>()
   reconciler.reconcile.mockResolvedValue(undefined)
+
   return reconciler
 }
 

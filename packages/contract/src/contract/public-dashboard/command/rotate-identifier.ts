@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SPublicDashboardConfig, SPublicDashboardSiteFields } from '../schema.ts'
 
 export const SPublicDashboardRotateInput = SPublicDashboardSiteFields
+
 export type SPublicDashboardRotateInput = v.InferOutput<typeof SPublicDashboardRotateInput>
+
 export const SPublicDashboardRotateOutput = SPublicDashboardConfig
+
 export type SPublicDashboardRotateOutput = v.InferOutput<typeof SPublicDashboardRotateOutput>
 
 export const rotatePublicDashboardIdentifier = oc

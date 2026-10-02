@@ -5,7 +5,9 @@ import {
 } from '@cimi/utils'
 
 export type SiteId = string & { readonly __siteId: unique symbol }
+
 export type CalendarDate = string & { readonly __calendarDate: unique symbol }
+
 export type InstantMs = number & { readonly __instantMs: unique symbol }
 
 export type WeekStart =
@@ -18,7 +20,9 @@ export type WeekStart =
   | 'sunday'
 
 export type ReportGranularity = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'
+
 export type PeriodKey = 'current' | 'comparison'
+
 export type CoverageDependency = 'event-occurrence' | 'profile-activity' | 'replay-receipt'
 
 export interface InclusiveDateRange {
@@ -195,11 +199,13 @@ export interface ReportAdmissionTicket {
 
 export function createSiteId(value: string): SiteId {
   if (value.trim() === '') throw new RangeError('Site ID must not be empty')
+
   return value as SiteId
 }
 
 export function createCalendarDate(value: string): CalendarDate {
   parseLocalCalendarDate(value)
+
   return value as CalendarDate
 }
 
@@ -207,6 +213,7 @@ export function createInstantMs(value: number): InstantMs {
   if (!Number.isFinite(value) || !Number.isInteger(value)) {
     throw new RangeError('Instant must be a finite integer')
   }
+
   return value as InstantMs
 }
 

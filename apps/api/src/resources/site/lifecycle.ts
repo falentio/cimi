@@ -48,6 +48,7 @@ export class SiteLifecycleWorker {
       .finally(() => {
         this.runPromise = undefined
       })
+
     return this.runPromise
   }
 
@@ -68,11 +69,13 @@ export class SiteLifecycleWorker {
       this.timer = undefined
       this.timerGeneration += 1
     }
+
     await this.runPromise
   }
 
   private async process(now: Date): Promise<void> {
     const operations = await this.repository.findPendingLifecycleOperations()
+
     for (const operation of operations) {
       await this.withLease(
         operation.operationType === 'delete' ? 'site_deletion' : 'site_recovery',
@@ -96,14 +99,17 @@ export class SiteLifecycleWorker {
     }
 
     const duePurges = await this.repository.findDuePurges(now)
+
     for (const { siteId } of duePurges) {
       let operationId: string
+
       try {
         operationId = generateId('sop')
       } catch (error) {
         this.reportError(error, { operation: 'site.lifecycle', stage: 'site-purge', siteId })
         continue
       }
+
       await this.withLease(
         'site_purge',
         async () => {
@@ -112,6 +118,7 @@ export class SiteLifecycleWorker {
             operationId,
             requestedAt: now,
           })
+
           if (result.status !== 'completed') return
           await this.onPurgedSite?.({ siteId, now })
         },
@@ -126,13 +133,17 @@ export class SiteLifecycleWorker {
     context: { operationId?: string; siteId?: string } = {},
   ): Promise<void> {
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>> | undefined
+
     try {
       lease = await this.lock.acquire(kind)
     } catch (error) {
       this.reportError(error, { operation: 'site.lifecycle', stage: 'acquire', ...context })
+
       return
     }
+
     if (lease === undefined) return
+
     try {
       await work()
     } catch (error) {
@@ -158,8 +169,10 @@ export class SiteLifecycleWorker {
   private reportError(error: unknown, context: LogOperationContext): void {
     if (this.onError === undefined) {
       reportLogEvent({ kind: 'operation.failure', ...context, error })
+
       return
     }
+
     try {
       void Promise.resolve(this.onError(error, context)).catch(() => undefined)
     } catch {}

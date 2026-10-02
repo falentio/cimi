@@ -24,9 +24,11 @@ export function resolveActiveOrganizationId(input: {
   readonly sites: readonly WorkspaceSite[]
 }): string | undefined {
   const routeSite = input.sites.find((site) => site.id === input.routeSiteId)
+
   if (routeSite !== undefined) return routeSite.teamId
 
   if (input.routeOrganizationId !== undefined) return input.routeOrganizationId
+
   if (isKnownOrganization(input.selectedOrganizationId, input.teams)) {
     return input.selectedOrganizationId
   }
@@ -36,6 +38,7 @@ export function resolveActiveOrganizationId(input: {
 
 export function normalizeOrganizationNameDraft(value: string): string | null {
   const name = value.trim()
+
   return name.length === 0 ? null : name
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isLocalizableError, localizeErrorMessage } from './error-message'
+
 const passthrough = (key: string) => key
 
 describe('localizeErrorMessage', () => {

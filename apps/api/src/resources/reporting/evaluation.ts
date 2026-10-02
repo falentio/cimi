@@ -27,7 +27,9 @@ export function eligibleSessions(input: {
 }): readonly ReportSession[] {
   return input.snapshot.sessions.filter((session) => {
     if (session.endedAt === null || !sessionInPeriod(session, input.period)) return false
+
     if (!input.identity.sessionIsEligible(session)) return false
+
     return matchesReportFilters({
       session,
       events: eventsForSession(input.snapshot.events, session),
@@ -53,6 +55,7 @@ export function eventBelongsToSession(
   identity: IdentityScope,
 ): boolean {
   const subject = identity.subjectOfSession(session)
+
   return (
     subject !== null &&
     identity.subjectOfEvent(event) === subject &&
@@ -68,10 +71,13 @@ export function eventsForPeriod(input: {
 }): readonly ReportEvent[] {
   return input.snapshot.events.filter((event) => {
     if (!eventInPeriod(event, input.period)) return false
+
     if (input.identity.subjectOfEvent(event) === null) return false
+
     if (input.sessionIds !== undefined && event.sessionId !== null) {
       return input.sessionIds.has(event.sessionId)
     }
+
     return false
   })
 }

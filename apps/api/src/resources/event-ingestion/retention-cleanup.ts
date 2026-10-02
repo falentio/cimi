@@ -54,7 +54,9 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
     if (this.db === undefined) return
     const redactionsPending = hasPendingIdentityRedactions(this.db)
     const debtPending = this.identityDebt?.hasPending() ?? false
+
     if (!redactionsPending && !debtPending) return
+
     if (this.analytics === undefined) throw new Error('Analytics cleanup is not configured')
     preparePendingIdentityRedactions({ db: this.db, now: input.now })
     await this.analytics.rebuild({ controlDb: this.db })
@@ -64,6 +66,7 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
 
   async runIdentityBackup(input: { readonly now: Date }): Promise<void> {
     if (this.db === undefined || !hasPendingIdentityBackupCleanup(this.db)) return
+
     if (this.dataDirectoryPath === undefined) throw new Error('Backup cleanup is not configured')
     await cleanBackupIdentityArtifacts({
       db: this.db,
@@ -80,11 +83,13 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
     checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult> {
     const dataClasses = new Set(input.checkpoints.map((checkpoint) => checkpoint.dataClass))
+
     const needsProfileCleanup =
       dataClasses.has('profiles') ||
       dataClasses.has('aliases') ||
       dataClasses.has('traits') ||
       dataClasses.has('identity-projections')
+
     const needsAnalytics =
       needsProfileCleanup ||
       dataClasses.has('sessions') ||
@@ -92,12 +97,15 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
       dataClasses.has('goals') ||
       dataClasses.has('funnels') ||
       dataClasses.has('cohorts')
+
     if (needsAnalytics && this.analytics === undefined) {
       throw new Error('Analytics cleanup is not configured')
     }
+
     if (needsProfileCleanup && this.db === undefined) {
       throw new Error('Identity cleanup is not configured')
     }
+
     if (needsProfileCleanup && this.db !== undefined) {
       prepareExpiredProfiles({
         db: this.db,
@@ -105,6 +113,7 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
         now: input.now,
       })
     }
+
     if (needsProfileCleanup && this.analytics !== undefined && this.db !== undefined) {
       await this.analytics.rebuild({ controlDb: this.db })
       markProfileDerivedCleanupComplete({
@@ -113,18 +122,21 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
         now: input.now,
       })
     }
+
     if (dataClasses.has('replay-material') && input.boundary.replayReceiptCutoffAt !== null) {
       await this.acceptance.deleteExpiredReplayMaterial({
         siteId: input.siteId,
         receiptCutoff: input.boundary.replayReceiptCutoffAt,
       })
     }
+
     if (needsAnalytics && this.analytics !== undefined) {
       await this.analytics.deleteExpired({
         siteId: input.siteId,
         occurrenceCutoff: input.boundary.eventOccurrenceCutoffAt,
       })
     }
+
     if (
       dataClasses.has('accepted-events') ||
       dataClasses.has('raw-event-payloads') ||
@@ -135,6 +147,7 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
         receiptCutoff: input.boundary.rawReceiptCutoffAt,
       })
     }
+
     return { completed: true, cursor: null, processedThrough: input.boundary.rawReceiptCutoffAt }
   }
 
@@ -148,12 +161,14 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
     if (this.db === undefined || this.dataDirectoryPath === undefined) {
       throw new Error('Backup cleanup is not configured')
     }
+
     await cleanBackupArtifacts({
       db: this.db,
       dataDirectoryPath: this.dataDirectoryPath,
       boundary: input.boundary,
       now: input.now,
     })
+
     return { completed: true, cursor: null, processedThrough: input.boundary.rawReceiptCutoffAt }
   }
 }
@@ -190,21 +205,27 @@ export class AcceptanceBackupRestoreCleanup implements BackupRestoreCleanupPort 
   async runDerived(_input: { readonly operationId: string }): Promise<void> {
     const now = this.clock()
     const boundaries = effectiveRetentionBoundaries(this.db)
+
     for (const boundary of boundaries) prepareExpiredProfiles({ db: this.db, boundary, now })
+
     if (!hasPendingIdentityRedactions(this.db) && boundaries.length === 0) return
     await this.analytics.rebuild({ controlDb: this.db })
+
     if (hasPendingIdentityRedactions(this.db)) {
       preparePendingIdentityRedactions({ db: this.db, now })
       markProfileDerivedCleanupComplete({ db: this.db, now })
     }
+
     for (const boundary of boundaries) {
       markProfileDerivedCleanupComplete({ db: this.db, siteId: boundary.siteId, now })
+
       if (boundary.replayReceiptCutoffAt !== null) {
         await this.acceptance.deleteExpiredReplayMaterial({
           siteId: boundary.siteId,
           receiptCutoff: boundary.replayReceiptCutoffAt,
         })
       }
+
       await this.analytics.deleteExpired({
         siteId: boundary.siteId,
         occurrenceCutoff: boundary.eventOccurrenceCutoffAt,
@@ -218,6 +239,7 @@ export class AcceptanceBackupRestoreCleanup implements BackupRestoreCleanupPort 
 
   async runBackup(_input: { readonly operationId: string }): Promise<void> {
     const now = this.clock()
+
     for (const boundary of effectiveRetentionBoundaries(this.db)) {
       await cleanBackupArtifacts({
         db: this.db,
@@ -226,6 +248,7 @@ export class AcceptanceBackupRestoreCleanup implements BackupRestoreCleanupPort 
         now,
       })
     }
+
     if (hasPendingIdentityBackupCleanup(this.db)) {
       await cleanBackupIdentityArtifacts({
         db: this.db,
@@ -277,6 +300,7 @@ function prepareExpiredProfiles(input: {
         input.boundary.siteId,
         input.boundary.profileActivityCutoffAt.getTime(),
       ) as IdentityProfileCleanupRow[]
+
     for (const profile of profiles) prepareProfileRedaction(input.db, profile, input.now)
   })()
 }
@@ -294,6 +318,7 @@ function preparePendingIdentityRedactions(input: { readonly db: Db; readonly now
          WHERE r.derived_cleanup_status = 'pending'`,
       )
       .all() as IdentityProfileCleanupRow[]
+
     for (const profile of profiles) prepareProfileRedaction(input.db, profile, input.now)
   })()
 }
@@ -308,10 +333,12 @@ interface IdentityProfileCleanupRow {
 
 function prepareProfileRedaction(db: Db, profile: IdentityProfileCleanupRow, now: Date): void {
   if (profile.profileEpoch === null) return
+
   const request = identityRedactionRequest({
     reason: profile.status === 'active' ? 'retention' : 'explicit',
     now,
   })
+
   db.$client
     .prepare(
       `INSERT OR IGNORE INTO identity_redaction
@@ -372,6 +399,7 @@ export function hasPendingIdentityRedactions(db: Db): boolean {
        LIMIT 1`,
     )
     .get() as { readonly pending: number } | undefined
+
   return row !== undefined
 }
 
@@ -385,6 +413,7 @@ function hasPendingIdentityBackupCleanup(db: Db): boolean {
        LIMIT 1`,
     )
     .get() as { readonly pending: number } | undefined
+
   return row !== undefined
 }
 
@@ -394,10 +423,12 @@ function markProfileDerivedCleanupComplete(input: {
   readonly now: Date
 }): void {
   const siteClause = input.siteId === undefined ? '' : ' AND site_id = ?'
+
   const values =
     input.siteId === undefined
       ? [input.now.getTime(), input.now.getTime(), input.now.getTime()]
       : [input.now.getTime(), input.now.getTime(), input.now.getTime(), input.siteId]
+
   input.db.$client.transaction(() => {
     input.db.$client
       .prepare(
@@ -447,6 +478,7 @@ async function cleanBackupArtifacts(input: {
   readonly now: Date
 }): Promise<void> {
   const identityRedactions = pendingIdentityRedactions(input.db, input.boundary.siteId)
+
   const artifacts = input.db.$client
     .prepare(
       `SELECT ba.id, ba.storage_key AS storageKey, ba.metadata
@@ -455,9 +487,11 @@ async function cleanBackupArtifacts(input: {
        WHERE ba.artifact_type = 'authoritative_sqlite' AND bo.status = 'available'`,
     )
     .all() as BackupArtifactRow[]
+
   for (const artifact of artifacts) {
     const path = resolveBackupPath(input.dataDirectoryPath, artifact.storageKey)
     const backupDb = createDb({ path })
+
     try {
       backupDb.$client.transaction(() => {
         if (input.boundary.replayReceiptCutoffAt !== null) {
@@ -471,12 +505,14 @@ async function cleanBackupArtifacts(input: {
             )
             .run(input.boundary.siteId, input.boundary.replayReceiptCutoffAt.getTime())
         }
+
         backupDb.$client
           .prepare(
             `DELETE FROM accepted_event
              WHERE site_id = ? AND receipt_time < ?`,
           )
           .run(input.boundary.siteId, input.boundary.rawReceiptCutoffAt.getTime())
+
         const expiredProfiles = backupDb.$client
           .prepare(
             `SELECT p.profile_id AS profileId, p.identified_user_id AS identifiedUserId,
@@ -492,6 +528,7 @@ async function cleanBackupArtifacts(input: {
           readonly epochStartedAt: number | null
           readonly epochEndedAt: number | null
         }>
+
         for (const profile of expiredProfiles) {
           scrubCanonicalEventPayloads(backupDb, {
             siteId: input.boundary.siteId,
@@ -518,12 +555,14 @@ async function cleanBackupArtifacts(input: {
             .prepare('DELETE FROM identity_profile WHERE profile_id = ?')
             .run(profile.profileId)
         }
+
         cleanBackupIdentityRows(backupDb, identityRedactions)
       })()
       backupDb.$client.pragma('wal_checkpoint(TRUNCATE)')
     } finally {
       closeDb(backupDb)
     }
+
     updateBackupMetadata({
       db: input.db,
       artifact,
@@ -531,6 +570,7 @@ async function cleanBackupArtifacts(input: {
       path,
     })
   }
+
   markBackupCleanupComplete({
     db: input.db,
     siteId: input.boundary.siteId,
@@ -547,6 +587,7 @@ interface IdentityRedactionTarget {
 
 function pendingIdentityRedactions(db: Db, siteId?: string): IdentityRedactionTarget[] {
   const siteClause = siteId === undefined ? '' : ' AND site_id = ?'
+
   const rows = db.$client
     .prepare(
       `SELECT site_id AS siteId, profile_id AS profileId, identified_user_id AS identifiedUserId,
@@ -556,6 +597,7 @@ function pendingIdentityRedactions(db: Db, siteId?: string): IdentityRedactionTa
          AND backup_cleanup_status = 'pending'${siteClause}`,
     )
     .all(...(siteId === undefined ? [] : [siteId])) as IdentityRedactionTarget[]
+
   return rows
 }
 
@@ -564,7 +606,9 @@ async function cleanBackupIdentityArtifacts(input: {
   readonly dataDirectoryPath: string
 }): Promise<void> {
   const targets = pendingIdentityRedactions(input.db)
+
   if (targets.length === 0) return
+
   const artifacts = input.db.$client
     .prepare(
       `SELECT ba.id, ba.storage_key AS storageKey, ba.metadata
@@ -573,15 +617,18 @@ async function cleanBackupIdentityArtifacts(input: {
        WHERE ba.artifact_type = 'authoritative_sqlite' AND bo.status = 'available'`,
     )
     .all() as BackupArtifactRow[]
+
   for (const artifact of artifacts) {
     const path = resolveBackupPath(input.dataDirectoryPath, artifact.storageKey)
     const backupDb = createDb({ path })
+
     try {
       backupDb.$client.transaction(() => cleanBackupIdentityRows(backupDb, targets))()
       backupDb.$client.pragma('wal_checkpoint(TRUNCATE)')
     } finally {
       closeDb(backupDb)
     }
+
     updateBackupMetadata({ db: input.db, artifact, path })
   }
 }
@@ -597,6 +644,7 @@ function cleanBackupIdentityRows(db: Db, targets: readonly IdentityRedactionTarg
       .get(target.profileId, target.profileEpoch) as
       | { readonly startedAt: number; readonly endedAt: number | null }
       | undefined
+
     const profile = db.$client
       .prepare(
         `SELECT profile_epoch AS profileEpoch, status
@@ -606,12 +654,14 @@ function cleanBackupIdentityRows(db: Db, targets: readonly IdentityRedactionTarg
       .get(target.profileId) as
       | { readonly profileEpoch: number | null; readonly status: string }
       | undefined
+
     const boundary = {
       siteId: target.siteId,
       identifiedUserId: target.identifiedUserId,
       epochStartedAt: epoch?.startedAt ?? null,
       epochEndedAt: epoch?.endedAt ?? null,
     }
+
     scrubCanonicalEventPayloads(db, boundary)
     scrubAcceptedEventIdentity(db, boundary)
     db.$client
@@ -623,6 +673,7 @@ function cleanBackupIdentityRows(db: Db, targets: readonly IdentityRedactionTarg
     db.$client
       .prepare('DELETE FROM identity_profile_epoch WHERE profile_id = ? AND epoch = ?')
       .run(target.profileId, target.profileEpoch)
+
     if (profile?.profileEpoch === target.profileEpoch) {
       db.$client.prepare('DELETE FROM identity_profile WHERE profile_id = ?').run(target.profileId)
     }
@@ -633,12 +684,15 @@ function resolveBackupPath(dataDirectoryPath: string, storageKey: string): strin
   if (!/^backups\/[A-Za-z0-9_-]{1,64}\.sqlite$/.test(storageKey)) {
     throw new Error('Backup storage key is invalid')
   }
+
   const root = resolve(dataDirectoryPath)
   const path = resolve(root, storageKey)
   const fromRoot = relative(root, path)
+
   if (fromRoot === '' || fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
     throw new Error('Backup storage key is outside configured storage')
   }
+
   return path
 }
 
@@ -670,6 +724,7 @@ function updateBackupMetadata(input: {
   const metadata = input.artifact.metadata === null ? null : JSON.parse(input.artifact.metadata)
   const manifest = decodeRetentionManifest(metadata)
   const boundary = input.boundary
+
   const nextMetadata =
     manifest === null || boundary === undefined
       ? metadata
@@ -681,6 +736,7 @@ function updateBackupMetadata(input: {
               : manifestBoundary,
           ),
         })
+
   const bytes = readFileSync(input.path)
   input.db.$client
     .prepare(

@@ -7,7 +7,9 @@ export async function isOwnerInvariantValid(db: Db, organizationId: string): Pro
     .from(schema.TOrganization)
     .where(eq(schema.TOrganization.id, organizationId))
     .limit(1)
+
   const organization = organizations[0]
+
   if (organization === undefined) return false
 
   const owners = await db
@@ -19,5 +21,6 @@ export async function isOwnerInvariantValid(db: Db, organizationId: string): Pro
         eq(schema.TMembership.role, 'owner'),
       ),
     )
+
   return owners.length === 1 && owners[0]?.userId === organization.ownerUserId
 }

@@ -6,10 +6,13 @@ import { SInvitation, SInvitationOrganizationScopeFields } from '../schema.ts'
 export const SInvitationListInput = v.strictObject(
   v.entriesFromObjects([SInvitationOrganizationScopeFields, SOffsetPaginationInput]),
 )
+
 export type SInvitationListInput = v.InferOutput<typeof SInvitationListInput>
+
 export const SInvitationListOutput = v.strictObject(
   v.entriesFromObjects([v.strictObject({ items: SPageItems(SInvitation) }), SOffsetPage]),
 )
+
 export type SInvitationListOutput = v.InferOutput<typeof SInvitationListOutput>
 
 export const listInvitations = oc

@@ -21,7 +21,9 @@ const props = withDefaults(
 const item = injectQuestionnaireItemContext()
 
 const primitiveRef = ref<ComponentPublicInstance | null>(null)
+
 const fallbackId = props.id ?? useId()
+
 const descriptionId = ref(fallbackId)
 
 let unregisterDescription = item.registerDescription(descriptionId.value)

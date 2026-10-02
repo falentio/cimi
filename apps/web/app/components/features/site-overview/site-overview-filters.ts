@@ -81,6 +81,7 @@ function sameFilterDimension(left: OverviewFilter, right: OverviewFilter): boole
 function uniqueValues(values: readonly string[]): OverviewFilterValues | null {
   const unique = [...new Set(values)]
   const first = unique.at(0)
+
   return first === undefined ? null : [first, ...unique.slice(1)]
 }
 
@@ -93,7 +94,9 @@ export function compareOverviewFilters(left: OverviewFilter, right: OverviewFilt
 
   const leftValues = uniqueValues(left.values)
   const rightValues = uniqueValues(right.values)
+
   if (leftValues === null || rightValues === null) return leftValues === rightValues
+
   return (
     leftValues.length === rightValues.length &&
     leftValues.every((value) => rightValues.includes(value))
@@ -107,15 +110,18 @@ export function normalizeOverviewFilters(
 
   for (const filter of filters) {
     const values = uniqueValues(filter.values)
+
     if (values === null) continue
 
     const existing = normalized.find((candidate) => sameFilterDimension(candidate, filter))
+
     if (existing === undefined) {
       normalized.push(withValues(filter, values))
       continue
     }
 
     const mergedValues = uniqueValues([...existing.values, ...values])
+
     if (mergedValues !== null) {
       normalized[normalized.indexOf(existing)] = withValues(existing, mergedValues)
     }
@@ -143,25 +149,30 @@ export function toggleOverviewFilterValue(
 
   for (const value of target.values) {
     const existing = next.find((filter) => sameFilterDimension(filter, target))
+
     if (existing === undefined) {
       next.push(withValues(target, [value]))
       continue
     }
 
     const index = next.indexOf(existing)
+
     if (existing.values.includes(value)) {
       const remainingValues = uniqueValues(
         existing.values.filter((candidate) => candidate !== value),
       )
+
       if (remainingValues === null) {
         next.splice(index, 1)
       } else {
         next[index] = withValues(existing, remainingValues)
       }
+
       continue
     }
 
     const mergedValues = uniqueValues([...existing.values, value])
+
     if (mergedValues !== null) next[index] = withValues(existing, mergedValues)
   }
 
@@ -173,12 +184,14 @@ export function removeOverviewFilterValue(
   target: OverviewFilter,
 ): readonly OverviewFilter[] {
   const normalized = normalizeOverviewFilters(filters)
+
   return normalized.flatMap((filter) => {
     if (!sameFilterDimension(filter, target)) return [filter]
 
     const remainingValues = uniqueValues(
       filter.values.filter((value) => !target.values.includes(value)),
     )
+
     return remainingValues === null ? [] : [withValues(filter, remainingValues)]
   })
 }

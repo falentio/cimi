@@ -17,12 +17,14 @@ describe('ReportQueryKernel.lifecycle', () => {
     const admission = createAdmission()
     let deletionLease
     let responseDeletionLease
+
     const query = createReportQueryKernel({
       admission: admission.service,
       lifecycleLock,
       data: {
         read: async () => {
           deletionLease = lifecycleLock.acquire('site_deletion')
+
           return { events: [], sessions: [], activeProfiles: new Map() }
         },
       },
@@ -41,6 +43,7 @@ describe('ReportQueryKernel.lifecycle', () => {
         }),
         render: (run) => {
           responseDeletionLease = lifecycleLock.acquire('site_deletion')
+
           return run
         },
       }),
@@ -57,6 +60,7 @@ describe('ReportQueryKernel.lifecycle', () => {
     const lifecycleLock = new InMemoryLifecycleLock()
     const backupLease = lifecycleLock.acquire('backup')
     const admission = createAdmission()
+
     const query = createReportQueryKernel({
       admission: admission.service,
       lifecycleLock,
@@ -86,8 +90,10 @@ describe('ReportQueryKernel.lifecycle', () => {
   it('fails closed when the shared lifecycle boundary is unavailable', async () => {
     const lifecycleLock = new InMemoryLifecycleLock()
     const lifecycleLease = lifecycleLock.acquire('site_deletion')
+
     if (lifecycleLease === undefined) throw new Error('Expected a lifecycle lease')
     const admission = createAdmission()
+
     const query = createReportQueryKernel({
       admission: admission.service,
       lifecycleLock,
@@ -112,6 +118,7 @@ describe('ReportQueryKernel.lifecycle', () => {
   it('releases the shared lifecycle lease when report execution fails', async () => {
     const lifecycleLock = new InMemoryLifecycleLock()
     const admission = createAdmission()
+
     const query = createReportQueryKernel({
       admission: admission.service,
       lifecycleLock,
@@ -148,15 +155,19 @@ function createAdmission(): {
   readonly reads: { readiness: number; metadata: number; evidence: number }
 } {
   const reads = { readiness: 0, metadata: 0, evidence: 0 }
+
   const readiness: AnalyticsReadinessPort = {
     getHealth: () => {
       reads.readiness += 1
+
       return { controlStore: 'ready', analyticsStore: 'ready' }
     },
   }
+
   const metadata: ReportingMetadataPort = {
     getActive: (siteId) => {
       reads.metadata += 1
+
       return {
         siteId,
         reportingTimezone: 'UTC',
@@ -164,11 +175,13 @@ function createAdmission(): {
       }
     },
   }
+
   const evidence: ReportingEvidencePort = {
     read: () => {
       reads.evidence += 1
       const occurrenceFrom = createInstantMs(Date.parse('2026-08-01T00:00:00.000Z'))
       const occurrenceThrough = createInstantMs(Date.parse('2026-09-02T00:00:00.000Z'))
+
       return {
         projection: {
           checkpoint: {
@@ -186,6 +199,7 @@ function createAdmission(): {
       }
     },
   }
+
   const dependencies: ReportingAdmissionDependencies = {
     analyticsReadiness: readiness,
     metadata,

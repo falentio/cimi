@@ -13,6 +13,7 @@ export interface CreateClientOptions {
 
 export function createClient(options: CreateClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/$/, '')
+
   const link = new OpenAPILink(contract, {
     url: `${baseUrl}/api`,
     ...(options.headers && { headers: options.headers }),

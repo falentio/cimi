@@ -1,7 +1,11 @@
 const MASK_64 = (1n << 64n) - 1n
+
 const UINT64_RANGE = 1n << 64n
+
 const SPLITMIX_INCREMENT = 0x9e3779b97f4a7c15n
+
 const SPLITMIX_MULTIPLIER_1 = 0xbf58476d1ce4e5b9n
+
 const SPLITMIX_MULTIPLIER_2 = 0x94d049bb133111ebn
 
 export type Xoroshiro128PlusPlusState = readonly [s0: bigint, s1: bigint]
@@ -64,6 +68,7 @@ function parseOptions(options: unknown): Xoroshiro128PlusPlusState {
     if ('state' in options) {
       throw new TypeError('Options must contain exactly one seed or state')
     }
+
     return parseState(createSeedState(parseUint64(options.seed)))
   }
 
@@ -93,9 +98,11 @@ function parseUint64(value: unknown): bigint {
   if (typeof value !== 'bigint') {
     throw new TypeError('State words must be bigint values')
   }
+
   if (value < 0n || value > MASK_64) {
     throw new RangeError('State words must be unsigned 64-bit values')
   }
+
   return value
 }
 
@@ -109,12 +116,14 @@ function createSeedState(seed: bigint): Xoroshiro128PlusPlusState {
     let value = splitmixState
     value = ((value ^ ((value >> 30n) & MASK_64)) * SPLITMIX_MULTIPLIER_1) & MASK_64
     value = ((value ^ ((value >> 27n) & MASK_64)) * SPLITMIX_MULTIPLIER_2) & MASK_64
+
     return (value ^ ((value >> 31n) & MASK_64)) & MASK_64
   }
 }
 
 function rotateLeft(value: bigint, shift: bigint): bigint {
   value &= MASK_64
+
   return (((value << shift) & MASK_64) | ((value >> (64n - shift)) & MASK_64)) & MASK_64
 }
 
@@ -122,6 +131,7 @@ function validateMaxExclusive(maxExclusive: number): void {
   if (typeof maxExclusive !== 'number') {
     throw new TypeError('maxExclusive must be a number')
   }
+
   if (
     !Number.isSafeInteger(maxExclusive) ||
     maxExclusive < 1 ||

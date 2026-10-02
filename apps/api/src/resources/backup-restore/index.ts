@@ -14,21 +14,25 @@ import { BackupRestoreService, type BackupRestoreIdFactory } from './service.ts'
 import type { BackupRestoreExecutor } from './executor.ts'
 
 export { backupRestoreRouter }
+
 export {
   BackupRestoreCleanupWorker,
   type BackupRestoreCleanupPort,
   type BackupRestoreCleanupWorkerDependencies,
 } from './cleanup.ts'
+
 export {
   BackupRestoreService,
   type BackupRestoreHealthSnapshot,
   type BackupRestoreIdFactory,
   type BackupRestoreServiceDependencies,
 } from './service.ts'
+
 export {
   BackupRestoreRepositoryDrizzle,
   type BackupRestoreRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type {
   BackupRestoreRepository,
   BackupOperation,
@@ -40,6 +44,7 @@ export type {
   SafetyManifest,
   SourceManifest,
 } from './repository.ts'
+
 export {
   BackupIncompatibilityError,
   ConfiguredSqliteExecutor,
@@ -48,6 +53,7 @@ export {
   SafetyArtifactUnavailableError,
   classifyStorageExhausted,
 } from './executor.ts'
+
 export type { BackupRestoreExecutor, ConfiguredSqliteExecutorDependencies } from './executor.ts'
 
 export interface CreateBackupRestoreDependencies {
@@ -84,6 +90,7 @@ export function createBackupRestore({
   cleanup,
 }: CreateBackupRestoreDependencies) {
   const repository = new BackupRestoreRepositoryDrizzle({ db })
+
   const operationExecutor =
     executor ??
     new ConfiguredSqliteExecutor({
@@ -93,6 +100,7 @@ export function createBackupRestore({
       dataDirectoryPath,
       migrationsFolder,
     })
+
   const service = new BackupRestoreService({
     repository,
     executor: operationExecutor,
@@ -104,12 +112,15 @@ export function createBackupRestore({
     ...(clock === undefined ? {} : { clock }),
     ...(ids === undefined ? {} : { ids }),
   })
+
   const router = backupRestoreRouter(service)
+
   const worker: BackupRestoreCleanupWorker = new BackupRestoreCleanupWorker({
     repository,
     lock,
     ...(cleanup === undefined ? {} : { cleanup }),
   })
+
   return { repository, executor: operationExecutor, service, router, worker }
 }
 

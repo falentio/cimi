@@ -8,6 +8,7 @@ interface Props extends PrimitiveProps {
   class?: HTMLAttributes['class']
   align?: 'start' | 'end'
 }
+
 const props = withDefaults(defineProps<Props>(), {
   align: 'start',
   as: 'div',

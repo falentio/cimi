@@ -62,13 +62,17 @@ const ticket: ReportAdmissionTicket = {
 
 function createAdmission(outcome: ReportAdmissionTicket | Error = ticket) {
   const requests: Parameters<PublicDashboardAdmission['admit']>[0][] = []
+
   const port: PublicDashboardAdmission = {
     admit: async (input) => {
       requests.push(input)
+
       if (outcome instanceof Error) throw outcome
+
       return outcome
     },
   }
+
   return { port, requests }
 }
 
@@ -77,15 +81,19 @@ function createAdmissionSequence(
 ) {
   let index = 0
   const requests: Parameters<PublicDashboardAdmission['admit']>[0][] = []
+
   const port: PublicDashboardAdmission = {
     admit: async (input) => {
       requests.push(input)
       const outcome = outcomes[Math.min(index, outcomes.length - 1)] ?? outcomes[0]
       index += 1
+
       if (outcome instanceof Error) throw outcome
+
       return outcome
     },
   }
+
   return { port, requests }
 }
 
@@ -96,14 +104,17 @@ function createQuery(
   } = {},
 ) {
   let aggregateCalls = 0
+
   const port: PublicDashboardQueryPort = {
     countDimensionValues: async () => 0,
     countDistinctVisitors: async () => options.totalDistinctVisitors ?? 5,
     aggregate: async () => {
       aggregateCalls += 1
+
       return options.rows ?? [{ groupKey: 0, value: 7, distinctVisitors: 5 }]
     },
   }
+
   return {
     port,
     get aggregateCalls() {
@@ -122,12 +133,14 @@ describe('PublicDashboardService.query', () => {
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     const admission = createAdmission()
+
     const query = createQuery({
       rows: [
         { groupKey: 0, value: 7, distinctVisitors: 5 },
         { groupKey: 1, value: 100, distinctVisitors: 4 },
       ],
     })
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -166,10 +179,13 @@ describe('PublicDashboardService.query', () => {
       publicDashboardIdentifier: 'public-1',
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const admission = createAdmission(
       new ReportingAdmissionError({ code: 'QUERY_LIMIT_EXCEEDED', reason: 'bucket-bound' }),
     )
+
     const query = createQuery()
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -197,11 +213,13 @@ describe('PublicDashboardService.query', () => {
   it('fails closed when lifecycle contention hides the current identifier', async () => {
     const repository = mock<PublicDashboardRepository>()
     repository.findByIdentifierHash.mockResolvedValue(undefined)
+
     const lock: LifecycleLock = {
       acquire: () => undefined,
       acquireExclusive: async () => undefined,
       isLocked: () => true,
     }
+
     const service = new PublicDashboardService({
       repository,
       lock,
@@ -233,6 +251,7 @@ describe('PublicDashboardService.query', () => {
     })
     const admission = createAdmission()
     const query = createQuery({ totalDistinctVisitors: 4 })
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -271,6 +290,7 @@ describe('PublicDashboardService.query', () => {
       publicDashboardIdentifier: 'public-1',
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const admission = createAdmissionSequence([
       ticket,
       {
@@ -278,15 +298,19 @@ describe('PublicDashboardService.query', () => {
         projectionGeneration: 2,
       },
     ])
+
     let aggregateCalls = 0
+
     const query: PublicDashboardQueryPort = {
       countDimensionValues: async () => 0,
       countDistinctVisitors: async () => 5,
       aggregate: async () => {
         aggregateCalls += 1
+
         return [{ groupKey: 0, value: 7, distinctVisitors: aggregateCalls === 1 ? 5 : 4 }]
       },
     }
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -295,6 +319,7 @@ describe('PublicDashboardService.query', () => {
       scope: { siteScope: {} as never, membership: {} as never },
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
+
     const input = {
       publicDashboardIdentifier: 'public-1',
       fromDate: '2026-09-01',
@@ -321,6 +346,7 @@ describe('PublicDashboardService.query', () => {
       publicDashboardIdentifier: 'public-1',
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const staleTicket: ReportAdmissionTicket = {
       ...ticket,
       freshness: {
@@ -328,8 +354,10 @@ describe('PublicDashboardService.query', () => {
         current: { ...ticket.freshness.current, status: 'stale' },
       },
     }
+
     const admission = createAdmissionSequence([ticket, staleTicket])
     const query = createQuery()
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -338,6 +366,7 @@ describe('PublicDashboardService.query', () => {
       scope: { siteScope: {} as never, membership: {} as never },
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
+
     const input = {
       publicDashboardIdentifier: 'public-1',
       fromDate: '2026-09-01',
@@ -362,6 +391,7 @@ describe('PublicDashboardService.query', () => {
     })
     const admission = createAdmission()
     const query = createQuery()
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -405,6 +435,7 @@ describe('PublicDashboardService.query', () => {
     const admission = createAdmission()
     const query = createQuery()
     let releaseCount = 0
+
     const lock: LifecycleLock = {
       acquire: () => ({
         kind: 'analytics-read',
@@ -416,6 +447,7 @@ describe('PublicDashboardService.query', () => {
       acquireExclusive: async () => undefined,
       isLocked: () => false,
     }
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -453,6 +485,7 @@ describe('PublicDashboardService.query', () => {
     const query = createQuery()
     const lock = new InMemoryLifecycleLock()
     const backupLease = lock.acquire('backup')
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -489,6 +522,7 @@ describe('PublicDashboardService.query', () => {
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     const admission = createAdmission()
+
     const query: PublicDashboardQueryPort = {
       countDimensionValues: async () => 0,
       countDistinctVisitors: async () => 5,
@@ -496,7 +530,9 @@ describe('PublicDashboardService.query', () => {
         throw new Error('aggregate failed')
       },
     }
+
     const lock = new InMemoryLifecycleLock()
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -537,6 +573,7 @@ describe('PublicDashboardService.query', () => {
       .mockResolvedValueOnce(undefined)
     const admission = createAdmission()
     const query = createQuery()
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -545,6 +582,7 @@ describe('PublicDashboardService.query', () => {
       scope: { siteScope: {} as never, membership: {} as never },
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
+
     const input = {
       publicDashboardIdentifier: 'public-1',
       fromDate: '2026-09-01',
@@ -567,6 +605,7 @@ describe('PublicDashboardService.query', () => {
       publicDashboardIdentifier: 'public-1',
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const rateLimiter: PublicDashboardRateLimiter = {
       consume: () => {
         throw new PublicDashboardRateLimitError({
@@ -578,8 +617,10 @@ describe('PublicDashboardService.query', () => {
         })
       },
     }
+
     const admission = createAdmission()
     const query = createQuery()
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -625,6 +666,7 @@ describe('PublicDashboardService.query', () => {
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
     const sourceIps: string[] = []
+
     const service = new PublicDashboardService({
       repository,
       admission: createAdmission().port,
@@ -661,6 +703,7 @@ describe('PublicDashboardService.query', () => {
     const admission = createAdmission()
     const query = createQuery()
     let now = new Date('2026-09-01T00:00:00.000Z')
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -670,6 +713,7 @@ describe('PublicDashboardService.query', () => {
       scope: { siteScope: {} as never, membership: {} as never },
       clock: () => now,
     })
+
     const input = {
       publicDashboardIdentifier: 'public-1',
       fromDate: '2026-09-01',
@@ -696,6 +740,7 @@ describe('PublicDashboardService.query', () => {
     })
     const admission = createAdmission()
     const query = createQuery()
+
     const service = new PublicDashboardService({
       repository,
       admission: admission.port,
@@ -705,6 +750,7 @@ describe('PublicDashboardService.query', () => {
       scope: { siteScope: {} as never, membership: {} as never },
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
+
     const input = (index: number) => ({
       publicDashboardIdentifier: 'public-1',
       fromDate: '2026-09-01',
@@ -725,6 +771,7 @@ describe('PublicDashboardService.query', () => {
     for (let index = 0; index <= 1024; index += 1) {
       await service.query(input(index), '203.0.113.10')
     }
+
     await service.query(input(0), '203.0.113.10')
 
     expect(query.aggregateCalls).toBe(1026)

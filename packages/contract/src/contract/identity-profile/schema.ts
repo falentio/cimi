@@ -3,9 +3,13 @@ import { SCreated, SDateTime, SId, SScalarMap, VALIDATION_KEYS } from '../../sch
 import { SCollectionContext } from '../collection-policy/transport.ts'
 
 export const SProfileStatus = v.picklist(['active', 'deletion-requested', 'deleting', 'deleted'])
+
 export const PROFILE_TRAITS_MAX_SERIALIZED_BYTES = 16 * 1024
+
 export const PROFILE_EPOCH_HISTORY_MAX = 32
+
 export const PROFILE_EPOCH_NUMBER_MAX = 2_147_483_647
+
 const PROFILE_TRAIT_RESERVED_KEYS = new Set([
   'aliases',
   'backupcleanup',
@@ -25,6 +29,7 @@ const PROFILE_TRAIT_RESERVED_KEYS = new Set([
   'traits',
   'updatedat',
 ])
+
 const PROFILE_TRAIT_PROHIBITED_KEY_PARTS = [
   'accesstoken',
   'apikey',
@@ -67,10 +72,12 @@ const PROFILE_TRAIT_PROHIBITED_KEY_PARTS = [
   'tradeunion',
   'unionmembership',
 ]
+
 export const SDeletionCleanupStatus = v.strictObject({
   status: v.picklist(['not-required', 'pending', 'complete']),
   updatedAt: SDateTime,
 })
+
 export const SProfileTraits = v.pipe(
   SScalarMap,
   v.check(
@@ -91,7 +98,9 @@ export const SProfileTraits = v.pipe(
 
 export function isProfileTraitKeyAllowed(key: string): boolean {
   const normalized = key.replace(/[^A-Za-z0-9]/g, '').toLowerCase()
+
   if (PROFILE_TRAIT_RESERVED_KEYS.has(normalized)) return false
+
   return !PROFILE_TRAIT_PROHIBITED_KEY_PARTS.some((part) => normalized.includes(part))
 }
 
@@ -106,6 +115,7 @@ export function hasAllowedProfileTraitKeys(
 
 export function isProfileTraitsPayloadOversized(value: unknown): boolean {
   const parsed = v.safeParse(SScalarMap, value)
+
   return (
     parsed.success &&
     Object.keys(parsed.output).length <= 64 &&
@@ -113,14 +123,17 @@ export function isProfileTraitsPayloadOversized(value: unknown): boolean {
       PROFILE_TRAITS_MAX_SERIALIZED_BYTES
   )
 }
+
 const SProfileEpochFields = {
   epoch: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(PROFILE_EPOCH_NUMBER_MAX)),
   startedAt: SDateTime,
 }
+
 export const SProfileEpoch = v.variant('status', [
   v.strictObject({ ...SProfileEpochFields, status: v.literal('active'), endedAt: v.null() }),
   v.strictObject({ ...SProfileEpochFields, status: v.literal('redacted'), endedAt: SDateTime }),
 ])
+
 const SIdentityHistory = v.pipe(
   v.array(SProfileEpoch),
   v.minLength(1),
@@ -130,14 +143,17 @@ const SIdentityHistory = v.pipe(
     VALIDATION_KEYS.contract.profile.epochNumbersUnique,
   ),
 )
+
 const SProfileLifecycleFields = {
   siteId: SId,
   identifiedUserId: SId,
   firstSeenAt: SDateTime,
   lastSeenAt: SDateTime,
 }
+
 const SRedactedProfile = (status: 'deletion-requested' | 'deleting' | 'deleted') =>
   v.strictObject({ status: v.literal(status) })
+
 export const SProfile = v.variant('status', [
   v.strictObject(
     v.entriesFromObjects([
@@ -161,7 +177,9 @@ export const SProfile = v.variant('status', [
   SRedactedProfile('deleting'),
   SRedactedProfile('deleted'),
 ])
+
 export const SProfileIdentityFields = v.strictObject({ siteId: SId, identifiedUserId: SId })
+
 export const SIdentifyFields = v.strictObject({
   ingestionIdentifier: SId,
   identifiedUserId: SId,

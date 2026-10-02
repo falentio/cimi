@@ -18,29 +18,36 @@ describe('BackupRestoreService.createBackup', () => {
     const order: string[] = []
     const repository = mock<BackupRestoreRepository>()
     const executor = mock<BackupRestoreExecutor>()
+
     const acceptance = new InMemoryAcceptanceQuiescencePort(async () => {
       order.push('drain')
+
       return { lastSafeSequence: 42 }
     })
+
     const reads = new InMemoryReadQuiescencePort()
     const operation = createBackupOperation()
     const captured = createSourceManifest()
 
     repository.beginBackup.mockImplementation(async () => {
       order.push('begin')
+
       return operation
     })
     repository.advance.mockImplementation(async (input) => {
       order.push(`advance:${input.lastSafeSequence ?? 'none'}`)
+
       return { ...operation, lastSafeSequence: input.lastSafeSequence }
     })
     repository.findAuthoritativeArtifact.mockResolvedValue(undefined)
     repository.recordBackupArtifact.mockImplementation(async () => {
       order.push('record')
+
       return operation
     })
     repository.complete.mockImplementation(async () => {
       order.push('complete')
+
       return {
         ...operation,
         status: 'available',
@@ -53,6 +60,7 @@ describe('BackupRestoreService.createBackup', () => {
     })
     executor.captureBackup.mockImplementation(async () => {
       order.push('capture')
+
       return captured
     })
 

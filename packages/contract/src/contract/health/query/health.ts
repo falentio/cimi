@@ -2,6 +2,7 @@ import { oc } from '../../../orpc/index.ts'
 import { SHealth } from '../schema.ts'
 
 export const SHealthOutput = SHealth
+
 export const SSystemHealthOutput = SHealthOutput
 
 /**

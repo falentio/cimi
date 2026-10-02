@@ -36,6 +36,7 @@ function createFixture(
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
+
   const policy = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -70,6 +71,7 @@ function createFixture(
       repository.append.mockImplementation(async (candidates) =>
         candidates.map(() => ({ status: 'accepted' }) as const),
       )
+
       return repository
     })()
 
@@ -150,6 +152,7 @@ describe('EventIngestionService.pendingDuplicates', () => {
       ingestionIdentifier: 'ing-1',
       events: [event(), event()],
     })
+
     await service.flush()
 
     await expect(resultPromise).resolves.toEqual({
@@ -164,12 +167,15 @@ describe('EventIngestionService.pendingDuplicates', () => {
 
   it('coalesces pageviews by pageview ID while allowing distinct event IDs', async () => {
     const { service, acceptanceRepository } = createFixture()
+
     const first = service.collectEvent(
       event({ kind: 'page_view', pageViewId: 'page-1', pagePath: '/', eventId: 'event-1' }),
     )
+
     const second = service.collectEvent(
       event({ kind: 'page_view', pageViewId: 'page-1', pagePath: '/', eventId: 'event-2' }),
     )
+
     await service.flush()
 
     await expect(first).resolves.toMatchObject({ status: 'accepted', eventId: 'event-1' })

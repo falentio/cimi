@@ -8,6 +8,7 @@ const SEventProperty = v.union([
   v.boolean(),
   v.null(),
 ])
+
 const SEventProperties = v.pipe(
   v.record(SScalarKey, SEventProperty),
   v.check((value) => Object.keys(value).length <= 64, VALIDATION_KEYS.contract.properties.maxCount),
@@ -51,7 +52,9 @@ const SEventProperties = v.pipe(
     VALIDATION_KEYS.contract.event.propertiesReservedName,
   ),
 )
+
 const SUtmField = v.pipe(v.string(), v.minLength(1), v.maxLength(128))
+
 const SEventCommonFields = {
   eventId: SId,
   ingestionIdentifier: SId,
@@ -121,6 +124,7 @@ export const SBatchEventResult = v.variant('status', [
     code: v.picklist(['BAD_REQUEST', 'CONFLICT', 'PAYLOAD_TOO_LARGE']),
   }),
 ])
+
 export const SBatchEventResponse = v.strictObject({
   results: v.pipe(v.array(SBatchEventResult), v.minLength(1), v.maxLength(100)),
 })

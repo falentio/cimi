@@ -59,6 +59,7 @@ describe('InvitationService.revoke', () => {
     const { repository, service } = createInvitationFixture({
       memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'member' }],
     })
+
     repository.findById.mockResolvedValue(createInvitationRecord())
 
     await expect(

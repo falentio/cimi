@@ -7,6 +7,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number, offsetMs = 0): number {
@@ -82,6 +83,7 @@ async function projectedSiteWithKinds(email: string) {
     },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -111,7 +113,9 @@ describe('EventReportService.getOverview', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds(
       'event-overview-cmp@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       overviewPath(
@@ -131,6 +135,7 @@ describe('EventReportService.getOverview', () => {
   it('rejects an unsupported event filter as BAD_REQUEST', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-badfilter@example.com')
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       `${overviewPath(siteId, 'page_view')}&filters[0][scope]=event&filters[0][field]=nope&filters[0][operator]=equals&filters[0][values][0]=x`,
@@ -144,6 +149,7 @@ describe('EventReportService.getOverview', () => {
   it('applies a typed event property filter to an event overview', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-filter@example.com')
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       `${overviewPath(siteId, 'page_view')}&filters[0][scope]=event&filters[0][field]=property.plan&filters[0][operator]=equals&filters[0][values][0]=pro`,
@@ -158,6 +164,7 @@ describe('EventReportService.getOverview', () => {
       `${overviewPath(siteId, 'page_view')}&filters[0][scope]=event&filters[0][field]=property.plan&filters[0][operator]=equals&filters[0][values][0]=free`,
       cookie,
     )
+
     expect(miss.status, await miss.clone().text()).toBe(200)
     await expect(miss.json()).resolves.toMatchObject({ total: 0, uniqueVisitors: 0 })
   })
@@ -165,11 +172,13 @@ describe('EventReportService.getOverview', () => {
   it('applies a nested presence property filter to the matching Session', async () => {
     const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
     await using _ = fixture
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'event-presence-filter@example.com',
     )
+
     seedAcceptedEvents(fixture.db, siteId, [
       {
         sessionId: 's1',
@@ -198,11 +207,13 @@ describe('EventReportService.getOverview', () => {
 
     const presenceFilter = (operator: 'has_done' | 'has_not_done') =>
       `&filters[0][scope]=session&filters[0][operator]=${operator}&filters[0][range]=same_range&filters[0][action][kind]=custom_event&filters[0][action][name]=purchase&filters[0][action][propertyFilters][0][field]=label&filters[0][action][propertyFilters][0][operator]=equals&filters[0][action][propertyFilters][0][values][0]=premium`
+
     const matching = await apiTestRequest(
       fixture.app,
       `${overviewPath(siteId, 'page_view')}${presenceFilter('has_done')}`,
       cookie,
     )
+
     expect(matching.status, await matching.clone().text()).toBe(200)
     await expect(matching.json()).resolves.toMatchObject({
       total: 1,
@@ -215,6 +226,7 @@ describe('EventReportService.getOverview', () => {
       `${overviewPath(siteId, 'page_view')}${presenceFilter('has_not_done')}`,
       cookie,
     )
+
     expect(nonMatching.status, await nonMatching.clone().text()).toBe(200)
     await expect(nonMatching.json()).resolves.toMatchObject({
       total: 1,

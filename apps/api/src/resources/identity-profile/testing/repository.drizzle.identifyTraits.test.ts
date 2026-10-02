@@ -7,11 +7,13 @@ import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { IdentityProfileRepositoryDrizzle } from '../repository.drizzle.ts'
 
 const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
+
 const later = new Date('2026-09-10T06:05:00.000Z')
 
 describe('IdentityProfileRepositoryDrizzle.identifyTraits', () => {
   it('updates traits by removing null markers and preserves the current Alias', async () => {
     using fixture = createSiteDrizzleFixture()
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {
@@ -20,6 +22,7 @@ describe('IdentityProfileRepositoryDrizzle.identifyTraits', () => {
         identityRedactionId: () => 'ird_1',
       },
     })
+
     await repository.identify({
       siteId: 'ste_1',
       identifiedUserId: 'app_user_1',
@@ -57,9 +60,11 @@ describe('IdentityProfileRepositoryDrizzle.identifyTraits', () => {
   it('rejects an update that would exceed the Trait key bound', async () => {
     using fixture = createSiteDrizzleFixture()
     const repository = new IdentityProfileRepositoryDrizzle({ db: fixture.db })
+
     const traits = Object.fromEntries(
       Array.from({ length: 64 }, (_, index) => [`trait-${index}`, 'value']),
     )
+
     expect(safeParse(SProfileTraits, { ...traits, extra: 'value' }).success).toBe(false)
 
     await expect(

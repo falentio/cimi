@@ -1,6 +1,7 @@
 import { Address4, Address6 } from 'ip-address'
 
 export type IpFamily = 4 | 6
+
 export type IpPatternKind = 'address' | 'cidr' | 'range'
 
 export interface ParsedIpPattern {
@@ -40,6 +41,7 @@ interface PatternGroup {
 
 export function parseIpPattern(value: string): ParsedIpPattern | null {
   const compiled = compileIpPattern(value)
+
   if (!compiled) return null
 
   return {
@@ -48,6 +50,7 @@ export function parseIpPattern(value: string): ParsedIpPattern | null {
     source: compiled.source,
     matches: (ip) => {
       const address = parseIpAddress(ip)
+
       return address !== null && compiled.matchesAddress(prepareIpAddress(address, compiled))
     },
   }
@@ -56,9 +59,11 @@ export function parseIpPattern(value: string): ParsedIpPattern | null {
 export function createIpMatcher(patterns: readonly string[]): IpMatcher {
   const compiled = patterns.map((pattern) => {
     const result = compileIpPattern(pattern)
+
     if (!result) {
       throw new TypeError(`Invalid IP pattern: ${pattern}`)
     }
+
     return result
   })
 
@@ -70,10 +75,12 @@ export function createIpMatcher(patterns: readonly string[]): IpMatcher {
   return {
     matches(ip) {
       const address = parseIpAddress(ip)
+
       if (!address) return false
 
       const group = address instanceof Address4 ? ipv4Group : ipv6Group
       const prepared = prepareIpAddress(address, group)
+
       return group.patterns.some((pattern) => pattern.matchesAddress(prepared))
     },
   }
@@ -81,6 +88,7 @@ export function createIpMatcher(patterns: readonly string[]): IpMatcher {
 
 function compileIpPattern(value: string): CompiledIpPattern | null {
   const source = value.trim()
+
   if (!source) return null
 
   if (source.includes('/')) {
@@ -92,6 +100,7 @@ function compileIpPattern(value: string): CompiledIpPattern | null {
   }
 
   const address = parseIpAddress(source)
+
   if (!address) return null
   const canonical = address.correctForm()
 
@@ -113,6 +122,7 @@ function compileCidr(source: string): CompiledIpPattern | null {
     const family: IpFamily = address instanceof Address4 ? 4 : 6
     const mask = createSubnetMask(family, address.subnetMask)
     const network = address.bigInt() & mask
+
     return {
       kind: 'cidr',
       family,
@@ -131,13 +141,16 @@ function compileCidr(source: string): CompiledIpPattern | null {
 
 function compileRange(source: string): CompiledIpPattern | null {
   const parts = source.split('-')
+
   if (parts.length !== 2) return null
 
   const start = parseIpAddress(parts[0]!.trim())
   const end = parseIpAddress(parts[1]!.trim())
+
   if (!(start instanceof Address4) || !(end instanceof Address4)) return null
   const startValue = start.bigInt()
   const endValue = end.bigInt()
+
   if (startValue > endValue) return null
 
   return {
@@ -185,6 +198,8 @@ function createPatternGroup(patterns: readonly CompiledIpPattern[]): PatternGrou
 
 function createSubnetMask(family: IpFamily, subnetMask: number): bigint {
   const bits = BigInt(family === 4 ? 32 : 128)
+
   if (subnetMask === 0) return 0n
+
   return ((1n << bits) - 1n) ^ ((1n << (bits - BigInt(subnetMask))) - 1n)
 }

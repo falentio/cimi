@@ -8,11 +8,14 @@ import { cohortRetentionRouter } from './router.ts'
 import { CohortService } from './service.ts'
 
 export { cohortRetentionRouter }
+
 export { CohortService, type CohortServiceDependencies } from './service.ts'
+
 export {
   CohortRepositoryDrizzle,
   type CohortRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { CohortRepository } from './repository.ts'
 
 export interface CreateCohortDependencies {
@@ -37,6 +40,7 @@ export function createCohort({
   ids,
 }: CreateCohortDependencies) {
   const repository = new CohortRepositoryDrizzle({ db })
+
   const service = new CohortService({
     repository,
     analytics,
@@ -48,6 +52,7 @@ export function createCohort({
     ...(clock === undefined ? {} : { clock }),
     ...(ids === undefined ? {} : { ids }),
   })
+
   return { repository, service, router: cohortRetentionRouter(service) }
 }
 

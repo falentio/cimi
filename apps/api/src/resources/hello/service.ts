@@ -7,9 +7,13 @@ import { HelloGuard } from './guard.ts'
 import type { HelloRepository } from './repository.ts'
 
 type HelloListInput = InferOutput<typeof schema.SHelloListInput>
+
 type HelloGetInput = InferOutput<typeof schema.SHelloGetInput>
+
 type HelloWorldInput = InferOutput<typeof schema.SHelloWorldInput>
+
 type HelloCreateInput = InferOutput<typeof schema.SHelloCreateInput>
+
 type HelloRemoveInput = InferOutput<typeof schema.SHelloRemoveInput>
 
 export interface HelloServiceDependencies {
@@ -32,7 +36,9 @@ export class HelloService {
 
   async get(input: HelloGetInput): Promise<InferOutput<typeof schema.SHelloGetOutput>> {
     const hello = await this.repository.findById(input.id)
+
     if (hello === undefined) throw new ORPCError('NOT_FOUND')
+
     return hello
   }
 
@@ -42,6 +48,7 @@ export class HelloService {
       limit: input.limit ?? 20,
       ...(input.name !== undefined && { nameFilter: input.name }),
     })
+
     return result
   }
 
@@ -64,7 +71,9 @@ export class HelloService {
   ): Promise<InferOutput<typeof schema.SHelloRemoveOutput>> {
     await this.guard.assertCanRemove(user, input.id)
     const deleted = await this.repository.deleteById(input.id, user.id)
+
     if (!deleted) throw new ORPCError('NOT_FOUND')
+
     return { id: input.id }
   }
 }

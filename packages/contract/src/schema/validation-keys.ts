@@ -1,6 +1,7 @@
 import { VALIDATION_KEYS as SHARED_VALIDATION_KEYS } from '@cimi/utils'
 
 type ContractValidationKey = `validation.contract.${string}`
+
 type ContractValidationKeyTree = {
   readonly [key: string]: ContractValidationKey | ContractValidationKeyTree
 }

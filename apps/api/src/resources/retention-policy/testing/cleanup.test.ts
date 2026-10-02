@@ -24,16 +24,19 @@ describe('RetentionCleanupWorker', () => {
       now,
     })
     const calls: string[] = []
+
     const worker = new RetentionCleanupWorker({
       repository,
       lock: new InMemoryLifecycleLock(),
       cleanup: {
         async runDerived() {
           calls.push('derived')
+
           return { completed: true, cursor: null, processedThrough: now }
         },
         async runBackup() {
           calls.push('backup')
+
           return { completed: true, cursor: null, processedThrough: now }
         },
       },

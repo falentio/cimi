@@ -65,6 +65,7 @@ describe('backup restore data reducer', () => {
     const first = sourceBackup('backup-first')
     const second = sourceBackup('backup-second')
     const third = sourceBackup('backup-third')
+
     let state = reduceBackupRestoreData(createInitialBackupRestoreData(), {
       kind: 'list-replaced',
       page: page([first, second], 2),
@@ -82,6 +83,7 @@ describe('backup restore data reducer', () => {
 
   it('shows a command result immediately without treating a restore as catalog history', () => {
     const source = sourceBackup('backup-source')
+
     const restore = {
       ...sourceBackup('restore-result'),
       status: 'restoring' as const,
@@ -103,6 +105,7 @@ describe('backup restore data reducer', () => {
         structural: 'not_ready' as const,
       },
     } satisfies Backup
+
     let state = reduceBackupRestoreData(createInitialBackupRestoreData(), {
       kind: 'list-replaced',
       page: page([source]),
@@ -118,6 +121,7 @@ describe('backup restore data reducer', () => {
   it('keeps selection and operation clearing constrained to known current records', () => {
     const first = sourceBackup('backup-first')
     const second = sourceBackup('backup-second')
+
     let state = reduceBackupRestoreData(createInitialBackupRestoreData(), {
       kind: 'list-replaced',
       page: page([first, second]),
@@ -147,6 +151,7 @@ describe('backup restore data reducer', () => {
   it('keeps a newer lifecycle snapshot when stale operation data arrives later', () => {
     const latest = sourceBackup('backup-operation')
     const stale = creatingBackup(latest.id)
+
     let state = reduceBackupRestoreData(createInitialBackupRestoreData(), {
       kind: 'operation-received',
       operation: latest,

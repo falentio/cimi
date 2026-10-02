@@ -5,11 +5,13 @@ import { ConfigError, loadConfig, loadLoggingConfig, parseLoggingConfig } from '
 describe('loadConfig', () => {
   it('throws ConfigError listing BETTER_AUTH_SECRET when secret is absent', () => {
     let caught: unknown
+
     try {
       loadConfig({ CIMI_DATA_DIR: '/tmp/x' })
     } catch (error) {
       caught = error
     }
+
     expect(caught).toBeInstanceOf(ConfigError)
     expect((caught as Error).message).toContain('BETTER_AUTH_SECRET')
   })
@@ -35,6 +37,7 @@ describe('loadConfig', () => {
       NODE_ENV: 'production',
       CIMI_LOG_LEVEL: 'debug',
     })
+
     expect(config.dataDir).toBe(`${process.cwd()}/data/custom`)
     expect(config.authSecret).toBe('s3cret')
     expect(config.baseUrl).toBe('https://cimi.example.com')
@@ -85,6 +88,7 @@ describe('loadConfig', () => {
       CIMI_EVENT_SOURCE_IP_BURST: '150',
       CIMI_EVENT_TRUST_PROXY_HEADERS: 'true',
     })
+
     expect(config.eventIngestion).toEqual({
       siteRatePerSecond: 120,
       siteBurst: 600,

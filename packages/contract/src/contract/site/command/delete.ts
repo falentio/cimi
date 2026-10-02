@@ -4,12 +4,15 @@ import { SId } from '../../../schema/index.ts'
 import { SSiteIdFields } from '../schema.ts'
 
 export const SSiteDeleteInput = SSiteIdFields
+
 export type SSiteDeleteInput = v.InferOutput<typeof SSiteDeleteInput>
+
 export const SSiteDeleteOutput = v.strictObject({
   accepted: v.literal(true),
   status: v.literal('deleting'),
   operationId: SId,
 })
+
 export type SSiteDeleteOutput = v.InferOutput<typeof SSiteDeleteOutput>
 
 export const deleteSite = oc

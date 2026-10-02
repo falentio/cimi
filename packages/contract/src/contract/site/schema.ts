@@ -10,6 +10,7 @@ import {
 } from '../../schema/index.ts'
 
 export { SHostname }
+
 export const SSite = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -24,13 +25,17 @@ export const SSite = v.strictObject(
     SCreated,
   ]),
 )
+
 export const SSiteOrganizationFields = v.strictObject({
   organizationId: SId,
   name: SName,
   hostname: SHostname,
 })
+
 export const SSiteOrganizationScopeFields = v.strictObject({ organizationId: SId })
+
 export const SSiteUpdateFields = v.strictObject({ siteId: SId, name: SName, hostname: SHostname })
+
 export const SSiteUpdateV2Fields = v.strictObject(
   v.entriesFromObjects([
     SSiteUpdateFields,
@@ -40,7 +45,9 @@ export const SSiteUpdateV2Fields = v.strictObject(
     }),
   ]),
 )
+
 export const SSiteIdFields = v.strictObject({ siteId: SId })
+
 export const SSiteLifecycleStatus = v.picklist([
   'active',
   'deleting',
@@ -48,7 +55,9 @@ export const SSiteLifecycleStatus = v.picklist([
   'recovering',
   'purged',
 ])
+
 export const SSiteDeletionErrorCode = v.picklist(['CLEANUP_FAILED', 'INTERNAL_SERVER_ERROR'])
+
 export const SSiteDeletionCleanupStatus = v.strictObject({
   status: v.picklist(['not-required', 'pending', 'complete', 'failed']),
   updatedAt: SDateTime,

@@ -18,7 +18,9 @@ const dayMonthFormatter = new Intl.DateTimeFormat('en-GB', {
 /** Formats a date or ISO string as `DD MMMM`, e.g. `12 May`. */
 export function formatDayMonth(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value
+
   if (Number.isNaN(date.getTime())) return ''
+
   return dayMonthFormatter.format(date)
 }
 
@@ -32,6 +34,7 @@ export function resolvePreviousDate(value: string | Date, range: OverviewRange):
   const { days, months } = PREVIOUS_PERIOD_OFFSET[range]
   date.setUTCMonth(date.getUTCMonth() - months)
   date.setUTCDate(date.getUTCDate() - days)
+
   return date
 }
 
@@ -41,6 +44,7 @@ export function resolveTooltipDates(
   range: OverviewRange,
 ): { current: string; previous: string } {
   if (value === undefined) return { current: '', previous: '' }
+
   return {
     current: formatDayMonth(value),
     previous: formatDayMonth(resolvePreviousDate(value, range)),

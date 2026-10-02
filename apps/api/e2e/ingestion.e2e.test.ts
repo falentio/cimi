@@ -10,17 +10,21 @@ test('accepts public events, preserves replay identity across restart, and persi
     {},
     { context: await admin.context() },
   )
+
   const organization = await call(
     fixture.router.organization.createOrganization,
     { name: 'Ingestion Organization' },
     { context: await admin.context() },
   )
+
   const site = await call(
     fixture.router.site.createSite,
     { organizationId: organization.id, name: 'Production', hostname: 'ingestion.example.com' },
     { context: await admin.context() },
   )
+
   const anonymous = fixture.unauthenticatedContext()
+
   const event = {
     eventId: 'evt_checkout_completed',
     ingestionIdentifier: site.ingestionIdentifier,

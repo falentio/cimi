@@ -22,6 +22,7 @@ function withAnalyticsReady(analytics: AnalyticsDb, ready: () => boolean): Analy
     get(target, property, receiver) {
       if (property === 'ready') return async () => ready()
       const value = Reflect.get(target, property, receiver) as unknown
+
       return typeof value === 'function' ? value.bind(target) : value
     },
   })
@@ -40,8 +41,10 @@ export async function createApiTestFixture(
   } = {},
 ) {
   const db = createMigratedTestDb()
+
   try {
     const analytics = await createTestAnalyticsDb()
+
     try {
       const auth = createAuth({
         db,
@@ -49,6 +52,7 @@ export async function createApiTestFixture(
         secret: 'test-secret-1234567890',
         baseURL: 'http://localhost',
       })
+
       const app = createApiApp({
         db,
         auth,
@@ -73,6 +77,7 @@ export async function createApiTestFixture(
           ? {}
           : { backupRestoreExecutor: options.backupRestoreExecutor }),
       })
+
       return {
         app,
         auth,
@@ -112,10 +117,12 @@ export async function signUpTestUser(
       body: JSON.stringify({ name, email, password: 'password123' }),
     }),
   )
+
   expect(response.status).toBe(200)
   const body = (await response.json()) as { user: { id: string } }
   const setCookie = response.headers.get('set-cookie')
   expect(setCookie).toBeTruthy()
+
   return { cookie: setCookie!.split(';', 1)[0]!, userId: body.user.id }
 }
 
@@ -126,6 +133,7 @@ export async function apiTestRequest(
   body?: object,
 ): Promise<Response> {
   const headers = body === undefined ? { cookie } : { 'content-type': 'application/json', cookie }
+
   return app.fetch(
     new Request(`http://localhost/api${path}`, {
       method: body === undefined ? 'GET' : 'POST',

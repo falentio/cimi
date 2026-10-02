@@ -31,6 +31,7 @@ const selectedRangeLabel = computed(
 function handleRangeChange(value: unknown): void {
   if (typeof value !== 'string') return
   const range = props.ranges.find((option) => option.value === value)
+
   if (range === undefined) return
   emit('rangeChange', range.value)
 }

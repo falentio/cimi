@@ -5,25 +5,30 @@ import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { IdentityProfileRepositoryDrizzle } from '../repository.drizzle.ts'
 
 const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
+
 const later = new Date('2026-09-10T06:05:00.000Z')
 
 describe('IdentityProfileRepositoryDrizzle.aliasRelink', () => {
   it('moves an Alias between profiles without leaving two current links', async () => {
     using fixture = createSiteDrizzleFixture()
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {
         identityProfileId: (() => {
           let next = 0
+
           return () => `ipr_${++next}`
         })(),
         identityLinkId: (() => {
           let next = 0
+
           return () => `ilk_${++next}`
         })(),
         identityRedactionId: () => 'ird_1',
       },
     })
+
     await repository.identify({
       siteId: 'ste_1',
       identifiedUserId: 'app_user_1',

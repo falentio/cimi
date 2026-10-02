@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SInvitationIdFields } from '../schema.ts'
 
 export const SInvitationRevokeInput = SInvitationIdFields
+
 export type SInvitationRevokeInput = v.InferOutput<typeof SInvitationRevokeInput>
+
 export const SInvitationRevokeOutput = v.void()
+
 export type SInvitationRevokeOutput = v.InferOutput<typeof SInvitationRevokeOutput>
 
 export const revokeInvitation = oc

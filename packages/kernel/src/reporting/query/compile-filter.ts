@@ -40,6 +40,7 @@ export type TrafficFilterInput = TrafficAttributeFilter | TrafficPresenceFilter
 
 function isTrafficPresenceFilter(filter: TrafficFilterInput): filter is TrafficPresenceFilter {
   const operator: string = filter.operator
+
   return operator === 'has_done' || operator === 'has_not_done'
 }
 
@@ -88,6 +89,7 @@ export type CompileFilterResult =
   | { readonly ok: false; readonly reason: CompileFailureReason }
 
 const PROPERTY_KEY_PATTERN = /^property\.([A-Za-z0-9_.-]{1,63})$/
+
 const OPERATOR_MAP: Readonly<Record<ContractOperator, PredicateOperator>> = {
   equals: 'eq',
   not_equals: 'neq',
@@ -170,12 +172,16 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
 
     if (scope === 'profile') {
       const match = TRAIT_KEY_PATTERN.exec(field)
+
       if (match === null) return { ok: false, reason: 'unsupported-field' }
       const key = match[1] ?? ''
+
       if (!input.profileFilterKeys.includes(key)) return { ok: false, reason: 'unapproved-trait' }
+
       if (!isCompatiblePropertyFilter({ operator, values })) {
         return { ok: false, reason: 'incompatible-value' }
       }
+
       profile.push({
         target: 'profile.trait',
         propertyKey: key,
@@ -193,11 +199,14 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
           : scope === 'session'
             ? TRAFFIC_SESSION_TARGETS
             : undefined
+
       if (targets === undefined) {
         if (field !== 'identityKind') return { ok: false, reason: 'unsupported-field' }
+
         if (!isCompatibleIdentityKindFilter({ operator, values })) {
           return { ok: false, reason: 'incompatible-value' }
         }
+
         visitor.push({
           target: 'visitor.identityKind',
           propertyKey: null,
@@ -206,8 +215,11 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
         })
         continue
       }
+
       const target = targets[field]
+
       if (target === undefined) return { ok: false, reason: 'unsupported-field' }
+
       if (scope === 'event') {
         if (!isCompatibleDirectEventFilter({ field, operator, values })) {
           return { ok: false, reason: 'incompatible-value' }
@@ -215,12 +227,14 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
       } else if (!isCompatibleSessionFilter({ operator, values })) {
         return { ok: false, reason: 'incompatible-value' }
       }
+
       const predicate: Predicate = {
         target,
         propertyKey: null,
         operator: predicateOperator,
         bind: values,
       }
+
       if (scope === 'event') event.push(predicate)
       else session.push(predicate)
       continue
@@ -237,6 +251,7 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
     sessionPresence,
     requiresProfileJoin: profile.length > 0,
   }
+
   return { ok: true, plan }
 }
 
@@ -247,16 +262,19 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
   for (const filter of input.filters) {
     if ('scope' in filter && filter.scope === 'session') {
       const propertyFilters: PropertyFilter[] = []
+
       for (const property of filter.action.propertyFilters ?? []) {
         if (!isCompatiblePropertyFilter(property)) {
           return { ok: false, reason: 'incompatible-value' }
         }
+
         propertyFilters.push({
           key: property.key,
           operator: OPERATOR_MAP[property.operator],
           bind: property.values,
         })
       }
+
       sessionPresence.push({
         scope: 'session',
         withinPeriod: true,
@@ -271,10 +289,12 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
     const { field, operator, values } = filter
     const predicateOperator = OPERATOR_MAP[operator]
     const propertyMatch = PROPERTY_KEY_PATTERN.exec(field)
+
     if (propertyMatch !== null) {
       if (!isCompatiblePropertyFilter({ operator, values })) {
         return { ok: false, reason: 'incompatible-value' }
       }
+
       event.push({
         target: 'event.property',
         propertyKey: propertyMatch[1] ?? '',
@@ -283,14 +303,19 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
       })
       continue
     }
+
     const target = EVENT_TARGETS[field]
+
     if (target === undefined) return { ok: false, reason: 'unsupported-field' }
+
     if (!isCompatibleEventFilterForKind({ eventKind: input.eventKind, field, operator, values })) {
       return { ok: false, reason: 'incompatible-value' }
     }
+
     event.push({ target, propertyKey: null, operator: predicateOperator, bind: values })
   }
 
   const plan: ReportFilterPlan = { ...emptyPlan(), event, sessionPresence }
+
   return { ok: true, plan }
 }

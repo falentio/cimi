@@ -12,6 +12,7 @@ async function createRepository() {
     createInstallationInsertInput(),
   )
   const repository = new RetentionPolicyRepositoryDrizzle({ db: fixture.db })
+
   return {
     fixture,
     repository,

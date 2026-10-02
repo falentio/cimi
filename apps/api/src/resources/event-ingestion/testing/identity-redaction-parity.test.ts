@@ -40,6 +40,7 @@ function seedActiveProfile(db: Db, lastSeenAt: Date): void {
 function transitionShape(db: Db) {
   const redaction = db.select().from(schema.TIdentityRedaction).all()[0]
   const profile = db.select().from(schema.TIdentityProfile).all()[0]
+
   return {
     profileStatus: profile?.status,
     redactionStatus: redaction?.status,

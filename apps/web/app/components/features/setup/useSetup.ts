@@ -26,14 +26,17 @@ const POLL_INTERVAL_MS = 1_500
 
 export function useSetup(): SetupController {
   const orpc = useOrpc()
+
   const installationQuery = useQuery({
     ...orpc.installation.getInstallationStatus.queryOptions({ input: {} }),
     enabled: import.meta.client,
   })
+
   const healthQuery = useQuery({
     ...orpc.health.health.queryOptions(),
     enabled: import.meta.client,
   })
+
   const initializeMutation = useMutation(orpc.installation.initializeInstallation.mutationOptions())
   const upgradeMutation = useMutation(orpc.installation.upgradeInstallation.mutationOptions())
 
@@ -68,10 +71,13 @@ export function useSetup(): SetupController {
 
   async function refresh(): Promise<void> {
     const results = await Promise.allSettled([installationQuery.refetch(), healthQuery.refetch()])
+
     const failure = results.find(
       (result): result is PromiseRejectedResult => result.status === 'rejected',
     )
+
     if (failure !== undefined) throw failure.reason
+
     if (pollingOperationId.value === undefined && upgrade.value.kind === 'failure') {
       upgrade.value = { kind: 'available' }
     }
@@ -80,6 +86,7 @@ export function useSetup(): SetupController {
   async function initialize(): Promise<InitializationOutcome> {
     initializeMutation.reset()
     initialization.value = { kind: 'submitting' }
+
     try {
       const response = await initializeMutation.mutateAsync({})
       const outcome = mapInitializeResponse(response)
@@ -97,6 +104,7 @@ export function useSetup(): SetupController {
               message: 'Existing installation reused; no data was overwritten.',
             }
       await refresh().catch(() => undefined)
+
       return outcome
     } catch (error: unknown) {
       const failure = mapSetupError(error, 'initialize')
@@ -107,7 +115,9 @@ export function useSetup(): SetupController {
 
   function beginUpgrade(): void {
     const current = view.value
+
     if (current.kind !== 'operational') return
+
     if (!canStartUpgrade(current.installation.installation, current.lifecycle)) return
     upgrade.value = { kind: 'confirming' }
   }
@@ -127,26 +137,33 @@ export function useSetup(): SetupController {
           action: 'edit-confirmation',
         },
       }
+
       return
     }
 
     const current = view.value
+
     if (current.kind !== 'operational') return
+
     if (!canStartUpgrade(current.installation.installation, current.lifecycle)) return
 
     upgradeMutation.reset()
     upgrade.value = { kind: 'submitting' }
+
     try {
       const installation = await upgradeMutation.mutateAsync({ confirmation: 'UPGRADE' })
       const operation = installation.activeOperation
+
       if (operation === null || operation.errorCode !== null) {
         await refresh().catch(() => undefined)
         upgrade.value =
           operation === null
             ? { kind: 'completed' }
             : { kind: 'failure', error: mapSetupError({ code: operation.errorCode }, 'upgrade') }
+
         return
       }
+
       startPolling(operation)
     } catch (error: unknown) {
       upgrade.value = { kind: 'failure', error: mapSetupError(error, 'upgrade') }
@@ -157,9 +174,11 @@ export function useSetup(): SetupController {
   function startPolling(operation: SetupOperation): void {
     if (disposed) return
     const existingOperationId = pollingOperationId.value
+
     if (existingOperationId !== undefined) {
       if (existingOperationId === operation.operationId) return
       stopPollingWithFailure()
+
       return
     }
 
@@ -173,29 +192,39 @@ export function useSetup(): SetupController {
   async function pollOperation(operationId: string, generation: number): Promise<void> {
     for (let attempt = 1; attempt <= MAX_POLL_ATTEMPTS; attempt += 1) {
       if (!isCurrentPoll(operationId, generation)) return
+
       if (attempt > 1 && !(await waitForPoll())) return
       polling.value = { kind: 'active', attempt, maxAttempts: MAX_POLL_ATTEMPTS }
       const statusError = await refreshForPoll()
+
       if (!isCurrentPoll(operationId, generation)) return
+
       if (statusError !== undefined) {
         finishPolling({ kind: 'failure', error: mapSetupError(statusError, 'upgrade') })
+
         return
       }
 
       const currentOperation = installationQuery.data.value?.activeOperation ?? null
+
       if (currentOperation === null) {
         finishPolling({ kind: 'completed' })
+
         return
       }
+
       if (currentOperation.operationId !== operationId) {
         stopPollingWithFailure()
+
         return
       }
+
       if (currentOperation.errorCode !== null) {
         finishPolling({
           kind: 'failure',
           error: mapSetupError({ code: currentOperation.errorCode }, 'upgrade'),
         })
+
         return
       }
     }
@@ -215,12 +244,15 @@ export function useSetup(): SetupController {
 
   async function refreshForPoll(): Promise<unknown> {
     let statusError: unknown
+
     try {
       await installationQuery.refetch()
     } catch (error: unknown) {
       statusError = error
     }
+
     await healthQuery.refetch().catch(() => undefined)
+
     return statusError
   }
 
@@ -258,17 +290,22 @@ export function useSetup(): SetupController {
   watch(
     () => {
       const operation = installationQuery.data.value?.activeOperation
+
       return operation === null || operation === undefined
         ? undefined
         : { operationId: operation.operationId, terminal: operation.errorCode !== null }
     },
     (operation) => {
       if (operation === undefined || operation.terminal) return
+
       if (pollingOperationId.value === undefined) {
         const current = installationQuery.data.value?.activeOperation
+
         if (current?.kind === 'upgrade') startPolling(current)
+
         return
       }
+
       if (pollingOperationId.value !== operation.operationId) stopPollingWithFailure()
     },
     { immediate: true },
@@ -278,6 +315,7 @@ export function useSetup(): SetupController {
     disposed = true
     pollGeneration += 1
     pollingOperationId.value = undefined
+
     if (pollTimer !== undefined) clearTimeout(pollTimer)
     pollTimer = undefined
     resolvePollTimer?.(false)

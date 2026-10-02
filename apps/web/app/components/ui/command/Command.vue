@@ -19,9 +19,11 @@ const delegatedProps = reactiveOmit(props, 'class')
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
 const allItems = ref<Map<string, string>>(new Map())
+
 const allGroups = ref<Map<string, Set<string>>>(new Map())
 
 const { contains } = useFilter({ sensitivity: 'base' })
+
 const filterState = reactive({
   search: '',
   filtered: {
@@ -37,6 +39,7 @@ const filterState = reactive({
 function filterItems() {
   if (!filterState.search) {
     filterState.filtered.count = allItems.value.size
+
     // Do nothing, each item will know to show itself because search is empty
     return
   }
@@ -49,6 +52,7 @@ function filterItems() {
   for (const [id, value] of allItems.value) {
     const score = contains(value, filterState.search)
     filterState.filtered.items.set(id, score ? 1 : 0)
+
     if (score) itemCount++
   }
 

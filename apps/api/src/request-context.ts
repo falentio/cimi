@@ -18,7 +18,9 @@ export function resolveRequestSourceIp(input: {
   readonly trustProxyHeaders?: boolean | undefined
 }): string | undefined {
   const transportPeerIp = normalizeSourceIp(input.transportPeerIp)
+
   if (input.trustProxyHeaders) return trustedSourceIp(input.headers) ?? transportPeerIp
+
   return transportPeerIp
 }
 
@@ -30,9 +32,11 @@ export function extractRequestContext(
     headers,
     trustProxyHeaders: options.trustProxyHeaders,
   })
+
   const userAgent = headers.get('user-agent') ?? undefined
   const isBot = userAgent === undefined ? undefined : isBotUA(userAgent)
   const country = options.countryResolver?.(headers)
+
   return {
     ...(sourceIp === undefined ? {} : { sourceIp }),
     ...(isBot === undefined ? {} : { isBot }),
@@ -43,11 +47,14 @@ export function extractRequestContext(
 
 export function trustedSourceIp(headers: Headers): string | undefined {
   const forwarded = headers.get('x-forwarded-for')?.split(',').at(-1)?.trim()
+
   if (forwarded !== undefined && forwarded !== '') return forwarded
+
   return normalizeSourceIp(headers.get('x-real-ip'))
 }
 
 function normalizeSourceIp(value: string | undefined | null): string | undefined {
   const normalized = value?.trim()
+
   return normalized === undefined || normalized === '' ? undefined : normalized
 }

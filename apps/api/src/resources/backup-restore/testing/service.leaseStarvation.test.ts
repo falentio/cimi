@@ -32,6 +32,7 @@ function createStarvationFixture(leaseAcquisitionTimeoutMs = 2_000) {
     readiness: { controlStore: 'ready', analyticsStore: 'ready', structural: 'ready' },
   })
   executor.captureBackup.mockResolvedValue(createSourceManifest())
+
   const service = new BackupRestoreService({
     repository,
     executor,
@@ -47,6 +48,7 @@ function createStarvationFixture(leaseAcquisitionTimeoutMs = 2_000) {
       ownerToken: () => 'own_1',
     },
   })
+
   return { lock, repository, executor, service }
 }
 

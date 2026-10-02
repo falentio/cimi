@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SHelloBase } from '../schema.ts'
 
 export const SHelloGetInput = v.pick(SHelloBase, ['id'])
+
 export type SHelloGetInput = v.InferOutput<typeof SHelloGetInput>
+
 export const SHelloGetOutput = SHelloBase
+
 export type SHelloGetOutput = v.InferOutput<typeof SHelloGetOutput>
 
 /**

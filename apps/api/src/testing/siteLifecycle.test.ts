@@ -16,6 +16,7 @@ test('deletes and recovers a site through 202 lifecycle routes', async () => {
       name: 'Lifecycle Org',
     },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
 
@@ -24,12 +25,14 @@ test('deletes and recovers a site through 202 lifecycle routes', async () => {
     name: 'Production',
     hostname: 'lifecycle.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
 
   const deleteResponse = await apiTestRequest(app, '/site/deleteSite', owner.cookie, {
     siteId: site.id,
   })
+
   expect(deleteResponse.status, await deleteResponse.clone().text()).toBe(202)
   const deletion = await deleteResponse.json()
   expect(deletion).toMatchObject({ accepted: true, status: 'deleting' })
@@ -38,6 +41,7 @@ test('deletes and recovers a site through 202 lifecycle routes', async () => {
   const recoverResponse = await apiTestRequest(app, '/site/recoverSite', owner.cookie, {
     siteId: site.id,
   })
+
   expect(recoverResponse.status, await recoverResponse.clone().text()).toBe(202)
   const recovery = await recoverResponse.json()
   expect(recovery).toMatchObject({ accepted: true, status: 'recovering' })
@@ -48,18 +52,22 @@ test('deletes and recovers a site through 202 lifecycle routes', async () => {
     `/site/getSite?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(getResponse.status).toBe(404)
   await expect(getResponse.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 })
 
 test('rejects a site lifecycle command from another API module during an upgrade', async () => {
   let releaseMigration: (() => void) | undefined
+
   const migration = new Promise<void>((resolve) => {
     releaseMigration = resolve
   })
+
   await using fixture = await createApiTestFixture({
     upgradeExecutor: createFakeUpgradeExecutor({ migrate: () => migration }),
   })
+
   const { app, auth, db, analytics } = fixture
   const owner = await signUpTestUser(app, 'cross-module-owner@example.com', 'Cross Module Owner')
 
@@ -69,25 +77,32 @@ test('rejects a site lifecycle command from another API module during an upgrade
     owner.cookie,
     {},
   )
+
   expect(initialized.status).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: 'Cross Module Org' },
   )
+
   expect(organizationResponse.status).toBe(201)
   const organization = await organizationResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname: 'cross-module.example.com',
   })
+
   expect(siteResponse.status).toBe(201)
   const site = await siteResponse.json()
+
   const upgrade = await apiTestRequest(app, '/installation/upgradeInstallation', owner.cookie, {
     confirmation: 'UPGRADE',
   })
+
   expect(upgrade.status).toBe(202)
 
   const secondModule = createApiApp({
@@ -98,10 +113,12 @@ test('rejects a site lifecycle command from another API module during an upgrade
     controlDatabasePath: ':memory:',
     dataDirectoryPath: '/tmp/cimi-test-data',
   })
+
   try {
     const deletion = await apiTestRequest(secondModule, '/site/deleteSite', owner.cookie, {
       siteId: site.id,
     })
+
     expect(deletion.status).toBe(503)
   } finally {
     await secondModule.close()

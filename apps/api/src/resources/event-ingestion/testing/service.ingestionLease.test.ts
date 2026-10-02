@@ -36,6 +36,7 @@ function createFixture(
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
+
   const policy = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -70,6 +71,7 @@ function createFixture(
       repository.append.mockImplementation(async (candidates) =>
         candidates.map(() => ({ status: 'accepted' }) as const),
       )
+
       return repository
     })()
 
@@ -135,11 +137,13 @@ describe('EventIngestionService.ingestionLease', () => {
     acceptanceRepository.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as const),
     )
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptanceRepository,
       windowMs: 1,
       clock: () => now,
     })
+
     const { service } = createFixture({ coalescer })
 
     const results = await Promise.all([
@@ -172,20 +176,25 @@ describe('EventIngestionService.ingestionLease', () => {
     acceptanceRepository.findByEventId.mockResolvedValue(undefined)
     acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
     let releaseAppend!: () => void
+
     const appendReleased = new Promise<void>((resolve) => {
       releaseAppend = resolve
     })
+
     let appendStarted = false
     acceptanceRepository.append.mockImplementation(async (candidates) => {
       appendStarted = true
       await appendReleased
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptanceRepository,
       windowMs: 60_000,
       clock: () => now,
     })
+
     const { service } = createFixture({
       acceptance: acceptanceRepository,
       coalescer,

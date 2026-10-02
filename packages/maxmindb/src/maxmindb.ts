@@ -42,6 +42,7 @@ interface AsnReader {
 
 export async function createMaxMindDb(options: CreateMaxMindDbOptions): Promise<MaxMindDb> {
   const cacheSize = options.cacheSize ?? DEFAULT_CACHE_SIZE
+
   if (!Number.isInteger(cacheSize) || cacheSize < 1) {
     throw new RangeError('cacheSize must be a positive integer')
   }
@@ -62,10 +63,12 @@ export function createAsnLookup(lookup: AsnLookup): AsnLookup {
 
   return (ip) => {
     const cached = resolved.get(ip)
+
     if (cached !== undefined) return cached
 
     const info = lookup(ip)
     resolved.set(ip, info)
+
     return info
   }
 }
@@ -85,6 +88,7 @@ async function loadAsnReader(
     return (await Reader.open(path, { cache: { max: cacheSize } })) as AsnReader
   } catch (error) {
     onFailure?.(error, path)
+
     return null
   }
 }
@@ -125,6 +129,7 @@ function lookupAsn(reader: AsnReader | null, ip: string): AsnInfo | null {
 
   try {
     const response = reader.asn(ip)
+
     if (typeof response.autonomousSystemNumber !== 'number') return null
 
     return {

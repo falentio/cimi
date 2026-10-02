@@ -14,27 +14,34 @@ const LEAK_MARKERS = [
 
 async function createIngestionSite(app: ApiApp, email: string, hostname: string) {
   const owner = await signUpTestUser(app, email, 'Ingestion Owner')
+
   const initialized = await apiTestRequest(
     app,
     '/installation/initializeInstallation',
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: 'Ingestion Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname,
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
+
   return { owner, site: parse(schema.SSiteCreateOutput, await siteResponse.json()) }
 }
 
@@ -52,12 +59,14 @@ function publicDashboardQueryPath(identifier: string): string {
     metric: 'pageviews',
     dimension: 'page',
   }).toString()
+
   return url.toString()
 }
 
 test('health reports degraded and collection durably accepts while DuckDB is unavailable', async () => {
   await using fixture = await createApiTestFixture({ analyticsReady: () => false })
   const { app, db } = fixture
+
   const { site } = await createIngestionSite(
     app,
     'admission-degraded@example.com',
@@ -83,12 +92,14 @@ test('health reports degraded and collection durably accepts while DuckDB is una
   const rows = db.$client.prepare('SELECT event_id FROM accepted_event').all() as Array<{
     event_id: string
   }>
+
   expect(rows.map((row) => row.event_id)).toContain(event.eventId)
 })
 
 test('analytics reads fail closed with generic SERVICE_UNAVAILABLE before execution while degraded', async () => {
   await using fixture = await createApiTestFixture({ analyticsReady: () => false })
   const { app } = fixture
+
   const { owner, site } = await createIngestionSite(
     app,
     'admission-reads@example.com',
@@ -99,6 +110,7 @@ test('analytics reads fail closed with generic SERVICE_UNAVAILABLE before execut
     `/traffic-report/getTrafficOverview?siteId=${encodeURIComponent(site.id)}&fromDate=2026-09-05&toDate=2026-09-06&granularity=day`,
     `/identity-profile/listProfiles?siteId=${encodeURIComponent(site.id)}&limit=10&offset=0`,
   ]
+
   for (const path of paths) {
     const response = await apiTestRequest(app, path, owner.cookie)
     expect(response.status, await response.clone().text()).toBe(503)
@@ -110,6 +122,7 @@ test('analytics reads fail closed with generic SERVICE_UNAVAILABLE before execut
     })
 
     const serialized = JSON.stringify(body)
+
     for (const leaked of [...LEAK_MARKERS, site.ingestionIdentifier]) {
       expect(serialized, serialized).not.toContain(leaked)
     }
@@ -119,6 +132,7 @@ test('analytics reads fail closed with generic SERVICE_UNAVAILABLE before execut
 test('the public dashboard read fails closed on the same admission gate', async () => {
   await using fixture = await createApiTestFixture({ analyticsReady: () => false })
   const { app } = fixture
+
   const { owner, site } = await createIngestionSite(
     app,
     'admission-public@example.com',
@@ -131,7 +145,9 @@ test('the public dashboard read fails closed on the same admission gate', async 
     owner.cookie,
     { siteId: site.id },
   )
+
   expect(enabled.status, await enabled.clone().text()).toBe(200)
+
   const { publicDashboardIdentifier } = (await enabled.json()) as {
     publicDashboardIdentifier: string
   }
@@ -142,6 +158,7 @@ test('the public dashboard read fails closed on the same admission gate', async 
       transportPeerIp: '203.0.113.10',
     },
   )
+
   expect(response.status, await response.clone().text()).toBe(503)
   await expect(response.json()).resolves.toMatchObject({
     code: 'SERVICE_UNAVAILABLE',
@@ -153,6 +170,7 @@ test('the public dashboard read fails closed on the same admission gate', async 
 test('admission ordering runs before procedure execution', async () => {
   await using fixture = await createApiTestFixture({ analyticsReady: () => false })
   const { app } = fixture
+
   const { owner } = await createIngestionSite(
     app,
     'admission-ordering@example.com',
@@ -169,6 +187,7 @@ test('admission ordering runs before procedure execution', async () => {
   const unauthenticated = await apiTestRequest(app, '/hello/create', '', {
     name: 'ordering',
   })
+
   expect(unauthenticated.status, await unauthenticated.clone().text()).toBe(401)
   await expect(unauthenticated.json()).resolves.toMatchObject({
     code: 'UNAUTHORIZED',

@@ -36,7 +36,9 @@ export class GoalRepositoryDrizzle implements GoalRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toGoal(row.goal, row.version)
   }
 
@@ -46,6 +48,7 @@ export class GoalRepositoryDrizzle implements GoalRepository {
     if ((await this.findById({ siteId: input.siteId, goalId: input.goalId })) === undefined) {
       return undefined
     }
+
     const rows = await this.deps.db
       .select({ goal: schema.TGoal, version: schema.TGoalVersion })
       .from(schema.TGoal)
@@ -65,12 +68,15 @@ export class GoalRepositoryDrizzle implements GoalRepository {
       )
       .orderBy(desc(schema.TGoalVersion.effectiveAt), desc(schema.TGoalVersion.version))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toGoal(row.goal, row.version)
   }
 
   async findMany(input: GoalRepository.ListInput): Promise<GoalRepository.ListResult> {
     const where = and(eq(schema.TGoal.siteId, input.siteId), liveSite(this.deps.db))
+
     const [countRow] = await this.deps.db
       .select({ count: count() })
       .from(schema.TGoal)
@@ -82,6 +88,7 @@ export class GoalRepositoryDrizzle implements GoalRepository {
         ),
       )
       .where(where)
+
     const rows = await this.deps.db
       .select({ goal: schema.TGoal, version: schema.TGoalVersion })
       .from(schema.TGoal)
@@ -96,7 +103,9 @@ export class GoalRepositoryDrizzle implements GoalRepository {
       .orderBy(asc(schema.TGoal.createdAt), asc(schema.TGoal.id))
       .limit(input.limit + 1)
       .offset(input.offset)
+
     const hasMore = rows.length > input.limit
+
     return {
       items: rows.slice(0, input.limit).map((row) => toGoal(row.goal, row.version)),
       nextOffset: hasMore ? input.offset + input.limit : null,
@@ -138,7 +147,9 @@ export class GoalRepositoryDrizzle implements GoalRepository {
         })
         .run()
       const row = selectCurrent(tx, input.siteId, input.id)
+
       if (row === undefined) throw new Error('Goal insert returned no row')
+
       return toGoal(row.goal, row.version)
     })
   }
@@ -147,11 +158,13 @@ export class GoalRepositoryDrizzle implements GoalRepository {
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectCurrent(tx, input.siteId, input.goalId)
+
       if (current === undefined) {
         return rawExists(tx, schema.TGoal, input.siteId, input.goalId)
           ? { status: 'conflict' }
           : { status: 'not-found' }
       }
+
       if (current.goal.status !== 'active') return { status: 'conflict' }
       const version = current.goal.currentVersion + 1
       tx.insert(schema.TGoalVersion)
@@ -181,7 +194,9 @@ export class GoalRepositoryDrizzle implements GoalRepository {
         .where(and(eq(schema.TGoal.id, input.goalId), eq(schema.TGoal.siteId, input.siteId)))
         .run()
       const row = selectCurrent(tx, input.siteId, input.goalId)
+
       if (row === undefined) throw new Error('Goal update returned no row')
+
       return { status: 'updated', goal: toGoal(row.goal, row.version) }
     })
   }
@@ -190,18 +205,22 @@ export class GoalRepositoryDrizzle implements GoalRepository {
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectCurrent(tx, input.siteId, input.goalId)
+
       if (current === undefined) {
         return rawExists(tx, schema.TGoal, input.siteId, input.goalId)
           ? { status: 'conflict' }
           : { status: 'not-found' }
       }
+
       if (current.goal.status !== 'active') return { status: 'conflict' }
       tx.update(schema.TGoal)
         .set({ status: 'archived', updatedAt: input.now })
         .where(and(eq(schema.TGoal.id, input.goalId), eq(schema.TGoal.siteId, input.siteId)))
         .run()
       const row = selectCurrent(tx, input.siteId, input.goalId)
+
       if (row === undefined) throw new Error('Goal archive returned no row')
+
       return { status: 'updated', goal: toGoal(row.goal, row.version) }
     })
   }
@@ -242,6 +261,7 @@ function assertActiveSite(tx: SqliteTransaction, siteId: string): void {
     )
     .limit(1)
     .all()
+
   if (rows.length === 0) throw new ORPCError('NOT_FOUND')
 }
 
@@ -289,6 +309,7 @@ function toGoal(
       : { propertyFilters: version.propertyFiltersJson }),
     identityKind: version.identityKind,
   })
+
   return {
     id: row.id,
     siteId: row.siteId,

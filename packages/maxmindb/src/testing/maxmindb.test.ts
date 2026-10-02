@@ -15,7 +15,9 @@ vi.mock('@maxmind/geoip2-node', () => ({
 import { createAsnLookup, createMaxMindDb } from '../index.ts'
 
 const CITY_PATH = '/data/GeoLite2-City.mmdb'
+
 const ASN_PATH = '/data/GeoLite2-ASN.mmdb'
+
 const IP = '203.0.113.10'
 
 beforeEach(() => {
@@ -123,6 +125,7 @@ describe('createAsnLookup', () => {
     const lookup = vi.fn((ip: string) =>
       ip === IP ? null : { asn: 13335, organization: 'Cloudflare' },
     )
+
     const memoizedLookup = createAsnLookup(lookup)
 
     expect(memoizedLookup(IP)).toBeNull()

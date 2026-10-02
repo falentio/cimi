@@ -10,6 +10,7 @@ import {
 import { createEventReport } from '../index.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number, offsetMs = 0): number {
@@ -85,6 +86,7 @@ async function projectedSiteWithKinds(email: string) {
     },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -126,6 +128,7 @@ describe('EventReportService.admission', () => {
   it('rejects an unprojected Site with QUERY_LIMIT_EXCEEDED rather than reporting empty data', async () => {
     const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
     await using _ = fixture
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
@@ -155,11 +158,13 @@ describe('EventReportService.admission', () => {
   it('rejects a relevant Projection Gap with QUERY_LIMIT_EXCEEDED before execution', async () => {
     const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
     await using _ = fixture
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'event-gap@example.com',
     )
+
     fixture.db.$client
       .prepare(
         `INSERT INTO projection_gap (id, site_id, occurrence_from, occurrence_to, unbounded, status, observed_at)
@@ -187,10 +192,13 @@ describe('EventReportService.admission', () => {
     const { fixture, siteId } = await projectedSiteWithKinds(
       'event-bucket-short-circuit@example.com',
     )
+
     await using _ = fixture
+
     const owner = fixture.db.$client
       .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')
       .get() as { userId: string } | undefined
+
     if (owner === undefined) throw new Error('createOwnerSite did not seed an owner membership')
 
     const report = createEventReport({
@@ -205,6 +213,7 @@ describe('EventReportService.admission', () => {
       },
       lifecycleLock: new InMemoryLifecycleLock(),
     })
+
     const eventBuckets = vi.spyOn(report.query, 'eventBuckets')
 
     await expect(

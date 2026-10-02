@@ -26,6 +26,7 @@ const props = withDefaults(
 )
 
 const { scrollToEnd, scrollToStart } = useMessageScroller()
+
 const scrollable = useMessageScrollerScrollable()
 
 const active = computed(() =>
@@ -36,7 +37,9 @@ function onClick(event: MouseEvent) {
   if (!active.value) return
   const target = event.currentTarget as HTMLElement | null
   target?.blur()
+
   if (event.defaultPrevented) return
+
   if (props.direction === 'start') scrollToStart({ behavior: props.behavior })
   else scrollToEnd({ behavior: props.behavior })
 }

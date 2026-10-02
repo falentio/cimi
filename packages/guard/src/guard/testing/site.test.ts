@@ -5,7 +5,9 @@ import { assertAuthorization } from '../../guard.ts'
 import { assertOrganizationRole, assertSiteScope, InMemorySiteScopePort } from '../../site.ts'
 
 const user = { id: 'user-1', role: 'user' } as unknown as AuthUser
+
 const organizationAdmin = { id: 'admin-1', role: 'user' } as unknown as AuthUser
+
 const nonMember = { id: 'stranger-1', role: 'user' } as unknown as AuthUser
 
 describe('authorization guards', () => {
@@ -92,6 +94,7 @@ describe('authorization guards', () => {
       isActive: () => true,
       getOrganizationId: () => undefined,
     }
+
     const membership = {
       getRole: () => 'member' as const,
       hasPendingGovernanceOperation: () => false,
@@ -107,15 +110,19 @@ describe('authorization guards', () => {
       [],
       [{ organizationId: 'org-1', userId: 'admin-1', role: 'admin' }],
     )
+
     const member = new InMemorySiteScopePort(
       [],
       [{ organizationId: 'org-1', userId: 'user-1', role: 'member' }],
     )
+
     const empty = new InMemorySiteScopePort()
+
     const pending = new InMemorySiteScopePort(
       [],
       [{ organizationId: 'org-1', userId: 'admin-1', role: 'admin' }],
     )
+
     pending.setPendingGovernanceOperation('org-1')
 
     await expect(

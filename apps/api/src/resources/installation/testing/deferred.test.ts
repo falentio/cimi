@@ -13,13 +13,16 @@ import {
 // Convert or delete each one as its fix lands.
 
 const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+
 const input = { confirmation: 'UPGRADE' } as const
+
 const ids = {
   installationId: () => 'ins_1',
   retentionPolicyId: () => 'rtn_1',
   operationId: () => 'bop_1',
   artifactId: () => 'bar_1',
 }
+
 const maintenanceRecord = () =>
   createInstallationRecord({
     status: 'maintenance',
@@ -41,14 +44,18 @@ describe('deferred installation gaps', () => {
     // overlapping work. Green when upgrade awaits the drain before returning.
     const { repository, journal, service } = createInstallationFixture({ ids })
     let releaseDrain!: () => void
+
     const drained = new Promise<void>((resolve) => {
       releaseDrain = resolve
     })
+
     let drainCalls = 0
     journal.drain = () => {
       drainCalls += 1
+
       return drained
     }
+
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockImplementation(async () => maintenanceRecord())
     repository.findSafetyArtifact.mockResolvedValue(undefined)
@@ -57,10 +64,13 @@ describe('deferred installation gaps', () => {
     repository.completeUpgrade.mockResolvedValue(createInstallationRecord())
 
     let returned = false
+
     const pending = service.upgrade(input, admin).then((result) => {
       returned = true
+
       return result
     })
+
     try {
       await new Promise((resolve) => setTimeout(resolve, 10))
       expect(drainCalls).toBe(1)
@@ -69,6 +79,7 @@ describe('deferred installation gaps', () => {
       releaseDrain()
       await service.stop()
     }
+
     await expect(pending).resolves.toMatchObject({ status: 'maintenance' })
   })
 

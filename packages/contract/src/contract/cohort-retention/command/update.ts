@@ -11,6 +11,7 @@ import {
 const SCohortUpdateRecord = v.strictObject(
   v.entriesFromObjects([SCohortIdentityFields, SCohortDefinitionFields]),
 )
+
 export const SCohortUpdateInput = v.pipe(
   SCohortUpdateRecord,
   v.check(
@@ -18,8 +19,11 @@ export const SCohortUpdateInput = v.pipe(
     VALIDATION_KEYS.contract.cohort.actionsDistinct,
   ),
 )
+
 export type SCohortUpdateInput = v.InferOutput<typeof SCohortUpdateInput>
+
 export const SCohortUpdateOutput = SCohort
+
 export type SCohortUpdateOutput = v.InferOutput<typeof SCohortUpdateOutput>
 
 export const updateCohort = oc

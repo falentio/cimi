@@ -28,13 +28,16 @@ const props = defineProps<{
 }>()
 
 const maxValue = computed(() => Math.max(1, ...props.trend.current, ...props.trend.previous))
+
 const currentTailIndex = computed(() =>
   Math.min(Math.max(props.trend.currentTailIndex, 0), Math.max(props.trend.labels.length - 1, 0)),
 )
+
 const chartData = computed<ChartDatum[]>(() =>
   props.trend.labels.map((label, index) => {
     const current = props.trend.current[index] ?? 0
     const previous = props.trend.previous[index] ?? 0
+
     return {
       index,
       label,
@@ -43,10 +46,15 @@ const chartData = computed<ChartDatum[]>(() =>
     }
   }),
 )
+
 const solidChartData = computed(() => chartData.value.slice(0, currentTailIndex.value + 1))
+
 const dottedChartData = computed(() => chartData.value.slice(currentTailIndex.value))
+
 const xDomain = computed<[number, number]>(() => [0, Math.max(chartData.value.length - 1, 1)])
+
 const yDomain = computed<[number, number]>(() => [0, maxValue.value])
+
 const xTickValues = computed(() => chartData.value.map((point) => point.index))
 
 const chartConfig = {
@@ -76,6 +84,7 @@ const tooltipTemplate = (datum: ChartDatum): string => {
     }),
     container,
   )
+
   return container.innerHTML
 }
 
@@ -85,12 +94,14 @@ function formatXTick(value: number | Date): string {
 
 function formatYTick(value: number | Date): string {
   if (typeof value !== 'number') return ''
+
   return props.metric.unit === 'percent' ? `${value}%` : value.toLocaleString()
 }
 
 const chartSummary = computed(() => {
   const currentEnd = props.trend.current.at(-1) ?? 0
   const previousEnd = props.trend.previous.at(-1) ?? 0
+
   return `${props.metric.label} trend for ${props.rangeLabel}. The current period ends at ${currentEnd.toLocaleString()} and the previous period ends at ${previousEnd.toLocaleString()}.`
 })
 </script>

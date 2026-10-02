@@ -8,6 +8,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number): number {
@@ -30,6 +31,7 @@ function seedSitePolicyKeys(
   const installation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined
+
   if (installation === undefined) throw new Error('Seed a retention cutoff before seeding a policy')
   const now = Date.now()
   db.$client
@@ -58,6 +60,7 @@ async function projectedSiteWithTrait(email: string, keys: readonly string[]) {
   ])
   seedSitePolicyKeys(fixture.db, siteId, keys)
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -66,6 +69,7 @@ describe('TrafficReportService.profileFilter', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithTrait('trait-approved@example.com', [
       'plan',
     ])
+
     await using _ = fixture
 
     const response = await apiTestRequest(
@@ -85,6 +89,7 @@ describe('TrafficReportService.profileFilter', () => {
       'trait-unapproved@example.com',
       ['plan'],
     )
+
     await using _ = fixture
 
     const response = await apiTestRequest(

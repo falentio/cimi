@@ -37,19 +37,27 @@ const emits = defineEmits<{
 const item = injectQuestionnaireItemContext()
 
 const answerId = useId()
+
 const inputElement = ref<HTMLInputElement | null>(null)
+
 const initialDefaultFilled = hasInputValue(props.defaultValue)
+
 const uncontrolledValue = ref(String(props.defaultValue ?? ''))
 
 const controlled = computed(() => props.modelValue !== undefined)
+
 const defaultFilled = computed(() => hasInputValue(props.defaultValue))
+
 const disabled = computed(() => item.disabled.value || props.disabled)
+
 // Vue re-applies `value` on every render, so the input always renders the value
 // the questionnaire owns instead of an undefined binding that would clear it.
 const value = computed(() =>
   controlled.value ? String(props.modelValue ?? '') : uncontrolledValue.value,
 )
+
 const filled = computed(() => hasInputValue(value.value))
+
 const selected = computed(() => item.selectedAnswerIds.value.includes(answerId))
 
 function syncValueElement() {
@@ -66,6 +74,7 @@ function handleInput(event: Event) {
   if (controlled.value) {
     // The host owns the value, so restore whatever it kept.
     nextTick(syncValueElement)
+
     return
   }
 

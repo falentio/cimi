@@ -36,6 +36,7 @@ describe('createXoroshiro128PlusPlus', () => {
       seed: 1n,
       state,
     }
+
     void invalidOptionsWithBoth
 
     // @ts-expect-error
@@ -65,6 +66,7 @@ describe('createXoroshiro128PlusPlus', () => {
 
   it('expands a seed with two consecutive SplitMix64 outputs', () => {
     const generator = createXoroshiro128PlusPlus({ seed: 0n })
+
     const explicitState = createXoroshiro128PlusPlus({
       state: [0xe220a8397b1dcdafn, 0x6e789e6aa1b965f4n],
     })
@@ -158,6 +160,7 @@ describe('createXoroshiro128PlusPlus', () => {
         RangeError,
       )
     }
+
     expect(() => nextIntAtRuntime(createXoroshiro128PlusPlus({ seed: 1n }), '10')).toThrowError(
       TypeError,
     )

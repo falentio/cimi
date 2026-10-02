@@ -11,12 +11,14 @@ function createWorker(onPurgedSite?: (input: { siteId: string; now: Date }) => P
   repository.findPendingLifecycleOperations.mockResolvedValue([])
   repository.findDuePurges.mockResolvedValue([])
   const onError = vi.fn()
+
   const worker = new SiteLifecycleWorker({
     repository,
     lock: new InMemoryLifecycleLock(),
     onError,
     ...(onPurgedSite === undefined ? {} : { onPurgedSite }),
   })
+
   return { repository, onError, worker }
 }
 
@@ -103,6 +105,7 @@ describe('SiteLifecycleWorker', () => {
 
   it('starts once and stops a quiet worker', async () => {
     const { repository, onError } = createWorker()
+
     const intervalWorker = new SiteLifecycleWorker({
       repository,
       lock: new InMemoryLifecycleLock(),
@@ -124,6 +127,7 @@ describe('SiteLifecycleWorker', () => {
 
     worker.start()
     const callback = interval.mock.calls.at(-1)?.[0]
+
     if (typeof callback !== 'function') throw new Error('Expected an interval callback')
 
     await worker.stop()

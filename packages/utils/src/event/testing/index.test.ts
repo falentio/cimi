@@ -84,9 +84,11 @@ describe('EventEmitter', () => {
 
   it('registers one waitUntil promise per emit', async () => {
     const registered: Promise<unknown>[] = []
+
     const emitter = new EventEmitter({
       waitUntil: (promise) => registered.push(promise),
     })
+
     const event = createEvent<string>('message')
     let received: string | undefined
 

@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SOrganization, SOrganizationIdentityFields } from '../schema.ts'
 
 export const SOrganizationGetInput = SOrganizationIdentityFields
+
 export type SOrganizationGetInput = v.InferOutput<typeof SOrganizationGetInput>
+
 export const SOrganizationGetOutput = SOrganization
+
 export type SOrganizationGetOutput = v.InferOutput<typeof SOrganizationGetOutput>
 
 export const getOrganization = oc

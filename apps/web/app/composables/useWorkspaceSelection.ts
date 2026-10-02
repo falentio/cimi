@@ -14,6 +14,7 @@ export function useWorkspaceSelection(): WorkspaceSelectionApi {
   const route = useRoute()
   const router = useRouter()
   const workspace = useWorkspaceData()
+
   const selectedOrganizationId = useState<OrganizationId | undefined>(
     'workspace:selected-organization',
     () => undefined,
@@ -21,12 +22,16 @@ export function useWorkspaceSelection(): WorkspaceSelectionApi {
 
   const routeSiteId = computed(() => {
     const value = route.params.siteId
+
     return typeof value === 'string' ? value : undefined
   })
+
   const routeOrganizationId = computed(() => {
     const value = route.params.organizationId
+
     return typeof value === 'string' ? value : undefined
   })
+
   const activeOrganizationId = computed(() =>
     resolveActiveOrganizationId({
       routeSiteId: routeSiteId.value,

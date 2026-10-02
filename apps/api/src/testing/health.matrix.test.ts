@@ -126,6 +126,7 @@ describe('resolveInstallationHealth', () => {
       { ...base, installationStatus: 'degraded', cleanupPending: true },
       { ...base, installationStatus: 'uninitialized' },
     ]
+
     for (const input of inputs) {
       expect(() => parseHealth(input)).not.toThrow()
     }

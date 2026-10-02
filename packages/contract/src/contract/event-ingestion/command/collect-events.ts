@@ -10,17 +10,20 @@ import {
 import { SBatchEventResponse } from '../schema.ts'
 
 export const COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES = 256 * 1024
+
 const SCollectEventsEnvelope = v.strictObject({
   ingestionIdentifier: SId,
   collectionContext: v.optional(SCollectionContext),
   events: v.pipe(v.array(v.unknown()), v.minLength(1), v.maxLength(100)),
 })
+
 export const SCollectEventsInput = v.pipe(
   SCollectEventsEnvelope,
   v.check(
     ({ ingestionIdentifier, events }) =>
       events.every((event) => {
         if (typeof event !== 'object' || event === null || Array.isArray(event)) return true
+
         return (
           !('ingestionIdentifier' in event) || event['ingestionIdentifier'] === ingestionIdentifier
         )
@@ -39,8 +42,11 @@ export const SCollectEventsInput = v.pipe(
     VALIDATION_KEYS.contract.batch.collectionContextScoped,
   ),
 )
+
 export type SCollectEventsInput = v.InferOutput<typeof SCollectEventsInput>
+
 export const SCollectEventsOutput = SBatchEventResponse
+
 export type SCollectEventsOutput = v.InferOutput<typeof SCollectEventsOutput>
 
 export const collectEvents = oc

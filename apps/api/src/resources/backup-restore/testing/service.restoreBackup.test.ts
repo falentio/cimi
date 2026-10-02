@@ -16,6 +16,7 @@ const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknow
 describe('BackupRestoreService.restoreBackup', () => {
   it('rejects restore without the literal confirmation before acquiring lifecycle state', async () => {
     const repository = mock<BackupRestoreRepository>()
+
     const service = new BackupRestoreService({
       repository,
       executor: mock<BackupRestoreExecutor>(),
@@ -36,6 +37,7 @@ describe('BackupRestoreService.restoreBackup', () => {
     const executor = mock<BackupRestoreExecutor>()
     repository.findSourceManifest.mockResolvedValue(createSourceManifest())
     executor.validateManifest.mockRejectedValue(new Error('manifest is newer'))
+
     const service = new BackupRestoreService({
       repository,
       executor,

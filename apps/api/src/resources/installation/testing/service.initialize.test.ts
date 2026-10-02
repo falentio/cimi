@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { createInstallationFixture, createInstallationRecord } from '../fixture.ts'
 
 const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+
 const member = { id: 'user_2', role: 'member' } as unknown as AuthUser
+
 const retention = { eventMonths: 12, profileMonths: 12, replayMonths: null }
+
 const input = { defaultRetention: retention }
 
 describe('InstallationService.initialize', () => {
@@ -79,6 +82,7 @@ describe('InstallationService.initialize', () => {
     const { repository, lock, service } = createInstallationFixture()
     const lease = lock.acquire('upgrade')
     expect(lease).toBeDefined()
+
     try {
       await expect(service.initialize(input, admin)).rejects.toMatchObject({
         code: 'CONFLICT',

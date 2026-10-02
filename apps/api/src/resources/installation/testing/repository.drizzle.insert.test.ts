@@ -25,11 +25,13 @@ describe('InstallationRepositoryDrizzle.insert', () => {
       id: 'ins_1',
       status: 'ready',
     })
+
     const installationRows = fixture.db
       .select()
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.id, 'ins_1'))
       .all()
+
     expect(installationRows).toHaveLength(1)
     expect(installationRows[0]?.createdAt.toISOString()).toBe(createdAt.toISOString())
     expect(installationRows[0]?.updatedAt.toISOString()).toBe(updatedAt.toISOString())
@@ -78,11 +80,13 @@ describe('InstallationRepositoryDrizzle.insert', () => {
         status: 'active',
       },
     ])
+
     const retentionRows = fixture.db
       .select()
       .from(schema.TRetentionPolicy)
       .where(eq(schema.TRetentionPolicy.installationId, 'ins_1'))
       .all()
+
     expect(retentionRows[0]?.effectiveFrom.toISOString()).toBe(createdAt.toISOString())
     expect(retentionRows[0]?.createdAt.toISOString()).toBe(createdAt.toISOString())
     expect(retentionRows[0]?.updatedAt.toISOString()).toBe(updatedAt.toISOString())

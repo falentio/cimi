@@ -51,6 +51,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   ): Promise<Awaited<ReturnType<BackupRestoreRepository['beginBackup']>>> {
     return this.db.transaction((tx) => {
       const operation = beginTx(tx, { ...input, operationType: 'backup' })
+
       return operation?.operationType === 'backup' && operation.status === 'creating'
         ? operation
         : undefined
@@ -62,6 +63,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   ): Promise<Awaited<ReturnType<BackupRestoreRepository['beginRestore']>>> {
     return this.db.transaction((tx) => {
       const operation = beginTx(tx, { ...input, operationType: 'restore' })
+
       return operation?.operationType === 'restore' && operation.status === 'creating'
         ? operation
         : undefined
@@ -84,7 +86,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       )
       .orderBy(asc(schema.TBackupOperation.createdAt), asc(schema.TBackupOperation.id))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : this.findOperation(row.id)
   }
 
@@ -100,19 +104,24 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         ),
       )
       .limit(1)
+
     if (rows[0] === undefined) return undefined
     const artifact = await this.findArtifact(backupId, 'authoritative_sqlite')
+
     return artifact === undefined ? undefined : toSourceManifest(artifact)
   }
 
   async findAuthoritativeArtifact(operationId: string): Promise<SourceManifest | undefined> {
     const artifact = await this.findArtifact(operationId, 'authoritative_sqlite')
+
     return artifact === undefined ? undefined : toSourceManifest(artifact)
   }
 
   async findSafetyArtifact(operationId: string): Promise<SafetyManifest | undefined> {
     const artifact = await this.findArtifact(operationId, 'pre_restore_sqlite')
+
     if (artifact === undefined) return undefined
+
     return toSafetyManifest(artifact, artifact.acceptanceSequence ?? 0)
   }
 
@@ -129,6 +138,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       )
       .orderBy(asc(schema.TBackupOperation.updatedAt), asc(schema.TBackupOperation.id))
       .limit(1)
+
     return rows[0] === undefined ? undefined : this.findOperation(rows[0].id)
   }
 
@@ -146,13 +156,18 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         .limit(input.limit)
         .offset(input.offset),
     ])
+
     const items = await Promise.all(rows.map((row) => this.findOperation(row.id)))
+
     const operations = items.filter(
       (operation): operation is BackupOperation => operation !== undefined,
     )
+
     const totalCount = Number(countRow[0]?.count ?? 0)
+
     const nextOffset =
       input.offset + operations.length < totalCount ? input.offset + operations.length : null
+
     return {
       items: operations,
       nextOffset,
@@ -164,6 +179,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   async claim(input: BackupRestoreRepository.ClaimInput): Promise<BackupOperation | undefined> {
     return this.db.transaction((tx) => {
       const operation = selectOperation(tx, input.operationId)
+
       if (
         operation === undefined ||
         (operation.operationType !== 'backup' && operation.operationType !== 'restore') ||
@@ -172,7 +188,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       ) {
         return undefined
       }
+
       const installation = selectInstallation(tx)
+
       if (
         installation === undefined ||
         installation.activeOperationId !== input.operationId ||
@@ -180,6 +198,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       ) {
         return undefined
       }
+
       const updated = tx
         .update(schema.TBackupOperation)
         .set({ ownerToken: input.ownerToken, updatedAt: input.now })
@@ -191,7 +210,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) return undefined
+
       const installationUpdated = tx
         .update(schema.TInstallation)
         .set({
@@ -207,7 +228,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (installationUpdated.changes !== 1) throw new Error('Backup operation claim was lost')
+
       return toOperation(tx, input.operationId)
     })
   }
@@ -217,8 +240,10 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   ): Promise<BackupOperation | undefined> {
     return this.db.transaction((tx) => {
       const operation = selectOwnedActiveOperation(tx, input.operationId, input.ownerToken)
+
       if (operation === undefined || operation.operationType !== 'backup') return undefined
       const existing = selectArtifact(tx, input.operationId, 'authoritative_sqlite')
+
       if (existing === undefined) {
         tx.insert(schema.TBackupArtifact)
           .values({
@@ -241,6 +266,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           })
           .run()
       }
+
       return advanceTx(tx, {
         operationId: input.operationId,
         ownerToken: input.ownerToken,
@@ -258,15 +284,19 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   ): Promise<BackupOperation | undefined> {
     return this.db.transaction((tx) => {
       const operation = selectOwnedActiveOperation(tx, input.operationId, input.ownerToken)
+
       if (operation === undefined || operation.operationType !== 'restore') return undefined
+
       const reference = tx
         .select()
         .from(schema.TBackupRestoreReference)
         .where(eq(schema.TBackupRestoreReference.operationId, input.operationId))
         .limit(1)
         .all()[0]
+
       if (reference === undefined) return undefined
       const existing = selectArtifact(tx, input.operationId, 'pre_restore_sqlite')
+
       if (existing === undefined) {
         tx.insert(schema.TBackupArtifact)
           .values({
@@ -286,6 +316,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           })
           .run()
       }
+
       if (reference.preRestoreSafetyArtifactId === null) {
         tx.update(schema.TBackupRestoreReference)
           .set({ preRestoreSafetyArtifactId: input.artifact.id })
@@ -294,6 +325,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       } else if (reference.preRestoreSafetyArtifactId !== input.artifact.id) {
         return undefined
       }
+
       const updated = tx
         .update(schema.TBackupOperation)
         .set({
@@ -310,6 +342,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) return undefined
       projectInstallation(tx, {
         operationId: input.operationId,
@@ -322,6 +355,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         ownerToken: input.ownerToken,
         errorCode: null,
       })
+
       return toOperation(tx, input.operationId)
     })
   }
@@ -335,13 +369,16 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   ): Promise<BackupOperation | undefined> {
     return this.db.transaction((tx) => {
       const operation = selectOwnedActiveOperation(tx, input.operationId, input.ownerToken)
+
       if (operation === undefined) return undefined
+
       if (
         operation.operationType === 'backup' &&
         selectArtifact(tx, input.operationId, 'authoritative_sqlite') === undefined
       ) {
         return undefined
       }
+
       if (
         operation.operationType === 'restore' &&
         (operation.checkpoint !== 'structurally_ready' ||
@@ -349,7 +386,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       ) {
         return undefined
       }
+
       let stages = selectCleanupStages(tx, input.operationId)
+
       if (
         operation.operationType === 'restore' &&
         stages.derived.status === 'not_applicable' &&
@@ -361,9 +400,12 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           .run()
         stages = selectCleanupStages(tx, input.operationId)
       }
+
       const cleanupPending =
         isCleanupPending(stages.derived.status) || isCleanupPending(stages.backup.status)
+
       const phase = cleanupPending ? 'cleanup_pending' : 'ready'
+
       const updatedOperation = tx
         .update(schema.TBackupOperation)
         .set({
@@ -387,7 +429,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (updatedOperation.changes !== 1) return undefined
+
       const installationUpdated = tx
         .update(schema.TInstallation)
         .set({
@@ -419,7 +463,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (installationUpdated.changes !== 1) throw new Error('Backup completion was lost')
+
       return toOperation(tx, input.operationId)
     })
   }
@@ -427,7 +473,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   async fail(input: BackupRestoreRepository.FailInput): Promise<BackupOperation | undefined> {
     return this.db.transaction((tx) => {
       const operation = selectOwnedActiveOperation(tx, input.operationId, input.ownerToken)
+
       if (operation === undefined) return undefined
+
       if (input.recoveryRequired === true) {
         tx.update(schema.TBackupOperation)
           .set({
@@ -465,8 +513,10 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
             ),
           )
           .run()
+
         return toOperation(tx, input.operationId)
       }
+
       const updatedOperation = tx
         .update(schema.TBackupOperation)
         .set({
@@ -485,7 +535,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (updatedOperation.changes !== 1) return undefined
+
       const installationUpdated = tx
         .update(schema.TInstallation)
         .set({
@@ -506,7 +558,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (installationUpdated.changes !== 1) throw new Error('Backup failure recording was lost')
+
       return toOperation(tx, input.operationId)
     })
   }
@@ -526,6 +580,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         )
         .limit(1)
         .all()[0]
+
       const stage = tx
         .select()
         .from(schema.TBackupCleanupStage)
@@ -537,6 +592,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         )
         .limit(1)
         .all()[0]
+
       if (
         operation === undefined ||
         stage === undefined ||
@@ -544,6 +600,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       ) {
         return undefined
       }
+
       if (input.stage === 'backup_cleanup') {
         const derived = tx
           .select({ status: schema.TBackupCleanupStage.status })
@@ -556,11 +613,14 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           )
           .limit(1)
           .all()[0]
+
         if (derived?.status !== 'completed') return undefined
       }
+
       let ownerToken = operation.ownerToken
       let expectedStageStatus = stage.status
       let expectedStageStartedAt = stage.startedAt
+
       if (
         stage.status === 'running' &&
         ownerToken !== null &&
@@ -578,7 +638,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
             ),
           )
           .run()
+
         if (releasedStage.changes !== 1) return undefined
+
         const releasedOperation = tx
           .update(schema.TBackupOperation)
           .set({ ownerToken: null, updatedAt: input.now })
@@ -589,12 +651,15 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
             ),
           )
           .run()
+
         if (releasedOperation.changes !== 1) return undefined
         ownerToken = null
         expectedStageStatus = 'pending'
         expectedStageStartedAt = null
       }
+
       if (ownerToken !== null) return undefined
+
       const operationUpdated = tx
         .update(schema.TBackupOperation)
         .set({ ownerToken: input.ownerToken, updatedAt: input.now })
@@ -605,7 +670,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (operationUpdated.changes !== 1) return undefined
+
       const stageUpdated = tx
         .update(schema.TBackupCleanupStage)
         .set({
@@ -622,7 +689,9 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (stageUpdated.changes !== 1) throw new Error('Backup cleanup claim was lost')
+
       return { operationId: input.operationId, stage: input.stage }
     })
   }
@@ -643,6 +712,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
   ): Promise<void> {
     this.db.transaction((tx) => {
       const operation = selectOperation(tx, input.operationId)
+
       if (
         operation === undefined ||
         operation.status !== 'available' ||
@@ -650,6 +720,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
       ) {
         throw new Error('Backup cleanup ownership was lost')
       }
+
       if (input.stage === 'backup_cleanup') {
         const derived = tx
           .select({ status: schema.TBackupCleanupStage.status })
@@ -662,8 +733,10 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           )
           .limit(1)
           .all()[0]
+
         if (derived?.status !== 'completed') throw new Error('Derived cleanup must complete first')
       }
+
       const updatedStage = tx
         .update(schema.TBackupCleanupStage)
         .set({
@@ -679,10 +752,13 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (updatedStage.changes !== 1) return
       const stages = selectCleanupStages(tx, input.operationId)
+
       const cleanupPending =
         isCleanupPending(stages.derived.status) || isCleanupPending(stages.backup.status)
+
       const operationUpdated = tx
         .update(schema.TBackupOperation)
         .set({
@@ -698,6 +774,7 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .run()
+
       if (operationUpdated.changes !== 1) throw new Error('Backup cleanup ownership was lost')
       tx.update(schema.TInstallation)
         .set({
@@ -728,11 +805,14 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         ),
       )
       .limit(1)
+
     if (operationRows[0] === undefined) return undefined
+
     const artifacts = await this.db
       .select()
       .from(schema.TBackupArtifact)
       .where(eq(schema.TBackupArtifact.operationId, operationId))
+
     const reference = (
       await this.db
         .select()
@@ -740,10 +820,12 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
         .where(eq(schema.TBackupRestoreReference.operationId, operationId))
         .limit(1)
     )[0]
+
     const stages = await this.db
       .select()
       .from(schema.TBackupCleanupStage)
       .where(eq(schema.TBackupCleanupStage.operationId, operationId))
+
     return toOperationFromRows(
       operationRows[0],
       artifacts,
@@ -767,13 +849,17 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
           ),
         )
         .limit(1)
+
       const artifact = rows[0]
+
       if (artifact === undefined) return undefined
+
       return artifact
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw new BackupIncompatibilityError('Backup metadata is malformed')
       }
+
       throw error
     }
   }
@@ -786,6 +872,7 @@ function beginTx(
     | (BackupRestoreRepository.BeginRestoreInput & { readonly operationType: 'restore' }),
 ): BackupOperation | undefined {
   const installation = selectInstallation(tx)
+
   if (
     installation === undefined ||
     (installation.status !== 'ready' && installation.status !== 'degraded') ||
@@ -793,9 +880,11 @@ function beginTx(
   ) {
     return undefined
   }
+
   if (input.operationType === 'restore') {
     if (!hasAvailableBackup(tx, input.sourceBackupId)) return undefined
   }
+
   const inserted = tx
     .update(schema.TInstallation)
     .set({
@@ -818,6 +907,7 @@ function beginTx(
       ),
     )
     .run()
+
   if (inserted.changes !== 1) return undefined
   tx.insert(schema.TBackupOperation)
     .values({
@@ -842,6 +932,7 @@ function beginTx(
       ownerToken: input.ownerToken,
     })
     .run()
+
   if (input.operationType === 'restore') {
     const sourceBackupId = input.sourceBackupId
     tx.insert(schema.TBackupRestoreReference)
@@ -853,6 +944,7 @@ function beginTx(
       })
       .run()
   }
+
   tx.insert(schema.TBackupCleanupStage)
     .values({
       operationId: input.operationId,
@@ -873,6 +965,7 @@ function beginTx(
       errorCode: null,
     })
     .run()
+
   return toOperation(tx, input.operationId)
 }
 
@@ -881,7 +974,9 @@ function advanceTx(
   input: BackupRestoreRepository.AdvanceInput,
 ): BackupOperation | undefined {
   const operation = selectOwnedActiveOperation(tx, input.operationId, input.ownerToken)
+
   if (operation === undefined) return undefined
+
   if (
     PHASE_RANK[input.phase] < PHASE_RANK[operation.phase] ||
     CHECKPOINT_RANK[input.checkpoint] < CHECKPOINT_RANK[operation.checkpoint] ||
@@ -892,7 +987,9 @@ function advanceTx(
   ) {
     return undefined
   }
+
   const readiness = readinessForAdvance(operation, input)
+
   const updated = tx
     .update(schema.TBackupOperation)
     .set({
@@ -914,6 +1011,7 @@ function advanceTx(
       ),
     )
     .run()
+
   if (updated.changes !== 1) return undefined
   projectInstallation(tx, {
     operationId: input.operationId,
@@ -926,6 +1024,7 @@ function advanceTx(
     ownerToken: input.ownerToken,
     errorCode: null,
   })
+
   return toOperation(tx, input.operationId)
 }
 
@@ -944,18 +1043,22 @@ function readinessForAdvance(
       structural: operation.structuralReadiness,
     }
   }
+
   if (
     input.phase === 'rebuilding_duckdb' &&
     (input.checkpoint === 'sqlite_restored' || input.checkpoint === 'duckdb_rebuilt')
   ) {
     return { controlStore: 'ready', analyticsStore: 'rebuilding', structural: 'not_ready' }
   }
+
   if (input.checkpoint === 'duckdb_rebuilt' && input.phase !== 'rebuilding_duckdb') {
     return { controlStore: 'ready', analyticsStore: 'ready', structural: 'not_ready' }
   }
+
   if (input.checkpoint === 'structurally_ready') {
     return { controlStore: 'ready', analyticsStore: 'ready', structural: 'ready' }
   }
+
   return { controlStore: 'not_ready', analyticsStore: 'not_ready', structural: 'not_ready' }
 }
 
@@ -993,6 +1096,7 @@ function projectInstallation(
       ),
     )
     .run()
+
   if (updated.changes !== 1) throw new Error(`Backup ${input.phase} projection was lost`)
 }
 
@@ -1016,6 +1120,7 @@ function selectOwnedActiveOperation(
   ownerToken: string,
 ) {
   const operation = selectOperation(tx, operationId)
+
   if (
     operation === undefined ||
     operation.ownerToken !== ownerToken ||
@@ -1023,6 +1128,7 @@ function selectOwnedActiveOperation(
   ) {
     return undefined
   }
+
   return operation
 }
 
@@ -1048,7 +1154,9 @@ function hasAvailableBackup(tx: SqliteTransaction, operationId: string): boolean
     )
     .limit(1)
     .all()[0]
+
   if (operation === undefined) return false
+
   return selectArtifact(tx, operationId, 'authoritative_sqlite') !== undefined
 }
 
@@ -1082,10 +1190,13 @@ function selectCleanupStages(
     .from(schema.TBackupCleanupStage)
     .where(eq(schema.TBackupCleanupStage.operationId, operationId))
     .all()
+
   const derived = stages.find((stage) => stage.stage === 'derived_cleanup')
   const backup = stages.find((stage) => stage.stage === 'backup_cleanup')
+
   if (derived === undefined || backup === undefined)
     throw new Error('Backup cleanup stages are incomplete')
+
   return { derived: toCleanupStage(derived), backup: toCleanupStage(backup) }
 }
 
@@ -1095,26 +1206,33 @@ function cleanupStagesFromRows(rows: readonly (typeof schema.TBackupCleanupStage
 } {
   const derived = rows.find((stage) => stage.stage === 'derived_cleanup')
   const backup = rows.find((stage) => stage.stage === 'backup_cleanup')
+
   if (derived === undefined || backup === undefined)
     throw new Error('Backup cleanup stages are incomplete')
+
   return { derived: toCleanupStage(derived), backup: toCleanupStage(backup) }
 }
 
 function toOperation(tx: SqliteTransaction, operationId: string): BackupOperation {
   const operation = selectOperation(tx, operationId)
+
   if (operation === undefined) throw new Error('Backup operation was not found')
+
   const artifacts = tx
     .select()
     .from(schema.TBackupArtifact)
     .where(eq(schema.TBackupArtifact.operationId, operationId))
     .all()
+
   const reference = tx
     .select()
     .from(schema.TBackupRestoreReference)
     .where(eq(schema.TBackupRestoreReference.operationId, operationId))
     .limit(1)
     .all()[0]
+
   const stages = selectCleanupStages(tx, operationId)
+
   return toOperationFromRows(operation, artifacts, reference, stages)
 }
 
@@ -1127,10 +1245,12 @@ function toOperationFromRows(
   if (row.operationType !== 'backup' && row.operationType !== 'restore') {
     throw new Error('Unexpected operation type in backup repository')
   }
+
   const cleanup = {
     derivedCleanup: cleanupStages.derived,
     backupCleanup: cleanupStages.backup,
   }
+
   const common = {
     id: row.id,
     scope: 'installation' as const,
@@ -1149,9 +1269,11 @@ function toOperationFromRows(
     derivedCleanup: cleanup.derivedCleanup,
     backupCleanup: cleanup.backupCleanup,
   }
+
   const safetyArtifact = artifacts.find(
     (artifact) => artifact.artifactType === 'pre_restore_sqlite',
   )
+
   const safety =
     safetyArtifact === undefined
       ? null
@@ -1159,10 +1281,13 @@ function toOperationFromRows(
           safetyArtifact,
           safetyArtifact.acceptanceSequence ?? row.lastSafeSequence ?? 0,
         )
+
   const sourceId = reference?.restoreSourceBackupId ?? null
+
   if (row.status === 'creating') {
     if (row.operationType === 'restore') {
       if (sourceId === null) throw new Error('Restore operation has no source reference')
+
       return {
         ...common,
         operationType: 'restore',
@@ -1174,6 +1299,7 @@ function toOperationFromRows(
         errorCode: null,
       }
     }
+
     return {
       ...common,
       operationType: 'backup',
@@ -1185,12 +1311,16 @@ function toOperationFromRows(
       errorCode: null,
     }
   }
+
   if (row.status === 'restoring') {
     if (row.operationType !== 'restore' || sourceId === null || safety === null) {
       throw new Error('Restoring operation is missing owned restore state')
     }
+
     const phase = row.phase === 'capturing_sqlite' ? 'restoring_sqlite' : row.phase
+
     if (phase === 'failed') throw new Error('Restoring operation has a failed phase')
+
     return {
       ...common,
       operationType: 'restore',
@@ -1202,6 +1332,7 @@ function toOperationFromRows(
       errorCode: null,
     }
   }
+
   if (row.status === 'available') {
     return {
       ...common,
@@ -1214,8 +1345,10 @@ function toOperationFromRows(
       errorCode: null,
     }
   }
+
   if (row.completedAt === null || row.errorCode === null)
     throw new Error('Failed backup operation is incomplete')
+
   const failed: FailedOperation = {
     ...common,
     operationType: row.operationType,
@@ -1226,6 +1359,7 @@ function toOperationFromRows(
     preRestoreSafetyArtifact: safety,
     errorCode: row.errorCode,
   }
+
   return failed
 }
 
@@ -1233,6 +1367,7 @@ function toSourceManifest(row: typeof schema.TBackupArtifact.$inferSelect): Sour
   if (row.artifactType !== 'authoritative_sqlite' || row.checksumAlgorithm !== 'sha256') {
     throw new Error('Source artifact is invalid')
   }
+
   return {
     kind: 'source',
     id: row.id,
@@ -1258,6 +1393,7 @@ function toSafetyManifest(
   if (row.artifactType !== 'pre_restore_sqlite' || row.checksumAlgorithm !== 'sha256') {
     throw new Error('Safety artifact is invalid')
   }
+
   return {
     kind: 'safety',
     id: row.id,
@@ -1299,6 +1435,7 @@ function toInstallationCheckpoint(
   checkpoint: BackupOperationCheckpoint,
 ): 'none' | 'sqlite_captured' | 'duckdb_rebuilt' | 'structurally_ready' {
   if (checkpoint === 'sqlite_restored') return 'sqlite_captured'
+
   return checkpoint
 }
 

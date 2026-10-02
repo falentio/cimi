@@ -17,7 +17,9 @@ import {
 } from '@cimi/kernel'
 
 const SITE = 'ste-1'
+
 const DAY_ONE = Date.parse('2026-09-05T00:00:00.000Z')
+
 const DAY_TWO = Date.parse('2026-09-06T00:00:00.000Z')
 
 const emptyPlan: ReportFilterPlan = {
@@ -82,7 +84,9 @@ function seedEvents(db: Db): void {
   const insertEvent = db.$client.prepare(
     'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   )
+
   let sequence = 0
+
   const add = (session: string, visitor: string, kind: string, at: number): void => {
     sequence += 1
     insertEvent.run(
@@ -285,11 +289,14 @@ function seedBreakdownEvents(
        utm_source, utm_medium, utm_campaign
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
+
   const insertPageView = db.$client.prepare(
     `INSERT INTO event_page_view (event_pk, page_path, referrer)
      SELECT event_pk, ?, ? FROM accepted_event WHERE site_id = ? AND event_id = ?`,
   )
+
   let sequence = 0
+
   for (const event of events) {
     sequence += 1
     const eventId = `evt-${sequence}`
@@ -316,6 +323,7 @@ function seedBreakdownEvents(
       event.utmMedium ?? null,
       event.utmCampaign ?? null,
     )
+
     if (event.pagePath !== undefined) {
       insertPageView.run(event.pagePath, event.referrer ?? null, SITE, eventId)
     }
@@ -474,15 +482,18 @@ function seedEventKindEvents(db: Db, events: readonly EventKindSeed[]): void {
        projection_state, created_at
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
   )
+
   const insertPageView = db.$client.prepare(
     'INSERT INTO event_page_view (event_pk, page_path, referrer) VALUES (?, ?, ?)',
   )
+
   const insertProperty = db.$client.prepare(
     'INSERT INTO event_property (event_pk, property_key, value_type, string_value, number_value, boolean_value) VALUES (?, ?, ?, ?, ?, ?)',
   )
 
   let sequence = 0
   let eventPk = 0
+
   for (const event of events) {
     sequence += 1
     eventPk += 1
@@ -500,29 +511,35 @@ function seedEventKindEvents(db: Db, events: readonly EventKindSeed[]): void {
       `fp-${sequence}`,
       event.at,
     )
+
     if (event.pagePath !== undefined) {
       insertPageView.run(eventPk, event.pagePath, event.referrer ?? null)
     }
+
     if (event.kind === 'custom_event') {
       db.$client
         .prepare('INSERT INTO event_custom (event_pk, name) VALUES (?, ?)')
         .run(eventPk, event.name ?? '')
     }
+
     if (event.kind === 'outbound') {
       db.$client
         .prepare('INSERT INTO event_outbound (event_pk, destination, name) VALUES (?, ?, ?)')
         .run(eventPk, event.destination ?? '', event.name ?? null)
     }
+
     if (event.kind === 'performance') {
       db.$client
         .prepare('INSERT INTO event_performance (event_pk, name, value, unit) VALUES (?, ?, ?, ?)')
         .run(eventPk, event.name ?? '', event.value ?? 0, event.unit ?? null)
     }
+
     if (event.kind === 'error') {
       db.$client
         .prepare('INSERT INTO event_error (event_pk, name, code, message) VALUES (?, ?, ?, ?)')
         .run(eventPk, event.name ?? '', event.code ?? null, event.message ?? null)
     }
+
     for (const [key, value] of Object.entries(event.properties ?? {})) {
       if (value === null) {
         insertProperty.run(eventPk, key, 'null', null, null, null)
@@ -629,6 +646,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
   it('counts total, distinct visitors, and distinct sessions for one kind', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -639,6 +657,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
         eventKind: 'page_view',
         filterPlan: emptyPlan,
       })
+
       expect(pageView).toEqual({ total: 2, uniqueVisitors: 1, uniqueSessions: 1 })
 
       const error = await createQuery(analytics).eventOverview({
@@ -647,6 +666,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
         eventKind: 'error',
         filterPlan: emptyPlan,
       })
+
       expect(error).toEqual({ total: 2, uniqueVisitors: 2, uniqueSessions: 2 })
 
       const missing = await createQuery(analytics).eventOverview({
@@ -658,6 +678,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
           event: [{ target: 'event.name', propertyKey: null, operator: 'eq', bind: ['nope'] }],
         },
       })
+
       expect(missing).toEqual({ total: 0, uniqueVisitors: 0, uniqueSessions: 0 })
     } finally {
       await analytics.close()
@@ -668,6 +689,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
   it('renders explicit null equality as IS NULL for a nullable Event field', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         {
@@ -691,6 +713,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
           event: [{ target: 'event.referrer', propertyKey: null, operator: 'eq', bind: [null] }],
         },
       })
+
       expect(result.total).toBe(1)
     } finally {
       await analytics.close()
@@ -701,6 +724,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
   it('keeps query strings in authenticated event filters', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, [
         ...eventKindSeeds(),
@@ -742,6 +766,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
   it('applies every predicate with AND semantics and values within a predicate with OR semantics', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -762,6 +787,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
           ],
         },
       })
+
       expect(matchingPages.total).toBe(2)
 
       const onlyNullReferrerOnB = await createQuery(analytics).eventOverview({
@@ -776,6 +802,7 @@ describe('DuckDbReportingQuery.eventOverview', () => {
           ],
         },
       })
+
       expect(onlyNullReferrerOnB.total).toBe(1)
     } finally {
       await analytics.close()
@@ -788,13 +815,16 @@ describe('DuckDbReportingQuery.event filters', () => {
   it('applies an event property filter to every event query model', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
+
       const filterPlan: ReportFilterPlan = {
         ...emptyPlan,
         event: [{ target: 'event.property', propertyKey: 'plan', operator: 'eq', bind: ['pro'] }],
       }
+
       const query = createQuery(analytics)
 
       await expect(
@@ -871,6 +901,7 @@ describe('DuckDbReportingQuery.eventBuckets', () => {
   it('returns sparse per-bucket counts for the requested kind only', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -881,6 +912,7 @@ describe('DuckDbReportingQuery.eventBuckets', () => {
         eventKind: 'page_view',
         filterPlan: emptyPlan,
       })
+
       expect(buckets).toEqual([{ at: createInstantMs(DAY_ONE), count: 2 }])
     } finally {
       await analytics.close()
@@ -893,6 +925,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
   it('orders by occurrence time with an event_id tie-break and counts distinct event ids', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -906,6 +939,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
         offset: 0,
         limit: 10,
       })
+
       expect(result.totalCount).toBe(2)
       expect(result.rows.map((row) => row.eventId)).toEqual(['evt-6', 'evt-7'])
       expect(result.rows[0]).toMatchObject({
@@ -929,6 +963,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
   it('orders ascending and descending by occurrence time across all kinds', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -941,6 +976,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
         offset: 0,
         limit: 10,
       }
+
       const ascending = await createQuery(analytics).eventRows({ ...base, direction: 'asc' })
       expect(ascending.rows.map((row) => row.eventId)).toEqual(['evt-1', 'evt-2'])
       expect(ascending.rows[0]).toMatchObject({
@@ -968,6 +1004,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
   it('pages across the distinct-event set with an occurrence tie-break', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -981,6 +1018,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
         offset: 0,
         limit: 1,
       })
+
       expect(first.rows.map((row) => row.eventId)).toEqual(['evt-1'])
       expect(first.totalCount).toBe(2)
       expect(first.hasMore).toBe(true)
@@ -995,6 +1033,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
         offset: 1,
         limit: 1,
       })
+
       expect(second.rows.map((row) => row.eventId)).toEqual(['evt-2'])
       expect(second.hasMore).toBe(false)
       expect(second.nextOffset).toBeNull()
@@ -1007,6 +1046,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
   it('orders equal-time and late events by occurrence time and Event ID, not receipt time', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -1015,6 +1055,7 @@ describe('DuckDbReportingQuery.eventRows', () => {
           `UPDATE events SET occurrence_time = CAST(? AS TIMESTAMP) WHERE event_id IN (?, ?)`,
           ['2026-09-05T10:00:00.000Z', 'evt-6', 'evt-7'],
         )
+
         return reader.read(
           `UPDATE events
            SET receipt_time = CAST(? AS TIMESTAMP)
@@ -1046,6 +1087,7 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
   it('groups by kind, excludes empty values, and counts accepted events', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, eventKindSeeds())
       await analytics.rebuild({ controlDb })
@@ -1061,6 +1103,7 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
         limit: 10,
         filterPlan: emptyPlan,
       })
+
       expect(byKind.rows).toEqual([{ value: 'page_view', count: 2 }])
       expect(byKind.totalCount).toBe(1)
 
@@ -1075,6 +1118,7 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
         limit: 10,
         filterPlan: emptyPlan,
       })
+
       expect(byName.rows).toEqual([
         { value: '/a', count: 1 },
         { value: '/b', count: 1 },
@@ -1089,6 +1133,7 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
   it('sorts by count descending with a value tie-break and paginates', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, [
         ...eventKindSeeds(),
@@ -1122,6 +1167,7 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
         limit: 1,
         filterPlan: emptyPlan,
       })
+
       expect(first.rows).toEqual([{ value: '/b', count: 2 }])
       expect(first.totalCount).toBe(3)
       expect(first.hasMore).toBe(true)
@@ -1138,6 +1184,7 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
         limit: 1,
         filterPlan: emptyPlan,
       })
+
       expect(second.rows).toEqual([{ value: '/a', count: 1 }])
       expect(second.totalCount).toBe(3)
       expect(second.hasMore).toBe(true)
@@ -1154,6 +1201,7 @@ describe('DuckDbReportingQuery.eventBreakdown', () => {
         limit: 1,
         filterPlan: emptyPlan,
       })
+
       expect(third.rows).toEqual([{ value: '/c', count: 1 }])
       expect(third.hasMore).toBe(false)
       expect(third.nextOffset).toBeNull()
@@ -1168,6 +1216,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('groups page rows by distinct sessions that viewed each path', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, attributedEvents())
       await analytics.rebuild({ controlDb })
@@ -1200,6 +1249,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('uses the filtered session population for rows and the denominator', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, attributedEvents())
       await analytics.rebuild({ controlDb })
@@ -1231,6 +1281,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('groups entry_page and excludes NULL session attribution from the rows', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, attributedEvents())
       await analytics.rebuild({ controlDb })
@@ -1245,6 +1296,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
         limit: 10,
         filterPlan: emptyPlan,
       })
+
       expect(entry.rows).toEqual([
         { value: '/a', count: 3 },
         { value: '/b', count: 2 },
@@ -1261,6 +1313,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
         limit: 10,
         filterPlan: emptyPlan,
       })
+
       expect(device.rows).toEqual([
         { value: 'desktop', count: 2 },
         { value: 'mobile', count: 1 },
@@ -1276,6 +1329,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('orders by count descending with a value tie-break and paginates deterministically', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, attributedEvents())
       await analytics.rebuild({ controlDb })
@@ -1290,6 +1344,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
         limit: 1,
         filterPlan: emptyPlan,
       })
+
       expect(first.rows).toEqual([{ value: '/a', count: 3 }])
       expect(first.totalCount).toBe(2)
       expect(first.hasMore).toBe(true)
@@ -1305,6 +1360,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
         limit: 1,
         filterPlan: emptyPlan,
       })
+
       expect(second.rows).toEqual([{ value: '/b', count: 3 }])
       expect(second.hasMore).toBe(false)
       expect(second.nextOffset).toBeNull()
@@ -1317,6 +1373,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('derives exit_page rows from the last page path of each scoped session', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         ...attributedEvents(),
@@ -1354,6 +1411,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('derives the exit page from an event after the window end for a session inside the window', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY, pagePath: '/a' },
@@ -1390,6 +1448,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('filters sessions by their derived exit page', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY, pagePath: '/a' },
@@ -1403,6 +1462,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
         filters: [{ scope: 'session', field: 'exitPage', operator: 'equals', values: ['/b'] }],
         profileFilterKeys: [],
       })
+
       if (!filter.ok) throw new Error('Expected a valid exit page filter')
 
       const result = await createQuery(analytics).trafficBreakdown({
@@ -1431,6 +1491,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('returns an empty page for region while keeping the session denominator', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, attributedEvents())
       await analytics.rebuild({ controlDb })
@@ -1445,6 +1506,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
         limit: 10,
         filterPlan: emptyPlan,
       })
+
       expect(region.rows).toEqual([])
       expect(region.totalCount).toBe(0)
       expect(region.denominator).toBe(5)
@@ -1457,6 +1519,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('combines non-null utm parts into one value and drops the all-null row', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, attributedEvents())
       await analytics.rebuild({ controlDb })
@@ -1485,6 +1548,7 @@ describe('DuckDbReportingQuery.trafficBreakdown', () => {
   it('clamps each value to the contract maximum length', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       const longPath = `/${'x'.repeat(3000)}`
       seedBreakdownEvents(controlDb, [
@@ -1516,6 +1580,7 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
   it('aggregates facts and sparse trend buckets over the resolved window', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEvents(controlDb)
       await analytics.rebuild({ controlDb })
@@ -1549,6 +1614,7 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
   it('omits the trend when the caller does not request it', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEvents(controlDb)
       await analytics.rebuild({ controlDb })
@@ -1571,6 +1637,7 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
   it('applies an event predicate without leaking values into SQL', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEvents(controlDb)
       await analytics.rebuild({ controlDb })
@@ -1597,6 +1664,7 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
   it('applies event filters to each distinct trend bucket', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY, pagePath: '/a' },
@@ -1641,6 +1709,7 @@ describe('DuckDbReportingQuery.trafficAggregate', () => {
 
   it('rejects a profile filter instead of silently ignoring it', async () => {
     const analytics = await createTestAnalyticsDb()
+
     try {
       await expect(
         createQuery(analytics).trafficAggregate({
@@ -1667,6 +1736,7 @@ describe('presence filters', () => {
   it('scopes a visitor has_done filter to sessions whose visitor performed the action', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEvents(controlDb)
       await analytics.rebuild({ controlDb })
@@ -1702,6 +1772,7 @@ describe('presence filters', () => {
   it('negates a visitor has_done filter with has_not_done', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEvents(controlDb)
       await analytics.rebuild({ controlDb })
@@ -1735,6 +1806,7 @@ describe('presence filters', () => {
   it('bounds a session same_range presence filter to the report window', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEvents(controlDb)
       await analytics.rebuild({ controlDb })
@@ -1769,6 +1841,7 @@ describe('presence filters', () => {
   it('applies nested properties and keeps visitor and session scopes distinct', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEventKindEvents(controlDb, [
         {
@@ -1810,12 +1883,14 @@ describe('presence filters', () => {
         ],
         negated: false,
       }
+
       const eventMatch = await createQuery(analytics).eventOverview({
         siteId: createSiteId(SITE),
         period: eventPeriod(),
         eventKind: 'page_view',
         filterPlan: { ...emptyPlan, sessionPresence: [matchingPresence] },
       })
+
       expect(eventMatch).toMatchObject({ total: 1, uniqueSessions: 1, uniqueVisitors: 1 })
 
       const eventMiss = await createQuery(analytics).eventOverview({
@@ -1824,6 +1899,7 @@ describe('presence filters', () => {
         eventKind: 'page_view',
         filterPlan: { ...emptyPlan, sessionPresence: [{ ...matchingPresence, negated: true }] },
       })
+
       expect(eventMiss).toMatchObject({ total: 1, uniqueSessions: 1, uniqueVisitors: 1 })
 
       const visitorMatch = await createQuery(analytics).trafficAggregate({
@@ -1844,6 +1920,7 @@ describe('presence filters', () => {
           ],
         },
       })
+
       expect(visitorMatch.metrics).toMatchObject({ visitors: 1, sessions: 2, pageviews: 2 })
 
       const visitorMiss = await createQuery(analytics).trafficAggregate({
@@ -1864,6 +1941,7 @@ describe('presence filters', () => {
           ],
         },
       })
+
       expect(visitorMiss.metrics).toMatchObject({ visitors: 0, sessions: 0, pageviews: 0 })
     } finally {
       await analytics.close()
@@ -1876,6 +1954,7 @@ describe('DuckDbReportingQuery local calendar buckets', () => {
   it('keeps fall-back buckets distinct and excludes the interval end', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         {
@@ -1915,6 +1994,7 @@ describe('DuckDbReportingQuery local calendar buckets', () => {
         },
       ])
       await analytics.rebuild({ controlDb })
+
       const period = resolveReportPeriods({
         metadata: {
           siteId: createSiteId(SITE),
@@ -1948,6 +2028,7 @@ describe('DuckDbReportingQuery local calendar buckets', () => {
         includeTrend: true,
         filterPlan: emptyPlan,
       })
+
       expect(trend.trend).toEqual([
         { at: createInstantMs(Date.parse('2026-11-01T04:00:00.000Z')), visitors: 1 },
         { at: createInstantMs(Date.parse('2026-11-01T05:00:00.000Z')), visitors: 2 },
@@ -1964,12 +2045,15 @@ describe('session span across the window boundary', () => {
   it('measures a Session span over its full history, not only in-window events', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedEvents(controlDb)
       const laterInWindow = DAY_TWO + 11 * 60 * 60 * 1000
+
       const insertEvent = controlDb.$client.prepare(
         'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
+
       insertEvent.run(
         900,
         SITE,
@@ -2011,6 +2095,7 @@ describe('eligible Sessions apply the range before eligibility', () => {
   it('excludes a Session whose only page_view falls outside the requested range', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         { session: 's1', visitor: 'v1', kind: 'page_view', at: ATTRIBUTED_DAY },
@@ -2040,6 +2125,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
   it('counts approved dimension values and time buckets without exposing identities', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, attributedEvents())
       await analytics.rebuild({ controlDb })
@@ -2052,6 +2138,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
         dimension: 'page' as const,
         filterPlan: emptyPlan,
       }
+
       await expect(query.countDimensionValues(pageRequest)).resolves.toBe(2)
       await expect(query.countDistinctVisitors(pageRequest)).resolves.toBe(5)
       await expect(query.aggregate(pageRequest)).resolves.toEqual([
@@ -2066,6 +2153,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
         dimension: 'time',
         filterPlan: emptyPlan,
       })
+
       expect(timeRows).toEqual([{ groupKey: 10, value: 6, distinctVisitors: 5 }])
     } finally {
       await analytics.close()
@@ -2076,6 +2164,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
   it('removes query strings and fragments from public URL dimensions', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         {
@@ -2117,6 +2206,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
   it('filters public URL dimensions after removing query strings and fragments', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         {
@@ -2137,6 +2227,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
         ],
         profileFilterKeys: [],
       })
+
       if (!pageQueryStringFilter.ok) throw new Error('Expected a valid page path filter')
       await expect(
         query.aggregate({
@@ -2154,6 +2245,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
         ],
         profileFilterKeys: [],
       })
+
       if (!referrerQueryStringFilter.ok) throw new Error('Expected a valid referrer filter')
       await expect(
         query.aggregate({
@@ -2173,6 +2265,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
   it('keeps repeated fall-back hours in separate elapsed-time buckets', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         {
@@ -2211,6 +2304,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
   it('omits the nonexistent spring-forward hour', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(
         controlDb,
@@ -2260,6 +2354,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
   it('returns the approved anonymous and identified aggregate dimension', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         {
@@ -2302,6 +2397,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
         ],
         profileFilterKeys: [],
       })
+
       if (!filterPlan.ok) throw new Error('Expected an approved public identity filter')
       await expect(
         createPublicQuery(analytics).aggregate({
@@ -2321,6 +2417,7 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
   it('bounds public dimension keys at 2048 characters', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
+
     try {
       seedBreakdownEvents(controlDb, [
         {

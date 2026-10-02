@@ -2,6 +2,7 @@ import type { ComputedRef, Ref } from 'vue'
 import { createContext } from 'reka-ui'
 
 export type QuestionnaireItemStatus = 'unanswered' | 'answered' | 'skipped'
+
 export type QuestionnaireShortcutMode = 'letters' | 'numbers'
 
 export type QuestionnaireInputType =

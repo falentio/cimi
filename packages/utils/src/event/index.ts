@@ -31,8 +31,10 @@ export class EventEmitter {
 
   emit<T>(name: EventName<T>, data: NoInfer<T>): void {
     const handlers = this.#listeners.get(name)
+
     if (!handlers) return
     const work: Promise<unknown>[] = []
+
     for (const handler of handlers) {
       this.#pending++
       work.push(
@@ -51,6 +53,7 @@ export class EventEmitter {
           }),
       )
     }
+
     this.#waitUntil?.(Promise.allSettled(work))
   }
 
@@ -61,11 +64,15 @@ export class EventEmitter {
     if (!this.#listeners.has(name)) {
       this.#listeners.set(name, new Set())
     }
+
     this.#listeners.get(name)!.add(callback as (data: unknown) => unknown | Promise<unknown>)
+
     return () => {
       const handlers = this.#listeners.get(name)
+
       if (!handlers) return
       handlers.delete(callback as (data: unknown) => unknown | Promise<unknown>)
+
       if (handlers.size === 0) {
         this.#listeners.delete(name)
       }
@@ -74,6 +81,7 @@ export class EventEmitter {
 
   onError(callback: (error: unknown, event: string) => void): UnlistenFn {
     this.#errorHandlers.add(callback)
+
     return () => {
       this.#errorHandlers.delete(callback)
     }
@@ -81,6 +89,7 @@ export class EventEmitter {
 
   settled(): Promise<void> {
     if (this.#pending === 0) return Promise.resolve()
+
     return new Promise((resolve) => {
       this.#settledResolvers.push(resolve)
     })
@@ -89,11 +98,13 @@ export class EventEmitter {
   createCollector<T>(name: EventName<T>): { collect(): Promise<T[]> } {
     const items: T[] = []
     this.on(name, (data: NoInfer<T>) => items.push(data))
+
     return {
       collect: async () => {
         await this.settled()
         const snapshot = [...items]
         items.length = 0
+
         return snapshot
       },
     }
@@ -104,6 +115,7 @@ export class EventEmitter {
       for (const resolve of this.#settledResolvers) {
         resolve()
       }
+
       this.#settledResolvers = []
     }
   }

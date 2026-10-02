@@ -23,6 +23,7 @@ describe('BackupRestoreService.backupFailure', () => {
     repository.findAuthoritativeArtifact.mockResolvedValue(undefined)
     repository.fail.mockResolvedValue(undefined)
     executor.captureBackup.mockRejectedValue(new Error('capture failed'))
+
     const service = new BackupRestoreService({
       repository,
       executor,

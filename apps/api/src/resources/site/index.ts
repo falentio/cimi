@@ -9,13 +9,18 @@ import { createSiteScopeDependencies } from './scope.ts'
 import { SiteService } from './service.ts'
 
 export { siteRouter }
+
 export { SiteService, type SiteServiceDependencies } from './service.ts'
+
 export { SiteLifecycleWorker, type SiteLifecycleWorkerDependencies } from './lifecycle.ts'
+
 export {
   SiteRepositoryDrizzle,
   type SiteRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { SiteRepository } from './repository.ts'
+
 export { createSiteScopeDependencies, type SiteScopeDependencies } from './scope.ts'
 
 export interface CreateSiteDependencies {
@@ -42,9 +47,13 @@ export function createSiteLifecycleWorker({
 }: CreateSiteLifecycleWorkerDependencies): SiteLifecycleWorker {
   const repository = new SiteRepositoryDrizzle({ db })
   const dependencies: SiteLifecycleWorkerDependencies = { repository, lock }
+
   if (intervalMs !== undefined) dependencies.intervalMs = intervalMs
+
   if (onError !== undefined) dependencies.onError = onError
+
   if (onPurgedSite !== undefined) dependencies.onPurgedSite = onPurgedSite
+
   return new SiteLifecycleWorker(dependencies)
 }
 
@@ -53,6 +62,7 @@ export function createSite({ db, lock, lifecycle, membership }: CreateSiteDepend
   const scope = createSiteScopeDependencies({ db })
   const service = new SiteService({ repository, scope, lock, lifecycle, membership })
   const router = siteRouter(service)
+
   return { service, router }
 }
 

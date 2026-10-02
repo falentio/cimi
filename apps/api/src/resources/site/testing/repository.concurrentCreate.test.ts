@@ -9,6 +9,7 @@ const createdAt = new Date('2026-09-01T00:00:00.000Z')
 describe('SiteRepositoryDrizzle.concurrentCreate', () => {
   it('allows exactly one insert for the same organization hostname', async () => {
     const db = createMigratedTestDb()
+
     try {
       db.insert(schema.TUser)
         .values({
@@ -38,6 +39,7 @@ describe('SiteRepositoryDrizzle.concurrentCreate', () => {
         .run()
 
       const repo = new SiteRepositoryDrizzle({ db })
+
       const results = await Promise.allSettled([
         repo.insert({
           id: 'ste_race_1',
@@ -75,6 +77,7 @@ describe('SiteRepositoryDrizzle.concurrentCreate', () => {
         .from(schema.TSite)
         .where(eq(schema.TSite.hostname, 'race.example.com'))
         .all()
+
       expect(rows).toHaveLength(1)
     } finally {
       closeDb(db)

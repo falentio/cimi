@@ -27,6 +27,7 @@ describe('useLocalizedValibotSchema', () => {
         'validation.auth.email.invalid': 'Saisissez une adresse e-mail valide.',
       },
     }
+
     const resolveKey = (key: string, locale: string) => messages[locale]?.[key]
     const resolveMessage = createStableMessageResolver('fr', resolveKey)
 
@@ -42,6 +43,7 @@ describe('useLocalizedValibotSchema', () => {
       toTypedSchema(v.pipe(v.string(), v.email()), { lang: 'fr' }),
       createStableMessageResolver('fr', () => undefined),
     )
+
     const builtInResult = await builtInSchema.parse('invalid')
 
     expect(builtInResult.errors[0]?.errors).toEqual(['Email invalide: reçu "invalid"'])
@@ -50,6 +52,7 @@ describe('useLocalizedValibotSchema', () => {
       toTypedSchema(v.pipe(v.string(), v.email('The email is invalid.'))),
       createStableMessageResolver('fr', () => undefined),
     )
+
     const customMessageResult = await customMessageSchema.parse('invalid')
 
     expect(customMessageResult.errors[0]?.errors).toEqual(['The email is invalid.'])
@@ -70,6 +73,7 @@ describe('useLocalizedValibotSchema', () => {
         ['passwordConfirmation'],
       ),
     )
+
     const typedSchema = withResolvedMessages(
       toTypedSchema(schema),
       createStableMessageResolver('fr', (key) =>
@@ -111,6 +115,7 @@ describe('useLocalizedValibotSchema', () => {
         name: v.optional(v.string(), 'Default name'),
       }),
     )
+
     const decoratedSchema = withResolvedMessages(typedSchema, (message) => message)
 
     expect(decoratedSchema.__type).toBe('VVTypedSchema')
@@ -122,10 +127,12 @@ describe('useLocalizedValibotSchema', () => {
 
   it('recomputes the official schema when the active locale changes', async () => {
     const locale = shallowRef('en')
+
     const translations: Record<'en' | 'fr', string> = {
       en: 'English validation message.',
       fr: 'Message de validation français.',
     }
+
     const t = vi.fn((_: string, options: { locale: 'en' | 'fr' }) => translations[options.locale])
     const te = vi.fn(() => true)
 
@@ -134,6 +141,7 @@ describe('useLocalizedValibotSchema', () => {
     const schema = useLocalizedValibotSchema(() =>
       v.pipe(v.string(), v.email('validation.auth.email.invalid')),
     )
+
     const englishTypedSchema = schema.value
     const englishResult = await englishTypedSchema.parse('invalid')
 
@@ -204,6 +212,7 @@ describe('useLocalizedValibotSchema', () => {
       action: { kind: 'page_view' as const },
       identityKind: 'visitor' as const,
     }
+
     const schema = useLocalizedValibotSchema(SGoalCreateInput)
     const result = await schema.value.parse(value)
 
@@ -216,7 +225,9 @@ describe('useLocalizedValibotSchema', () => {
       fromDate: '2026-08-23',
       toDate: '2026-08-22',
     }
+
     const key = VALIDATION_KEYS.contract.report.dateRangeOrdered
+
     const messages = {
       en: en.validation.contract.report.dateRangeOrdered,
       fr: fr.validation.contract.report.dateRangeOrdered,
@@ -238,11 +249,13 @@ describe('useLocalizedValibotSchema', () => {
 
   it('translates stable keys from the auth schema', async () => {
     const locale = shallowRef<'en' | 'fr'>('fr')
+
     const messages = {
       'validation.auth.email.invalid': 'Saisissez une adresse e-mail valide.',
       'validation.auth.password.required': 'Le mot de passe est requis.',
       'validation.auth.password.minLength': 'Le mot de passe doit comporter au moins 8 caractères.',
     }
+
     const t = vi.fn((key: keyof typeof messages) => messages[key])
     const te = vi.fn((key: string) => key in messages)
 
@@ -250,6 +263,7 @@ describe('useLocalizedValibotSchema', () => {
 
     const schema = useLocalizedValibotSchema(() => loginSchema)
     const result = await schema.value.parse({ name: '', email: 'invalid', password: '' })
+
     const messagesByField = Object.fromEntries(
       result.errors.map((error) => [error.path, error.errors]),
     )

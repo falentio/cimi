@@ -10,6 +10,7 @@ import { TUser } from '../../schema/index.ts'
 function createStagedDatabase(path: string): Db {
   const staged = createDb({ path })
   migrateControlDb(staged)
+
   return staged
 }
 
@@ -41,6 +42,7 @@ describe('installFromFile', () => {
   it('replaces a file-backed database and keeps the Db usable through the proxy', async () => {
     const destinationPath = join(dir, 'control.sqlite')
     const db = createDb({ path: destinationPath })
+
     try {
       db.$client.exec('CREATE TABLE original_marker (id TEXT PRIMARY KEY)')
       db.$client.prepare('INSERT INTO original_marker (id) VALUES (?)').run('original')
@@ -54,9 +56,11 @@ describe('installFromFile', () => {
       installDbFromFile(db, stagedPath)
 
       expect(existsSync(stagedPath)).toBe(false)
+
       const ledgerRows = db.$client
         .prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations')
         .get() as { count: number }
+
       expect(ledgerRows.count).toBe(16)
       expect(
         db.$client
@@ -78,6 +82,7 @@ describe('installFromFile', () => {
   it('restores the original file when the staged file is missing', async () => {
     const destinationPath = join(dir, 'control.sqlite')
     const db = createDb({ path: destinationPath })
+
     try {
       db.$client.exec('CREATE TABLE original_marker (id TEXT PRIMARY KEY)')
       db.$client.prepare('INSERT INTO original_marker (id) VALUES (?)').run('original')
@@ -99,6 +104,7 @@ describe('installFromFile', () => {
 
   it('swaps an in-memory database onto the same Db object', async () => {
     const db = createDb({ path: ':memory:' })
+
     try {
       db.$client.exec('CREATE TABLE original_marker (id TEXT PRIMARY KEY)')
       db.$client.prepare('INSERT INTO original_marker (id) VALUES (?)').run('original')
@@ -131,6 +137,7 @@ describe('installFromFile', () => {
 
   it('leaves the old in-memory connection untouched when the staged file is missing', async () => {
     const db = createDb({ path: ':memory:' })
+
     try {
       db.$client.exec('CREATE TABLE original_marker (id TEXT PRIMARY KEY)')
       db.$client.prepare('INSERT INTO original_marker (id) VALUES (?)').run('original')

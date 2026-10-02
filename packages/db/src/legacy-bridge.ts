@@ -128,6 +128,7 @@ export function classifyControlLineage(client: Database.Database): ControlLineag
 
   if (ledgerRows.length === 0) {
     if (userTables.length === 0) return { kind: 'empty' }
+
     return { kind: 'incompatible', reason: 'Migration ledger is empty but user tables exist' }
   }
 
@@ -141,6 +142,7 @@ export function classifyControlLineage(client: Database.Database): ControlLineag
 
   const ledgerMatches = LEGACY_471C10D_LEDGER.every((entry, index) => {
     const row = ledgerRows[index]
+
     return (
       row !== undefined &&
       row.id === entry.id &&
@@ -148,6 +150,7 @@ export function classifyControlLineage(client: Database.Database): ControlLineag
       row.hash === entry.hash
     )
   })
+
   if (!ledgerMatches) {
     return { kind: 'incompatible', reason: 'Migration ledger does not match legacy 471c10d' }
   }
@@ -161,11 +164,13 @@ export function classifyControlLineage(client: Database.Database): ControlLineag
   }
 
   const integrity = client.pragma('integrity_check', { simple: true }) as string
+
   if (integrity !== 'ok') {
     return { kind: 'incompatible', reason: `Database integrity check failed: ${integrity}` }
   }
 
   const foreignKeyViolations = client.prepare('PRAGMA foreign_key_check').all()
+
   if (foreignKeyViolations.length > 0) {
     return { kind: 'incompatible', reason: 'Foreign key violations are present' }
   }
@@ -179,6 +184,7 @@ function introspectSchema(client: Database.Database): IntrospectedSchema {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations' ORDER BY name",
     )
     .all() as Array<MasterRow>
+
   return {
     tables: tables.map((table) => ({
       name: table.name,
@@ -195,6 +201,7 @@ function introspectColumns(
   table: string,
 ): readonly IntrospectedColumn[] {
   const rows = client.prepare(`PRAGMA table_info('${table}')`).all() as Array<PragmaColumnRow>
+
   return rows.map((row) => ({
     name: row.name,
     type: (row.type ?? '').toUpperCase(),
@@ -206,12 +213,14 @@ function introspectColumns(
 
 function introspectIndexes(client: Database.Database, table: string): readonly IntrospectedIndex[] {
   const rows = client.prepare(`PRAGMA index_list('${table}')`).all() as Array<PragmaIndexRow>
+
   return rows
     .toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     .map((row) => {
       const columns = client
         .prepare(`PRAGMA index_info('${row.name}')`)
         .all() as Array<PragmaIndexInfoRow>
+
       return {
         name: row.name,
         unique: row.unique,
@@ -227,6 +236,7 @@ function introspectForeignKeys(
   const rows = client
     .prepare(`PRAGMA foreign_key_list('${table}')`)
     .all() as Array<PragmaForeignKeyRow>
+
   return rows
     .toSorted((a, b) => a.id - b.id)
     .map((row) => ({
@@ -245,6 +255,7 @@ function readObjectNames(client: Database.Database): readonly string[] {
       "SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations' ORDER BY name",
     )
     .all() as Array<MasterRow>
+
   return rows.map((row) => row.name)
 }
 
@@ -254,6 +265,7 @@ function readUserTables(client: Database.Database): readonly string[] {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations' ORDER BY name",
     )
     .all() as Array<MasterRow>
+
   return rows.map((row) => row.name)
 }
 
@@ -269,13 +281,16 @@ function readLedgerRows(client: Database.Database): readonly LedgerRow[] {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'",
     )
     .get() as MasterRow | undefined
+
   if (ledgerTable === undefined) return []
+
   return client
     .prepare('SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at, id')
     .all() as Array<LedgerRow>
 }
 
 const LEGACY_BASELINE_TAG = '0000_clammy_trish_tilby'
+
 const LEGACY_FINAL_TAG = '0015_normalize_legacy_public_dashboard'
 
 interface CopyTableProjection {
@@ -834,6 +849,7 @@ export interface BridgeLegacyControlDbInput {
 export function bridgeLegacyControlDb(input: BridgeLegacyControlDbInput): void {
   assertPlanCarriesCurrentLine(input.plan)
   const lineage = classifyControlLineage(input.source.$client)
+
   if (lineage.kind !== 'legacy-471c10d') {
     throw new ControlMigrationIncompatibilityError(
       lineage.kind === 'incompatible'
@@ -844,9 +860,11 @@ export function bridgeLegacyControlDb(input: BridgeLegacyControlDbInput): void {
 
   const snapshot = readLegacySnapshot(input.source.$client, LEGACY_COPY_PLAN)
   const workspace = createBridgeWorkspace(dbStorageLocation(input.source))
+
   try {
     materializeBaselineFolder(workspace, input.plan)
     const staged = createDb({ path: workspace.stagedPath })
+
     try {
       migrate(staged, {
         migrationsFolder: workspace.baselineFolder,
@@ -863,6 +881,7 @@ export function bridgeLegacyControlDb(input: BridgeLegacyControlDbInput): void {
     } finally {
       closeDb(staged)
     }
+
     installDbFromFile(input.source, workspace.stagedPath)
   } finally {
     rmSync(workspace.directory, { recursive: true, force: true })
@@ -880,6 +899,7 @@ function assertPlanCarriesCurrentLine(plan: CurrentMigrationPlan): void {
 function createBridgeWorkspace(location: ReturnType<typeof dbStorageLocation>): BridgeWorkspace {
   const parent = location.kind === 'file' ? dirname(location.path) : tmpdir()
   const directory = mkdtempSync(join(parent, 'legacy-bridge-'))
+
   return {
     directory,
     stagedPath: join(directory, 'staged-control.sqlite'),
@@ -917,20 +937,25 @@ function readLegacySnapshot(
 ): LegacySnapshot {
   const tables: LegacyTableSnapshot[] = []
   const digests = new Map<string, TableDigest>()
+
   for (const spec of copyPlan) {
     const primaryKeyIndices = readPrimaryKeyIndices(client, spec.table, spec.columns)
+
     const rows = client
       .prepare(
         `SELECT ${spec.columns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(spec.table)}`,
       )
       .raw()
       .all() as Array<unknown[]>
+
     if (spec.table === 'account') {
       validateAccountPreconditions(spec.columns, rows)
     }
+
     tables.push({ table: spec.table, columns: spec.columns, rows, primaryKeyIndices })
     digests.set(spec.table, computeDigest(rows, primaryKeyIndices, spec.projectedColumns))
   }
+
   return { tables, digests }
 }
 
@@ -943,21 +968,26 @@ function validateAccountPreconditions(
   const idIndex = columns.indexOf('id')
   const userIdIndex = columns.indexOf('user_id')
   const nullIssuerRows = rows.filter((row) => row[issuerIndex] === null)
+
   if (nullIssuerRows.length > 0) {
     throw new ControlMigrationIncompatibilityError(
       `Legacy table account has ${nullIssuerRows.length} row(s) with a null issuer column; issuer cannot be inferred safely. Sample (id, user_id) pairs: ${formatSamples(nullIssuerRows, idIndex, userIdIndex)}`,
     )
   }
+
   const seen = new Set<string>()
   const duplicateRows: unknown[][] = []
+
   for (const row of rows) {
     const key = `${serializeScalar(row[issuerIndex])}\u0000${serializeScalar(row[accountIdIndex])}`
+
     if (seen.has(key)) {
       duplicateRows.push(row)
     } else {
       seen.add(key)
     }
   }
+
   if (duplicateRows.length > 0) {
     throw new ControlMigrationIncompatibilityError(
       `Legacy table account has ${duplicateRows.length} duplicate (issuer, account_id) pairs. Sample (id, user_id) pairs: ${formatSamples(duplicateRows, idIndex, userIdIndex)}`,
@@ -981,18 +1011,23 @@ function readPrimaryKeyIndices(
     name: string
     pk: number
   }>
+
   const primaryKeyColumns = rows
     .filter((row) => row.pk > 0)
     .toSorted((a, b) => a.pk - b.pk)
     .map((row) => row.name)
+
   if (primaryKeyColumns.length === 0) {
     throw new Error(`Legacy table ${table} has no primary key`)
   }
+
   return primaryKeyColumns.map((name) => {
     const index = columns.indexOf(name)
+
     if (index === -1) {
       throw new Error(`Legacy table ${table} primary key column ${name} is not in the copy plan`)
     }
+
     return index
   })
 }
@@ -1003,10 +1038,12 @@ function resolveInsertOrder(
 ): readonly string[] {
   const tableSet = new Set(tables)
   const dependencies = new Map<string, ReadonlySet<string>>()
+
   for (const table of tables) {
     const foreignKeys = client.prepare(`PRAGMA foreign_key_list('${table}')`).all() as Array<{
       table: string
     }>
+
     dependencies.set(
       table,
       new Set(
@@ -1016,24 +1053,29 @@ function resolveInsertOrder(
       ),
     )
   }
+
   const ordered: string[] = []
   const remaining = new Set(tables)
+
   while (remaining.size > 0) {
     const ready = [...remaining]
       .filter((table) =>
         [...(dependencies.get(table) ?? [])].every((parent) => !remaining.has(parent)),
       )
       .sort()
+
     if (ready.length === 0) {
       throw new Error(
         `Unsupported foreign key cycle among legacy tables: ${[...remaining].sort().join(', ')}`,
       )
     }
+
     for (const table of ready) {
       ordered.push(table)
       remaining.delete(table)
     }
   }
+
   return ordered
 }
 
@@ -1044,42 +1086,54 @@ function copyLegacyData(
 ): void {
   const planByTable = new Map(copyPlan.map((spec) => [spec.table, spec]))
   const snapshotByTable = new Map(snapshot.tables.map((table) => [table.table, table]))
+
   const insertOrder = resolveInsertOrder(
     client,
     copyPlan.map((spec) => spec.table),
   )
+
   client.pragma('foreign_keys = OFF')
   client.exec('BEGIN')
+
   try {
     for (const table of insertOrder) {
       const spec = planByTable.get(table)
       const snapshotTable = snapshotByTable.get(table)
+
       if (spec === undefined || snapshotTable === undefined) {
         throw new Error(`Legacy copy plan is missing table ${table}`)
       }
+
       const insertColumns = [
         ...spec.columns,
         ...(spec.projectedColumns?.map((projection) => projection.column) ?? []),
       ]
+
       const statement = client.prepare(
         `INSERT INTO ${quoteIdentifier(table)} (${insertColumns.map(quoteIdentifier).join(', ')}) VALUES (${insertColumns.map(() => '?').join(', ')})`,
       )
+
       const projectionValues = spec.projectedColumns?.map((projection) => projection.value) ?? []
+
       for (const row of snapshotTable.rows) {
         statement.run(...row, ...projectionValues)
       }
     }
+
     const violations = client.prepare('PRAGMA foreign_key_check').all() as Array<{ table: string }>
+
     if (violations.length > 0) {
       throw new ControlMigrationIncompatibilityError(
         `Copied legacy data violates foreign keys on tables: ${[...new Set(violations.map((violation) => violation.table))].sort().join(', ')}`,
       )
     }
+
     client.exec('COMMIT')
   } catch (error) {
     try {
       client.exec('ROLLBACK')
     } catch {}
+
     throw error
   } finally {
     client.pragma('foreign_keys = ON')
@@ -1092,23 +1146,29 @@ function assertPreservation(
   copyPlan: readonly LegacyCopyTable[],
 ): void {
   const planByTable = new Map(copyPlan.map((spec) => [spec.table, spec]))
+
   for (const snapshotTable of snapshot.tables) {
     const spec = planByTable.get(snapshotTable.table)
+
     if (spec === undefined) {
       throw new Error(`Legacy copy plan is missing table ${snapshotTable.table}`)
     }
+
     const readColumns = [
       ...spec.columns,
       ...(spec.projectedColumns?.map((projection) => projection.column) ?? []),
     ]
+
     const rows = stagedClient
       .prepare(
         `SELECT ${readColumns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(snapshotTable.table)}`,
       )
       .raw()
       .all() as Array<unknown[]>
+
     const digest = computeDigest(rows, snapshotTable.primaryKeyIndices, undefined)
     const expected = snapshot.digests.get(snapshotTable.table)
+
     if (
       expected === undefined ||
       digest.count !== expected.count ||
@@ -1127,9 +1187,11 @@ function computeDigest(
   projections: readonly CopyTableProjection[] | undefined,
 ): TableDigest {
   const projectionValues = projections?.map((projection) => serializeScalar(projection.value)) ?? []
+
   const serializedRows = sortRowsByPrimaryKey(rows, primaryKeyIndices).map((row) =>
     [...row.map(serializeScalar), ...projectionValues].join('\u001f'),
   )
+
   return {
     count: rows.length,
     sha256: createHash('sha256').update(serializedRows.join('\u001e')).digest('hex'),
@@ -1143,27 +1205,36 @@ function sortRowsByPrimaryKey(
   return rows.toSorted((left, right) => {
     for (const index of primaryKeyIndices) {
       const result = compareScalars(left[index], right[index])
+
       if (result !== 0) return result
     }
+
     return 0
   })
 }
 
 function compareScalars(left: unknown, right: unknown): number {
   if (typeof left === 'number' && typeof right === 'number') return left - right
+
   if (typeof left === 'bigint' && typeof right === 'bigint') {
     return left < right ? -1 : left > right ? 1 : 0
   }
+
   const leftText = serializeScalar(left)
   const rightText = serializeScalar(right)
+
   return leftText < rightText ? -1 : leftText > rightText ? 1 : 0
 }
 
 function serializeScalar(value: unknown): string {
   if (value === null || value === undefined) return 'null'
+
   if (Buffer.isBuffer(value)) return `blob:${value.toString('hex')}`
+
   if (typeof value === 'number') return `num:${value}`
+
   if (typeof value === 'bigint') return `int:${value}`
+
   if (typeof value === 'string') return `str:${JSON.stringify(value)}`
   throw new Error(`Unsupported SQLite scalar type: ${typeof value}`)
 }
@@ -1172,13 +1243,16 @@ function validateStagedFinalState(client: Database.Database, plan: CurrentMigrat
   const ledger = client
     .prepare('SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at, id')
     .all() as Array<{ hash: string; created_at: number }>
+
   if (ledger.length !== plan.entries.length) {
     throw new ControlMigrationIncompatibilityError(
       'Staged database ledger does not match the current migration manifest',
     )
   }
+
   for (const [index, row] of ledger.entries()) {
     const expected = plan.entries[index]
+
     if (
       expected === undefined ||
       row.created_at !== expected.createdAt ||
@@ -1191,12 +1265,15 @@ function validateStagedFinalState(client: Database.Database, plan: CurrentMigrat
   }
 
   const integrity = client.pragma('integrity_check', { simple: true }) as string
+
   if (integrity !== 'ok') {
     throw new ControlMigrationIncompatibilityError(
       `Staged database integrity check failed: ${integrity}`,
     )
   }
+
   const foreignKeyViolations = client.prepare('PRAGMA foreign_key_check').all()
+
   if (foreignKeyViolations.length > 0) {
     throw new ControlMigrationIncompatibilityError('Staged database has foreign key violations')
   }
@@ -1204,8 +1281,10 @@ function validateStagedFinalState(client: Database.Database, plan: CurrentMigrat
   const tableRows = client
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
     .all() as Array<{ name: string }>
+
   const tables = new Set(tableRows.map((row) => row.name))
   const missing = BASE_SKELETON_TABLES.filter((table) => !tables.has(table))
+
   if (missing.length > 0) {
     throw new ControlMigrationIncompatibilityError(
       `Staged database is missing base skeleton tables: ${missing.join(', ')}`,

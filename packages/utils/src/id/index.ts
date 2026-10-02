@@ -1,10 +1,17 @@
 const DAY_IN_MILLISECONDS = 86_400_000
+
 const DAY_MODULUS = 65_536
+
 const TIME_FRAGMENT_BYTES = 2
+
 const ENTROPY_BYTES = 14
+
 const ENTROPY_POOL_SIZE = 65_536
+
 const ID_FRAGMENT_BYTES = TIME_FRAGMENT_BYTES + ENTROPY_BYTES
+
 const ID_FRAGMENT_LENGTH = Math.ceil((ID_FRAGMENT_BYTES * 8) / 5)
+
 const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567'
 
 export type EntityId<Prefix extends string> = `${Prefix}_${string}`
@@ -17,9 +24,11 @@ export interface IdGeneratorOptions {
 
 export function createIdGenerator(options: IdGeneratorOptions = {}) {
   const now = options.now ?? (() => Date.now())
+
   const getRandomValues =
     options.getRandomValues ??
     ((bytes: Uint8Array<ArrayBuffer>) => globalThis.crypto.getRandomValues(bytes))
+
   const entropyPool = new Uint8Array(ENTROPY_POOL_SIZE)
   let entropyOffset = ENTROPY_POOL_SIZE
 
@@ -28,6 +37,7 @@ export function createIdGenerator(options: IdGeneratorOptions = {}) {
 
     const timeFragment = getTimeFragment(now)
     const entropy = takeEntropy()
+
     return `${prefix}_${encodeIdFragment(timeFragment, entropy)}` as EntityId<Prefix>
 
     function takeEntropy(): Uint8Array {
@@ -38,6 +48,7 @@ export function createIdGenerator(options: IdGeneratorOptions = {}) {
 
       const entropy = entropyPool.subarray(entropyOffset, entropyOffset + ENTROPY_BYTES)
       entropyOffset += ENTROPY_BYTES
+
       return entropy
     }
   }
@@ -57,6 +68,7 @@ function validatePrefix(prefix: string): void {
 
 function getTimeFragment(now: () => number): number {
   const day = Math.floor(now() / DAY_IN_MILLISECONDS)
+
   return ((day % DAY_MODULUS) + DAY_MODULUS) % DAY_MODULUS
 }
 
@@ -68,6 +80,7 @@ function encodeIdFragment(timeFragment: number, entropy: Uint8Array): string {
   for (const byte of entropy) {
     buffer = (buffer << 8) | byte
     bits += 8
+
     while (bits >= 5) {
       bits -= 5
       encoded += BASE32_ALPHABET[(buffer >> bits) & 31]!

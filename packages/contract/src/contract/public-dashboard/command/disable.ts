@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SPublicDashboardSiteFields } from '../schema.ts'
 
 export const SPublicDashboardDisableInput = SPublicDashboardSiteFields
+
 export type SPublicDashboardDisableInput = v.InferOutput<typeof SPublicDashboardDisableInput>
+
 export const SPublicDashboardDisableOutput = v.void()
+
 export type SPublicDashboardDisableOutput = v.InferOutput<typeof SPublicDashboardDisableOutput>
 
 export const disablePublicDashboard = oc

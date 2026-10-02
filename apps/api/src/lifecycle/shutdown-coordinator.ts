@@ -19,6 +19,7 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
         closePromise = undefined
         throw error
       })
+
       return closePromise
     },
   }
@@ -26,6 +27,7 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
   async function closePending(): Promise<void> {
     const unresolved: ShutdownPhase[] = []
     const failures: ShutdownPhaseError[] = []
+
     for (const phase of pending) {
       try {
         await phase.close()
@@ -34,7 +36,9 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
         failures.push(new ShutdownPhaseError(phase.label, error))
       }
     }
+
     pending = unresolved
+
     if (failures.length > 0) {
       throw new AggregateError(failures, 'Lifecycle shutdown failed')
     }

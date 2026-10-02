@@ -12,15 +12,21 @@ import type { InstallationRepository } from './repository.ts'
 import type { UpgradeExecutor } from './service.ts'
 
 export class UpgradeIncompatibilityError extends Error {}
+
 export class InsufficientStorageError extends Error {}
+
 export class SafetyArtifactUnavailableError extends Error {}
+
 export class SafetyArtifactChecksumMismatchError extends Error {}
 
 export function classifyStorageExhausted(error: unknown): boolean {
   const code = (error as NodeJS.ErrnoException)?.code
+
   if (code === 'ENOSPC' || code === 'SQLITE_FULL') return true
+
   if (typeof code === 'string' && code.startsWith('SQLITE_IOERR')) return true
   const message = error instanceof Error ? error.message : String(error)
+
   return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)
 }
 
@@ -64,18 +70,24 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     assertSafeOperationId(input.operationId)
     const storageKey = `safety/${input.operationId}.sqlite`
     const artifactPath = join(this.dataDirectoryPath, storageKey)
+
     try {
       const dataDirectory = await stat(this.dataDirectoryPath)
+
       if (!dataDirectory.isDirectory()) {
         throw new Error('Configured data directory is not ready')
       }
+
       await mkdir(dirname(artifactPath), { recursive: true })
       await this.db.$client.backup(artifactPath)
       const artifactStats = await stat(artifactPath)
+
       if (!artifactStats.isFile() || artifactStats.size === 0) {
         throw new InsufficientStorageError('SQLite safety artifact is empty')
       }
+
       const contents = await readFile(artifactPath)
+
       return {
         id: input.artifactId,
         generationId: input.operationId,
@@ -87,11 +99,13 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
       }
     } catch (error) {
       if (error instanceof InsufficientStorageError) throw error
+
       if (classifyStorageExhausted(error)) {
         throw new InsufficientStorageError('SQLite safety artifact storage failed', {
           cause: error,
         })
       }
+
       throw error
     }
   }
@@ -103,15 +117,20 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
       if (error instanceof ControlMigrationIncompatibilityError) {
         throw new UpgradeIncompatibilityError(error.message, { cause: error })
       }
+
       const message = error instanceof Error ? error.message : String(error)
+
       if (/incompatible|newer|unsupported|schema version/i.test(message)) {
         throw new UpgradeIncompatibilityError(message, { cause: error })
       }
+
       if (classifyStorageExhausted(error)) {
         throw new InsufficientStorageError(message, { cause: error })
       }
+
       throw error
     }
+
     void input
   }
 
@@ -126,6 +145,7 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     assertSafeOperationId(input.operationId)
     const artifactPath = join(this.dataDirectoryPath, input.artifact.storageKey)
     let artifactStats: Awaited<ReturnType<typeof stat>>
+
     try {
       artifactStats = await stat(artifactPath)
     } catch (error) {
@@ -135,21 +155,26 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
           { cause: error },
         )
       }
+
       throw error
     }
+
     if (!artifactStats.isFile() || artifactStats.size !== input.artifact.sizeBytes) {
       throw new SafetyArtifactChecksumMismatchError(
         `SQLite safety artifact is unavailable for ${input.operationId}`,
       )
     }
+
     const checksum = createHash('sha256')
       .update(await readFile(artifactPath))
       .digest('hex')
+
     if (checksum !== input.artifact.checksumValue) {
       throw new SafetyArtifactChecksumMismatchError(
         `SQLite safety artifact checksum mismatch for ${input.operationId}`,
       )
     }
+
     await restoreDbFromBackup({
       backupPath: artifactPath,
       destinationPath: this.controlDatabasePath,

@@ -44,19 +44,24 @@ export function evaluateRetention(
 ): readonly CohortReportPeriod[] {
   const identityForPeriod = input.identityForPeriod ?? (() => input.identity)
   const periods = input.period.sequence ?? [input.period.period]
+
   const orderedEntries = periods
     .flatMap((period) => {
       const periodIdentity = identityForPeriod(period)
+
       const membershipSessions = eligibleSessions({
         snapshot: input.snapshot,
         period: input.period.period,
         identity: periodIdentity,
         filters: input.filters,
       })
+
       const membershipSessionIds = new Set(membershipSessions.map((session) => session.sessionId))
+
       const membershipSessionsById = new Map(
         membershipSessions.map((session) => [session.sessionId, session]),
       )
+
       const entryAction = (input.definitionForPeriod?.(period) ?? input.definition).entryAction
 
       return input.snapshot.events
@@ -68,10 +73,12 @@ export function evaluateRetention(
         .filter((event) => {
           const session =
             event.sessionId === null ? undefined : membershipSessionsById.get(event.sessionId)
+
           return session !== undefined && eventBelongsToSession(event, session, periodIdentity)
         })
         .flatMap((event) => {
           const subject = periodIdentity.subjectOfEvent(event)
+
           return subject === null
             ? []
             : [
@@ -84,7 +91,9 @@ export function evaluateRetention(
         })
     })
     .toSorted((left, right) => compareEvents(left.event, right.event))
+
   const entries = new Map<string, CohortEntry>()
+
   for (const entry of orderedEntries) {
     if (!entries.has(entry.key)) {
       entries.set(entry.key, entry)
@@ -93,12 +102,17 @@ export function evaluateRetention(
 
   return periods.map((period, index) => {
     const periodIdentity = identityForPeriod(period)
+
     const retentionSessions = input.snapshot.sessions.filter((session) => {
       if (session.endedAt === null || !periodIdentity.sessionIsEligible(session)) return false
+
       if (!sessionInPeriod(session, period)) return false
+
       return true
     })
+
     const retained = new Set<string>()
+
     for (const entry of entries.values()) {
       const matched = retentionSessions.some((session) =>
         eventsForSession(input.snapshot.events, session).some(
@@ -113,8 +127,10 @@ export function evaluateRetention(
             ),
         ),
       )
+
       if (matched) retained.add(entry.key)
     }
+
     return {
       index,
       fromDate: String(period.dates.fromDate),
@@ -145,6 +161,7 @@ function compareEvents(
   right: Parameters<typeof eventInPeriod>[0],
 ): number {
   const time = left.occurrenceTime.getTime() - right.occurrenceTime.getTime()
+
   return time === 0 ? left.eventId.localeCompare(right.eventId) : time
 }
 

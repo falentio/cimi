@@ -9,9 +9,13 @@ import type {
 import type { InferOutput } from 'valibot'
 
 export type IdentityProfile = SProfileGetOutput
+
 export type IdentityProfileList = SProfileListOutput
+
 export type IdentityDeletionStatus = SDeletionStatusOutput
+
 export type ActiveIdentityProfile = Extract<IdentityProfile, { status: 'active' }>
+
 export type IdentityProfileEpoch = ActiveIdentityProfile['identityHistory'][number]
 
 export interface IdentityProfileRepository {

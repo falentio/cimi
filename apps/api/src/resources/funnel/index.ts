@@ -8,11 +8,14 @@ import { FunnelRepositoryDrizzle } from './repository.drizzle.ts'
 import { FunnelService } from './service.ts'
 
 export { funnelRouter }
+
 export { FunnelService, type FunnelServiceDependencies } from './service.ts'
+
 export {
   FunnelRepositoryDrizzle,
   type FunnelRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { FunnelRepository } from './repository.ts'
 
 export interface CreateFunnelDependencies {
@@ -37,6 +40,7 @@ export function createFunnel({
   ids,
 }: CreateFunnelDependencies) {
   const repository = new FunnelRepositoryDrizzle({ db })
+
   const service = new FunnelService({
     repository,
     analytics,
@@ -48,6 +52,7 @@ export function createFunnel({
     ...(clock === undefined ? {} : { clock }),
     ...(ids === undefined ? {} : { ids }),
   })
+
   return { repository, service, router: funnelRouter(service) }
 }
 

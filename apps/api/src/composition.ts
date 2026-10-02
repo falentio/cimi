@@ -127,12 +127,15 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
   const hello = createHello({ db: deps.db })
   const authority = createOrganizationAuthority(deps.auth)
   const membership = createMembership({ db: deps.db, authority })
+
   const organization = createOrganization({
     db: deps.db,
     authority,
     membership: membership.service,
   })
+
   const lock = deps.lock ?? getLifecycleLock(deps.db)
+
   const installation = createInstallation({
     db: deps.db,
     analytics: deps.analytics,
@@ -144,18 +147,22 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     ...(deps.migrationsFolder === undefined ? {} : { migrationsFolder: deps.migrationsFolder }),
     ...(deps.upgradeExecutor === undefined ? {} : { upgradeExecutor: deps.upgradeExecutor }),
   })
+
   const site = createSite({
     db: deps.db,
     lock,
     lifecycle: installation.service,
     membership: membership.service,
   })
+
   const siteLifecycleWorker = createSiteLifecycleWorker({
     db: deps.db,
     lock,
     onPurgedSite: ({ siteId }) => deps.analytics.purgeSite({ siteId }),
   })
+
   const invitation = createInvitation({ db: deps.db, authority, membership: membership.service })
+
   const retentionPolicy = createRetentionPolicy({
     db: deps.db,
     lock,
@@ -164,15 +171,19 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
       ? {}
       : { intervalMs: deps.retentionCleanupIntervalMs }),
   })
+
   const collectionPolicy = createCollectionPolicy({
     db: deps.db,
     lock,
     lifecycle: installation.service,
   })
+
   const eventIngestionProtection =
     deps.eventIngestionProtection ??
     new InMemoryIngestionProtection(deps.eventIngestionProtectionThresholds)
+
   const identityProjectionDebt = createIdentityProjectionDebt({ db: deps.db })
+
   const eventIngestion = createEventIngestion({
     db: deps.db,
     collectionPolicy: collectionPolicy.service,
@@ -185,6 +196,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
       countryResolver: deps.eventIngestionCountryResolver,
     },
   })
+
   const identityProfile = createIdentityProfile({
     db: deps.db,
     collectionPolicy: collectionPolicy.service,
@@ -197,11 +209,14 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
       countryResolver: deps.eventIngestionCountryResolver,
     },
   })
+
   const upgradeAcceptance =
     deps.acceptance === undefined
       ? eventIngestion.coalescer
       : combineAcceptanceQuiescence(eventIngestion.coalescer, deps.acceptance)
+
   installation.service.setAcceptanceQuiescence(upgradeAcceptance)
+
   const retentionCleanup = new AcceptanceRetentionCleanup({
     acceptance: eventIngestion.acceptanceRepository,
     analytics: deps.analytics,
@@ -209,10 +224,12 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     dataDirectoryPath: deps.dataDirectoryPath,
     identityDebt: identityProjectionDebt,
   })
+
   retentionPolicy.worker.setCleanupPort(
     deps.wrapRetentionCleanup?.(retentionCleanup) ?? retentionCleanup,
   )
   let retentionCleanupStartup = Promise.resolve()
+
   const backupRestore = createBackupRestore({
     db: deps.db,
     analytics: deps.analytics,
@@ -229,11 +246,13 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     dataDirectoryPath: deps.dataDirectoryPath,
     ...(deps.migrationsFolder === undefined ? {} : { migrationsFolder: deps.migrationsFolder }),
   })
+
   const lifecycle: HealthLifecycle = {
     async getSnapshot() {
       const installationSnapshot = deps.lifecycle
         ? await deps.lifecycle.getSnapshot()
         : ((await installation.service.snapshotForHealth()) ?? {})
+
       const backupSnapshot: BackupRestoreHealthSnapshot = await backupRestore.service
         .getSnapshot()
         .catch((error: unknown) => {
@@ -243,14 +262,18 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
             stage: 'snapshot',
             error,
           })
+
           return { admissionMode: 'normal' }
         })
+
       const existingAdmissionMode =
         'admissionMode' in installationSnapshot ? installationSnapshot.admissionMode : undefined
+
       const admissionMode =
         backupSnapshot.admissionMode === 'normal'
           ? existingAdmissionMode
           : backupSnapshot.admissionMode
+
       return {
         ...installationSnapshot,
         ...(admissionMode === undefined ? {} : { admissionMode }),
@@ -258,9 +281,11 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
       }
     },
   }
+
   const reportingProfileFilter = new CollectionPolicyReportingProfileFilter({
     collectionPolicy: collectionPolicy.service,
   })
+
   const trafficReport = createTrafficReport({
     db: deps.db,
     analytics: deps.analytics,
@@ -269,6 +294,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     profileFilterKeys: reportingProfileFilter,
     lifecycleLock: lock,
   })
+
   const eventReport = createEventReport({
     db: deps.db,
     analytics: deps.analytics,
@@ -277,19 +303,23 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     profileFilterKeys: reportingProfileFilter,
     lifecycleLock: lock,
   })
+
   const publicDashboardQuery = new DuckDbPublicDashboardQuery({ analytics: deps.analytics })
+
   const publicDashboard = createPublicDashboard({
     db: deps.db,
     lock,
     admission: trafficReport.admission,
     query: publicDashboardQuery,
   })
+
   const reportQuery = createReportQueryKernelFromInfrastructure({
     db: deps.db,
     analytics: deps.analytics,
     admission: trafficReport.admission,
     lifecycleLock: lock,
   })
+
   const goal = createGoal({
     db: deps.db,
     analytics: deps.analytics,
@@ -297,6 +327,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lifecycleLock: lock,
     query: reportQuery,
   })
+
   const funnel = createFunnel({
     db: deps.db,
     analytics: deps.analytics,
@@ -304,6 +335,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lifecycleLock: lock,
     query: reportQuery,
   })
+
   const cohort = createCohort({
     db: deps.db,
     analytics: deps.analytics,
@@ -311,6 +343,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     lifecycleLock: lock,
     query: reportQuery,
   })
+
   const router = createApiRouter({
     deps,
     lifecycle,
@@ -332,16 +365,21 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     eventReport,
     publicDashboard,
   })
+
   siteLifecycleWorker.start()
   const siteLifecycleStartup = siteLifecycleWorker.runOnce()
+
   const installationStartup = installation.service.resumeOnStartup().catch((error: unknown) => {
     reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
+
     return undefined
   })
+
   if (deps.startRetentionCleanupWorker !== false) {
     retentionPolicy.worker.start()
     retentionCleanupStartup = retentionPolicy.worker.runOnce()
   }
+
   const backupRestoreStartup = installationStartup
     .then(() => backupRestore.service.start())
     .catch((error: unknown) => {
@@ -351,11 +389,14 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
         stage: 'startup',
         error,
       })
+
       return undefined
     })
+
   backupRestore.worker.start()
   const backupCleanupStartup = backupRestore.worker.runOnce()
   const startupShutdownBarrier = Promise.allSettled([installationStartup, backupRestoreStartup])
+
   const ready = Promise.all([
     siteLifecycleStartup,
     installationStartup,
@@ -363,7 +404,9 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     backupRestoreStartup,
     backupCleanupStartup,
   ]).then(() => undefined)
+
   void ready.catch(() => undefined)
+
   const shutdown = createShutdownCoordinator([
     {
       label: 'retention cleanup worker',
@@ -413,6 +456,7 @@ function createBackupRestoreCleanup(
     db: deps.db,
     dataDirectoryPath: deps.dataDirectoryPath,
   })
+
   return deps.wrapBackupRestoreCleanup?.(cleanup) ?? cleanup
 }
 
@@ -453,6 +497,7 @@ function combineAcceptanceQuiescence(
     },
     async drain() {
       const [first, second] = await Promise.all([primary.drain(), secondary.drain()])
+
       return { lastSafeSequence: Math.max(first.lastSafeSequence, second.lastSafeSequence) }
     },
     async resumeAdmission() {
@@ -463,8 +508,10 @@ function combineAcceptanceQuiescence(
 
 function getLifecycleLock(db: Db): LifecycleLock {
   const existing = defaultLifecycleLocks.get(db)
+
   if (existing !== undefined) return existing
   const lock = new InMemoryLifecycleLock()
   defaultLifecycleLocks.set(db, lock)
+
   return lock
 }

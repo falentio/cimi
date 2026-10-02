@@ -1,7 +1,9 @@
 import type { RetentionManifest } from './retention-manifest.ts'
 
 export type BackupOperationType = 'backup' | 'restore'
+
 export type BackupOperationStatus = 'creating' | 'available' | 'restoring' | 'failed'
+
 export type BackupOperationPhase =
   | 'capturing_sqlite'
   | 'restoring_sqlite'
@@ -9,18 +11,21 @@ export type BackupOperationPhase =
   | 'cleanup_pending'
   | 'ready'
   | 'failed'
+
 export type BackupOperationCheckpoint =
   | 'none'
   | 'sqlite_captured'
   | 'sqlite_restored'
   | 'duckdb_rebuilt'
   | 'structurally_ready'
+
 export type BackupErrorCode =
   | 'BACKUP_FAILED'
   | 'INCOMPATIBLE_BACKUP'
   | 'INSUFFICIENT_STORAGE'
   | 'CONFLICT'
   | 'INTERNAL_SERVER_ERROR'
+
 export type CleanupStageStatus =
   | 'not_applicable'
   | 'not_started'

@@ -8,6 +8,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number): number {
@@ -67,6 +68,7 @@ async function projectedIdentifiedUserId(
       'SELECT identified_user_id AS identifiedUserId FROM events WHERE site_id = ?',
       [siteId],
     )
+
     return rows[0]?.['identifiedUserId']
   })
 }
@@ -74,11 +76,13 @@ async function projectedIdentifiedUserId(
 describe('EventReportService.redactedProfileProjection', () => {
   it('projects an identified event, then excludes a redacted profile while retaining the event as anonymous activity', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'redacted-profile@example.com',
     )
+
     seedAcceptedEvents(fixture.db, siteId, [
       {
         sessionId: 's1',

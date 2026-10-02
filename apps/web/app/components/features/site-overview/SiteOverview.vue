@@ -43,12 +43,14 @@ import {
 } from './site-overview-filters'
 
 const route = useRoute()
+
 const router = useRouter()
 
 /** Search param key holding the active metric, e.g. `?metric=visitors`. */
 const METRIC_PARAM = 'metric'
 
 const selectedMetricIds = shallowRef<readonly OverviewMetricId[]>([])
+
 const activeFilters = shallowRef<readonly OverviewFilter[]>([])
 
 function handleMetricToggle(id: OverviewMetricId): void {
@@ -56,6 +58,7 @@ function handleMetricToggle(id: OverviewMetricId): void {
   selectedMetricIds.value = next
 
   const query = { ...route.query }
+
   if (next.length === 0) {
     delete query[METRIC_PARAM]
   } else {
@@ -288,6 +291,7 @@ function isOverviewMetricId(value: unknown): value is OverviewMetricId {
 function readMetricParam(): OverviewMetricId[] {
   const value = route.query[METRIC_PARAM]
   const id = Array.isArray(value) ? value.at(0) : value
+
   return isOverviewMetricId(id) ? [id] : []
 }
 
@@ -629,20 +633,25 @@ const overviewFixture: OverviewFixture = {
 type OverviewViewState = 'loading' | 'error' | 'empty' | 'ready'
 
 const selectedRange = shallowRef<OverviewRange>('30d')
+
 const activeBreakdownTabs = shallowRef<Readonly<Record<BreakdownId, BreakdownTabId>>>({
   pages: 'pages',
   referrers: 'referrers',
   countries: 'countries',
   devices: 'devices',
 })
+
 const statusText = shallowRef('Updated 12 minutes ago')
+
 const isLoading = shallowRef(false)
+
 const fixtureError = shallowRef<string | null>(null)
 
 const selectedRangeLabel = computed(
   () =>
     rangeOptions.find((range) => range.value === selectedRange.value)?.label ?? 'Selected period',
 )
+
 /** The metric the chart follows: the selected one, or the fixture default. */
 const activeMetric = computed(
   () =>
@@ -650,14 +659,17 @@ const activeMetric = computed(
     overviewFixture.metrics.find((metric) => metric.id === overviewFixture.defaultMetricId) ??
     overviewFixture.metrics[0]!,
 )
+
 const activeTrend = computed<OverviewTrend>(() => ({
   labels: overviewFixture.rangeLabels[selectedRange.value],
   dates: overviewFixture.rangeDates[selectedRange.value],
   ...activeMetric.value.trends[selectedRange.value],
 }))
+
 const visibleBreakdowns = computed<readonly VisibleBreakdownSection[]>(() =>
   overviewFixture.breakdowns.map((section) => {
     const activeTab = activeBreakdownTabs.value[section.id] ?? section.activeTab
+
     return {
       ...section,
       activeTab,
@@ -665,11 +677,15 @@ const visibleBreakdowns = computed<readonly VisibleBreakdownSection[]>(() =>
     }
   }),
 )
+
 const viewState = computed<OverviewViewState>(() => {
   if (isLoading.value) return 'loading'
+
   if (fixtureError.value !== null) return 'error'
+
   if (overviewFixture.metrics.length === 0 || overviewFixture.breakdowns.length === 0)
     return 'empty'
+
   return 'ready'
 })
 
@@ -686,6 +702,7 @@ function handleBreakdownTabChange(payload: {
   tabId: BreakdownTabId
 }): void {
   const section = overviewFixture.breakdowns.find((item) => item.id === payload.sectionId)
+
   if (section === undefined || !section.tabs.some((tab) => tab.id === payload.tabId)) return
 
   activeBreakdownTabs.value = {
@@ -696,6 +713,7 @@ function handleBreakdownTabChange(payload: {
 
 function filterCountLabel(filters: readonly OverviewFilter[]): string {
   const count = filters.reduce((total, filter) => total + filter.values.length, 0)
+
   return `${count} active filter${count === 1 ? '' : 's'}`
 }
 

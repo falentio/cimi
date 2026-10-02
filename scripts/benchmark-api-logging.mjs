@@ -2,9 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 const DEFAULT_URL = 'http://localhost:3000/api/system/health'
+
 const DEFAULT_REQUESTS = 100
+
 const DEFAULT_SAMPLES = 5
+
 const DEFAULT_MAX_P95_INCREASE_PERCENT = 10
+
 const SUPPORTED_OPTIONS = new Set([
   'url',
   'requests',
@@ -15,13 +19,19 @@ const SUPPORTED_OPTIONS = new Set([
   'records-file',
   'required-records',
 ])
+
 const BOOLEAN_OPTIONS = new Set(['required-records'])
 
 const options = parseOptions(process.argv.slice(2))
+
 const benchmarkPrefix = `benchmark-${randomUUID()}`
+
 const measuredSamples = []
+
 const measuredRequestIds = []
+
 const warmupRequestPrefixes = []
+
 for (let sample = 0; sample < options.samples; sample += 1) {
   if (options.warmupRequests > 0) {
     const warmupRequestPrefix = `${benchmarkPrefix}-warmup-${sample}`
@@ -32,35 +42,47 @@ for (let sample = 0; sample < options.samples; sample += 1) {
       requestIdPrefix: warmupRequestPrefix,
     })
   }
+
   const measuredRequestPrefix = `${benchmarkPrefix}-measured-${sample}`
+
   const measuredSample = await runBenchmark({
     url: options.url,
     requests: options.requests,
     requestIdPrefix: measuredRequestPrefix,
   })
+
   measuredSamples.push(measuredSample)
   measuredRequestIds.push(...measuredSample.map(({ requestId }) => requestId))
 }
+
 const samples = measuredSamples.flat()
+
 const durations = samples.map(({ durationMs }) => durationMs).sort((a, b) => a - b)
+
 const statusCounts = Object.groupBy(samples, ({ status }) => String(status))
+
 const statusFailures = summarizeStatusFailures(samples)
+
 const p95MsBySample = measuredSamples.map((sample) => {
   const durations = sample.map(({ durationMs }) => durationMs).sort((a, b) => a - b)
+
   return percentile(durations, 0.95)
 })
+
 const p95Ms = round(
   percentile(
     [...p95MsBySample].sort((a, b) => a - b),
     0.5,
   ),
 )
+
 const recordCapture = await verifyRecords({
   path: options.recordsFile,
   required: options.requiredRecords,
   requestIds: measuredRequestIds,
   ignoredRequestIdPrefixes: warmupRequestPrefixes,
 })
+
 const result = {
   url: options.url.href,
   requests: options.requests,
@@ -88,6 +110,7 @@ const result = {
 }
 
 console.log(JSON.stringify(result))
+
 if (
   statusFailures.count > 0 ||
   result.performanceGate?.passed === false ||
@@ -98,14 +121,17 @@ if (
 
 function parseOptions(args) {
   const values = new Map()
+
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
+
     if (!argument.startsWith('--')) throw new Error(`Unknown argument: ${argument}`)
 
     const option = argument.slice(2)
     const separator = option.indexOf('=')
     const name = separator === -1 ? option : option.slice(0, separator)
     const inlineValue = separator === -1 ? undefined : option.slice(separator + 1)
+
     if (!SUPPORTED_OPTIONS.has(name)) throw new Error(`Unknown option: --${name}`)
 
     if (BOOLEAN_OPTIONS.has(name) && inlineValue === undefined) {
@@ -114,28 +140,34 @@ function parseOptions(args) {
     }
 
     const value = inlineValue ?? args[++index]
+
     if (value === undefined || value.startsWith('--')) {
       throw new Error(`Missing value for --${name}`)
     }
+
     values.set(name, value)
   }
 
   const url = new URL(values.get('url') ?? DEFAULT_URL)
+
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error(`Expected an HTTP(S) URL, received ${url.href}`)
   }
 
   const requests = optionNumber(values, 'requests', DEFAULT_REQUESTS)
+
   if (!Number.isInteger(requests) || requests < 1) {
     throw new Error(`Expected --requests to be a positive integer, received ${requests}`)
   }
 
   const samples = optionNumber(values, 'samples', DEFAULT_SAMPLES)
+
   if (!Number.isInteger(samples) || samples < 1) {
     throw new Error(`Expected --samples to be a positive integer, received ${samples}`)
   }
 
   const warmupRequests = optionNumber(values, 'warmup-requests', 0)
+
   if (!Number.isInteger(warmupRequests) || warmupRequests < 0) {
     throw new Error(
       `Expected --warmup-requests to be a non-negative integer, received ${warmupRequests}`,
@@ -143,11 +175,13 @@ function parseOptions(args) {
   }
 
   const baselineP95Ms = optionalNumber(values.get('baseline-p95-ms'))
+
   const maxP95IncreasePercent = optionNumber(
     values,
     'max-p95-increase-percent',
     DEFAULT_MAX_P95_INCREASE_PERCENT,
   )
+
   if (!Number.isFinite(maxP95IncreasePercent) || maxP95IncreasePercent < 0) {
     throw new Error(
       `Expected --max-p95-increase-percent to be a non-negative number, received ${maxP95IncreasePercent}`,
@@ -156,11 +190,13 @@ function parseOptions(args) {
 
   const requiredRecords = values.get('required-records') === 'true'
   const requiredRecordsValue = values.get('required-records')
+
   if (requiredRecordsValue !== undefined && !['true', 'false'].includes(requiredRecordsValue)) {
     throw new Error(
       `Expected --required-records to be true or false, received ${requiredRecordsValue}`,
     )
   }
+
   const recordsFile = values.get('records-file')
 
   return {
@@ -177,13 +213,16 @@ function parseOptions(args) {
 
 async function runBenchmark({ url, requests, requestIdPrefix }) {
   const samples = []
+
   for (let request = 0; request < requests; request += 1) {
     const requestId = `${requestIdPrefix}-${request}`
     const startedAt = performance.now()
+
     const response = await fetch(url, {
       headers: { 'x-request-id': requestId },
       signal: AbortSignal.timeout(30_000),
     })
+
     await response.arrayBuffer()
     samples.push({
       durationMs: performance.now() - startedAt,
@@ -191,6 +230,7 @@ async function runBenchmark({ url, requests, requestIdPrefix }) {
       requestId,
     })
   }
+
   return samples
 }
 
@@ -212,6 +252,7 @@ async function verifyRecords({ path, required, requestIds, ignoredRequestIdPrefi
   }
 
   let content
+
   try {
     content = await readFile(path, 'utf8')
   } catch (error) {
@@ -230,10 +271,13 @@ async function verifyRecords({ path, required, requestIds, ignoredRequestIdPrefi
 
   const parsedRecords = []
   const malformedRecords = []
+
   for (const [index, line] of content.split(/\r?\n/).entries()) {
     if (line.trim() === '') continue
+
     try {
       const record = JSON.parse(line)
+
       if (typeof record !== 'object' || record === null || Array.isArray(record)) {
         malformedRecords.push({ line: index + 1, reason: 'record is not an object' })
       } else {
@@ -248,20 +292,25 @@ async function verifyRecords({ path, required, requestIds, ignoredRequestIdPrefi
   const expectedRequestIds = new Set(requestIds)
   const unexpectedRequestIds = new Set()
   let httpRecords = 0
+
   for (const { line, record } of parsedRecords) {
     if (record.logger !== 'cimi.api.http') continue
     httpRecords += 1
     const requestId = record.properties?.requestId
+
     if (typeof requestId !== 'string') {
       malformedRecords.push({ line, reason: 'HTTP record has no request ID' })
       continue
     }
+
     if (ignoredRequestIdPrefixes.some((prefix) => requestId.startsWith(`${prefix}-`))) continue
     requestIdCounts.set(requestId, (requestIdCounts.get(requestId) ?? 0) + 1)
+
     if (!expectedRequestIds.has(requestId)) unexpectedRequestIds.add(requestId)
   }
 
   const missingRequestIds = requestIds.filter((requestId) => !requestIdCounts.has(requestId))
+
   const duplicateRequestIds = [...requestIdCounts.entries()]
     .filter(([, count]) => count > 1)
     .map(([requestId, count]) => ({ requestId, count }))
@@ -289,12 +338,15 @@ function safeErrorMessage(error) {
 
 function optionNumber(values, name, fallback) {
   const value = values.get(name)
+
   if (value === '') throw new Error(`Expected --${name} to have a value`)
+
   return Number(value ?? fallback)
 }
 
 function percentile(sortedValues, quantile) {
   const index = Math.min(sortedValues.length - 1, Math.ceil(sortedValues.length * quantile) - 1)
+
   return sortedValues[index]
 }
 
@@ -305,6 +357,7 @@ function round(value) {
 function summarizeStatusFailures(samples) {
   const failures = samples.filter(({ status }) => status < 200 || status >= 300)
   const byStatus = Object.groupBy(failures, ({ status }) => String(status))
+
   return {
     count: failures.length,
     byStatus: Object.fromEntries(
@@ -315,17 +368,21 @@ function summarizeStatusFailures(samples) {
 
 function optionalNumber(value) {
   if (value === undefined) return undefined
+
   if (value === '') throw new Error('Expected a positive number, received an empty value')
   const parsed = Number(value)
+
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`Expected a positive number, received ${value}`)
   }
+
   return parsed
 }
 
 function evaluateP95Gate({ baselineP95Ms, maxIncreasePercent, p95Ms, statusFailures }) {
   const allowedP95Ms = round(baselineP95Ms * (1 + maxIncreasePercent / 100))
   const increasePercent = round(((p95Ms - baselineP95Ms) / baselineP95Ms) * 100)
+
   return {
     baselineP95Ms,
     maxIncreasePercent,

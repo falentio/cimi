@@ -97,6 +97,7 @@ export interface OperationFailureLogEvent extends LogOperationContext {
 }
 
 export type HealthOperation = 'admission' | 'store-probe' | 'lifecycle' | 'backup-snapshot'
+
 export type HealthStage =
   | 'fallback'
   | 'control-store'
@@ -140,12 +141,14 @@ export function createLoggingConfiguration(
 
 export function configureBrowserLogging(logging?: LoggingConfig): void {
   const lowestLevel = logging?.lowestLevel ?? DEFAULT_LOG_LEVEL
+
   if (configuredBrowserLevel !== undefined && getConfig() !== null) {
     if (configuredBrowserLevel !== lowestLevel) {
       throw new Error(
         `Browser logging is already configured at ${configuredBrowserLevel}, cannot change it to ${lowestLevel}`,
       )
     }
+
     return
   }
 
@@ -159,6 +162,7 @@ export function withLogContext<T>(context: LogContext, callback: () => T): T {
 
 export function normalizeRequestId(value: string): string | null {
   const normalized = safeField(value).trim()
+
   return normalized === '' ? null : normalized
 }
 
@@ -170,15 +174,19 @@ export function reportLogEvent(event: LogEvent): void {
     switch (event.kind) {
       case 'api.http':
         logger.info('API request', properties)
+
         return
       case 'api.error':
         logAt(logger, apiErrorSeverity(event.status), 'API request failed', properties)
+
         return
       case 'operation.failure':
         logger.error('Operation failed', properties)
+
         return
       case 'health.failure':
         logger.error('Health fallback failed', properties)
+
         return
     }
   } catch {
@@ -188,7 +196,9 @@ export function reportLogEvent(event: LogEvent): void {
 
 export function apiErrorSeverity(status: number): ApiErrorSeverity {
   if (status === 401 || status === 404 || status === 409) return 'info'
+
   if (status >= 400 && status < 500) return 'warning'
+
   return 'error'
 }
 
@@ -210,6 +220,7 @@ export function toLogProperties(event: LogEvent): Record<string, unknown> {
           ? {}
           : (() => {
               const referrer = safeUrl(event.referrer)
+
               return referrer === undefined ? {} : { referrer }
             })()),
       }
@@ -307,12 +318,15 @@ function logAt(
   switch (severity) {
     case 'info':
       logger.info(message, properties)
+
       return
     case 'warning':
       logger.warning(message, properties)
+
       return
     case 'error':
       logger.error(message, properties)
+
       return
   }
 }
@@ -340,6 +354,7 @@ function safeStack(value: string): string {
 
 function safeMethod(value: string): string {
   const method = normalizeControlCharacters(value.slice(0, 32)).trim().toUpperCase()
+
   return ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'].includes(method)
     ? method
     : 'UNKNOWN'
@@ -347,6 +362,7 @@ function safeMethod(value: string): string {
 
 function safePath(value: string): string {
   const normalized = normalizeControlCharacters(value.slice(0, 1024)).slice(0, 1024)
+
   try {
     return new URL(normalized, 'http://localhost').pathname.slice(0, 256) || '/'
   } catch {
@@ -357,8 +373,10 @@ function safePath(value: string): string {
 function safeUrl(value: string): string | undefined {
   if (value.length > 1024 && value.slice(1024).includes('@')) return undefined
   const normalized = normalizeControlCharacters(value.slice(0, 1024)).slice(0, 1024)
+
   try {
     const url = new URL(normalized)
+
     return `${url.origin}${url.pathname}`.slice(0, 256)
   } catch {
     return undefined
@@ -375,6 +393,7 @@ function safeDuration(value: number): number {
 
 function safeContentLength(value: string): string | undefined {
   const normalized = normalizeControlCharacters(value.slice(0, 32)).trim()
+
   return /^\d+$/.test(normalized) ? normalized.slice(0, 20) : undefined
 }
 
@@ -388,6 +407,7 @@ function safeBatchSize(value: number): number {
 
 function normalizeControlCharacters(value: string): string {
   let normalized = ''
+
   for (let index = 0; index < value.length; index += 1) {
     const character = value[index]
     const code = character?.charCodeAt(0) ?? 0
@@ -396,6 +416,7 @@ function normalizeControlCharacters(value: string): string {
         ? ' '
         : character
   }
+
   return normalized
 }
 

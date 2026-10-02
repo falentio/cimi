@@ -30,6 +30,7 @@ describe('collection policy resolution', () => {
 
   it('uses the Site layer and records field provenance', () => {
     const site = policyWith({ consentMode: 'required_for_all', captureQueryStrings: true })
+
     const resolution = resolvePolicy({
       siteId: 'ste_1',
       layers: createPolicyLayers(defaults, site),
@@ -191,10 +192,12 @@ describe('collection policy admission evaluation', () => {
 
   it('honors or ignores GPC and DNT from the effective policy', () => {
     const honored = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
+
     const ignored = resolvePolicy({
       siteId: 'ste_1',
       layers: createPolicyLayers(policyWith({ honorGpcDnt: false })),
     })
+
     const input = { siteId: 'ste_1', collectionContext: { gpc: true } }
 
     expect(
@@ -329,6 +332,7 @@ describe('collection policy admission evaluation', () => {
         siteId: 'ste_1',
         layers: createPolicyLayers(policyWith({ botPolicy })),
       })
+
       expect(
         evaluateAdmission({
           resolution,
@@ -372,6 +376,7 @@ describe('collection policy admission evaluation', () => {
         reservedNames: ['secret'],
       },
     })
+
     expect(
       sanitizeUrls({
         url: 'https://example.com/path?campaign=spring&accessToken=hidden&authToken=hidden',
@@ -401,6 +406,7 @@ describe('collection policy admission evaluation', () => {
 
   it('bounds normalized URL values after encoding', () => {
     const resolution = resolvePolicy({ siteId: 'ste_1', layers: createPolicyLayers() })
+
     const outcome = evaluateAdmission({
       resolution,
       input: { siteId: 'ste_1', path: `/${'é'.repeat(2048)}` },
@@ -408,6 +414,7 @@ describe('collection policy admission evaluation', () => {
     }).outcome
 
     expect(outcome).toMatchObject({ kind: 'accepted' })
+
     if (outcome.kind === 'accepted') expect(outcome.urls.path?.length).toBeLessThanOrEqual(2048)
   })
 

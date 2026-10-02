@@ -25,8 +25,11 @@ export function getOrganizationSiteDraftError(
 ): string | null {
   if (!submitted) return null
   const normalizedValue = value.trim()
+
   if (normalizedValue.length === 0) return `Enter a ${label}.`
+
   if (normalizedValue.length <= maxLength) return null
+
   return `${label.replace(/^./, (character) => character.toUpperCase())} must be ${maxLength} characters or fewer.`
 }
 
@@ -34,10 +37,13 @@ export function deriveOrganizationHomeState(
   input: DeriveOrganizationHomeStateInput,
 ): OrganizationHomeState {
   if (input.organizationId === undefined) return { kind: 'invalid-route' }
+
   if (input.isLoading) return { kind: 'loading' }
+
   if (input.error !== undefined) return { kind: 'error', error: input.error }
 
   const organization = input.teams.find((team) => team.id === input.organizationId)
+
   if (organization === undefined) {
     return { kind: 'missing', organizationId: input.organizationId }
   }

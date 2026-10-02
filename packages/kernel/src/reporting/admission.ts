@@ -39,25 +39,30 @@ export class ReportingAdmissionService {
       ...(input.periodization === undefined ? {} : { periodization: input.periodization }),
       ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
     })
+
     return this.admitPrepared(preparation, input)
   }
 
   async prepare(input: ReportAdmissionPreparationInput): Promise<ReportAdmissionPreparation> {
     const health = await this.readPort(() => this.#dependencies.analyticsReadiness.getHealth())
+
     if (health.controlStore !== 'ready' || health.analyticsStore !== 'ready') {
       throw serviceUnavailable('analytics-not-ready')
     }
 
     const metadata = await this.readPort(() => this.#dependencies.metadata.getActive(input.siteId))
+
     if (metadata === undefined) {
       throw reportingNotFound('metadata-missing')
     }
+
     const periods = resolveReportPeriods({
       metadata,
       current: input.current,
       ...(input.comparison === undefined ? {} : { comparison: input.comparison }),
       ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
     })
+
     const evaluation = resolveEvaluationPeriods({
       metadata,
       periods,
@@ -95,6 +100,7 @@ export class ReportingAdmissionService {
     const periodWork = preparation.evaluation.current.sequence?.length ?? 0
     const comparisonPeriodWork = preparation.evaluation.comparison?.sequence?.length ?? 0
     const factWorkPort = this.#dependencies.factWork ?? { estimate: defaultFactWorkEstimator }
+
     const estimate = await this.readPort(() =>
       factWorkPort.estimate({
         factCardinality: facts.statistics.factCardinality,
@@ -106,6 +112,7 @@ export class ReportingAdmissionService {
         budget: demand.work.budget,
       }),
     )
+
     assertAdmittedFactWork(estimate, demand.work.budget)
 
     return {
@@ -147,17 +154,21 @@ export class ReportingAdmissionService {
     readonly retention: RetentionCoverage
   }> {
     const dependencies = this.#dependencies
+
     if ('evidence' in dependencies) {
       const evidence = await this.readPort(() =>
         dependencies.evidence.read({ siteId: input.siteId, periods, coverage: input.coverage }),
       )
+
       const statistics: AlignedStatistics = evidence.statistics ?? {
         state: 'unknown',
         asOfAcceptanceSequence: null,
         factCardinality: null,
       }
+
       const aligned = requireAlignedStatistics(statistics, evidence.projection)
       rejectRelevantGap(evidence.projection, periods)
+
       return {
         projection: evidence.projection,
         statistics: aligned,
@@ -166,6 +177,7 @@ export class ReportingAdmissionService {
     }
 
     const projection = await this.readPort(() => dependencies.projection.read(input.siteId))
+
     const statistics = await this.readPort(() =>
       dependencies.statistics.read({
         siteId: input.siteId,
@@ -174,11 +186,14 @@ export class ReportingAdmissionService {
         projection,
       }),
     )
+
     const aligned = requireAlignedStatistics(statistics, projection)
     rejectRelevantGap(projection, periods)
+
     const retention = await this.readPort(() =>
       dependencies.retention.read({ siteId: input.siteId, dependencies: input.coverage }),
     )
+
     return { projection, statistics: aligned, retention }
   }
 
@@ -200,6 +215,7 @@ function resolveEvaluationPeriods(input: {
 } {
   const currentPeriodization = input.periodization?.current
   const comparisonPeriodization = input.periodization?.comparison
+
   const currentSequence =
     currentPeriodization === undefined
       ? null
@@ -209,6 +225,7 @@ function resolveEvaluationPeriods(input: {
           dates: input.periods.current.dates,
           periodization: currentPeriodization,
         })
+
   const comparisonSequence =
     comparisonPeriodization === undefined || input.periods.comparison === null
       ? null
@@ -218,28 +235,34 @@ function resolveEvaluationPeriods(input: {
           dates: input.periods.comparison.dates,
           periodization: comparisonPeriodization,
         })
+
   const current = {
     period: input.periods.current,
     sequence: currentSequence,
   }
+
   const comparison =
     input.periods.comparison === null
       ? null
       : { period: input.periods.comparison, sequence: comparisonSequence }
+
   const intervals = [
     input.periods.current.interval,
     ...(input.periods.comparison === null ? [] : [input.periods.comparison.interval]),
     ...(currentSequence?.map((period) => period.interval) ?? []),
     ...(comparisonSequence?.map((period) => period.interval) ?? []),
   ]
+
   const interval = {
     start: createInstantMs(Math.min(...intervals.map((value) => value.start))),
     endExclusive: createInstantMs(Math.max(...intervals.map((value) => value.endExclusive))),
   }
+
   const coveragePeriods: ResolvedPeriods = {
     current: { ...input.periods.current, interval },
     comparison: null,
   }
+
   return { current, comparison, interval, coveragePeriods }
 }
 
@@ -263,6 +286,7 @@ function requireAlignedStatistics(
   ) {
     throw queryLimitExceeded('statistics-uncertain')
   }
+
   return statistics
 }
 
@@ -279,6 +303,7 @@ function assertAdmittedFactWork(
   ) {
     throw queryLimitExceeded('fact-work-uncertain')
   }
+
   if (estimate.units > budget) throw queryLimitExceeded('fact-work-over-budget')
 }
 
@@ -294,8 +319,10 @@ function resolveFreshness(
   sequence: readonly ResolvedPeriod[] | null = null,
 ): FreshnessEvidence {
   const coveredThrough = projection.checkpoint.occurrenceCoveredThrough
+
   const evaluationEndExclusive =
     sequence?.at(-1)?.interval.endExclusive ?? period.interval.endExclusive
+
   return {
     status:
       coveredThrough !== null && coveredThrough >= evaluationEndExclusive ? 'current' : 'stale',

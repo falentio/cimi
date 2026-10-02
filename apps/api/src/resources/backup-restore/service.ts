@@ -29,10 +29,15 @@ import type {
 } from './repository.ts'
 
 export type BackupCreateInput = InferOutput<typeof schema.SBackupCreateInput>
+
 export type BackupRestoreInput = InferOutput<typeof schema.SBackupRestoreInput>
+
 export type BackupStatusInput = InferOutput<typeof schema.SBackupStatusInput>
+
 export type BackupListInput = InferOutput<typeof schema.SBackupListInput>
+
 export type BackupOutput = InferOutput<typeof schema.SBackup>
+
 export type BackupListOutput = InferOutput<typeof schema.SBackupListOutput>
 
 export interface BackupRestoreIdFactory {
@@ -115,11 +120,13 @@ export class BackupRestoreService {
 
   async createBackup(_input: BackupCreateInput, user: AuthUser | undefined): Promise<BackupOutput> {
     assertAdmin(user)
+
     if (!this.dataDirectoryReady()) throw new ORPCError('CONFLICT', { status: 409 })
     const operationId = this.ids.operationId()
     const ownerToken = this.ids.ownerToken()
     this.beginStart()
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
+
     try {
       lease = await this.lock.acquireExclusive('backup', {
         timeoutMs: this.leaseAcquisitionTimeoutMs,
@@ -129,19 +136,24 @@ export class BackupRestoreService {
       this.reportError(error, { operation: 'backup.create', stage: 'acquire', operationId })
       throw error
     }
+
     if (lease === undefined) {
       this.endStart()
       throw new ORPCError('CONFLICT', { status: 409 })
     }
+
     let keepLease = false
     let admissionStopped = false
+
     try {
       const operation = await this.repository.beginBackup({
         operationId,
         ownerToken,
         now: this.clock(),
       })
+
       if (operation === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+
       const prepared = await this.prepareQuiescence({
         operation,
         ownerToken,
@@ -150,6 +162,7 @@ export class BackupRestoreService {
           admissionStopped = true
         },
       })
+
       keepLease = true
       this.startTask({
         operation: prepared,
@@ -158,6 +171,7 @@ export class BackupRestoreService {
         admissionStopped,
         readsStopped: false,
       })
+
       return toPublicBackup(prepared)
     } catch (error) {
       if (admissionStopped) {
@@ -167,6 +181,7 @@ export class BackupRestoreService {
           this.reportError(resumeError, { operation: 'backup.create', stage: 'resume-admission' })
         }
       }
+
       await this.failAfterAdmissionError(operationId, ownerToken, error, 'backup.create')
       throw toCommandError(error)
     } finally {
@@ -183,28 +198,34 @@ export class BackupRestoreService {
     user: AuthUser | undefined,
   ): Promise<BackupOutput> {
     assertAdmin(user)
+
     if (!this.dataDirectoryReady()) throw new ORPCError('CONFLICT', { status: 409 })
     const operationId = this.ids.operationId()
     const ownerToken = this.ids.ownerToken()
     this.beginStart()
     let source: SourceManifest | undefined
+
     try {
       source = await this.repository.findSourceManifest(input.backupId)
     } catch (error) {
       this.endStart()
       throw error
     }
+
     if (source === undefined) {
       this.endStart()
       throw new ORPCError('NOT_FOUND')
     }
+
     try {
       await this.preflight(source)
     } catch (error) {
       this.endStart()
       throw error
     }
+
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
+
     try {
       lease = await this.lock.acquireExclusive('restore', {
         timeoutMs: this.leaseAcquisitionTimeoutMs,
@@ -214,13 +235,16 @@ export class BackupRestoreService {
       this.reportError(error, { operation: 'backup.restore', stage: 'acquire', operationId })
       throw error
     }
+
     if (lease === undefined) {
       this.endStart()
       throw new ORPCError('CONFLICT', { status: 409 })
     }
+
     let keepLease = false
     let admissionStopped = false
     let readsStopped = false
+
     try {
       const operation = await this.repository.beginRestore({
         operationId,
@@ -228,7 +252,9 @@ export class BackupRestoreService {
         sourceBackupId: input.backupId,
         now: this.clock(),
       })
+
       if (operation === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+
       const prepared = await this.prepareQuiescence({
         operation,
         ownerToken,
@@ -240,6 +266,7 @@ export class BackupRestoreService {
           readsStopped = true
         },
       })
+
       keepLease = true
       this.startTask({
         operation: prepared,
@@ -248,6 +275,7 @@ export class BackupRestoreService {
         admissionStopped,
         readsStopped,
       })
+
       return toPublicBackup(prepared)
     } catch (error) {
       try {
@@ -255,6 +283,7 @@ export class BackupRestoreService {
       } catch (resumeError) {
         this.reportError(resumeError, { operation: 'backup.restore', stage: 'resume-admission' })
       }
+
       await this.failAfterAdmissionError(operationId, ownerToken, error, 'backup.restore')
       throw toCommandError(error)
     } finally {
@@ -269,13 +298,16 @@ export class BackupRestoreService {
   async getStatus(input: BackupStatusInput, user: AuthUser | undefined): Promise<BackupOutput> {
     assertAdmin(user)
     const operation = await this.repository.find(input.backupId)
+
     if (operation === undefined) throw new ORPCError('NOT_FOUND')
+
     return toPublicBackup(operation)
   }
 
   async list(input: BackupListInput, user: AuthUser | undefined): Promise<BackupListOutput> {
     assertAdmin(user)
     const page = await this.repository.list({ offset: input.offset ?? 0, limit: input.limit ?? 20 })
+
     return {
       items: page.items.map(toPublicBackup),
       nextOffset: page.nextOffset,
@@ -286,6 +318,7 @@ export class BackupRestoreService {
 
   async getSnapshot(): Promise<BackupRestoreHealthSnapshot> {
     const operation = await this.repository.findActive()
+
     return {
       admissionMode:
         operation?.operationType === 'restore'
@@ -298,8 +331,10 @@ export class BackupRestoreService {
 
   async resumeOnStartup(): Promise<void> {
     const operation = await this.repository.findActive()
+
     if (operation === undefined) return
     let ownerToken: string
+
     try {
       ownerToken = this.ids.ownerToken()
     } catch (error) {
@@ -308,9 +343,12 @@ export class BackupRestoreService {
         stage: 'startup',
         operationId: operation.id,
       })
+
       return
     }
+
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>>
+
     try {
       lease = await this.lock.acquire(operation.operationType)
     } catch (error) {
@@ -319,13 +357,16 @@ export class BackupRestoreService {
         stage: 'acquire',
         operationId: operation.id,
       })
+
       return
     }
+
     if (lease === undefined) return
     let keepLease = false
     let admissionStopped = false
     let readsStopped = false
     let claimed: BackupOperation | undefined
+
     try {
       claimed = await this.repository.claim({
         operationId: operation.id,
@@ -333,7 +374,9 @@ export class BackupRestoreService {
         ownerToken,
         now: this.clock(),
       })
+
       if (claimed === undefined) return
+
       const prepared = await this.prepareQuiescence({
         operation: claimed,
         ownerToken,
@@ -345,6 +388,7 @@ export class BackupRestoreService {
           readsStopped = true
         },
       })
+
       keepLease = true
       this.startTask({
         operation: prepared,
@@ -362,17 +406,21 @@ export class BackupRestoreService {
           stage: 'resume-admission' as const,
           operationId: claimed?.id ?? operation.id,
         }
+
         this.reportError(resumeError, {
           ...operationContext,
         })
       }
+
       if (claimed !== undefined) {
         const context = {
           operation: operationLogName(claimed.operationType),
           stage: 'startup' as const,
           operationId: claimed.id,
         }
+
         this.reportError(error, context)
+
         try {
           await this.recordFailure(claimed.id, ownerToken, error, undefined, context)
         } catch (failureError) {
@@ -423,6 +471,7 @@ export class BackupRestoreService {
     input.onAdmissionStopped()
     await this.acceptance.stopAdmission()
     const safeSequence = await this.acceptance.drain()
+
     let operation = await this.repository.advance({
       operationId: input.operation.id,
       ownerToken: input.ownerToken,
@@ -432,12 +481,15 @@ export class BackupRestoreService {
       lastSafeSequence: safeSequence.lastSafeSequence,
       now: this.clock(),
     })
+
     if (operation === undefined) throw new OwnershipLostError('Backup operation ownership was lost')
+
     if (input.restore) {
       input.onReadsStopped?.()
       await this.reads.stopReads()
       await this.reads.drain()
     }
+
     return operation
   }
 
@@ -467,6 +519,7 @@ export class BackupRestoreService {
             operationId: input.operation.id,
           })
         }
+
         try {
           if (input.admissionStopped) await this.acceptance.resumeAdmission()
         } catch (error) {
@@ -476,6 +529,7 @@ export class BackupRestoreService {
             operationId: input.operation.id,
           })
         }
+
         try {
           await input.lease.release()
         } catch (error) {
@@ -485,6 +539,7 @@ export class BackupRestoreService {
             operationId: input.operation.id,
           })
         }
+
         this.tasks.delete(task)
       })
     this.tasks.add(task)
@@ -493,38 +548,46 @@ export class BackupRestoreService {
   private async execute(operation: BackupOperation, ownerToken: string): Promise<void> {
     if (operation.operationType === 'backup') {
       await this.executeBackup(operation, ownerToken)
+
       return
     }
+
     await this.executeRestore(operation, ownerToken)
   }
 
   private async executeBackup(operation: BackupOperation, ownerToken: string): Promise<void> {
     let ownershipLost = false
+
     try {
       if (operation.status !== 'creating') return
       let artifact = await this.repository.findAuthoritativeArtifact(operation.id)
+
       if (artifact === undefined) {
         artifact = await this.executor.captureBackup({
           operationId: operation.id,
           artifactId: this.ids.artifactId(),
           lastSafeSequence: operation.lastSafeSequence ?? 0,
         })
+
         const recorded = await this.repository.recordBackupArtifact({
           operationId: operation.id,
           ownerToken,
           artifact,
           now: this.clock(),
         })
+
         if (recorded === undefined) {
           ownershipLost = true
           throw new OwnershipLostError('Backup operation ownership was lost')
         }
       }
+
       const completed = await this.repository.complete({
         operationId: operation.id,
         ownerToken,
         now: this.clock(),
       })
+
       if (completed === undefined) ownershipLost = true
     } catch (error) {
       if (!ownershipLost) {
@@ -533,7 +596,9 @@ export class BackupRestoreService {
           stage: 'capture' as const,
           operationId: operation.id,
         }
+
         this.reportError(error, context)
+
         try {
           await this.recordFailure(
             operation.id,
@@ -557,33 +622,42 @@ export class BackupRestoreService {
   private async executeRestore(operation: BackupOperation, ownerToken: string): Promise<void> {
     let safety: SafetyManifest | undefined
     let ownershipLost = false
+
     try {
       if (operation.operationType !== 'restore') return
+
       if (operation.status !== 'creating' && operation.status !== 'restoring') return
+
       if (operation.restoreSourceBackupId === null)
         throw new OwnershipLostError('Restore source was lost')
       const source = await this.repository.findSourceManifest(operation.restoreSourceBackupId)
+
       if (source === undefined) throw new ORPCError('NOT_FOUND')
       await this.executor.validateManifest({ operationId: operation.id, source })
       safety = await this.repository.findSafetyArtifact(operation.id)
+
       if (safety === undefined) {
         safety = await this.executor.createPreRestoreSafety({
           operationId: operation.id,
           artifactId: this.ids.artifactId(),
           lastSafeSequence: operation.lastSafeSequence ?? 0,
         })
+
         const recorded = await this.repository.recordSafetyArtifact({
           operationId: operation.id,
           ownerToken,
           artifact: safety,
           now: this.clock(),
         })
+
         if (recorded === undefined) {
           ownershipLost = true
           throw new OwnershipLostError('Restore operation ownership was lost')
         }
       }
+
       let current = await this.repository.find(operation.id)
+
       if (
         current === undefined ||
         current.operationType !== 'restore' ||
@@ -591,6 +665,7 @@ export class BackupRestoreService {
       ) {
         throw new OwnershipLostError('Restore state was lost')
       }
+
       if (CHECKPOINT_RANK[current.checkpoint] < CHECKPOINT_RANK.sqlite_restored) {
         await this.executor.restoreSqlite({ operationId: operation.id, source })
         current = await this.advanceRestore(
@@ -601,6 +676,7 @@ export class BackupRestoreService {
           0.6,
         )
       }
+
       if (CHECKPOINT_RANK[current.checkpoint] < CHECKPOINT_RANK.duckdb_rebuilt) {
         await this.executor.migrate({ operationId: operation.id })
         await this.executor.rebuildAnalytics({ operationId: operation.id })
@@ -612,15 +688,18 @@ export class BackupRestoreService {
           0.9,
         )
       }
+
       if (CHECKPOINT_RANK[current.checkpoint] < CHECKPOINT_RANK.structurally_ready) {
         await this.executor.verifyStructuralReadiness({ operationId: operation.id })
         current = await this.advanceRestore(current, ownerToken, 'ready', 'structurally_ready', 1)
       }
+
       const completed = await this.repository.complete({
         operationId: operation.id,
         ownerToken,
         now: this.clock(),
       })
+
       if (completed === undefined) ownershipLost = true
     } catch (error) {
       if (!ownershipLost) {
@@ -629,7 +708,9 @@ export class BackupRestoreService {
           stage: 'restore' as const,
           operationId: operation.id,
         }
+
         this.reportError(error, context)
+
         try {
           await this.recordFailure(operation.id, ownerToken, error, safety, context)
         } catch (failureError) {
@@ -659,6 +740,7 @@ export class BackupRestoreService {
       lastSafeSequence: operation.lastSafeSequence,
       now: this.clock(),
     })
+
     if (
       advanced === undefined ||
       advanced.operationType !== 'restore' ||
@@ -666,6 +748,7 @@ export class BackupRestoreService {
     ) {
       throw new OwnershipLostError('Restore operation ownership was lost')
     }
+
     return advanced
   }
 
@@ -678,6 +761,7 @@ export class BackupRestoreService {
     fallbackErrorCode: 'BACKUP_FAILED' | 'INTERNAL_SERVER_ERROR' = 'INTERNAL_SERVER_ERROR',
   ): Promise<void> {
     if (error instanceof OwnershipLostError) return
+
     if (safety !== undefined) {
       try {
         await this.executor.rollback({ operationId, safety })
@@ -694,9 +778,11 @@ export class BackupRestoreService {
           now: this.clock(),
           recoveryRequired: true,
         })
+
         return
       }
     }
+
     await this.repository.fail({
       operationId,
       ownerToken,
@@ -713,6 +799,7 @@ export class BackupRestoreService {
   ): Promise<void> {
     if (error instanceof ORPCError && error.code === 'CONFLICT') return
     this.reportError(error, { operation, stage: 'admission', operationId })
+
     try {
       await this.repository.fail({
         operationId,
@@ -722,6 +809,7 @@ export class BackupRestoreService {
       })
     } catch (failureError) {
       this.reportError(failureError, { operation, stage: 'record-failure', operationId })
+
       return
     }
   }
@@ -731,6 +819,7 @@ export class BackupRestoreService {
     readonly admissionStopped: boolean
   }): Promise<void> {
     const errors: unknown[] = []
+
     if (input.readsStopped) {
       try {
         await this.reads.resumeReads()
@@ -738,6 +827,7 @@ export class BackupRestoreService {
         errors.push(error)
       }
     }
+
     if (input.admissionStopped) {
       try {
         await this.acceptance.resumeAdmission()
@@ -745,6 +835,7 @@ export class BackupRestoreService {
         errors.push(error)
       }
     }
+
     if (errors.length > 0) throw new AggregateError(errors, 'Failed to resume backup admission')
   }
 
@@ -754,7 +845,9 @@ export class BackupRestoreService {
 
   private endStart(): void {
     this.pendingStarts -= 1
+
     if (this.pendingStarts !== 0) return
+
     for (const resolve of this.pendingStartWaiters) resolve()
     this.pendingStartWaiters.clear()
   }
@@ -788,8 +881,10 @@ export class BackupRestoreService {
   private reportError(error: unknown, context: LogOperationContext): void {
     if (this.onError === undefined) {
       reportLogEvent({ kind: 'operation.failure', ...context, error })
+
       return
     }
+
     try {
       void Promise.resolve(this.onError(error, context)).catch(() => undefined)
     } catch {}
@@ -810,10 +905,15 @@ function errorCodeFor(
   | 'CONFLICT'
   | 'INTERNAL_SERVER_ERROR' {
   if (error instanceof BackupIncompatibilityError) return 'INCOMPATIBLE_BACKUP'
+
   if (error instanceof InsufficientStorageError) return 'INSUFFICIENT_STORAGE'
+
   if (error instanceof SafetyArtifactUnavailableError) return 'INSUFFICIENT_STORAGE'
+
   if (error instanceof SafetyArtifactChecksumMismatchError) return 'INTERNAL_SERVER_ERROR'
+
   if (error instanceof ORPCError && error.code === 'CONFLICT') return 'CONFLICT'
+
   return fallback
 }
 
@@ -825,18 +925,22 @@ function operationLogName(
 
 function toCommandError(error: unknown): ORPCError<string, unknown> {
   if (error instanceof ORPCError) return error
+
   if (
     error instanceof BackupIncompatibilityError ||
     (error instanceof Error && /incompatible|newer|unsupported|manifest/i.test(error.message))
   ) {
     return new ORPCError('INCOMPATIBLE_BACKUP', { status: 422 })
   }
+
   if (error instanceof InsufficientStorageError) {
     return new ORPCError('INSUFFICIENT_STORAGE', { status: 507 })
   }
+
   if (error instanceof SafetyArtifactUnavailableError) {
     return new ORPCError('INSUFFICIENT_STORAGE', { status: 507 })
   }
+
   return new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 })
 }
 
@@ -872,6 +976,7 @@ function toPublicCleanup(stage: BackupOperation['derivedCleanup']): BackupOutput
 
 function toPublicSafety(safety: SafetyManifest | null): BackupOutput['preRestoreSafetyArtifact'] {
   if (safety === null) return null
+
   return {
     id: safety.id,
     createdAt: safety.createdAt.toISOString(),

@@ -36,6 +36,7 @@ const props = withDefaults(
     layout: undefined,
   },
 )
+
 const emits = defineEmits<CalendarRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class', 'layout', 'placeholder')
@@ -69,6 +70,7 @@ const yearRange = computed(() => {
 })
 
 const [DefineMonthTemplate, ReuseMonthTemplate] = createReusableTemplate<{ date: DateValue }>()
+
 const [DefineYearTemplate, ReuseYearTemplate] = createReusableTemplate<{ date: DateValue }>()
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)

@@ -96,6 +96,7 @@ describe('identity profile schemas', () => {
     const result = safeParse(SProfileTraits, { ...traits, 'trait-63': `${traits['trait-63']}x` })
 
     expect(result.success).toBe(false)
+
     if (result.success) return
 
     expect(result.issues[0]?.message).toBe(VALIDATION_KEYS.contract.profile.traitsSize)
@@ -116,6 +117,7 @@ describe('identity profile schemas', () => {
       expect(safeParse(SProfileTraits, { [key]: 'value' }).success, key).toBe(false)
       expect(safeParse(SProfileTraits, { [key]: null }).success, key).toBe(true)
     }
+
     expect(safeParse(SProfileTraits, { email: 'person@example.com', name: 'Person' }).success).toBe(
       true,
     )

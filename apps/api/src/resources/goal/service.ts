@@ -74,6 +74,7 @@ export class GoalService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<InferOutput<typeof SGoalListOutput>> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
+
     return this.deps.repository.findMany({
       siteId: input.siteId,
       offset: input.offset ?? 0,
@@ -87,7 +88,9 @@ export class GoalService {
   ): Promise<InferOutput<typeof SGoalGetOutput>> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const goal = await this.deps.repository.findById(input)
+
     if (goal === undefined) throw new ORPCError('NOT_FOUND')
+
     return goal
   }
 
@@ -96,6 +99,7 @@ export class GoalService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<InferOutput<typeof SGoalCreateOutput>> {
     await this.assertCanManage(input.siteId, user)
+
     try {
       return await this.deps.repository.insert({ ...input, id: this.goalId(), now: this.clock() })
     } catch (error) {
@@ -110,6 +114,7 @@ export class GoalService {
   ): Promise<InferOutput<typeof SGoalUpdateOutput>> {
     await this.assertCanManage(input.siteId, user)
     const result = await this.deps.repository.update({ ...input, now: this.clock() })
+
     return mutationOutput(result)
   }
 
@@ -119,7 +124,9 @@ export class GoalService {
   ): Promise<void> {
     await this.assertCanManage(input.siteId, user)
     const result = await this.deps.repository.archive({ ...input, now: this.clock() })
+
     if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
+
     if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
   }
 
@@ -128,19 +135,23 @@ export class GoalService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<InferOutput<typeof SGoalReportOutput>> {
     const goal = await this.deps.repository.findById({ goalId: input.goalId })
+
     if (goal === undefined) throw new ORPCError('NOT_FOUND')
     await assertSiteScope(user, goal.siteId, this.deps.scope)
     const window = reportWindow(input)
+
     return this.query.run({
       siteId: goal.siteId,
       window,
       plan: async (planning) => {
         const preparation = await planning.prepare()
+
         const current = await requireGoalDefinition(
           this.deps.repository,
           goal,
           preparation.evaluation.current.period,
         )
+
         const comparison =
           preparation.evaluation.comparison === null
             ? null
@@ -149,11 +160,13 @@ export class GoalService {
                 goal,
                 preparation.evaluation.comparison.period,
               )
+
         const definitions: HistoricalDefinitionPlan<GoalRepository.Goal> = {
           current: historicalGoal(current),
           comparison: comparison === null ? null : historicalGoal(comparison),
           all: [current, ...(comparison === null ? [] : [comparison])].map(historicalGoal),
         }
+
         return {
           preparation,
           coverage: coverageForDefinitions({
@@ -165,6 +178,7 @@ export class GoalService {
             historicalDefinitionFor(definitions, evaluation.period.key).identityKind,
           evaluate: (evaluation) => {
             const definition = historicalDefinitionFor(definitions, evaluation.period.period.key)
+
             return evaluateGoal({
               ...evaluation,
               definition: {
@@ -177,6 +191,7 @@ export class GoalService {
       },
       render: (run) => {
         const current = goalReportPeriod(run.current)
+
         return {
           ...current,
           ...(run.comparison === null ? {} : { comparison: goalReportPeriod(run.comparison) }),
@@ -190,18 +205,21 @@ export class GoalService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<void> {
     await assertSiteManagementScope(user, siteId, this.deps.scope)
+
     if (!(await this.deps.scope.siteScope.isActive(siteId))) throw new ORPCError('NOT_FOUND')
   }
 }
 
 function mutationOutput(result: GoalRepository.MutationResult): GoalRepository.Goal {
   if (result.status === 'updated') return result.goal
+
   if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
   throw new ORPCError('CONFLICT', { status: 409 })
 }
 
 function reportWindow(input: InferOutput<typeof SGoalReportInput>) {
   const { goalId: _goalId, ...window } = input
+
   return window
 }
 
@@ -219,7 +237,9 @@ async function requireGoalDefinition(
     goalId: goal.id,
     at: periodEnd(period),
   })
+
   if (definition === undefined) throw reportingNotFound('definition-version-missing')
+
   return definition
 }
 

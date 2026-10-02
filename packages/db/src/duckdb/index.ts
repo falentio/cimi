@@ -139,7 +139,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
     temp_directory: tempDirectory,
     max_temp_directory_size: options.maxTempDirectorySize ?? '1GB',
   })
+
   let connection: DuckDBConnection | undefined
+
   try {
     connection = await instance.connect()
     await applyMigrations(connection)
@@ -163,6 +165,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       () => undefined,
       () => undefined,
     )
+
     return queued
   }
 
@@ -188,14 +191,19 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
            WHERE table_schema = 'main'
              AND table_name IN (${ANALYTICS_REQUIRED_TABLES.map((table) => `'${table}'`).join(', ')})`,
         )
+
         const row = reader.getRowObjects()[0]
+
         if (Number(row?.['table_count']) !== ANALYTICS_REQUIRED_TABLES.length) return false
+
         const versionReader = await connection.runAndReadAll(
           `SELECT count(*) AS stale_count
            FROM projection_checkpoints
            WHERE projection_version <> '${ANALYTICS_PROJECTION_VERSION}'`,
         )
+
         const versionRow = versionReader.getRowObjects()[0]
+
         return Number(versionRow?.['stale_count']) === 0
       } catch {
         return false
@@ -203,7 +211,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
     },
     async readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot> {
       if (!closeController.isOpen()) throw new Error('Analytics database is closed')
+
       if (unavailable) throw new Error('Analytics database is unavailable')
+
       return enqueue(async () => {
         const checkpointReader = await connection.runAndReadAll(
           `SELECT projected_replay_sequence,
@@ -216,20 +226,25 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
            FROM projection_checkpoints WHERE site_id = ?`,
           [input.siteId],
         )
+
         const checkpointRow = checkpointReader.getRowObjects()[0]
+
         const gapReader = await connection.runAndReadAll(
           `SELECT id, epoch_ms(occurrence_from) AS occurrence_from,
                   epoch_ms(occurrence_to) AS occurrence_to, unbounded
            FROM projection_gaps WHERE site_id = ? AND status = 'open' ORDER BY id`,
           [input.siteId],
         )
+
         const cardinalityReader = await connection.runAndReadAll(
           'SELECT count(*) AS fact_cardinality FROM events WHERE site_id = ?',
           [input.siteId],
         )
+
         const factCardinality = Number(
           cardinalityReader.getRowObjects()[0]?.['fact_cardinality'] ?? 0,
         )
+
         if (checkpointRow === undefined) {
           return {
             checkpoint: null,
@@ -237,6 +252,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
             factCardinality,
           }
         }
+
         return {
           checkpoint: {
             projectedAcceptanceSequence: Number(checkpointRow['projected_replay_sequence'] ?? 0),
@@ -262,7 +278,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
       toExclusive: Date
     }): Promise<AnalyticsReportData> {
       if (!closeController.isOpen()) throw new Error('Analytics database is closed')
+
       if (unavailable) throw new Error('Analytics database is unavailable')
+
       return enqueue(async () => {
         const sessionsReader = await connection.runAndReadAll(
           `SELECT session_id, visitor_id, identified_user_id,
@@ -280,6 +298,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
            ORDER BY started_at, session_id`,
           [input.siteId, timestamp(input.from.getTime()), timestamp(input.toExclusive.getTime())],
         )
+
         const eventsReader = await connection.runAndReadAll(
           `SELECT event_id, event_kind, epoch_ms(occurrence_time) AS occurrence_time,
                   visitor_id, identified_user_id, analytics_session_id,
@@ -291,6 +310,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
            ORDER BY occurrence_time, event_id`,
           [input.siteId, timestamp(input.from.getTime()), timestamp(input.toExclusive.getTime())],
         )
+
         return {
           sessions: sessionsReader.getRowObjects().map(readReportSession),
           events: eventsReader.getRowObjects().map(readReportEvent),
@@ -299,20 +319,26 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
     },
     async readWindowed<T>(work: (reader: AnalyticsWindowReader) => Promise<T>): Promise<T> {
       if (!closeController.isOpen()) throw new Error('Analytics database is closed')
+
       if (unavailable) throw new Error('Analytics database is unavailable')
+
       return enqueue(async () => {
         const reader: AnalyticsWindowReader = {
           async read(sql, args) {
             const result = await connection.runAndReadAll(sql, [...args])
+
             return result.getRowObjects()
           },
         }
+
         return work(reader)
       })
     },
     async rebuild(input: { controlDb: Db }): Promise<void> {
       if (!closeController.isOpen()) throw new Error('Analytics database is closed')
+
       if (unavailable) throw new Error('Analytics database is unavailable')
+
       if (rebuilding) throw new Error('Analytics database rebuild is already running')
       rebuilding = true
 
@@ -323,10 +349,12 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           const identities = readIdentities(input.controlDb)
           const activeSiteIds = readActiveSiteIds(input.controlDb)
           const gaps = readProjectionGaps(input.controlDb)
+
           const propertiesByEvent = new Map<
             number,
             Record<string, string | number | boolean | null>
           >()
+
           for (const property of properties) {
             const eventProperties = propertiesByEvent.get(property.eventPk) ?? {}
             eventProperties[property.propertyKey] = propertyValue(property)
@@ -336,18 +364,23 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           const projectedEvents = events
             .filter((event) => event.projectionState !== 'failed')
             .map((event) => projectEventIdentity(event, identities))
+
           const previousGenerations = await readProjectionGenerations(connection)
+
           const projected = foldProjectedCheckpoints(
             activeSiteIds,
             projectedEvents,
             Date.now(),
             previousGenerations,
           )
+
           const sessions = new Map<string, Map<string, SessionRow>>()
           const visitors = new Map<string, Map<string, VisitorRow>>()
+
           for (const event of projectedEvents) {
             if (event.visitorId !== null) {
               const visitor = getNestedMapValue(visitors, event.siteId, event.visitorId)
+
               if (visitor === undefined) {
                 setNestedMapValue(visitors, event.siteId, event.visitorId, {
                   siteId: event.siteId,
@@ -360,7 +393,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               } else {
                 visitor.firstSeenAt = Math.min(visitor.firstSeenAt, event.occurrenceTime)
                 visitor.lastSeenAt = Math.max(visitor.lastSeenAt, event.occurrenceTime)
+
                 if (event.identifiedUserId !== null) visitor.identityKind = 'identified'
+
                 if (event.profileId !== null) {
                   if (visitor.profileId === null) visitor.profileId = event.profileId
                   else if (visitor.profileId !== event.profileId) visitor.profileId = null
@@ -370,6 +405,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
 
             if (event.analyticsSessionId !== null) {
               const session = getNestedMapValue(sessions, event.siteId, event.analyticsSessionId)
+
               if (session === undefined) {
                 setNestedMapValue(sessions, event.siteId, event.analyticsSessionId, {
                   siteId: event.siteId,
@@ -392,24 +428,36 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
                 const earlier = event.occurrenceTime < session.startedAt
                 session.startedAt = Math.min(session.startedAt, event.occurrenceTime)
                 session.endedAt = Math.max(session.endedAt, event.occurrenceTime)
+
                 if (session.visitorId === null) session.visitorId = event.visitorId
+
                 if (session.identifiedUserId === null)
                   session.identifiedUserId = event.identifiedUserId
+
                 if (earlier || session.entryPage === null) session.entryPage = event.pagePath
+
                 if (earlier || session.referrer === null) session.referrer = event.referrer
+
                 if (earlier || session.utmSource === null) session.utmSource = event.utmSource
+
                 if (earlier || session.utmMedium === null) session.utmMedium = event.utmMedium
+
                 if (earlier || session.utmCampaign === null) session.utmCampaign = event.utmCampaign
+
                 if (earlier || session.device === null) session.device = event.deviceType
+
                 if (earlier || session.browser === null) session.browser = event.browserType
+
                 if (earlier || session.operatingSystem === null)
                   session.operatingSystem = event.operatingSystem
+
                 if (earlier || session.country === null) session.country = event.country
               }
             }
           }
 
           await connection.run('BEGIN TRANSACTION')
+
           try {
             await connection.run('DELETE FROM event_properties')
             await connection.run('DELETE FROM events')
@@ -580,6 +628,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
             } catch {
               unavailable = true
             }
+
             throw error
           }
         } finally {
@@ -589,17 +638,23 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
     },
     async deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number> {
       if (!closeController.isOpen()) throw new Error('Analytics database is closed')
+
       if (unavailable) throw new Error('Analytics database is unavailable')
+
       if (rebuilding) throw new Error('Analytics database rebuild is already running')
+
       return enqueue(async () => {
         const cutoff = timestamp(input.occurrenceCutoff.getTime())
+
         const countReader = await connection.runAndReadAll(
           `SELECT count(*) AS count FROM events
            WHERE site_id = ? AND occurrence_time < CAST(? AS TIMESTAMP)`,
           [input.siteId, cutoff],
         )
+
         const count = Number(countReader.getRowObjects()[0]?.['count'] ?? 0)
         await connection.run('BEGIN TRANSACTION')
+
         try {
           const projectionGeneration = await nextProjectionGeneration(connection, input.siteId)
           await connection.run(
@@ -774,15 +829,20 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           await connection.run('ROLLBACK')
           throw error
         }
+
         return count
       })
     },
     async purgeSite(input: { siteId: string }): Promise<void> {
       if (!closeController.isOpen()) throw new Error('Analytics database is closed')
+
       if (unavailable) throw new Error('Analytics database is unavailable')
+
       if (rebuilding) throw new Error('Analytics database rebuild is already running')
+
       return enqueue(async () => {
         await connection.run('BEGIN TRANSACTION')
+
         try {
           const projectionGeneration = await nextProjectionGeneration(connection, input.siteId)
           await writeProjectionGeneration(connection, input.siteId, projectionGeneration)
@@ -975,6 +1035,7 @@ function readEvents(db: Db): EventRow[] {
         ORDER BY ae.replay_sequence`,
     )
     .all() as EventRow[]
+
   return rows.map((row) => {
     const attribution = mergeEventAttribution(
       {
@@ -988,6 +1049,7 @@ function readEvents(db: Db): EventRow[] {
       },
       parseEventAttribution(row.canonicalPayloadJson),
     )
+
     return {
       ...row,
       utmSource: attribution.utmSource,
@@ -1027,6 +1089,7 @@ function readIdentities(db: Db): Identities {
         ORDER BY e.site_id, e.identified_user_id, e.epoch`,
     )
     .all() as IdentityEpochRow[]
+
   const links = db.$client
     .prepare(
       `SELECT
@@ -1037,6 +1100,7 @@ function readIdentities(db: Db): Identities {
        ORDER BY site_id, anonymous_identity_id, effective_from, id`,
     )
     .all() as IdentityLinkRow[]
+
   const redactions = db.$client
     .prepare(
       `SELECT
@@ -1046,6 +1110,7 @@ function readIdentities(db: Db): Identities {
        ORDER BY site_id, identified_user_id, profile_epoch, id`,
     )
     .all() as IdentityRedactionRow[]
+
   return { epochs, links, redactions }
 }
 
@@ -1073,12 +1138,16 @@ function foldProjectedCheckpoints(
     string,
     { sequence: number; from: number | null; through: number | null }
   >()
+
   for (const siteId of siteIds) {
     bySite.set(siteId, { sequence: 0, from: null, through: null })
   }
+
   const counts = new Map<string, number>()
+
   for (const event of events) {
     const site = bySite.get(event.siteId)
+
     if (site === undefined) continue
     site.sequence = Math.max(site.sequence, event.replaySequence)
     counts.set(event.siteId, (counts.get(event.siteId) ?? 0) + 1)
@@ -1087,8 +1156,10 @@ function foldProjectedCheckpoints(
     site.through =
       site.through === null ? event.occurrenceTime : Math.max(site.through, event.occurrenceTime)
   }
+
   return siteIds.map((siteId) => {
     const site = bySite.get(siteId)!
+
     return {
       siteId,
       projectedReplaySequence: site.sequence,
@@ -1113,12 +1184,15 @@ async function readProjectionGenerations(
      UNION ALL
      SELECT site_id, projection_generation FROM projection_checkpoints`,
   )
+
   const generations = new Map<string, number>()
+
   for (const row of reader.getRowObjects()) {
     const siteId = String(row['site_id'])
     const generation = Number(row['projection_generation'] ?? 0)
     generations.set(siteId, Math.max(generations.get(siteId) ?? 0, generation))
   }
+
   return generations
 }
 
@@ -1133,6 +1207,7 @@ async function nextProjectionGeneration(
      ) + 1 AS next_generation`,
     [siteId, siteId],
   )
+
   return Number(reader.getRowObjects()[0]?.['next_generation'] ?? 1)
 }
 
@@ -1188,6 +1263,7 @@ function projectEventIdentity(
       },
     ),
   )
+
   const linkedEpochs = identities.epochs.filter(
     (epoch) =>
       links.some(
@@ -1195,9 +1271,11 @@ function projectEventIdentity(
       ) &&
       (event.identifiedUserId === null || epoch.identifiedUserId === event.identifiedUserId),
   )
+
   if (links.length > 0 && linkedEpochs.length === 0) {
     throw new Error('Identity link references a missing or mismatched Profile Epoch')
   }
+
   const temporalEpochs = identities.epochs.filter(
     (epoch) =>
       epoch.siteId === event.siteId &&
@@ -1206,9 +1284,12 @@ function projectEventIdentity(
       epoch.startedAt <= event.occurrenceTime &&
       (epoch.endedAt === null || event.occurrenceTime < epoch.endedAt),
   )
+
   const candidates = linkedEpochs.length > 0 ? linkedEpochs : temporalEpochs
+
   if (candidates.length > 1) throw new Error('Ambiguous identity Profile Epoch')
   const epoch = candidates[0]
+
   const redacted = identities.redactions.some(
     (redaction) =>
       redaction.siteId === event.siteId &&
@@ -1216,6 +1297,7 @@ function projectEventIdentity(
         ? redaction.profileId === epoch.profileId && redaction.profileEpoch === epoch.profileEpoch
         : event.identifiedUserId !== null && redaction.identifiedUserId === event.identifiedUserId),
   )
+
   if (
     redacted ||
     epoch?.epochStatus === 'redacted' ||
@@ -1223,14 +1305,19 @@ function projectEventIdentity(
   ) {
     return { ...event, identifiedUserId: null, profileId: null }
   }
+
   if (epoch === undefined) return { ...event, profileId: null }
+
   return { ...event, identifiedUserId: epoch.identifiedUserId, profileId: epoch.profileId }
 }
 
 function propertyValue(property: PropertyRow): string | number | boolean | null {
   if (property.valueType === 'string') return property.stringValue
+
   if (property.valueType === 'number') return property.numberValue
+
   if (property.valueType === 'boolean') return property.booleanValue !== 0
+
   return null
 }
 
@@ -1245,19 +1332,26 @@ function timestamp(value: number | null): string | null {
  */
 function readInstant(value: unknown): Date | null {
   if (value === null || value === undefined) return null
+
   if (value instanceof Date) return value
+
   if (typeof value === 'bigint' || typeof value === 'number') {
     const parsed = new Date(Number(value))
+
     return Number.isNaN(parsed.getTime()) ? null : parsed
   }
+
   if (typeof value !== 'string') return null
   const parsed = new Date(value)
+
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
 function readRequiredInstant(value: unknown, field: string): Date {
   const instant = readInstant(value)
+
   if (instant === null) throw new Error(`Analytics report row has no ${field}`)
+
   return instant
 }
 
@@ -1303,18 +1397,23 @@ function readReportEvent(row: Record<string, unknown>): AnalyticsReportEvent {
 
 function nullableString(value: unknown): string | null {
   if (value === null || value === undefined) return null
+
   if (typeof value === 'string') return value
+
   if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
     return String(value)
   }
+
   return null
 }
 
 function readReportProperties(value: unknown): Readonly<Record<string, AnalyticsReportScalar>> {
   if (value === null || value === undefined) return {}
   const parsed = typeof value === 'string' ? JSON.parse(value) : value
+
   if (!isRecord(parsed)) throw new Error('Analytics report properties are not an object')
   const properties: Record<string, AnalyticsReportScalar> = {}
+
   for (const [key, property] of Object.entries(parsed)) {
     if (
       property === null ||
@@ -1327,6 +1426,7 @@ function readReportProperties(value: unknown): Readonly<Record<string, Analytics
       throw new Error('Analytics report properties contain an unsupported value')
     }
   }
+
   return properties
 }
 
@@ -1346,6 +1446,7 @@ function closeResources(
   try {
     connection?.closeSync()
   } catch {}
+
   try {
     instance.closeSync()
   } catch {}
@@ -1360,6 +1461,7 @@ async function applyMigrations(connection: DuckDBConnection): Promise<void> {
   await reader.readAll()
 
   const appliedVersions = new Set<number>()
+
   for (const row of reader.getRowObjects()) {
     appliedVersions.add(Number(row['version']))
   }
@@ -1367,11 +1469,13 @@ async function applyMigrations(connection: DuckDBConnection): Promise<void> {
   const pending = ANALYTICS_MIGRATIONS.filter(
     (migration) => !appliedVersions.has(migration.version),
   )
+
   if (pending.length === 0) {
     return
   }
 
   await connection.run('BEGIN TRANSACTION')
+
   try {
     for (const migration of pending) {
       await connection.run(migration.sql)
@@ -1383,6 +1487,7 @@ async function applyMigrations(connection: DuckDBConnection): Promise<void> {
         },
       )
     }
+
     await connection.run('COMMIT')
   } catch (error) {
     await connection.run('ROLLBACK')

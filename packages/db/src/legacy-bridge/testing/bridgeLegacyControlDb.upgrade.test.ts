@@ -28,6 +28,7 @@ describe('bridgeLegacyControlDb.upgrade', () => {
   it('upgrades a file-backed legacy control database to the current line', () => {
     const path = createLegacyFileDb(dir)
     const db = createDb({ path })
+
     try {
       migrateControlDb(db)
 
@@ -46,6 +47,7 @@ describe('bridgeLegacyControlDb.upgrade', () => {
         name: string
         notnull: number
       }>
+
       expect(issuerColumn.find((column) => column.name === 'issuer')?.notnull).toBe(1)
       expect(
         db.$client
@@ -146,14 +148,17 @@ describe('bridgeLegacyControlDb.upgrade', () => {
 
   it('upgrades an in-memory legacy control database on the same handle', async () => {
     const db = createLegacyMemoryDb()
+
     try {
       migrateControlDb(db)
 
       const ledger = readLedger(db)
       expect(ledger).toHaveLength(16)
+
       for (const table of ['auth_organization', 'auth_member', 'auth_invitation']) {
         expect(countRows(db, table)).toBe(0)
       }
+
       expect(
         db.$client
           .prepare(

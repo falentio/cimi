@@ -1,6 +1,7 @@
 import type { Site, SiteId, SiteSettingsDraft } from './site-settings.types'
 
 const SITE_NAME_MAX_LENGTH = 256
+
 const HOSTNAME_MAX_LENGTH = 253
 
 export const WEEK_START_OPTIONS: readonly {
@@ -37,18 +38,23 @@ export function getSiteSettingsFieldError(
   if (!hasSubmitted) return null
 
   const value = draft[field]
+
   if (field === 'name') {
     if (value.trim() === '') return 'Enter a site name.'
+
     if (value.trim().length > SITE_NAME_MAX_LENGTH)
       return 'Site names must be 256 characters or fewer.'
+
     return null
   }
 
   if (field === 'hostname') {
     if (value.trim() === '') return 'Enter a hostname.'
+
     if (value.trim().length > HOSTNAME_MAX_LENGTH) {
       return 'Hostnames must be 253 characters or fewer.'
     }
+
     return null
   }
 
@@ -67,7 +73,9 @@ export function getTimezoneOptions(currentTimezone?: Site['reportingTimezone']):
 }[] {
   const supportedTimezones =
     typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : []
+
   const values = new Set([...(supportedTimezones ?? []), 'UTC'])
+
   if (currentTimezone !== undefined) values.add(currentTimezone)
 
   return [...values].sort().map((value) => ({ value, label: value }))

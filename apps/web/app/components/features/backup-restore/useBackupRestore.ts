@@ -23,7 +23,9 @@ import {
 } from './backup-restore.utils'
 
 const PAGE_SIZE = 20
+
 const POLL_INTERVAL_MS = 1_500
+
 const MAX_POLL_ATTEMPTS = 20
 
 export function useBackupRestore(): BackupRestoreController {
@@ -56,6 +58,7 @@ export function useBackupRestore(): BackupRestoreController {
   async function refresh(): Promise<void> {
     beginListRefresh()
     beginInstallationRefresh()
+
     const [listResult, installationResult] = await Promise.allSettled([
       orpc.backupRestore.listBackups.call({ offset: 0, limit: PAGE_SIZE }),
       orpc.installation.getInstallationStatus.call({}),
@@ -100,12 +103,14 @@ export function useBackupRestore(): BackupRestoreController {
 
   async function loadMore(): Promise<void> {
     const offset = data.value.nextOffset
+
     if (offset === null || !data.value.hasMore || list.value.kind === 'loading') return
     list.value = {
       kind: 'ready',
       refreshing: list.value.kind === 'ready' && list.value.refreshing,
       loadingMore: true,
     }
+
     try {
       const page = await orpc.backupRestore.listBackups.call({ offset, limit: PAGE_SIZE })
       data.value = reduceBackupRestoreData(data.value, { kind: 'list-appended', page })
@@ -118,6 +123,7 @@ export function useBackupRestore(): BackupRestoreController {
   function openRestore(backupId: BackupId): void {
     const current = view.value
     const backup = data.value.records.get(backupId)
+
     if (
       current.kind !== 'ready' ||
       !current.actions.canRestore ||
@@ -126,6 +132,7 @@ export function useBackupRestore(): BackupRestoreController {
     ) {
       return
     }
+
     data.value = reduceBackupRestoreData(data.value, {
       kind: 'selection-changed',
       backupId,
@@ -144,11 +151,14 @@ export function useBackupRestore(): BackupRestoreController {
 
   async function createBackup(): Promise<void> {
     const current = view.value
+
     if (current.kind !== 'ready' || !current.actions.canCreate) return
     const freshInstallation = await refreshInstallationForAdmission()
+
     if (freshInstallation === null || !canMutate(freshInstallation, data.value, 'create')) return
 
     command.value = { kind: 'creating' }
+
     try {
       const operation = await orpc.backupRestore.createBackup.call({})
       acceptedOperation(operation)
@@ -161,13 +171,16 @@ export function useBackupRestore(): BackupRestoreController {
 
   async function confirmRestore(confirmation: string): Promise<void> {
     const dialog = restoreDialog.value
+
     if (dialog.kind !== 'confirming') return
+
     if (!isExactRestoreConfirmation(confirmation)) {
       restoreDialog.value = {
         kind: 'confirming',
         backupId: dialog.backupId,
         error: normalizeBackupRestoreError({ code: 'BAD_REQUEST' }, 'restore'),
       }
+
       return
     }
 
@@ -175,6 +188,7 @@ export function useBackupRestore(): BackupRestoreController {
     command.value = { kind: 'restoring', sourceId: dialog.backupId }
     const freshInstallation = await refreshInstallationForAdmission()
     const backup = data.value.records.get(dialog.backupId)
+
     if (
       freshInstallation === null ||
       !canMutate(freshInstallation, data.value, 'restore') ||
@@ -187,6 +201,7 @@ export function useBackupRestore(): BackupRestoreController {
         backupId: dialog.backupId,
         error: normalizeBackupRestoreError({ code: 'CONFLICT' }, 'restore'),
       }
+
       return
     }
 
@@ -195,6 +210,7 @@ export function useBackupRestore(): BackupRestoreController {
         backupId: dialog.backupId,
         confirmation: 'RESTORE',
       })
+
       restoreDialog.value = {
         kind: 'tracking',
         backupId: dialog.backupId,
@@ -212,8 +228,10 @@ export function useBackupRestore(): BackupRestoreController {
   function resumePolling(): void {
     const operationId =
       polling.value.kind === 'manual' ? polling.value.operationId : data.value.trackedOperation?.id
+
     if (operationId === undefined || operationId === null) return
     const operation = data.value.records.get(operationId)
+
     if (operation === undefined || !shouldContinuePolling(operation)) return
     const resumedAfterReload = polling.value.kind !== 'idle' && polling.value.resumedAfterReload
     startPolling(operationId, resumedAfterReload)
@@ -223,6 +241,7 @@ export function useBackupRestore(): BackupRestoreController {
     try {
       const next = await orpc.installation.getInstallationStatus.call({})
       installation.value = { kind: 'ready', installation: next, refreshing: false }
+
       return next
     } catch (error: unknown) {
       const previous = getInstallation(installation.value)
@@ -234,6 +253,7 @@ export function useBackupRestore(): BackupRestoreController {
               installation: previous,
               error: normalizeBackupRestoreError(error, 'installation'),
             }
+
       return null
     }
   }
@@ -249,20 +269,26 @@ export function useBackupRestore(): BackupRestoreController {
     if (data.value.trackedOperation !== null && pollingOperationId.value !== null) return
     const installationRecord = getInstallation(installation.value)
     const installationOperation = installationRecord?.activeOperation
+
     const installationBackupOperation =
       installationOperation?.kind === 'backup' || installationOperation?.kind === 'restore'
         ? installationOperation.operationId
         : null
+
     const otherLifecycleOperationIsActive =
       installationOperation !== undefined &&
       installationOperation !== null &&
       installationOperation.errorCode === null &&
       installationBackupOperation === null
+
     if (otherLifecycleOperationIsActive) return
+
     const catalogOperation = data.value.order
       .map((id) => data.value.records.get(id))
       .find((operation) => operation !== undefined && shouldContinuePolling(operation))
+
     const operationId = installationBackupOperation ?? catalogOperation?.id ?? null
+
     if (
       operationId === null ||
       adoptedOperationIds.has(operationId) ||
@@ -270,15 +296,18 @@ export function useBackupRestore(): BackupRestoreController {
     ) {
       return
     }
+
     adoptingOperationIds.add(operationId)
 
     try {
       const operation = await orpc.backupRestore.getBackupStatus.call({ backupId: operationId })
+
       if (disposed) return
       adoptedOperationIds.add(operationId)
       data.value = reduceBackupRestoreData(data.value, { kind: 'operation-received', operation })
       command.value = { kind: 'idle' }
       const currentOperation = data.value.records.get(operation.id) ?? operation
+
       if (shouldContinuePolling(currentOperation)) startPolling(currentOperation.id, true)
     } catch (error: unknown) {
       if (disposed) return
@@ -293,6 +322,7 @@ export function useBackupRestore(): BackupRestoreController {
 
   function startPolling(operationId: BackupId, resumedAfterReload: boolean): void {
     if (disposed) return
+
     if (pollingOperationId.value === operationId && polling.value.kind === 'automatic') return
     cancelPollWait()
     const generation = ++pollGeneration
@@ -315,12 +345,16 @@ export function useBackupRestore(): BackupRestoreController {
     for (let attempt = 1; attempt <= MAX_POLL_ATTEMPTS; attempt += 1) {
       if (!isCurrentPoll(operationId, generation)) return
       const knownOperation = data.value.records.get(operationId)
+
       if (attempt > 1 && knownOperation !== undefined && !shouldContinuePolling(knownOperation)) {
         finishPolling(operationId, generation)
         await refresh()
+
         return
       }
+
       if (attempt > 1 && !(await waitForPoll())) return
+
       if (!isCurrentPoll(operationId, generation)) return
       polling.value = {
         kind: 'automatic',
@@ -331,6 +365,7 @@ export function useBackupRestore(): BackupRestoreController {
       }
 
       let operation: Backup
+
       try {
         operation = await orpc.backupRestore.getBackupStatus.call({ backupId: operationId })
       } catch {
@@ -342,6 +377,7 @@ export function useBackupRestore(): BackupRestoreController {
           resumedAfterReload,
         }
         pausePolling(operationId)
+
         return
       }
 
@@ -349,11 +385,14 @@ export function useBackupRestore(): BackupRestoreController {
       data.value = reduceBackupRestoreData(data.value, { kind: 'operation-received', operation })
       command.value = { kind: 'idle' }
       await refreshInstallationForAdmission()
+
       if (!isCurrentPoll(operationId, generation)) return
       const currentOperation = data.value.records.get(operation.id) ?? operation
+
       if (!shouldContinuePolling(currentOperation)) {
         finishPolling(operationId, generation)
         await refresh()
+
         return
       }
     }
@@ -430,11 +469,13 @@ export function useBackupRestore(): BackupRestoreController {
     const lock = deriveLifecycleLock({
       installation: { kind: 'ready', installation: nextInstallation, refreshing: false },
     })
+
     const actions = deriveBackupRestoreActions({
       lock,
       command: { kind: 'idle' },
       trackedOperation: currentData.trackedOperation,
     })
+
     return kind === 'create' ? actions.canCreate : actions.canRestore
   }
 

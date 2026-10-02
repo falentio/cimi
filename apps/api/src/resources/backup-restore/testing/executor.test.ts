@@ -23,21 +23,25 @@ describe('ConfiguredSqliteExecutor', () => {
     const db = createDb({ path: controlDatabasePath })
     migrateControlDb(db)
     const analytics = await createTestAnalyticsDb()
+
     try {
       db.insert(schema.TUser).values(createSiteUserRow()).run()
       db.insert(schema.TOrganization).values(createSiteOrganizationRow()).run()
       db.insert(schema.TSite).values(createSiteRow()).run()
+
       const executor = new ConfiguredSqliteExecutor({
         db,
         analytics,
         controlDatabasePath,
         dataDirectoryPath: directory,
       })
+
       const source = await executor.captureBackup({
         operationId: 'bop_deleted_site',
         artifactId: 'bar_deleted_site',
         lastSafeSequence: 1,
       })
+
       const deletedAt = new Date('2026-09-01T00:00:00.000Z')
       db.insert(schema.TSiteLifecycleOperation)
         .values({
@@ -102,6 +106,7 @@ describe('ConfiguredSqliteExecutor', () => {
     migrateControlDb(db)
     const analytics = await createTestAnalyticsDb()
     const redactedAt = new Date('2026-09-05T00:00:00.000Z')
+
     try {
       db.insert(schema.TUser).values(createSiteUserRow()).run()
       db.insert(schema.TOrganization).values(createSiteOrganizationRow()).run()
@@ -159,6 +164,7 @@ describe('ConfiguredSqliteExecutor', () => {
           redactedAt: null,
         })
         .run()
+
       const acceptedEvent = db
         .insert(schema.TAcceptedEvent)
         .values({
@@ -183,6 +189,7 @@ describe('ConfiguredSqliteExecutor', () => {
         })
         .returning({ eventPk: schema.TAcceptedEvent.eventPk })
         .all()[0]
+
       if (acceptedEvent === undefined) throw new Error('Accepted Event insert returned no row')
       db.insert(schema.TEventPayload)
         .values({
@@ -194,17 +201,20 @@ describe('ConfiguredSqliteExecutor', () => {
           }),
         })
         .run()
+
       const executor = new ConfiguredSqliteExecutor({
         db,
         analytics,
         controlDatabasePath,
         dataDirectoryPath: directory,
       })
+
       const source = await executor.captureBackup({
         operationId: 'bop_redacted_identity',
         artifactId: 'bar_redacted_identity',
         lastSafeSequence: 1,
       })
+
       db.update(schema.TIdentityProfile)
         .set({ status: 'deleted', traits: null, updatedAt: redactedAt })
         .where(eq(schema.TIdentityProfile.profileId, 'profile_1'))
@@ -238,7 +248,9 @@ describe('ConfiguredSqliteExecutor', () => {
         artifactId: 'bar_scrubbed_identity',
         lastSafeSequence: 2,
       })
+
       const scrubbedDb = createDb({ path: join(directory, scrubbedSource.storageKey) })
+
       try {
         expect(
           scrubbedDb.$client.prepare('SELECT identified_user_id FROM accepted_event').get(),
@@ -261,6 +273,7 @@ describe('ConfiguredSqliteExecutor', () => {
       }
 
       const cleanedOlderDb = createDb({ path: join(directory, source.storageKey) })
+
       try {
         cleanedOlderDb.$client
           .prepare('DELETE FROM identity_profile WHERE profile_id = ?')
@@ -311,6 +324,7 @@ describe('ConfiguredSqliteExecutor', () => {
     const db = createDb({ path: controlDatabasePath })
     migrateControlDb(db)
     const analytics = await createTestAnalyticsDb()
+
     try {
       db.$client.prepare('CREATE TABLE backup_executor_marker (value TEXT NOT NULL)').run()
       db.$client.prepare('INSERT INTO backup_executor_marker (value) VALUES (?)').run('source')
@@ -435,6 +449,7 @@ describe('ConfiguredSqliteExecutor', () => {
           'INSERT INTO backup_cleanup_stage (operation_id, stage, status, started_at, completed_at, error_code) VALUES (?, ?, ?, ?, ?, ?)',
         )
         .run('bop_restore', 'backup_cleanup', 'pending', null, null, null)
+
       const executor = new ConfiguredSqliteExecutor({
         db,
         analytics,
@@ -447,6 +462,7 @@ describe('ConfiguredSqliteExecutor', () => {
         artifactId: 'bar_1',
         lastSafeSequence: 9,
       })
+
       expect(source.retentionBoundary).toBeNull()
       expect(source.retentionManifest).toEqual({ version: 1, boundaries: [] })
       await executor.validateManifest({ operationId: 'bop_1', source })
@@ -492,6 +508,7 @@ describe('ConfiguredSqliteExecutor', () => {
     const db = createDb({ path: controlDatabasePath })
     migrateControlDb(db)
     const analytics = await createTestAnalyticsDb()
+
     try {
       const createdAt = new Date('2026-09-01T00:00:00.000Z')
       db.$client.prepare('CREATE TABLE rollback_marker (value TEXT NOT NULL)').run()
@@ -550,17 +567,20 @@ describe('ConfiguredSqliteExecutor', () => {
           createdAt,
         })
         .run()
+
       const executor = new ConfiguredSqliteExecutor({
         db,
         analytics,
         controlDatabasePath,
         dataDirectoryPath: directory,
       })
+
       const safety = await executor.createPreRestoreSafety({
         operationId: 'bop_restore',
         artifactId: 'bar_safety',
         lastSafeSequence: 9,
       })
+
       db.insert(schema.TBackupArtifact)
         .values({
           id: safety.id,
@@ -614,6 +634,7 @@ describe('ConfiguredSqliteExecutor', () => {
     const db = createDb({ path: controlDatabasePath })
     migrateControlDb(db)
     const analytics = await createTestAnalyticsDb()
+
     try {
       db.$client.pragma('foreign_keys = OFF')
       db.$client
@@ -698,8 +719,10 @@ describe('ConfiguredSqliteExecutor', () => {
     const db = createDb({ path: controlDatabasePath })
     const migrationsFolder = await createProbeMigrationsFolder()
     const analytics = await createTestAnalyticsDb()
+
     try {
       migrateControlDb(db)
+
       const executor = new ConfiguredSqliteExecutor({
         db,
         analytics,
@@ -729,19 +752,23 @@ describe('ConfiguredSqliteExecutor', () => {
     const db = createDb({ path: controlDatabasePath })
     const migrationsFolder = await createProbeMigrationsFolder()
     const analytics = await createTestAnalyticsDb()
+
     try {
       migrateControlDb(db)
+
       const sourceExecutor = new ConfiguredSqliteExecutor({
         db,
         analytics,
         controlDatabasePath,
         dataDirectoryPath: directory,
       })
+
       const source = await sourceExecutor.captureBackup({
         operationId: 'bop_1',
         artifactId: 'bar_1',
         lastSafeSequence: 9,
       })
+
       const executor = new ConfiguredSqliteExecutor({
         db,
         analytics,

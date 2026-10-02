@@ -21,6 +21,7 @@ export function publicDashboardRouter(service: PublicDashboardService) {
       if (context.sourceIp === undefined) {
         throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
       }
+
       return service.query(input, context.sourceIp)
     }),
   })

@@ -4,10 +4,13 @@ import { SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema
 import { SOrganization } from '../schema.ts'
 
 export const SOrganizationListInput = SOffsetPaginationInput
+
 export type SOrganizationListInput = v.InferOutput<typeof SOrganizationListInput>
+
 export const SOrganizationListOutput = v.strictObject(
   v.entriesFromObjects([v.strictObject({ items: SPageItems(SOrganization) }), SOffsetPage]),
 )
+
 export type SOrganizationListOutput = v.InferOutput<typeof SOrganizationListOutput>
 
 export const listOrganizations = oc

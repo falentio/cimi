@@ -1,4 +1,5 @@
 const SESSION_INACTIVITY_MS = 30 * 60 * 1000
+
 const SESSION_MAX_MS = 24 * 60 * 60 * 1000
 
 export interface SessionWindow {
@@ -23,5 +24,6 @@ export function sessionContinues(
 ): boolean {
   const inactive = receiptMs - state.lastSeenMs > window.inactivityMs
   const expired = receiptMs - state.sessionStartMs > window.maxMs
+
   return !inactive && !expired
 }

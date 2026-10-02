@@ -4,6 +4,7 @@ export type TokenHash = string & { readonly __brand: 'TokenHash' }
 
 export function mintInvitationToken(): { token: string; tokenHash: TokenHash } {
   const token = randomBytes(32).toString('base64url')
+
   return { token, tokenHash: hashInvitationToken(token) }
 }
 

@@ -36,6 +36,7 @@ function createFixture(
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
+
   const policy = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -70,6 +71,7 @@ function createFixture(
       repository.append.mockImplementation(async (candidates) =>
         candidates.map(() => ({ status: 'accepted' }) as const),
       )
+
       return repository
     })()
 
@@ -147,20 +149,25 @@ describe('EventIngestionService.flushFailureRetry', () => {
     const identitySession = new DefaultIdentitySessionResolver({ clock: () => now })
     const { service, acceptanceRepository } = createFixture({ identitySession })
     let appendCalls = 0
+
     const assignments: Array<{
       visitorId: string | null
       analyticsSessionId: string | null
     }> = []
+
     acceptanceRepository.append.mockImplementation(async (candidates) => {
       appendCalls += 1
       const candidate = candidates[0]
+
       if (candidate !== undefined) {
         assignments.push({
           visitorId: candidate.visitorId,
           analyticsSessionId: candidate.analyticsSessionId,
         })
       }
+
       if (appendCalls === 1) throw new Error('sqlite unavailable')
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
@@ -172,12 +179,14 @@ describe('EventIngestionService.flushFailureRetry', () => {
     const retry = service.collectEvent(
       event({ eventId: 'event-2', anonymousIdentityId: 'anonymous-1' }),
     )
+
     await service.flush()
     await expect(retry).resolves.toMatchObject({ status: 'accepted', eventId: 'event-2' })
 
     const later = service.collectEvent(
       event({ eventId: 'event-3', anonymousIdentityId: 'anonymous-1' }),
     )
+
     await service.flush()
     await expect(later).resolves.toMatchObject({ status: 'accepted', eventId: 'event-3' })
 
@@ -196,18 +205,22 @@ describe('EventIngestionService.flushFailureRetry', () => {
     let appendCalls = 0
     acceptanceRepository.append.mockImplementation(async (candidates) => {
       appendCalls += 1
+
       if (appendCalls === 2) throw new Error('sqlite unavailable')
+
       for (const candidate of candidates) {
         stored.set(candidate.event.eventId, {
           receiptTime: candidate.receiptTime,
           payloadFingerprint: candidate.payloadFingerprint,
         })
       }
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
     acceptanceRepository.findByEventId.mockImplementation(async (_siteId, eventId) =>
       stored.get(eventId),
     )
+
     const { service } = createFixture({
       acceptance: acceptanceRepository,
       coalescer: new AcceptanceCoalescer({
@@ -228,6 +241,7 @@ describe('EventIngestionService.flushFailureRetry', () => {
         event({ eventId: 'event-4' }),
       ],
     })
+
     const failed = service.collectEvents(batch())
     await expect(failed).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
     expect(appendCalls).toBe(2)

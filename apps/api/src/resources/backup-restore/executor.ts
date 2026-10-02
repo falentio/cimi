@@ -23,8 +23,11 @@ import {
 import { scrubAcceptedEventIdentity, scrubCanonicalEventPayloads } from './identity-redaction.ts'
 
 export { BackupIncompatibilityError } from './errors.ts'
+
 export class InsufficientStorageError extends Error {}
+
 export class SafetyArtifactUnavailableError extends Error {}
+
 export class SafetyArtifactChecksumMismatchError extends Error {}
 
 export interface BackupRestoreExecutor {
@@ -97,6 +100,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   }): Promise<SourceManifest> {
     assertSafeOperationId(input.operationId)
     const storageKey = `backups/${input.operationId}.sqlite`
+
     return this.capture({
       operationId: input.operationId,
       artifactId: input.artifactId,
@@ -113,6 +117,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   }): Promise<SafetyManifest> {
     assertSafeOperationId(input.operationId)
     const storageKey = `safety/${input.operationId}.sqlite`
+
     const captured = await this.capture({
       operationId: input.operationId,
       artifactId: input.artifactId,
@@ -120,6 +125,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       lastSafeSequence: input.lastSafeSequence,
       kind: 'safety',
     })
+
     return {
       ...captured,
       kind: 'safety',
@@ -135,15 +141,19 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     readonly source: SourceManifest
   }): Promise<void> {
     assertSafeOperationId(input.operationId)
+
     if (input.source.kind !== 'source' || input.source.artifactType !== 'authoritative_sqlite') {
       throw new BackupIncompatibilityError('Backup manifest has an invalid artifact type')
     }
+
     if (input.source.schemaVersion !== '1') {
       throw new BackupIncompatibilityError('Backup manifest is not compatible')
     }
+
     const path = this.resolveStoragePath(input.source.storageKey, 'backups')
     await verifyArtifact(path, input.source.sizeBytes, input.source.checksumValue)
     verifySqliteIntegrity(path, input.source.retentionManifest === null)
+
     if (input.source.retentionManifest !== null) {
       encodeRetentionManifest(input.source.retentionManifest)
     }
@@ -154,16 +164,19 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     readonly source: SourceManifest
   }): Promise<void> {
     assertSafeOperationId(input.operationId)
+
     const tombstones = this.db.$client
       .prepare(
         'SELECT site_id AS siteId, organization_id AS organizationId, hostname, purge_operation_id AS purgeOperationId, purged_at AS purgedAt, created_at AS createdAt FROM site_tombstone',
       )
       .all() as TombstoneRow[]
+
     const redactions = this.db.$client
       .prepare(
         'SELECT id, site_id AS siteId, profile_id AS profileId, identified_user_id AS identifiedUserId, profile_epoch AS profileEpoch, reason, status, requested_at AS requestedAt, applied_at AS appliedAt, derived_cleanup_status AS derivedCleanupStatus, backup_cleanup_status AS backupCleanupStatus, derived_cleanup_updated_at AS derivedCleanupUpdatedAt, backup_cleanup_updated_at AS backupCleanupUpdatedAt, created_at AS createdAt, updated_at AS updatedAt FROM identity_redaction',
       )
       .all() as RedactionRow[]
+
     const siteLifecycle = this.captureSiteLifecycle()
     const lifecycle = this.captureRestoreLifecycle(input.operationId)
     const path = this.resolveStoragePath(input.source.storageKey, 'backups')
@@ -178,14 +191,18 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
           if (error instanceof ControlMigrationIncompatibilityError) {
             throw new BackupIncompatibilityError('Backup migration is not compatible')
           }
+
           if (classifyStorageExhausted(error)) {
             throw new InsufficientStorageError('Backup migration could not be stored')
           }
+
           throw error
         }
+
         this.restoreRetentionManifest(stagedDb, input.source)
         this.restoreTombstones(stagedDb, tombstones)
         this.restoreRedactions(stagedDb, redactions)
+
         if (lifecycle !== undefined) this.restoreLifecycle(stagedDb, lifecycle, input.source)
         this.restoreSiteLifecycle(stagedDb, siteLifecycle, input.operationId)
       },
@@ -199,9 +216,11 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       if (error instanceof ControlMigrationIncompatibilityError) {
         throw new BackupIncompatibilityError('Backup migration is not compatible')
       }
+
       if (classifyStorageExhausted(error)) {
         throw new InsufficientStorageError('Backup migration could not be stored')
       }
+
       throw error
     }
   }
@@ -212,6 +231,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
 
   async verifyStructuralReadiness(_input: { readonly operationId: string }): Promise<void> {
     validateBaseSchema(this.db)
+
     if (!(await this.analytics.ready())) throw new Error('Analytics database is not ready')
   }
 
@@ -220,16 +240,20 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     readonly safety: SafetyManifest
   }): Promise<void> {
     assertSafeOperationId(input.operationId)
+
     if (input.safety.kind !== 'safety' || input.safety.artifactType !== 'pre_restore_sqlite') {
       throw new SafetyArtifactUnavailableError('Pre-restore safety artifact is invalid')
     }
+
     const path = this.resolveStoragePath(input.safety.storageKey, 'safety')
+
     try {
       await verifyArtifact(path, input.safety.sizeBytes, input.safety.checksumValue)
     } catch (error) {
       if (error instanceof InsufficientStorageError) throw error
       throw new SafetyArtifactChecksumMismatchError('Pre-restore safety artifact checksum failed')
     }
+
     await restoreDbFromBackup({
       backupPath: path,
       destinationPath: this.controlDatabasePath,
@@ -247,12 +271,14 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         .where(eq(schema.TBackupOperation.id, operationId))
         .limit(1)
         .all()[0]
+
       const reference = tx
         .select()
         .from(schema.TBackupRestoreReference)
         .where(eq(schema.TBackupRestoreReference.operationId, operationId))
         .limit(1)
         .all()[0]
+
       if (
         operation === undefined ||
         reference === undefined ||
@@ -260,12 +286,14 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       ) {
         throw new SafetyArtifactUnavailableError('Pre-restore safety metadata is unavailable')
       }
+
       const existing = tx
         .select()
         .from(schema.TBackupArtifact)
         .where(eq(schema.TBackupArtifact.id, safety.id))
         .limit(1)
         .all()[0]
+
       if (existing === undefined) {
         tx.insert(schema.TBackupArtifact)
           .values({
@@ -290,12 +318,14 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       ) {
         throw new SafetyArtifactUnavailableError('Pre-restore safety metadata is invalid')
       }
+
       if (
         reference.preRestoreSafetyArtifactId !== null &&
         reference.preRestoreSafetyArtifactId !== safety.id
       ) {
         throw new SafetyArtifactUnavailableError('Pre-restore safety metadata is invalid')
       }
+
       tx.update(schema.TBackupRestoreReference)
         .set({ preRestoreSafetyArtifactId: safety.id })
         .where(eq(schema.TBackupRestoreReference.operationId, operationId))
@@ -328,6 +358,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       input.storageKey,
       input.kind === 'source' ? 'backups' : 'safety',
     )
+
     try {
       await mkdir(dirname(path), { recursive: true })
       const retentionManifest = input.kind === 'source' ? this.captureRetentionManifest() : null
@@ -335,12 +366,15 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       await this.db.$client.backup(path)
       this.scrubCapturedIdentityData(path, redactions)
       const artifactStats = await stat(path)
+
       if (!artifactStats.isFile() || artifactStats.size === 0) {
         throw new InsufficientStorageError('SQLite artifact is empty')
       }
+
       const checksumValue = createHash('sha256')
         .update(await readFile(path))
         .digest('hex')
+
       const common = {
         id: input.artifactId,
         operationId: input.operationId,
@@ -352,6 +386,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         checksumValue,
         createdAt: new Date(),
       }
+
       if (input.kind === 'source') {
         return {
           kind: 'source',
@@ -362,6 +397,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
           acceptanceSequence: input.lastSafeSequence,
         }
       }
+
       return {
         kind: 'safety',
         ...common,
@@ -372,9 +408,11 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       }
     } catch (error) {
       if (error instanceof InsufficientStorageError) throw error
+
       if (classifyStorageExhausted(error)) {
         throw new InsufficientStorageError('SQLite artifact storage failed')
       }
+
       throw error
     }
   }
@@ -385,6 +423,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       .from(schema.TRetentionEffectiveCutoff)
       .orderBy(asc(schema.TRetentionEffectiveCutoff.siteId))
       .all()
+
     const boundaries: RetentionManifestBoundary[] = rows.map((row) => ({
       siteId: row.siteId,
       installationId: row.installationId,
@@ -398,6 +437,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       effectiveAt: row.effectiveAt,
       updatedAt: row.updatedAt,
     }))
+
     return { version: 1, boundaries }
   }
 
@@ -420,6 +460,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   private scrubCapturedIdentityData(path: string, redactions: readonly RedactionRow[]): void {
     if (redactions.length === 0) return
     const backupDb = createDb({ path })
+
     try {
       backupDb.$client.transaction(() => {
         for (const redaction of redactions) {
@@ -436,11 +477,13 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     if (source.retentionManifest === null) return
     const manifest = source.retentionManifest
     encodeRetentionManifest(manifest)
+
     try {
       db.transaction((tx) => {
         const siteIds = uniqueIds(manifest.boundaries.map((row) => row.siteId))
         const installationIds = uniqueIds(manifest.boundaries.map((row) => row.installationId))
         const policyIds = uniqueIds(manifest.boundaries.map((row) => row.policyId))
+
         const sites =
           siteIds.length === 0
             ? []
@@ -449,6 +492,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
                 .from(schema.TSite)
                 .where(inArray(schema.TSite.id, siteIds))
                 .all()
+
         const installations =
           installationIds.length === 0
             ? []
@@ -457,6 +501,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
                 .from(schema.TInstallation)
                 .where(inArray(schema.TInstallation.id, installationIds))
                 .all()
+
         const policies =
           policyIds.length === 0
             ? []
@@ -465,6 +510,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
                 .from(schema.TRetentionPolicy)
                 .where(inArray(schema.TRetentionPolicy.id, policyIds))
                 .all()
+
         if (
           sites.length !== siteIds.length ||
           installations.length !== installationIds.length ||
@@ -472,7 +518,9 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         ) {
           throw new BackupIncompatibilityError('Retention manifest references missing rows')
         }
+
         tx.delete(schema.TRetentionEffectiveCutoff).run()
+
         if (manifest.boundaries.length > 0) {
           tx.insert(schema.TRetentionEffectiveCutoff)
             .values(manifest.boundaries.map((boundary) => ({ ...boundary })))
@@ -487,14 +535,17 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
 
   private resolveStoragePath(storageKey: string, directory: 'backups' | 'safety'): string {
     const expected = new RegExp(`^${directory}/[A-Za-z0-9_-]{1,64}\\.sqlite$`)
+
     if (!expected.test(storageKey))
       throw new BackupIncompatibilityError('Backup storage key is invalid')
     const root = resolve(this.dataDirectoryPath)
     const path = resolve(root, storageKey)
     const fromRoot = relative(root, path)
+
     if (fromRoot === '' || fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
       throw new BackupIncompatibilityError('Backup storage key is outside configured storage')
     }
+
     return path
   }
 
@@ -502,6 +553,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     const insert = db.$client.prepare(
       'INSERT OR REPLACE INTO site_tombstone (site_id, organization_id, hostname, purge_operation_id, purged_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     )
+
     for (const row of rows) {
       insert.run(
         row.siteId,
@@ -516,9 +568,11 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
 
   private captureSiteLifecycle(): readonly SiteLifecycleState[] {
     const sites = this.db.select().from(schema.TSite).where(ne(schema.TSite.status, 'active')).all()
+
     const operationIds = sites.flatMap((site) =>
       site.currentOperationId === null ? [] : [site.currentOperationId],
     )
+
     const operations =
       operationIds.length === 0
         ? []
@@ -527,7 +581,9 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
             .from(schema.TSiteLifecycleOperation)
             .where(inArray(schema.TSiteLifecycleOperation.id, operationIds))
             .all()
+
     const operationsById = new Map(operations.map((operation) => [operation.id, operation]))
+
     return sites.map((site) => ({
       site,
       operation:
@@ -541,6 +597,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     restoreOperationId: string,
   ): void {
     const findSite = db.$client.prepare('SELECT 1 FROM site WHERE id = ?')
+
     const updateSite = db.$client.prepare(
       `UPDATE site
        SET status = ?, delete_requested_at = ?, deleted_at = ?, recovery_deadline = ?, purge_at = ?,
@@ -548,14 +605,18 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
            cleanup_error = ?
        WHERE id = ?`,
     )
+
     const insertOperation = db.$client.prepare(
       'INSERT OR IGNORE INTO site_lifecycle_operation (id, site_id, operation_type, status, requested_at, started_at, completed_at, error_summary, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
+
     const insertTombstone = db.$client.prepare(
       'INSERT OR REPLACE INTO site_tombstone (site_id, organization_id, hostname, purge_operation_id, purged_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     )
+
     for (const row of rows) {
       const site = row.site
+
       if (findSite.get(site.id) !== undefined) {
         updateSite.run(
           site.status,
@@ -570,6 +631,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
           site.cleanupError,
           site.id,
         )
+
         if (row.operation !== undefined) {
           const operation = row.operation
           insertOperation.run(
@@ -585,8 +647,10 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
             operation.updatedAt.getTime(),
           )
         }
+
         continue
       }
+
       const tombstoneTime = site.purgedAt ?? site.deletedAt ?? site.createdAt
       insertTombstone.run(
         site.id,
@@ -603,25 +667,31 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     const insert = db.$client.prepare(
       'INSERT OR REPLACE INTO identity_redaction (id, site_id, profile_id, identified_user_id, profile_epoch, reason, status, requested_at, applied_at, derived_cleanup_status, backup_cleanup_status, derived_cleanup_updated_at, backup_cleanup_updated_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
+
     const hasSite = db.$client.prepare('SELECT 1 FROM site WHERE id = ?')
     const hasProfile = db.$client.prepare('SELECT 1 FROM identity_profile WHERE profile_id = ?')
+
     const hasEpoch = db.$client.prepare(
       'SELECT 1 FROM identity_profile_epoch WHERE profile_id = ? AND epoch = ?',
     )
+
     const insertProfile = db.$client.prepare(
       `INSERT OR IGNORE INTO identity_profile
        (profile_id, site_id, identified_user_id, status, profile_epoch, traits,
         first_seen_at, last_seen_at, created_at, updated_at)
        VALUES (?, ?, ?, 'deleted', ?, NULL, ?, ?, ?, ?)`,
     )
+
     const insertEpoch = db.$client.prepare(
       `INSERT OR IGNORE INTO identity_profile_epoch
        (profile_id, site_id, identified_user_id, epoch, status, started_at, ended_at, redacted_at)
        VALUES (?, ?, ?, ?, 'redacted', ?, ?, ?)`,
     )
+
     for (const row of rows) {
       if (hasSite.get(row.siteId) === undefined) continue
       const profileExists = hasProfile.get(row.profileId) !== undefined
+
       if (!profileExists) {
         insertProfile.run(
           row.profileId,
@@ -634,7 +704,9 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
           row.updatedAt,
         )
       }
+
       const epochExists = hasEpoch.get(row.profileId, row.profileEpoch) !== undefined
+
       if (!epochExists) {
         const redactedAt = row.appliedAt ?? row.requestedAt
         insertEpoch.run(
@@ -647,6 +719,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
           redactedAt,
         )
       }
+
       insert.run(
         row.id,
         row.siteId,
@@ -678,6 +751,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       .get(row.profileId, row.profileEpoch) as
       | { readonly startedAt: number; readonly endedAt: number | null }
       | undefined
+
     const profile = db.$client
       .prepare(
         `SELECT profile_epoch AS profileEpoch
@@ -685,15 +759,19 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
          WHERE profile_id = ?`,
       )
       .get(row.profileId) as { readonly profileEpoch: number | null } | undefined
+
     const redactedAt = row.appliedAt ?? row.requestedAt
+
     const boundary = {
       siteId: row.siteId,
       identifiedUserId: row.identifiedUserId,
       epochStartedAt: scrubAll ? null : (epoch?.startedAt ?? null),
       epochEndedAt: scrubAll ? null : (epoch?.endedAt ?? null),
     }
+
     scrubCanonicalEventPayloads(db, boundary)
     scrubAcceptedEventIdentity(db, boundary)
+
     if (epoch === undefined) return
     db.$client
       .prepare(
@@ -710,6 +788,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
          WHERE profile_id = ? AND profile_epoch = ?`,
       )
       .run(redactedAt, row.profileId, row.profileEpoch)
+
     if (profile?.profileEpoch === row.profileEpoch) {
       db.$client
         .prepare(
@@ -732,20 +811,25 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       .where(eq(schema.TBackupOperation.id, operationId))
       .limit(1)
       .all()[0]
+
     if (operation === undefined) return undefined
+
     const installation = this.db
       .select()
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.singletonKey, 'default'))
       .limit(1)
       .all()[0]
+
     if (installation === undefined) throw new Error('Installation lifecycle state is missing')
+
     const reference = this.db
       .select()
       .from(schema.TBackupRestoreReference)
       .where(eq(schema.TBackupRestoreReference.operationId, operationId))
       .limit(1)
       .all()[0]
+
     const sourceOperation =
       reference === undefined
         ? undefined
@@ -755,6 +839,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
             .where(eq(schema.TBackupOperation.id, reference.restoreSourceBackupId))
             .limit(1)
             .all()[0]
+
     const safety = this.db
       .select()
       .from(schema.TBackupArtifact)
@@ -766,11 +851,13 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       )
       .limit(1)
       .all()[0]
+
     const cleanupStages = this.db
       .select()
       .from(schema.TBackupCleanupStage)
       .where(eq(schema.TBackupCleanupStage.operationId, operationId))
       .all()
+
     const sourceCleanupStages =
       sourceOperation === undefined
         ? []
@@ -779,6 +866,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
             .from(schema.TBackupCleanupStage)
             .where(eq(schema.TBackupCleanupStage.operationId, sourceOperation.id))
             .all()
+
     return {
       operation,
       installation,
@@ -794,6 +882,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     db.delete(schema.TBackupOperation)
       .where(inArray(schema.TBackupOperation.status, ['creating', 'restoring']))
       .run()
+
     if (state.sourceOperation !== undefined) {
       const sourceOperation = {
         ...state.sourceOperation,
@@ -810,11 +899,14 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         updatedAt: source.createdAt,
         ownerToken: null,
       } satisfies typeof schema.TBackupOperation.$inferInsert
+
       db.insert(schema.TBackupOperation).values(sourceOperation).onConflictDoNothing().run()
+
       for (const stage of state.sourceCleanupStages) {
         db.insert(schema.TBackupCleanupStage).values(stage).onConflictDoNothing().run()
       }
     }
+
     db.insert(schema.TBackupArtifact)
       .values({
         id: source.id,
@@ -837,15 +929,19 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       .onConflictDoNothing()
       .run()
     db.insert(schema.TBackupOperation).values(state.operation).onConflictDoNothing().run()
+
     if (state.safety !== undefined) {
       db.insert(schema.TBackupArtifact).values(state.safety).onConflictDoNothing().run()
     }
+
     if (state.reference !== undefined) {
       db.insert(schema.TBackupRestoreReference).values(state.reference).onConflictDoNothing().run()
     }
+
     for (const stage of state.cleanupStages) {
       db.insert(schema.TBackupCleanupStage).values(stage).onConflictDoNothing().run()
     }
+
     db.update(schema.TInstallation)
       .set({
         status: state.installation.status,
@@ -890,9 +986,12 @@ interface SiteLifecycleState {
 
 export function classifyStorageExhausted(error: unknown): boolean {
   const code = error instanceof Error && 'code' in error ? error.code : undefined
+
   if (code === 'ENOSPC' || code === 'SQLITE_FULL') return true
+
   if (typeof code === 'string' && code.startsWith('SQLITE_IOERR')) return true
   const message = error instanceof Error ? error.message : String(error)
+
   return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)
 }
 
@@ -907,33 +1006,41 @@ async function verifyArtifact(
   checksumValue: string,
 ): Promise<void> {
   let artifactStats: Awaited<ReturnType<typeof stat>>
+
   try {
     artifactStats = await stat(path)
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       throw new InsufficientStorageError('Backup artifact is unavailable')
     }
+
     throw error
   }
+
   if (!artifactStats.isFile() || artifactStats.size !== sizeBytes) {
     throw new BackupIncompatibilityError('Backup artifact size is invalid')
   }
+
   const checksum = createHash('sha256')
     .update(await readFile(path))
     .digest('hex')
+
   if (checksum !== checksumValue)
     throw new BackupIncompatibilityError('Backup artifact checksum is invalid')
 }
 
 function verifySqliteIntegrity(path: string, requireRetentionTable = false): void {
   const database = createDb({ path })
+
   try {
     const rows = database.$client.prepare('PRAGMA integrity_check').all() as Array<{
       integrity_check: string
     }>
+
     if (rows.length === 0 || rows.some((row) => row.integrity_check !== 'ok')) {
       throw new BackupIncompatibilityError('Backup SQLite integrity is invalid')
     }
+
     if (
       requireRetentionTable &&
       database.$client

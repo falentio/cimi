@@ -24,5 +24,6 @@ function ingestionRequestContext(
   options: EventIngestionRouterOptions,
 ): IngestionRequestContext {
   const extracted = extractRequestContext(context.headers, options)
+
   return context.sourceIp === undefined ? extracted : { ...extracted, sourceIp: context.sourceIp }
 }

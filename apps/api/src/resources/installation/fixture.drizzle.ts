@@ -4,6 +4,7 @@ import { InstallationRepositoryDrizzle } from './repository.drizzle.ts'
 import type { InstallationRepository } from './repository.ts'
 
 export const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 export const updatedAt = new Date('2026-09-01T00:00:00.000Z')
 
 export interface InstallationDrizzleFixture extends Disposable {
@@ -13,6 +14,7 @@ export interface InstallationDrizzleFixture extends Disposable {
 
 export function createInstallationDrizzleFixture(): InstallationDrizzleFixture {
   const db = createMigratedTestDb()
+
   try {
     return {
       db,

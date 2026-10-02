@@ -30,21 +30,28 @@ export function createCollectionPolicyFixture(options: CollectionPolicyFixtureOp
             target: input.target,
             values: input.values,
           }
+
     const layers: PolicyLayers =
       input.target.scope === 'site'
         ? { installation: createPolicyLayers().installation, site: revision }
         : { installation: revision ?? createPolicyLayers().installation, site: null }
+
     const resolution =
       input.target.scope === 'site' ? resolvePolicy({ siteId: input.target.siteId, layers }) : null
+
     return { layers, resolution }
   })
   const lock = new InMemoryLifecycleLock()
+
   const scope = new InMemorySiteScopePort(
     options.sites ?? [{ siteId: 'ste_1', organizationId: 'org_1' }],
     options.memberships ?? [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
   )
+
   const lifecycle = new InMemoryLifecycleOperationStatusReader()
+
   if (options.activeOperation !== undefined) lifecycle.setActiveOperation(options.activeOperation)
+
   const service = new CollectionPolicyService({
     repository,
     lock,
@@ -53,6 +60,7 @@ export function createCollectionPolicyFixture(options: CollectionPolicyFixtureOp
     ...(options.clock === undefined ? {} : { clock: options.clock }),
     ids: { collectionPolicyRevisionId: () => 'cpr_fixed' },
   })
+
   return { repository, lock, scope, lifecycle, service }
 }
 
@@ -95,6 +103,7 @@ export function createTestAuthUser(overrides: Partial<AuthUser> = {}): AuthUser 
 
 export function createDecisionFixture() {
   const layers = createPolicyLayers()
+
   return evaluateAdmission({
     resolution: resolvePolicy({ siteId: 'ste_1', layers }),
     input: { siteId: 'ste_1', path: '/home' },

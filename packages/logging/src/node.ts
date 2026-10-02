@@ -7,12 +7,14 @@ let configuredLevel: LogLevel | undefined
 
 export function configureNodeLogging(logging?: LoggingConfig): void {
   const lowestLevel = logging?.lowestLevel ?? DEFAULT_LOG_LEVEL
+
   if (configuredLevel !== undefined && getConfig() !== null) {
     if (configuredLevel !== lowestLevel) {
       throw new Error(
         `Node logging is already configured at ${configuredLevel}, cannot change it to ${lowestLevel}`,
       )
     }
+
     return
   }
 

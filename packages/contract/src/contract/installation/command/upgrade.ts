@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SInstallation } from '../schema.ts'
 
 export const SInstallationUpgradeInput = v.strictObject({ confirmation: v.literal('UPGRADE') })
+
 export type SInstallationUpgradeInput = v.InferOutput<typeof SInstallationUpgradeInput>
+
 export const SInstallationUpgradeOutput = SInstallation
+
 export type SInstallationUpgradeOutput = v.InferOutput<typeof SInstallationUpgradeOutput>
 
 export const upgradeInstallation = oc

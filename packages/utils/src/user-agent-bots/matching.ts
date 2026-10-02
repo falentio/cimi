@@ -1,7 +1,9 @@
 import { ALL_BOT_PATTERNS, type BotPattern } from './patterns.ts'
 
 const UNSUPPORTED_SYNTAX = '()[]{}?+*|.^$'
+
 const WORD_CHARACTERS = 'abcdefghijklmnopqrstuvwxyz0123456789_'
+
 export const ASCII_ALPHABET_SIZE = 128
 
 export interface LiteralRule {
@@ -28,6 +30,7 @@ export type OrderedRule = LiteralRule | ComplexRule
 
 export const ORDERED_RULES: OrderedRule[] = ALL_BOT_PATTERNS.map((pattern, sourceIndex) => {
   const literalRule = createLiteralRule(pattern, sourceIndex)
+
   return literalRule ?? createComplexRule(pattern, sourceIndex)
 })
 
@@ -56,6 +59,7 @@ export function matchesLiteralRule(userAgent: string, rule: LiteralRule): boolea
   }
 
   let index = rule.startsWith ? 0 : userAgent.indexOf(rule.value)
+
   while (index !== -1) {
     if (matchesLiteralRuleAt(userAgent, rule, index)) {
       return true
@@ -64,6 +68,7 @@ export function matchesLiteralRule(userAgent: string, rule: LiteralRule): boolea
     if (rule.startsWith) {
       return false
     }
+
     index = userAgent.indexOf(rule.value, index + 1)
   }
 
@@ -72,6 +77,7 @@ export function matchesLiteralRule(userAgent: string, rule: LiteralRule): boolea
 
 export function matchesLiteralRuleAt(userAgent: string, rule: LiteralRule, index: number): boolean {
   const endIndex = index + rule.value.length
+
   if (
     index < 0 ||
     endIndex > userAgent.length ||
@@ -83,6 +89,7 @@ export function matchesLiteralRuleAt(userAgent: string, rule: LiteralRule, index
 
   const startsAtWordBoundary = !rule.wordBoundaryStart || !isWordCharacter(userAgent[index - 1])
   const endsAtWordBoundary = !rule.wordBoundaryEnd || !isWordCharacter(userAgent[endIndex])
+
   return startsAtWordBoundary && endsAtWordBoundary
 }
 
@@ -95,6 +102,7 @@ export function isEarliestLiteralRule(userAgent: string, candidate: LiteralRule)
     if (rule.sourceIndex >= candidate.sourceIndex) {
       break
     }
+
     if (matchesLiteralRule(userAgent, rule)) {
       return false
     }
@@ -117,14 +125,17 @@ function createLiteralRule(
     startsWith = true
     value = value.slice(1)
   }
+
   if (value.endsWith('$')) {
     endsWith = true
     value = value.slice(0, -1)
   }
+
   if (value.startsWith('\\b')) {
     wordBoundaryStart = true
     value = value.slice(2)
   }
+
   if (value.endsWith('\\b')) {
     wordBoundaryEnd = true
     value = value.slice(0, -2)

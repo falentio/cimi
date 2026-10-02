@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { PSafePolicy, SCollectionPolicySiteFields } from '../schema.ts'
 
 export const SCollectionPolicyGetInput = SCollectionPolicySiteFields
+
 export type SCollectionPolicyGetInput = v.InferOutput<typeof SCollectionPolicyGetInput>
+
 export const SCollectionPolicyGetOutput = PSafePolicy
+
 export type SCollectionPolicyGetOutput = v.InferOutput<typeof SCollectionPolicyGetOutput>
 
 export const getCollectionPolicy = oc

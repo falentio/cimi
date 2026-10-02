@@ -16,15 +16,18 @@ export function createLegacyFileDb(dir: string, filename = 'control.sqlite'): st
   const path = join(dir, filename)
   const fixture = createLegacy471c10dTestDb({ path })
   fixture.close()
+
   return path
 }
 
 export function createLegacyMemoryDb(): Db {
   const db = createDb({ path: ':memory:' })
+
   try {
     applyLegacy471c10dSchema(db.$client)
     applyLegacy471c10dLedger(db.$client)
     seedLegacy471c10dDataset(db.$client)
+
     return db
   } catch (error) {
     db.$client.close()
@@ -35,10 +38,12 @@ export function createLegacyMemoryDb(): Db {
 export function createCorruptedMigrationsFolder(dir: string): string {
   const folder = join(dir, 'corrupted-migrations')
   mkdirSync(join(folder, 'meta'), { recursive: true })
+
   for (const name of readdirSync(CURRENT_MIGRATIONS_FOLDER)) {
     if (name.endsWith('.sql'))
       copyFileSync(join(CURRENT_MIGRATIONS_FOLDER, name), join(folder, name))
   }
+
   copyFileSync(
     join(CURRENT_MIGRATIONS_FOLDER, 'meta/_journal.json'),
     join(folder, 'meta/_journal.json'),
@@ -47,6 +52,7 @@ export function createCorruptedMigrationsFolder(dir: string): string {
     join(folder, '0015_normalize_legacy_public_dashboard.sql'),
     'SELECT * FROM __table_that_does_not_exist__',
   )
+
   return folder
 }
 
@@ -60,6 +66,7 @@ export function countRows(db: Db, table: string): number {
   const row = db.$client.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get() as {
     count: number
   }
+
   return row.count
 }
 

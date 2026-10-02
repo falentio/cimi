@@ -77,6 +77,7 @@ describe('dense Aho-Corasick compatibility', () => {
 function literalProbe(rule: LiteralRule): string {
   const prefix = rule.startsWith ? '' : rule.wordBoundaryStart ? 'probe ' : 'prefix '
   const suffix = rule.endsWith ? '' : rule.wordBoundaryEnd ? '!' : ' suffix'
+
   return `${prefix}${rule.value}${suffix}`
 }
 

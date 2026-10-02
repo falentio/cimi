@@ -10,16 +10,19 @@ import {
 import type { AuthUser } from '@cimi/auth'
 
 const adminUser = { id: 'u1', role: 'admin' } as unknown as AuthUser
+
 const installationAdmin = {
   id: 'u1',
   role: 'admin',
   installationGrant: true,
 } as unknown as AuthUser
+
 const normalUser = { id: 'u1', role: 'user' } as unknown as AuthUser
 
 describe('assertIsAdmin', () => {
   it('throws FORBIDDEN for undefined user', () => {
     expect(() => assertIsAdmin(undefined)).toThrow(ORPCError<string, unknown>)
+
     try {
       assertIsAdmin(undefined)
     } catch (error) {
@@ -30,6 +33,7 @@ describe('assertIsAdmin', () => {
 
   it('throws FORBIDDEN for non-admin user', () => {
     expect(() => assertIsAdmin(normalUser)).toThrow(ORPCError<string, unknown>)
+
     try {
       assertIsAdmin(normalUser)
     } catch (error) {
@@ -46,6 +50,7 @@ describe('assertIsAdmin', () => {
 describe('assertOwner', () => {
   it('denies when id does not match', () => {
     expect(() => assertOwner({ id: 'a' }, 'b')).toThrow(ORPCError<string, unknown>)
+
     try {
       assertOwner({ id: 'a' }, 'b')
     } catch (error) {
@@ -60,6 +65,7 @@ describe('assertOwner', () => {
 
   it('fails closed when the owner context has no authenticated user', () => {
     expect(() => assertOwner(undefined, 'a')).toThrow(ORPCError<string, unknown>)
+
     try {
       assertOwner(undefined, 'a')
     } catch (error) {
@@ -79,6 +85,7 @@ describe('assertOwnerOrAdmin', () => {
 
   it('denies non-owner non-admin', () => {
     expect(() => assertOwnerOrAdmin(normalUser, 'other')).toThrow(ORPCError<string, unknown>)
+
     try {
       assertOwnerOrAdmin(normalUser, 'other')
     } catch (error) {

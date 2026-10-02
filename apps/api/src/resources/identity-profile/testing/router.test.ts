@@ -38,6 +38,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   const organizationResponse = await apiTestRequest(
@@ -46,13 +47,16 @@ test('identity routes expose profiles and hide them after deletion is requested'
     owner.cookie,
     { name: 'Identity Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Identity Site',
     hostname: 'identity.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
 
@@ -63,6 +67,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     anonymousIdentityId: 'anonymous-1',
     collectionContext: { consent: 'granted' },
   })
+
   expect(identified.status, await identified.clone().text()).toBe(200)
   await expect(identified.json()).resolves.toMatchObject({
     identifiedUserId: 'app-user-1',
@@ -74,6 +79,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/listProfiles?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(list.status, await list.clone().text()).toBe(200)
   await expect(list.json()).resolves.toMatchObject({
     items: [{ identifiedUserId: 'app-user-1', traits: { plan: 'pro' }, aliases: ['anonymous-1'] }],
@@ -88,6 +94,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     owner.cookie,
     { siteId: site.id, identifiedUserId: 'app-user-1' },
   )
+
   expect(deletion.status, await deletion.clone().text()).toBe(202)
   await expect(deletion.json()).resolves.toEqual({
     accepted: true,
@@ -99,6 +106,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/getProfile?siteId=${encodeURIComponent(site.id)}&identifiedUserId=app-user-1`,
     owner.cookie,
   )
+
   expect(profile.status, await profile.clone().text()).toBe(200)
   await expect(profile.json()).resolves.toEqual({
     status: profileLifecycleMatrix.deletionRequested.profileStatus,
@@ -109,6 +117,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/getDeletionStatus?siteId=${encodeURIComponent(site.id)}&identifiedUserId=app-user-1`,
     owner.cookie,
   )
+
   expect(status.status, await status.clone().text()).toBe(200)
   await expect(status.json()).resolves.toMatchObject({
     status: profileLifecycleMatrix.deletionRequested.profileStatus,
@@ -126,6 +135,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
       collectionContext: { consent: 'granted' },
     },
   )
+
   expect(
     identifyWhileDeletionRequested.status,
     await identifyWhileDeletionRequested.clone().text(),
@@ -152,6 +162,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     identifiedUserId: 'app-user-1',
     collectionContext: { consent: 'granted' },
   })
+
   expect(identifyWhileDeleting.status, await identifyWhileDeleting.clone().text()).toBe(409)
   await expect(identifyWhileDeleting.json()).resolves.toMatchObject({
     code: 'CONFLICT',
@@ -163,6 +174,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/getProfile?siteId=${encodeURIComponent(site.id)}&identifiedUserId=app-user-1`,
     owner.cookie,
   )
+
   expect(deletingProfile.status, await deletingProfile.clone().text()).toBe(200)
   await expect(deletingProfile.json()).resolves.toEqual({
     status: profileLifecycleMatrix.deleting.profileStatus,
@@ -173,6 +185,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/listProfiles?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(deletingList.status, await deletingList.clone().text()).toBe(200)
   await expect(deletingList.json()).resolves.toEqual({
     items: [{ status: profileLifecycleMatrix.deleting.profileStatus }],
@@ -186,6 +199,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/getDeletionStatus?siteId=${encodeURIComponent(site.id)}&identifiedUserId=app-user-1`,
     owner.cookie,
   )
+
   expect(deletingStatus.status, await deletingStatus.clone().text()).toBe(200)
   await expect(deletingStatus.json()).resolves.toMatchObject({
     status: profileLifecycleMatrix.deleting.profileStatus,
@@ -217,6 +231,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     identifiedUserId: 'app-user-1',
     collectionContext: { consent: 'granted' },
   })
+
   expect(identifyWhileDeleted.status, await identifyWhileDeleted.clone().text()).toBe(409)
   await expect(identifyWhileDeleted.json()).resolves.toMatchObject({
     code: 'CONFLICT',
@@ -228,6 +243,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/getProfile?siteId=${encodeURIComponent(site.id)}&identifiedUserId=app-user-1`,
     owner.cookie,
   )
+
   expect(deletedProfile.status, await deletedProfile.clone().text()).toBe(200)
   await expect(deletedProfile.json()).resolves.toEqual({
     status: profileLifecycleMatrix.deleted.profileStatus,
@@ -238,6 +254,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/listProfiles?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(deletedList.status, await deletedList.clone().text()).toBe(200)
   await expect(deletedList.json()).resolves.toEqual({
     items: [{ status: profileLifecycleMatrix.deleted.profileStatus }],
@@ -251,6 +268,7 @@ test('identity routes expose profiles and hide them after deletion is requested'
     `/identity-profile/getDeletionStatus?siteId=${encodeURIComponent(site.id)}&identifiedUserId=app-user-1`,
     owner.cookie,
   )
+
   expect(deletedStatus.status, await deletedStatus.clone().text()).toBe(200)
   await expect(deletedStatus.json()).resolves.toMatchObject({
     status: profileLifecycleMatrix.deleted.profileStatus,
@@ -297,20 +315,25 @@ test('identity payloads over the trait limit return PAYLOAD_TOO_LARGE', async ()
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: 'Identity Size Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Identity Size Site',
     hostname: 'identity-size.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
 
@@ -333,10 +356,12 @@ test('identity requests use the trusted source IP protection bucket', async () =
     sourceIpBurst: 1,
     sourceIpRatePerSecond: 1,
   })
+
   await using fixture = await createApiTestFixture({
     eventIngestionProtection: protection,
     eventIngestionTrustProxyHeaders: true,
   })
+
   const { app } = fixture
   const owner = await signUpTestUser(app, 'identity-rate-owner@example.com', 'Identity Rate Owner')
 
@@ -346,22 +371,28 @@ test('identity requests use the trusted source IP protection bucket', async () =
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: 'Identity Rate Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Identity Rate Site',
     hostname: 'identity-rate.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
+
   const request = (identifiedUserId: string) =>
     app.fetch(
       new Request('http://localhost/api/identity-profile/identify', {

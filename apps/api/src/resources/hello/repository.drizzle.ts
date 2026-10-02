@@ -16,6 +16,7 @@ export class HelloRepositoryDrizzle implements HelloRepository {
   async findById(id: string): Promise<HelloRepository.Hello | undefined> {
     const rows = await this.db.select().from(schema.THello).where(eq(schema.THello.id, id)).limit(1)
     const row = rows[0]
+
     return row === undefined ? undefined : toResult(row)
   }
 
@@ -25,6 +26,7 @@ export class HelloRepositoryDrizzle implements HelloRepository {
       .from(schema.THello)
       .where(eq(schema.THello.id, id))
       .limit(1)
+
     return rows[0]?.ownerId
   }
 
@@ -32,11 +34,14 @@ export class HelloRepositoryDrizzle implements HelloRepository {
     options: HelloRepository.FindManyOptions,
   ): Promise<HelloRepository.FindManyResult> {
     const conditions = []
+
     if (options.nameFilter !== undefined) {
       conditions.push(like(schema.THello.name, `%${options.nameFilter}%`))
     }
+
     const where = conditions.length > 0 ? and(...conditions) : undefined
     const [countRow] = await this.db.select({ count: count() }).from(schema.THello).where(where)
+
     const rows = await this.db
       .select()
       .from(schema.THello)
@@ -44,8 +49,10 @@ export class HelloRepositoryDrizzle implements HelloRepository {
       .orderBy(desc(schema.THello.createdAt), desc(schema.THello.id))
       .limit(options.limit + 1)
       .offset(options.offset)
+
     const hasMore = rows.length > options.limit
     const items = rows.slice(0, options.limit).map(toResult)
+
     return {
       items,
       nextOffset: hasMore ? options.offset + options.limit : null,
@@ -57,7 +64,9 @@ export class HelloRepositoryDrizzle implements HelloRepository {
   async insert(record: HelloRepository.HelloRecord): Promise<HelloRepository.Hello> {
     const rows = await this.db.insert(schema.THello).values(record).returning()
     const row = rows[0]
+
     if (row === undefined) throw new Error('Hello insert returned no row')
+
     return toResult(row)
   }
 
@@ -66,6 +75,7 @@ export class HelloRepositoryDrizzle implements HelloRepository {
       .delete(schema.THello)
       .where(and(eq(schema.THello.id, id), eq(schema.THello.ownerId, ownerId)))
       .returning({ id: schema.THello.id })
+
     return rows.length > 0
   }
 }

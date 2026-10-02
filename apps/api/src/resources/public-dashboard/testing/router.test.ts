@@ -7,6 +7,7 @@ test('Site administrators can manage public dashboard configuration without inst
   await using fixture = await createApiTestFixture()
   const { app, auth, db } = fixture
   const owner = await signUpTestUser(app, 'public-owner@example.com', 'Public Owner')
+
   const administrator = await signUpTestUser(
     app,
     'public-administrator@example.com',
@@ -19,6 +20,7 @@ test('Site administrators can manage public dashboard configuration without inst
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   const organizationResponse = await apiTestRequest(
@@ -27,15 +29,19 @@ test('Site administrators can manage public dashboard configuration without inst
     owner.cookie,
     { name: 'Public Dashboard Organization' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Public Dashboard Site',
     hostname: 'public-dashboard.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
+
   const authorityOrganization = (
     await db
       .select({ authorityOrganizationId: schema.TOrganization.authorityOrganizationId })
@@ -51,11 +57,13 @@ test('Site administrators can manage public dashboard configuration without inst
       role: 'admin',
     },
   })
+
   const reconciled = await apiTestRequest(
     app,
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(reconciled.status, await reconciled.clone().text()).toBe(200)
 
   const response = await apiTestRequest(
@@ -72,6 +80,7 @@ test('Site administrators can manage public dashboard configuration without inst
   const enabledConfig = (await response.clone().json()) as {
     publicDashboardIdentifier: string
   }
+
   const queryUrl = new URL('http://localhost/api/public-dashboard/queryPublicDashboard')
   queryUrl.search = new URLSearchParams({
     publicDashboardIdentifier: enabledConfig.publicDashboardIdentifier,

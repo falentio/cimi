@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
   const createBackup = vi.fn()
   const restoreBackup = vi.fn()
   const getInstallationStatus = vi.fn()
+
   return {
     listBackups,
     getBackupStatus,
@@ -127,7 +128,9 @@ function createController() {
   scope.run(() => {
     controller = useBackupRestore()
   })
+
   if (controller === undefined) throw new Error('Controller was not created.')
+
   return { controller, scope }
 }
 
@@ -364,6 +367,7 @@ describe('useBackupRestore', () => {
 
   it('disables confirmation but keeps cancel available when the open dialog becomes locked', async () => {
     const source = sourceBackup()
+
     const heldInstallation = {
       ...readyInstallation,
       status: 'maintenance',
@@ -377,6 +381,7 @@ describe('useBackupRestore', () => {
         errorCode: null,
       },
     } satisfies Installation
+
     mocks.listBackups.mockResolvedValue(page([source]))
     mocks.getInstallationStatus
       .mockResolvedValueOnce(readyInstallation)
@@ -436,9 +441,11 @@ describe('useBackupRestore', () => {
   it('locks restore confirmation before admission resolves and ignores duplicate submits', async () => {
     const source = sourceBackup()
     let resolveAdmission: (installation: Installation) => void = () => undefined
+
     const admission = new Promise<Installation>((resolve) => {
       resolveAdmission = resolve
     })
+
     mocks.listBackups.mockResolvedValue(page([source]))
     mocks.getInstallationStatus
       .mockResolvedValueOnce(readyInstallation)

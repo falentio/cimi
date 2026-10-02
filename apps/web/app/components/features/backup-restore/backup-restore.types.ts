@@ -2,12 +2,17 @@ import type { ComputedRef } from 'vue'
 import type { CimiOrpc } from '~/plugins/orpc'
 
 export type Backup = Awaited<ReturnType<CimiOrpc['backupRestore']['getBackupStatus']['call']>>
+
 export type BackupList = Awaited<ReturnType<CimiOrpc['backupRestore']['listBackups']['call']>>
+
 export type Installation = Awaited<
   ReturnType<CimiOrpc['installation']['getInstallationStatus']['call']>
 >
+
 export type BackupId = Backup['id']
+
 export type BackupErrorCode = NonNullable<Backup['errorCode']>
+
 export type InstallationOperation = NonNullable<Installation['activeOperation']>
 
 export type BackupRestoreFailure =

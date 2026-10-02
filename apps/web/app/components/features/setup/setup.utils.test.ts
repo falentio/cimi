@@ -102,6 +102,7 @@ describe('setup.utils', () => {
 
   it('preserves a known uninitialized installation record', () => {
     const knownUninitialized = { ...setupInstallation, status: 'uninitialized' as const }
+
     const resource = toInstallationResource({
       data: { ...installation, status: 'uninitialized' },
       error: undefined,
@@ -127,6 +128,7 @@ describe('setup.utils', () => {
       error: new Error('provider path and SQL details must not escape'),
       isLoading: false,
     })
+
     expect(resource).toMatchObject({
       kind: 'failure',
       error: {
@@ -143,6 +145,7 @@ describe('setup.utils', () => {
 
   it('describes every health status and keeps partial stores visible', () => {
     const statuses = ['healthy', 'degraded', 'recovering', 'maintenance', 'unavailable'] as const
+
     for (const status of statuses) {
       const report = {
         ...setupHealth,
@@ -151,6 +154,7 @@ describe('setup.utils', () => {
         analyticsStore: status === 'healthy' ? 'ready' : 'degraded',
         cleanupPending: status === 'degraded',
       } satisfies SetupHealth
+
       const description = describeHealth(report)
       expect(description.title.toLowerCase()).toBe(status)
       expect(description.description).not.toContain('provider')
@@ -161,6 +165,7 @@ describe('setup.utils', () => {
       error: undefined,
       isLoading: false,
     })
+
     expect(partial).toEqual({
       kind: 'ready',
       health: {
@@ -177,10 +182,12 @@ describe('setup.utils', () => {
       status: 201,
       body: installation,
     } satisfies InitializeResponse)
+
     const reused = mapInitializeResponse({
       status: 200,
       body: installation,
     } satisfies InitializeResponse)
+
     expect(created).toMatchObject({
       kind: 'created',
       httpStatus: 201,
@@ -205,11 +212,13 @@ describe('setup.utils', () => {
       activeOperation: operation,
       status: 'maintenance' as const,
     } satisfies Installation
+
     const initialized = {
       ...setupInstallation,
       status: active.status,
       activeOperation: active.activeOperation,
     } satisfies SetupInstallation
+
     expect(
       deriveLifecycleView(initialized, {
         kind: 'active',
@@ -236,6 +245,7 @@ describe('setup.utils', () => {
       status: 'degraded' as const,
       activeOperation: { ...operation, errorCode: 'UPGRADE_FAILED' as const },
     } satisfies Installation
+
     const failedSiteOperation = {
       ...installation,
       status: 'degraded' as const,
@@ -250,6 +260,7 @@ describe('setup.utils', () => {
       { ...setupInstallation, ...failedUpgrade, activeOperation: failedUpgrade.activeOperation },
       { kind: 'idle' },
     )
+
     const failedSiteLifecycle = deriveLifecycleView(
       {
         ...setupInstallation,
@@ -290,6 +301,7 @@ describe('setup.utils', () => {
       polling: { kind: 'idle' },
       notice: undefined,
     })
+
     expect(view.kind).toBe('admin-required')
     expect(view.health).toMatchObject({ kind: 'report', report: setupHealth })
   })

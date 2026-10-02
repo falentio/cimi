@@ -12,9 +12,12 @@ export interface EventAttribution {
 
 export function parseEventAttribution(payload: string | null | undefined): EventAttribution {
   if (payload === null || payload === undefined) return emptyEventAttribution()
+
   try {
     const parsed: unknown = JSON.parse(payload)
+
     if (!isRecord(parsed)) return emptyEventAttribution()
+
     return {
       utmSource: stringValue(parsed['utmSource']),
       utmMedium: stringValue(parsed['utmMedium']),

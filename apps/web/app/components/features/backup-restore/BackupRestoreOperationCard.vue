@@ -27,15 +27,18 @@ const ACTIVE_STAGE_LABELS: Record<ActiveOperationView['stage'], string> = {
   'structurally-ready': 'Structurally ready',
   'cleanup-pending': 'Cleanup pending',
 }
+
 const CONTROL_STORE_LABELS: Record<Backup['readiness']['controlStore'], string> = {
   not_ready: 'Not ready',
   ready: 'Ready',
 }
+
 const ANALYTICS_STORE_LABELS: Record<Backup['readiness']['analyticsStore'], string> = {
   not_ready: 'Not ready',
   rebuilding: 'Rebuilding',
   ready: 'Ready',
 }
+
 const STRUCTURAL_READINESS_LABELS: Record<Backup['readiness']['structural'], string> = {
   not_ready: 'Not ready',
   ready: 'Ready',
@@ -53,6 +56,7 @@ function safetyLabel(safety: SafetyArtifactView): string {
       return safety.error.message
     default: {
       const _exhaustive: never = safety
+
       return _exhaustive
     }
   }

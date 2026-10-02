@@ -30,8 +30,11 @@ export class ReportingMetadataDrizzle implements ReportingMetadataPort {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     if (row === undefined) return undefined
+
     return {
       siteId: siteId,
       reportingTimezone: row.reportingTimezone,

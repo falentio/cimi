@@ -8,6 +8,7 @@ import {
 import { hashInvitationToken } from '../token.ts'
 
 const token = 'shared-bearer-token'
+
 const tokenHash = hashInvitationToken(token)
 
 describe('InvitationService.accept concurrent', () => {
@@ -16,21 +17,26 @@ describe('InvitationService.accept concurrent', () => {
       createInvitationFixture({
         memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
       })
+
     const first = build()
     const second = build()
     const record = createInvitationRecord({ role: 'member', tokenHash })
     let winner: string | undefined
+
     const consumeOnce = async (userId: string) => {
       if (winner === undefined) {
         winner = userId
+
         return {
           status: 'consumed',
           invitation: { ...record, status: 'accepted' },
           membership: createInvitationMembership({ userId, role: 'member' }),
         } as const
       }
+
       return { status: 'not-found' } as const
     }
+
     for (const fixture of [first, second]) {
       fixture.repository.findByTokenHash.mockResolvedValue(record)
       fixture.repository.consume.mockImplementation(async ({ userId }) => consumeOnce(userId))

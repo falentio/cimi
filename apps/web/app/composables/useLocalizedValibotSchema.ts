@@ -55,10 +55,12 @@ export function createStableMessageResolver(
     if (!isValidationMessageKey(message)) return message
 
     const activeTranslation = resolveKey(message, activeLocale)
+
     if (activeTranslation !== undefined) return activeTranslation
 
     if (activeLocale !== 'en') {
       const englishTranslation = resolveKey(message, 'en')
+
       if (englishTranslation !== undefined) return englishTranslation
     }
 
@@ -77,8 +79,10 @@ export function useLocalizedValibotSchema<TSchema extends AnyValibotSchema>(
     const selectedSchema = toValue(schema)
     const config = { lang: capturedLocale } satisfies Config<InferIssue<TSchema>>
     const typedSchema = toTypedSchema(selectedSchema, config)
+
     const resolveKey = (key: ValidationMessageKey, requestedLocale: SupportedLocale) => {
       if (!i18n.te(key, requestedLocale)) return undefined
+
       return i18n.t(key, { locale: requestedLocale })
     }
 

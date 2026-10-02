@@ -35,11 +35,13 @@ export function createDuckDbCloseController(options: {
   readonly schedule: <T>(work: () => Promise<T>) => Promise<T>
 }): DuckDbCloseController {
   let lifecycle: Lifecycle = 'open'
+
   let progress: CloseProgress = {
     kind: 'checkpoint',
     connection: 'open',
     instance: 'open',
   }
+
   let closePromise: Promise<void> | undefined
 
   return {
@@ -49,9 +51,11 @@ export function createDuckDbCloseController(options: {
 
   function close(): Promise<void> {
     if (progress.kind === 'closed') return Promise.resolve()
+
     if (closePromise !== undefined) return closePromise
 
     lifecycle = 'closing'
+
     const attempt = Promise.resolve().then(() =>
       options.schedule(async () => {
         if (progress.kind === 'checkpoint') {
@@ -67,6 +71,7 @@ export function createDuckDbCloseController(options: {
         if (progress.kind !== 'resources') return
 
         const failures: unknown[] = []
+
         if (progress.connection === 'open') {
           try {
             options.operations.closeConnection()
@@ -75,6 +80,7 @@ export function createDuckDbCloseController(options: {
             failures.push(error)
           }
         }
+
         if (progress.instance === 'open') {
           try {
             options.operations.closeInstance()
@@ -83,10 +89,13 @@ export function createDuckDbCloseController(options: {
             failures.push(error)
           }
         }
+
         if (failures.length === 1) throw failures[0]
+
         if (failures.length > 1) {
           throw new AggregateError(failures, 'DuckDB close failed')
         }
+
         progress = {
           kind: 'closed',
           checkpoint: 'complete',
@@ -95,6 +104,7 @@ export function createDuckDbCloseController(options: {
         }
       }),
     )
+
     closePromise = attempt.then(
       () => {
         lifecycle = 'closed'
@@ -106,6 +116,7 @@ export function createDuckDbCloseController(options: {
         throw error
       },
     )
+
     return closePromise
   }
 }

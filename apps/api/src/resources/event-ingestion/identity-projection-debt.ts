@@ -46,6 +46,7 @@ class SqliteIdentityProjectionDebt implements IdentityProjectionDebt {
 
   isStale(projectedAt: Date): boolean {
     const debtThrough = this.debtThrough()
+
     return debtThrough !== null && debtThrough > projectedAt.getTime()
   }
 
@@ -57,6 +58,7 @@ class SqliteIdentityProjectionDebt implements IdentityProjectionDebt {
          WHERE singleton_key = 'default'`,
       )
       .get() as { readonly debtThrough: number | null } | undefined
+
     return row?.debtThrough ?? null
   }
 }

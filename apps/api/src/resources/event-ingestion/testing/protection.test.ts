@@ -9,6 +9,7 @@ describe('InMemoryIngestionProtection', () => {
       sourceIpRatePerSecond: 10,
       sourceIpBurst: 2,
     })
+
     const first = new Date('2026-09-05T00:00:00.000Z')
 
     await protection.consume({ siteId: 'ste_1', units: 2, now: first })
@@ -29,6 +30,7 @@ describe('InMemoryIngestionProtection', () => {
       sourceIpRatePerSecond: 1,
       sourceIpBurst: 1,
     })
+
     const now = new Date('2026-09-05T00:00:00.000Z')
 
     await protection.consume({ siteId: 'ste_1', sourceIp: '203.0.113.10', units: 1, now })

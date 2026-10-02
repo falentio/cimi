@@ -6,6 +6,7 @@ import { InstallationRepositoryDrizzle } from '../../installation/repository.dri
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
 
 const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
+
 const later = new Date('2026-09-10T06:05:00.000Z')
 
 function seedProfileActivityCutoff(db: Db, cutoffAt: Date): void {
@@ -53,10 +54,12 @@ describe('IdentityProfileRepositoryDrizzle.identifyCutoff', () => {
         profileActivityCutoffAt: cutoff,
       }),
     ).resolves.toEqual({ kind: 'conflict' })
+
     const stored = fixture.db
       .select({ traits: schema.TIdentityProfile.traits })
       .from(schema.TIdentityProfile)
       .all()[0]
+
     expect(stored?.traits).toEqual({ plan: 'pro' })
   })
 })

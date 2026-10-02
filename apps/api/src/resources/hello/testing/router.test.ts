@@ -7,8 +7,10 @@ import { createApiApp } from '../../../index.ts'
 
 async function createFixture() {
   const db = createMigratedTestDb()
+
   try {
     const analytics = await createTestAnalyticsDb()
+
     try {
       const auth = createAuth({
         db,
@@ -16,6 +18,7 @@ async function createFixture() {
         secret: 'test-secret-1234567890',
         baseURL: 'http://localhost',
       })
+
       const app = createApiApp({
         db,
         auth,
@@ -25,6 +28,7 @@ async function createFixture() {
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
       })
+
       return {
         app,
         async [Symbol.asyncDispose]() {
@@ -41,6 +45,7 @@ async function createFixture() {
       } finally {
         closeDb(db)
       }
+
       throw error
     }
   } catch (error) {
@@ -61,9 +66,11 @@ async function signUp(
       body: JSON.stringify({ name, email, password: 'password123' }),
     }),
   )
+
   expect(response.status).toBe(200)
   const setCookie = response.headers.get('set-cookie')
   expect(setCookie).toBeTruthy()
+
   return setCookie!.split(';', 1)[0]!
 }
 
@@ -89,6 +96,7 @@ test('an authenticated owner can create, list, get, and remove a greeting', asyn
       body: JSON.stringify({ name: 'Ada', message: 'Hello, Ada!' }),
     }),
   )
+
   expect(createResponse.status).toBe(201)
   const created = await createResponse.json()
   expect(created).toEqual(expect.schemaMatching(contractSchema.SHelloCreateOutput))
@@ -108,6 +116,7 @@ test('an authenticated owner can create, list, get, and remove a greeting', asyn
   const getResponse = await app.fetch(
     new Request(`http://localhost/api/hello/get?id=${encodeURIComponent(created.id)}`),
   )
+
   expect(getResponse.status).toBe(200)
   const fetched = await getResponse.json()
   expect(fetched).toEqual(expect.schemaMatching(contractSchema.SHelloGetOutput))
@@ -120,12 +129,14 @@ test('an authenticated owner can create, list, get, and remove a greeting', asyn
       body: JSON.stringify({ id: created.id }),
     }),
   )
+
   expect(removeResponse.status).toBe(200)
   await expect(removeResponse.json()).resolves.toEqual({ id: created.id })
 
   const missingResponse = await app.fetch(
     new Request(`http://localhost/api/hello/get?id=${encodeURIComponent(created.id)}`),
   )
+
   expect(missingResponse.status).toBe(404)
 })
 
@@ -142,6 +153,7 @@ test('hello commands require authentication and removal is owner-scoped', async 
       body: JSON.stringify({ name: 'Ada', message: 'Hello, Ada!' }),
     }),
   )
+
   expect(unauthenticated.status).toBe(401)
 
   const unauthenticatedRemove = await app.fetch(
@@ -151,6 +163,7 @@ test('hello commands require authentication and removal is owner-scoped', async 
       body: JSON.stringify({ id: 'hel_1' }),
     }),
   )
+
   expect(unauthenticatedRemove.status).toBe(401)
 
   const createResponse = await app.fetch(
@@ -160,6 +173,7 @@ test('hello commands require authentication and removal is owner-scoped', async 
       body: JSON.stringify({ name: 'Ada', message: 'Hello, Ada!' }),
     }),
   )
+
   const created = await createResponse.json()
 
   const forbidden = await app.fetch(
@@ -169,5 +183,6 @@ test('hello commands require authentication and removal is owner-scoped', async 
       body: JSON.stringify({ id: created.id }),
     }),
   )
+
   expect(forbidden.status).toBe(404)
 })

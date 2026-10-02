@@ -12,21 +12,26 @@ import { PublicDashboardService } from './service.ts'
 import type { PublicDashboardRateLimiter } from './protection.ts'
 
 export { publicDashboardRouter }
+
 export {
   InMemoryPublicDashboardRateLimiter,
   PublicDashboardRateLimitError,
   type PublicDashboardRateLimiter,
 } from './protection.ts'
+
 export {
   PublicDashboardService,
   type PublicDashboardIdentifierFactory,
   type PublicDashboardServiceDependencies,
 } from './service.ts'
+
 export {
   PublicDashboardRepositoryDrizzle,
   type PublicDashboardRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { PublicDashboardRepository } from './repository.ts'
+
 export { hashPublicDashboardIdentifier, mintPublicDashboardIdentifier } from './token.ts'
 
 export interface CreatePublicDashboardDependencies {
@@ -53,6 +58,7 @@ export function createPublicDashboard({
   identifiers,
 }: CreatePublicDashboardDependencies) {
   const repository = new PublicDashboardRepositoryDrizzle({ db })
+
   const service = new PublicDashboardService({
     repository,
     lock,
@@ -63,6 +69,7 @@ export function createPublicDashboard({
     ...(clock === undefined ? {} : { clock }),
     ...(identifiers === undefined ? {} : { identifiers }),
   })
+
   return {
     repository,
     service,

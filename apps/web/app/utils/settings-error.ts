@@ -8,11 +8,13 @@ export function normalizeSettingsError(
 ): SettingsError {
   if (value instanceof Error) {
     const message = value.message || fallbackMessage
+
     return withDetails(value, message)
   }
 
   if (isRecord(value)) {
     const message = typeof value.message === 'string' ? value.message : undefined
+
     if (message !== undefined) return withDetails(value, message)
   }
 

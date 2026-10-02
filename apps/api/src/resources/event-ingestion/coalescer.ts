@@ -24,6 +24,7 @@ export type Reservation =
       readonly completion: Promise<void>
     }
   | { readonly status: 'conflict' }
+
 export class AcceptanceQueueSaturatedError extends Error {
   constructor() {
     super('Event acceptance queue is full')
@@ -141,17 +142,20 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   async reserveMany(candidates: readonly ReservableCandidate[]): Promise<readonly Reservation[]> {
     if (this.admissionStopped) throw new AcceptanceAdmissionStoppedError()
     await this.ensureSequence()
+
     if (this.admissionStopped) throw new AcceptanceAdmissionStoppedError()
 
     const existing = new Map<string, Map<string, ReservationState>>()
     const planned = new Map<string, Set<string>>()
     const firstPlannedIndex = new Map<string, Map<string, number>>()
     const newCandidates: ReservableCandidate[] = []
+
     for (const [index, candidate] of candidates.entries()) {
       const reservation = this.getReservation(
         candidate.siteId,
         acceptanceReservationKey(candidate.event),
       )
+
       if (reservation !== undefined) {
         setNestedMapValue(
           existing,
@@ -161,10 +165,13 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
         )
         continue
       }
+
       const sitePlanned = planned.get(candidate.siteId)
+
       if (sitePlanned?.has(acceptanceReservationKey(candidate.event))) {
         continue
       }
+
       if (sitePlanned === undefined)
         planned.set(candidate.siteId, new Set([acceptanceReservationKey(candidate.event)]))
       else sitePlanned.add(acceptanceReservationKey(candidate.event))
@@ -181,37 +188,45 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       this.flushPromise === undefined
         ? this.flushMaxEvents - this.active.length + this.pendingMaxEvents - this.pending.length
         : this.pendingMaxEvents - this.pending.length
+
     if (newCandidates.length > available) {
       this.saturationCount += 1
       throw new AcceptanceQueueSaturatedError()
     }
 
     const added = new Map<string, Map<string, ReservationState>>()
+
     for (const candidate of newCandidates) {
       const key = acceptanceReservationKey(candidate.event)
       const deferred = createDeferred()
+
       const acceptanceCandidate: AcceptanceCandidate = {
         ...candidate,
         receiptTime: candidate.receiptTime ?? this.clock().toISOString(),
         replaySequence: ++this.sequence,
       }
+
       const state = { candidate: acceptanceCandidate, deferred, reservedAt: this.clock().getTime() }
       this.setReservation(candidate.siteId, key, state)
       setNestedMapValue(added, candidate.siteId, key, state)
+
       if (this.flushPromise === undefined && this.active.length < this.flushMaxEvents) {
         this.active.push(state)
       } else {
         this.pending.push(state)
+
         if (this.pending.length === 1 && this.flushPromise !== undefined)
           this.startTimer(this.pending[0])
       }
     }
 
     const results: Reservation[] = []
+
     for (const [index, candidate] of candidates.entries()) {
       const key = acceptanceReservationKey(candidate.event)
       const existingReservation = getNestedMapValue(existing, candidate.siteId, key)
       const state = existingReservation ?? getNestedMapValue(added, candidate.siteId, key)
+
       if (state !== undefined) {
         results.push(
           state.candidate.payloadFingerprint === candidate.payloadFingerprint
@@ -227,13 +242,16 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
         )
         continue
       }
+
       results.push({ status: 'conflict' })
     }
 
     if (this.active.length > 0 && this.flushPromise === undefined && this.timer === undefined) {
       this.startTimer(this.active[0])
     }
+
     if (this.active.length >= this.flushMaxEvents) void this.flushActive().catch(() => undefined)
+
     return results
   }
 
@@ -255,6 +273,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   async drain(): Promise<{ readonly lastSafeSequence: number }> {
     this.clearTimer()
     this.draining = true
+
     try {
       while (this.active.length > 0 || this.pending.length > 0 || this.flushPromise !== undefined) {
         if (this.flushPromise !== undefined) {
@@ -269,6 +288,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     } finally {
       this.draining = false
     }
+
     return { lastSafeSequence: this.lastSafeSequence }
   }
 
@@ -304,8 +324,11 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     payloadFingerprint: string,
   ): Reservation | undefined {
     const state = this.getReservation(siteId, reservationId)
+
     if (state === undefined) return undefined
+
     if (state.candidate.payloadFingerprint !== payloadFingerprint) return { status: 'conflict' }
+
     return {
       status: 'duplicate',
       receiptTime: state.candidate.receiptTime,
@@ -326,11 +349,13 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
           throw error
         })
     }
+
     await this.sequencePromise
   }
 
   private startTimer(firstQueued?: ReservationState): void {
     this.clearTimer()
+
     if (firstQueued === undefined) return
     const elapsed = this.clock().getTime() - firstQueued.reservedAt
     this.timer = this.schedule(
@@ -352,15 +377,19 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   private async flushActive(): Promise<void> {
     if (this.flushPromise !== undefined || this.active.length === 0) {
       await this.flushPromise
+
       if (this.active.length > 0 && this.flushPromise === undefined) await this.flushActive()
+
       return
     }
+
     this.clearTimer()
     const batch = this.active.splice(0, this.flushMaxEvents)
     const startedAt = this.clock().getTime()
     this.flushCount += 1
     this.queueWaitMsTotal += batch.reduce((total, state) => total + startedAt - state.reservedAt, 0)
     let succeeded = false
+
     const flush = this.repository
       .append(batch.map(({ candidate }) => candidate))
       .then((outcomes) => {
@@ -369,9 +398,12 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
         this.commitLatencyMsTotal += committedAt - startedAt
         let acceptedCount = 0
         let lastAcceptedSequence = this.lastSafeSequence
+
         for (const [index, state] of batch.entries()) {
           const outcome = outcomes[index]
+
           if (outcome === undefined) throw new Error('Acceptance outcome count mismatch')
+
           if (outcome.status === 'conflict') {
             state.deferred.reject(
               new AcceptanceReservationConflictError(
@@ -381,20 +413,24 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
             )
             continue
           }
+
           if (outcome.status === 'accepted') {
             acceptedCount += 1
             lastAcceptedSequence = state.candidate.replaySequence
           }
+
           this.responseLatencyMsTotal += committedAt - state.reservedAt
           this.responseCount += 1
           state.deferred.resolve()
         }
+
         this.committedCandidates += acceptedCount
         this.lastSafeSequence = lastAcceptedSequence
       })
       .catch((error: unknown) => {
         this.failureCount += 1
         this.reportError(error, batch.length)
+
         for (const state of batch) state.deferred.reject(error)
         throw error
       })
@@ -405,13 +441,16 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
             acceptanceReservationKey(state.candidate.event),
           )
         this.flushPromise = undefined
+
         if (succeeded || !this.draining) this.activatePending()
+
         if (!this.draining && this.active.length > 0) {
           if (this.active.length >= this.flushMaxEvents)
             void this.flushActive().catch(() => undefined)
           else this.startTimer(this.active[0])
         }
       })
+
     this.flushPromise = flush
     await flush
   }
@@ -429,6 +468,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
         acceptanceReservationKey(state.candidate.event),
       )
     }
+
     this.active = []
     this.pending = []
   }
@@ -443,8 +483,10 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
 
   private deleteReservation(siteId: string, eventId: string): void {
     const siteReservations = this.reservations.get(siteId)
+
     if (siteReservations === undefined) return
     siteReservations.delete(eventId)
+
     if (siteReservations.size === 0) this.reservations.delete(siteId)
   }
 
@@ -454,10 +496,13 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
       stage: 'flush',
       ...(batchSize === undefined ? {} : { batchSize }),
     }
+
     if (this.onError === undefined) {
       reportLogEvent({ kind: 'operation.failure', ...context, error })
+
       return
     }
+
     try {
       void Promise.resolve(this.onError(error, context)).catch(() => undefined)
     } catch {}
@@ -477,10 +522,12 @@ export function acceptanceReservationKey(event: {
 function createDeferred(): Deferred {
   let resolvePromise: () => void = () => undefined
   let rejectPromise: (error: unknown) => void = () => undefined
+
   const promise = new Promise<void>((resolve, reject) => {
     resolvePromise = resolve
     rejectPromise = reject
   })
+
   return {
     promise,
     resolve: resolvePromise,

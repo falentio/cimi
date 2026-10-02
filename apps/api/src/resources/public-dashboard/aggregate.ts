@@ -78,12 +78,14 @@ export class PublicDashboardAggregatePlanner {
     request: PublicDashboardAggregateRequest,
   ): Promise<PublicDashboardAggregatePreparation> {
     const siteId = createSiteId(request.siteId)
+
     const current = {
       fromDate: createCalendarDate(request.fromDate),
       toDate: createCalendarDate(request.toDate),
     }
 
     let ticket: ReportAdmissionTicket
+
     try {
       ticket = await this.deps.admission.admit({
         siteId,
@@ -115,6 +117,7 @@ export class PublicDashboardAggregatePlanner {
     if (request.dimension !== 'time') {
       try {
         const dimensionValueCount = await this.deps.query.countDimensionValues(query)
+
         if (dimensionValueCount > MAX_PUBLIC_DASHBOARD_DIMENSION_ROWS) {
           throw new ORPCError('QUERY_LIMIT_EXCEEDED', { status: 422 })
         }
@@ -124,6 +127,7 @@ export class PublicDashboardAggregatePlanner {
     }
 
     let totalDistinctVisitors: number
+
     try {
       totalDistinctVisitors = await this.deps.query.countDistinctVisitors(query)
     } catch (error) {
@@ -146,6 +150,7 @@ export class PublicDashboardAggregatePlanner {
     }
 
     let rows: readonly PublicDashboardAggregateRow[]
+
     try {
       rows = await this.deps.query.aggregate(prepared.query)
     } catch (error) {
@@ -174,6 +179,7 @@ function toPublicAdmissionError(error: unknown) {
   if (error instanceof ReportingAdmissionError && error.reason === 'bucket-bound') {
     return new ORPCError('BAD_REQUEST', { status: 400, cause: error })
   }
+
   return toOrpcReportingError(error)
 }
 
@@ -182,8 +188,10 @@ function timeBuckets(
   rows: readonly PublicDashboardAggregateRow[],
 ): readonly PublicDashboardAggregateBucket[] {
   const byIndex = new Map(rows.map((row) => [Number(row.groupKey), row]))
+
   return (ticket.periods.current.bucketStarts ?? []).map((start, index) => {
     const row = byIndex.get(index)
+
     return {
       key: `${start.localLabel}${formatOffset(start.offsetMinutes)}`,
       at: new Date(start.at).toISOString(),
@@ -207,6 +215,7 @@ function suppressedBuckets(
   ticket: ReportAdmissionTicket,
 ): readonly PublicDashboardAggregateBucket[] {
   if (dimension !== 'time') return []
+
   return (ticket.periods.current.bucketStarts ?? []).map((start) => ({
     key: `${start.localLabel}${formatOffset(start.offsetMinutes)}`,
     at: new Date(start.at).toISOString(),
@@ -216,6 +225,7 @@ function suppressedBuckets(
 
 function freshness(ticket: ReportAdmissionTicket) {
   const evidence = ticket.freshness.current
+
   return {
     projectedAcceptanceSequence: evidence.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough:
@@ -232,5 +242,6 @@ function formatOffset(offsetMinutes: number): string {
   const absolute = Math.abs(offsetMinutes)
   const hours = Math.floor(absolute / 60)
   const minutes = absolute % 60
+
   return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }

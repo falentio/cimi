@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createInstallationFixture, createInstallationRecord } from '../fixture.ts'
 
 const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+
 const member = { id: 'user_2', role: 'member' } as unknown as AuthUser
 
 describe('InstallationService.getStatus', () => {

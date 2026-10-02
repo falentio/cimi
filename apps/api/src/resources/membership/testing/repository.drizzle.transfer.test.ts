@@ -32,6 +32,7 @@ describe('MembershipRepositoryDrizzle.completeTransfer', () => {
       ])
 
     const repository = new MembershipRepositoryDrizzle({ db })
+
     const transfer = await repository.createTransfer({
       id: 'gop_1',
       organizationId: 'org_1',
@@ -39,7 +40,9 @@ describe('MembershipRepositoryDrizzle.completeTransfer', () => {
       targetUserId: 'user_2',
       now,
     })
+
     expect(transfer.kind).toBe('admitted')
+
     if (transfer.kind !== 'admitted') throw new Error('Transfer was not admitted')
 
     db.$client.exec(`

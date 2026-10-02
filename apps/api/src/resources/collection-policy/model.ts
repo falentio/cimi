@@ -2,6 +2,7 @@ import type { schema } from '@cimi/contract'
 import { createIpMatcher } from '@cimi/utils'
 
 export type PolicyValues = schema.PolicyValues
+
 export type PolicyField = schema.PolicyField
 
 export type PolicyTarget =
@@ -74,6 +75,7 @@ export function resolvePolicy({
 }): PolicyResolution {
   const siteOverride = layers.site?.values ?? null
   const values = clonePolicyValues(siteOverride ?? layers.installation.values)
+
   const provenance: PolicyProvenance = {
     anonymousCollection: layers.site === null ? 'installation' : 'site',
     honorGpcDnt: layers.site === null ? 'installation' : 'site',
@@ -85,7 +87,9 @@ export function resolvePolicy({
     profileFilterKeys: layers.site === null ? 'installation' : 'site',
     exclusions: layers.site === null ? 'installation' : 'site',
   }
+
   const effectiveRevision = layers.site ?? layers.installation
+
   return {
     siteId,
     layers,
@@ -104,11 +108,13 @@ export function resolvePolicy({
 export function validatePolicyCombination(values: PolicyValues): void {
   assertUnique('reservedNames', values.propertyPolicy.reservedNames)
   assertUnique('profileFilterKeys', values.profileFilterKeys)
+
   if (values.captureQueryStrings && values.urlPolicy.stripQueryStrings) {
     throw new PolicyValidationError(
       'Query strings cannot be captured while URL query strings are stripped.',
     )
   }
+
   try {
     createIpMatcher(values.exclusions.ipRanges)
   } catch {

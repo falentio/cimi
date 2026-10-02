@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SRetentionPolicyGetFields, SRetentionPolicyResult } from '../schema.ts'
 
 export const SRetentionPolicyGetInput = SRetentionPolicyGetFields
+
 export type SRetentionPolicyGetInput = v.InferOutput<typeof SRetentionPolicyGetInput>
+
 export const SRetentionPolicyGetOutput = SRetentionPolicyResult
+
 export type SRetentionPolicyGetOutput = v.InferOutput<typeof SRetentionPolicyGetOutput>
 
 export const getRetentionPolicy = oc

@@ -8,8 +8,10 @@ export interface SortedRecordOptions {
 
 export function sortedRecord(value: unknown, options: SortedRecordOptions = {}): unknown {
   if (Array.isArray(value)) return value.map((entry) => sortedRecord(entry, options))
+
   if (!isRecord(value)) return value
   const { excludeKeys } = options
+
   return Object.fromEntries(
     Object.entries(value)
       .filter(([key]) => excludeKeys === undefined || !excludeKeys.has(key))

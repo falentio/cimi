@@ -33,6 +33,7 @@ const emit = defineEmits<{
 
 const canManage = computed(() => {
   const role = props.snapshot.currentMembership?.role
+
   return role === 'owner' || role === 'admin'
 })
 
@@ -40,6 +41,7 @@ const members = computed(() => props.snapshot.members?.items ?? [])
 
 function roleLabel(role: OrganizationMember['role']): string {
   if (role === 'owner') return 'Owner'
+
   return role === 'admin' ? 'Administrator' : 'Member'
 }
 

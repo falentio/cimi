@@ -14,6 +14,7 @@ test('retention policy routes serve installation defaults through the registered
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   const unauthenticated = await app.fetch(
@@ -21,6 +22,7 @@ test('retention policy routes serve installation defaults through the registered
       method: 'GET',
     }),
   )
+
   expect(unauthenticated.status).toBe(401)
 
   const getResponse = await apiTestRequest(
@@ -28,6 +30,7 @@ test('retention policy routes serve installation defaults through the registered
     '/retention-policy/getRetentionPolicy?scope=installation',
     owner.cookie,
   )
+
   expect(getResponse.status, await getResponse.clone().text()).toBe(200)
   await expect(getResponse.json()).resolves.toMatchObject({
     scope: 'installation',
@@ -44,6 +47,7 @@ test('retention policy routes serve installation defaults through the registered
       policy: { eventMonths: 24, profileMonths: 18, replayMonths: 6 },
     },
   )
+
   expect(updateResponse.status, await updateResponse.clone().text()).toBe(200)
   await expect(updateResponse.json()).resolves.toMatchObject({
     scope: 'installation',
@@ -55,6 +59,7 @@ test('retention policy routes serve installation defaults through the registered
     '/retention-policy/getRetentionPolicy?scope=installation',
     owner.cookie,
   )
+
   expect(reread.status).toBe(200)
   await expect(reread.json()).resolves.toMatchObject({
     installationDefault: { eventMonths: 24, profileMonths: 18, replayMonths: 6 },
@@ -72,6 +77,7 @@ test('retention policy routes serve site overrides and clear through the registe
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   const organizationResponse = await apiTestRequest(
@@ -80,6 +86,7 @@ test('retention policy routes serve site overrides and clear through the registe
     owner.cookie,
     { name: 'Retention Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
 
@@ -88,6 +95,7 @@ test('retention policy routes serve site overrides and clear through the registe
     name: 'Production',
     hostname: 'retention.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
 
@@ -96,6 +104,7 @@ test('retention policy routes serve site overrides and clear through the registe
     `/retention-policy/getRetentionPolicy?scope=site&siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(siteGet.status, await siteGet.clone().text()).toBe(200)
   await expect(siteGet.json()).resolves.toMatchObject({
     scope: 'site',
@@ -113,6 +122,7 @@ test('retention policy routes serve site overrides and clear through the registe
       policy: { eventMonths: 6, profileMonths: 6, replayMonths: null },
     },
   )
+
   expect(siteSave.status, await siteSave.clone().text()).toBe(200)
   await expect(siteSave.json()).resolves.toMatchObject({
     scope: 'site',
@@ -126,6 +136,7 @@ test('retention policy routes serve site overrides and clear through the registe
     owner.cookie,
     { scope: 'site', siteId: site.id, policy: null },
   )
+
   expect(siteClear.status, await siteClear.clone().text()).toBe(200)
   await expect(siteClear.json()).resolves.toMatchObject({
     scope: 'site',
@@ -143,6 +154,7 @@ test('retention policy routes serve site overrides and clear through the registe
       policy: { eventMonths: 3, profileMonths: 3, replayMonths: null },
     },
   )
+
   expect(siteResave.status, await siteResave.clone().text()).toBe(200)
   await expect(siteResave.json()).resolves.toMatchObject({
     siteOverride: { eventMonths: 3, profileMonths: 3, replayMonths: null },
@@ -163,6 +175,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   const organizationResponse = await apiTestRequest(
@@ -171,6 +184,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     owner.cookie,
     { name: 'Matrix Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
 
@@ -179,6 +193,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     name: 'Production',
     hostname: 'matrix.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
 
@@ -189,11 +204,14 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
       owner.cookie,
       { organizationId: organization.id, role },
     )
+
     expect(invitationResponse.status, await invitationResponse.clone().text()).toBe(201)
     const invitation = await invitationResponse.json()
+
     const acceptResponse = await apiTestRequest(app, '/invitation/acceptInvitation', cookie, {
       token: invitation.token,
     })
+
     expect(acceptResponse.status, await acceptResponse.clone().text()).toBe(200)
   }
 
@@ -210,6 +228,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
       }),
     }),
   )
+
   expect(unauthenticatedPost.status).toBe(401)
 
   const memberInstallationGet = await apiTestRequest(
@@ -217,6 +236,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     '/retention-policy/getRetentionPolicy?scope=installation',
     member.cookie,
   )
+
   expect(memberInstallationGet.status).toBe(403)
 
   const memberInstallationUpdate = await apiTestRequest(
@@ -225,6 +245,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     member.cookie,
     { scope: 'installation', policy: { eventMonths: 24, profileMonths: 18, replayMonths: 6 } },
   )
+
   expect(memberInstallationUpdate.status).toBe(403)
 
   const outsiderSiteGet = await apiTestRequest(
@@ -232,6 +253,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     `/retention-policy/getRetentionPolicy?scope=site&siteId=${encodeURIComponent(site.id)}`,
     outsider.cookie,
   )
+
   expect(outsiderSiteGet.status).toBe(404)
 
   const memberSiteGet = await apiTestRequest(
@@ -239,6 +261,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     `/retention-policy/getRetentionPolicy?scope=site&siteId=${encodeURIComponent(site.id)}`,
     member.cookie,
   )
+
   expect(memberSiteGet.status).toBe(403)
 
   const memberSiteUpdate = await apiTestRequest(
@@ -251,6 +274,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
       policy: { eventMonths: 6, profileMonths: 6, replayMonths: null },
     },
   )
+
   expect(memberSiteUpdate.status).toBe(403)
 
   const adminSiteGet = await apiTestRequest(
@@ -258,6 +282,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
     `/retention-policy/getRetentionPolicy?scope=site&siteId=${encodeURIComponent(site.id)}`,
     siteAdmin.cookie,
   )
+
   expect(adminSiteGet.status, await adminSiteGet.clone().text()).toBe(200)
   await expect(adminSiteGet.json()).resolves.toMatchObject({
     scope: 'site',
@@ -275,6 +300,7 @@ test('retention policy routes enforce the HTTP authorization matrix', async () =
       policy: { eventMonths: 6, profileMonths: 6, replayMonths: null },
     },
   )
+
   expect(adminSiteUpdate.status, await adminSiteUpdate.clone().text()).toBe(200)
   await expect(adminSiteUpdate.json()).resolves.toMatchObject({
     scope: 'site',
@@ -295,6 +321,7 @@ test('retention policy routes hide inactive sites and conflict on updates', asyn
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   const organizationResponse = await apiTestRequest(
@@ -303,6 +330,7 @@ test('retention policy routes hide inactive sites and conflict on updates', asyn
     owner.cookie,
     { name: 'Inactive Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
 
@@ -311,12 +339,14 @@ test('retention policy routes hide inactive sites and conflict on updates', asyn
     name: 'Production',
     hostname: 'inactive.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
 
   const deleteResponse = await apiTestRequest(app, '/site/deleteSite', owner.cookie, {
     siteId: site.id,
   })
+
   expect(deleteResponse.status, await deleteResponse.clone().text()).toBe(202)
 
   const inactiveGet = await apiTestRequest(
@@ -324,6 +354,7 @@ test('retention policy routes hide inactive sites and conflict on updates', asyn
     `/retention-policy/getRetentionPolicy?scope=site&siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(inactiveGet.status).toBe(404)
 
   const inactiveSave = await apiTestRequest(
@@ -336,6 +367,7 @@ test('retention policy routes hide inactive sites and conflict on updates', asyn
       policy: { eventMonths: 6, profileMonths: 6, replayMonths: null },
     },
   )
+
   expect(inactiveSave.status).toBe(409)
 
   const inactiveClear = await apiTestRequest(
@@ -344,6 +376,7 @@ test('retention policy routes hide inactive sites and conflict on updates', asyn
     owner.cookie,
     { scope: 'site', siteId: site.id, policy: null },
   )
+
   expect(inactiveClear.status).toBe(409)
 })
 
@@ -358,6 +391,7 @@ test('retention policy routes conflict on persisted lifecycle operations but sti
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   db.update(schema.TInstallation)
@@ -381,6 +415,7 @@ test('retention policy routes conflict on persisted lifecycle operations but sti
     owner.cookie,
     { scope: 'installation', policy: { eventMonths: 24, profileMonths: 18, replayMonths: 6 } },
   )
+
   expect(blockedUpdate.status).toBe(409)
 
   const allowedGet = await apiTestRequest(
@@ -388,6 +423,7 @@ test('retention policy routes conflict on persisted lifecycle operations but sti
     '/retention-policy/getRetentionPolicy?scope=installation',
     owner.cookie,
   )
+
   expect(allowedGet.status, await allowedGet.clone().text()).toBe(200)
 })
 
@@ -402,6 +438,7 @@ test('retention policy routes validate transport, boundaries, and exact response
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
 
   const initialGet = await apiTestRequest(
@@ -409,6 +446,7 @@ test('retention policy routes validate transport, boundaries, and exact response
     '/retention-policy/getRetentionPolicy?scope=installation',
     owner.cookie,
   )
+
   expect(initialGet.status, await initialGet.clone().text()).toBe(200)
   const initialBody = await initialGet.json()
   expect(initialBody).toEqual({
@@ -430,6 +468,7 @@ test('retention policy routes validate transport, boundaries, and exact response
     owner.cookie,
     { scope: 'installation', policy: { eventMonths: 1, profileMonths: 1, replayMonths: null } },
   )
+
   expect(minimumUpdate.status, await minimumUpdate.clone().text()).toBe(200)
   await expect(minimumUpdate.json()).resolves.toEqual({
     scope: 'installation',
@@ -450,6 +489,7 @@ test('retention policy routes validate transport, boundaries, and exact response
     owner.cookie,
     { scope: 'installation', policy: { eventMonths: 120, profileMonths: 120, replayMonths: null } },
   )
+
   expect(maximumUpdate.status, await maximumUpdate.clone().text()).toBe(200)
 
   const replayUpdate = await apiTestRequest(
@@ -458,6 +498,7 @@ test('retention policy routes validate transport, boundaries, and exact response
     owner.cookie,
     { scope: 'installation', policy: { eventMonths: 24, profileMonths: 18, replayMonths: 6 } },
   )
+
   expect(replayUpdate.status, await replayUpdate.clone().text()).toBe(200)
   await expect(replayUpdate.json()).resolves.toMatchObject({
     installationDefault: { eventMonths: 24, profileMonths: 18, replayMonths: 6 },
@@ -503,6 +544,7 @@ test('retention policy routes validate transport, boundaries, and exact response
       owner.cookie,
       invalid.body as Record<string, unknown>,
     )
+
     expect(response.status, invalid.name).toBe(400)
   }
 
@@ -511,6 +553,7 @@ test('retention policy routes validate transport, boundaries, and exact response
     '/retention-policy/getRetentionPolicy?scope=site',
     owner.cookie,
   )
+
   expect(missingSiteGet.status).toBe(400)
 
   const afterInvalidGet = await apiTestRequest(
@@ -518,6 +561,7 @@ test('retention policy routes validate transport, boundaries, and exact response
     '/retention-policy/getRetentionPolicy?scope=installation',
     owner.cookie,
   )
+
   expect(afterInvalidGet.status, await afterInvalidGet.clone().text()).toBe(200)
   await expect(afterInvalidGet.json()).resolves.toMatchObject({
     installationDefault: { eventMonths: 24, profileMonths: 18, replayMonths: 6 },

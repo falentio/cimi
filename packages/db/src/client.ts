@@ -15,17 +15,21 @@ export interface CreateDbOptions {
 export function createDb(options: CreateDbOptions) {
   const location: DbStorageLocation =
     options.path === ':memory:' ? { kind: 'memory' } : { kind: 'file', path: options.path }
+
   let current = openConfiguredDatabase(options.path)
   let closed = false
+
   const client = new Proxy(current, {
     get(_target, property) {
       const value = Reflect.get(current, property, current)
+
       return typeof value === 'function' ? value.bind(current) : value
     },
     set(_target, property, value) {
       return Reflect.set(current, property, value, current)
     },
   })
+
   const db = drizzle(client, { schema })
   dbHandles.set(db, {
     isOpen: () => !closed,
@@ -41,21 +45,26 @@ export function createDb(options: CreateDbOptions) {
         const previous = current
         current = candidate
         previous.close()
+
         return
       }
+
       const destinationPath = location.path
       current.pragma('wal_checkpoint(TRUNCATE)')
       current.close()
       removeSidecars(destinationPath)
       const recoveryPath = `${destinationPath}.recovery.${randomBytes(8).toString('hex')}`
       let recoveryHoldsOriginal = false
+
       try {
         try {
           linkSync(destinationPath, recoveryPath)
         } catch {
           renameSync(destinationPath, recoveryPath)
         }
+
         recoveryHoldsOriginal = true
+
         try {
           renameSync(stagedPath, destinationPath)
           current = openConfiguredDatabase(destinationPath)
@@ -73,13 +82,16 @@ export function createDb(options: CreateDbOptions) {
     replaceFromFile: (sourcePath, destinationPath) => {
       if (closed) {
         renameSync(sourcePath, destinationPath)
+
         return
       }
+
       const previousPath = `${destinationPath}.previous.${randomBytes(8).toString('hex')}`
       let previousMoved = false
       current.pragma('wal_checkpoint(TRUNCATE)')
       current.close()
       removeSidecars(destinationPath)
+
       try {
         renameSync(destinationPath, previousPath)
         previousMoved = true
@@ -91,17 +103,21 @@ export function createDb(options: CreateDbOptions) {
           renameSync(previousPath, destinationPath)
           current = openConfiguredDatabase(destinationPath)
         }
+
         throw error
       }
+
       discardSqliteFile(previousPath)
     },
   })
+
   return db
 }
 
 export type Db = ReturnType<typeof createDb>
 
 const closedDatabases = new WeakSet<Db>()
+
 const dbHandles = new WeakMap<Db, DbHandle>()
 
 interface DbHandle {
@@ -114,28 +130,34 @@ interface DbHandle {
 
 export function dbStorageLocation(db: Db): DbStorageLocation {
   const handle = dbHandles.get(db)
+
   if (handle === undefined) {
     throw new Error('Database was not created by createDb')
   }
+
   return handle.location
 }
 
 export function installDbFromFile(db: Db, stagedPath: string): void {
   const handle = dbHandles.get(db)
+
   if (handle === undefined) {
     throw new Error('Database was not created by createDb')
   }
+
   handle.installFromFile(stagedPath)
 }
 
 export function closeDb(db: Db): void {
   if (closedDatabases.has(db)) return
   const handle = dbHandles.get(db)
+
   if (handle === undefined) {
     db.$client.close()
   } else {
     handle.close()
   }
+
   closedDatabases.add(db)
 }
 
@@ -146,24 +168,31 @@ export async function restoreDbFromBackup(input: {
   prepare?: ((db: Db) => void | Promise<void>) | undefined
 }): Promise<void> {
   const tmpPath = `${input.destinationPath}.tmp.${randomBytes(8).toString('hex')}`
+
   try {
     const backup = new Database(input.backupPath, { fileMustExist: true, readonly: true })
+
     try {
       await backup.backup(tmpPath)
     } finally {
       backup.close()
     }
+
     const fd = openSync(tmpPath, 'r')
+
     try {
       fsyncSync(fd)
     } finally {
       closeSync(fd)
     }
+
     const restored = new Database(tmpPath, { readonly: true })
+
     try {
       const rows = restored.prepare('PRAGMA integrity_check').all() as Array<{
         integrity_check: string
       }>
+
       if (rows.length === 0 || rows.some((row) => row.integrity_check !== 'ok')) {
         throw new Error('Restored database integrity check failed')
       }
@@ -173,6 +202,7 @@ export async function restoreDbFromBackup(input: {
 
     if (input.prepare !== undefined) {
       const stagedDb = createDb({ path: tmpPath })
+
       try {
         await input.prepare(stagedDb)
         stagedDb.$client.pragma('wal_checkpoint(TRUNCATE)')
@@ -182,6 +212,7 @@ export async function restoreDbFromBackup(input: {
     }
 
     const handle = input.db === undefined ? undefined : dbHandles.get(input.db)
+
     if (handle?.isOpen()) {
       handle.replaceFromFile(tmpPath, input.destinationPath)
     } else {
@@ -195,8 +226,10 @@ export async function restoreDbFromBackup(input: {
 
 function openConfiguredDatabase(path: string): Database.Database {
   const sqlite = new Database(path)
+
   try {
     applyConnectionPragmas(sqlite)
+
     return sqlite
   } catch (error) {
     sqlite.close()
@@ -207,6 +240,7 @@ function openConfiguredDatabase(path: string): Database.Database {
 function openMemoryDatabaseFromStagedFile(stagedPath: string): Database.Database {
   const staged = new Database(stagedPath, { fileMustExist: true })
   let serialized: Buffer
+
   try {
     staged.pragma('wal_checkpoint(TRUNCATE)')
     staged.pragma('journal_mode = DELETE')
@@ -214,15 +248,19 @@ function openMemoryDatabaseFromStagedFile(stagedPath: string): Database.Database
   } finally {
     staged.close()
   }
+
   const candidate = new Database(serialized)
+
   try {
     candidate.pragma('synchronous = FULL')
     candidate.pragma('foreign_keys = ON')
     candidate.pragma('busy_timeout = 5000')
     const integrity = candidate.pragma('integrity_check', { simple: true }) as string
+
     if (integrity !== 'ok') {
       throw new Error(`Installed memory database integrity check failed: ${integrity}`)
     }
+
     return candidate
   } catch (error) {
     candidate.close()

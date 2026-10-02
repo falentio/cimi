@@ -18,7 +18,9 @@ import {
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 
 export { identityProfileRouter }
+
 export type { IdentityProfileRouterOptions } from './router.ts'
+
 export {
   IdentityProfileService,
   type IdentityProfileProtection,
@@ -26,10 +28,12 @@ export {
   type IdentityProfileServiceDependencies,
   type IdentityProjectionDebtMarker,
 } from './service.ts'
+
 export {
   IdentityProfileRepositoryDrizzle,
   type IdentityProfileRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type {
   ActiveIdentityProfile,
   IdentityDeletionStatus,
@@ -71,6 +75,7 @@ export function createIdentityProfile({
     db,
     ...(ids === undefined ? {} : { ids }),
   })
+
   const service = new IdentityProfileService({
     repository,
     siteRepository: siteRepository ?? new SiteRepositoryDrizzle({ db }),
@@ -84,6 +89,7 @@ export function createIdentityProfile({
         .from(schema.TRetentionEffectiveCutoff)
         .where(eq(schema.TRetentionEffectiveCutoff.siteId, siteId))
         .limit(1)
+
       return row[0]?.profileActivityCutoffAt
     },
     ...(projectionDebt === undefined ? {} : { projectionDebt }),
@@ -92,6 +98,7 @@ export function createIdentityProfile({
     lifecycleLock,
     ...(clock === undefined ? {} : { clock }),
   })
+
   return { repository, service, router: identityProfileRouter(service, router) }
 }
 

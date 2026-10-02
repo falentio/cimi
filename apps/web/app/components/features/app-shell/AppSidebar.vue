@@ -17,19 +17,25 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 })
 
 const { session } = useAuth()
+
 const route = useRoute()
+
 const router = useRouter()
+
 const { teams, sites, isLoading, error, refresh } = useWorkspaceData()
+
 const { activeOrganizationId, selectOrganization: selectWorkspaceOrganization } =
   useWorkspaceSelection()
 
 const routeSiteId = computed<string | undefined>(() => {
   const value = route.params.siteId
+
   return typeof value === 'string' ? value : undefined
 })
 
 const routeOrganizationId = computed<string | undefined>(() => {
   const value = route.params.organizationId
+
   return typeof value === 'string' ? value : undefined
 })
 
@@ -37,6 +43,7 @@ const isOrganizationRoute = computed(() => route.path === '/org' || route.path.s
 
 const isAdmin = computed(() => {
   const state = session.value
+
   return state.status === 'authenticated' && state.session.user.role === 'admin'
 })
 
@@ -47,19 +54,23 @@ const secondary = computed(() => ({
 
 const activeSiteId = computed(() => {
   if (isOrganizationRoute.value) return undefined
+
   if (
     routeSiteId.value !== undefined &&
     sites.value.some((site) => site.id === routeSiteId.value)
   ) {
     return routeSiteId.value
   }
+
   return sites.value[0]?.id
 })
 
 const activeTeamId = computed(() => {
   if (isOrganizationRoute.value) return routeOrganizationId.value ?? ''
+
   if (activeOrganizationId.value !== undefined) return activeOrganizationId.value
   const activeSite = sites.value.find((site) => site.id === activeSiteId.value)
+
   return activeSite?.teamId ?? teams.value[0]?.id ?? ''
 })
 
@@ -67,12 +78,15 @@ const activeOrganization = computed(() => {
   const organizationId = isOrganizationRoute.value
     ? routeOrganizationId.value
     : activeOrganizationId.value
+
   return teams.value.find((team) => team.id === organizationId)
 })
 
 const organizationNav = computed<NavGroup | undefined>(() => {
   const organization = activeOrganization.value
+
   if (organization === undefined) return undefined
+
   return createOrganizationNav({ organizationId: organization.id, label: organization.name })
 })
 
@@ -87,9 +101,11 @@ const siteNav = computed<NavGroup>(() => ({
 
 const siteSectionNav = computed<NavGroup | undefined>(() => {
   const siteId = routeSiteId.value
+
   if (siteId === undefined) return undefined
 
   const site = sites.value.find((candidate) => candidate.id === siteId)
+
   return createSiteSectionNav({ siteId, label: site?.name ?? siteId })
 })
 
@@ -99,6 +115,7 @@ function selectOrganization(organizationId: string): void {
 
 function selectSite(siteId: string): void {
   const site = sites.value.find((candidate) => candidate.id === siteId)
+
   if (site === undefined) return
   void router.push(siteOverviewPath(site.id))
 }

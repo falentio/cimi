@@ -26,8 +26,11 @@ export const STrafficBreakdownsInput = v.pipe(
     VALIDATION_KEYS.contract.report.granularRangeInvalid,
   ),
 )
+
 export type STrafficBreakdownsInput = v.InferOutput<typeof STrafficBreakdownsInput>
+
 export const STrafficBreakdownsOutput = STrafficBreakdown
+
 export type STrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOutput>
 
 export const getTrafficBreakdowns = oc

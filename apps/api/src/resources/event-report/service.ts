@@ -38,18 +38,27 @@ import { toOrpcReportingError } from '../../errors.ts'
 import { withAnalyticsReadLease } from '../../lifecycle/analytics-read-lease.ts'
 
 export type EventOverviewInput = v.InferOutput<typeof SEventOverviewInput>
+
 export type EventOverviewOutput = v.InferOutput<typeof SEventOverviewOutput>
+
 export type EventTimeseriesInput = v.InferOutput<typeof SEventTimeseriesInput>
+
 export type EventTimeseriesOutput = v.InferOutput<typeof SEventTimeseriesOutput>
+
 export type EventListInput = v.InferOutput<typeof SEventListInput>
+
 export type EventListOutput = v.InferOutput<typeof SEventListOutput>
+
 export type EventBreakdownsInput = v.InferOutput<typeof SEventBreakdownsInput>
+
 export type EventBreakdownsOutput = v.InferOutput<typeof SEventBreakdownsOutput>
 
 export type EventReportFamily = 'aggregate' | 'row-list' | 'breakdown'
 
 const DEFAULT_ROW_LIMIT = 50
+
 const DEFAULT_BREAKDOWN_LIMIT = 50
+
 const OVERVIEW_DISTINCT_OPERATIONS = 2
 
 export interface EventReportServiceDependencies {
@@ -116,9 +125,11 @@ export class EventReportService {
       eventKind,
       filterPlan,
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.overviewPeriod(
@@ -148,9 +159,11 @@ export class EventReportService {
       eventKind,
       filterPlan,
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.timeseriesPeriod(
@@ -183,11 +196,15 @@ export class EventReportService {
       offset,
       limit,
     })
+
     const items: EventListOutput['items'] = []
+
     for (const row of result.rows) {
       const item = toEventOutput(row)
+
       if (item !== null) items.push(item)
     }
+
     return {
       items,
       nextOffset: result.nextOffset,
@@ -219,9 +236,11 @@ export class EventReportService {
       filterPlan,
       { field, sort, direction, offset, limit },
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.breakdownPage(
@@ -240,12 +259,15 @@ export class EventReportService {
     siteId: SiteId,
   ): Promise<ReportFilterPlan> {
     const profileFilterKeys = await this.deps.profileFilterKeys.getProfileFilterKeys(siteId)
+
     const result = compileEventFilterPlan({
       eventKind: input.eventKind,
       filters: (input.filters ?? []).map(toEventFilterInput),
       profileFilterKeys,
     })
+
     if (!result.ok) throw new ORPCError('BAD_REQUEST', { message: result.reason })
+
     return result.plan
   }
 
@@ -304,6 +326,7 @@ export class EventReportService {
       eventKind,
       filterPlan,
     })
+
     return {
       fromDate: period.dates.fromDate,
       toDate: period.dates.toDate,
@@ -328,7 +351,9 @@ export class EventReportService {
       eventKind,
       filterPlan,
     })
+
     const rows: BucketCount[] = facts.map((bucket) => ({ at: bucket.at, count: bucket.count }))
+
     const filled = fillBuckets({
       bucketStarts: period.bucketStarts ?? [],
       interval: period.interval,
@@ -336,6 +361,7 @@ export class EventReportService {
       rows,
       toValue: (row) => row.count,
     })
+
     return {
       fromDate: period.dates.fromDate,
       toDate: period.dates.toDate,
@@ -367,6 +393,7 @@ export class EventReportService {
       limit: page.limit,
       filterPlan,
     })
+
     return {
       items: result.rows.map((row) => ({ field: page.field, value: row.value, count: row.count })),
       nextOffset: result.nextOffset,
@@ -410,6 +437,7 @@ function toEventFilterInput(filter: ContractEventFilter): EventFilterInput {
       },
     }
   }
+
   return {
     scope: 'event',
     field: filter.field,
@@ -450,17 +478,23 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
     referrer: row.referrer,
     properties: row.properties === null ? null : { ...row.properties },
   }
+
   switch (row.kind) {
     case 'page_view': {
       if (row.pagePath === null) return null
+
       return { ...common, kind: 'page_view', pagePath: row.pagePath }
     }
+
     case 'custom_event': {
       if (row.name === null) return null
+
       return { ...common, kind: 'custom_event', name: row.name, pagePath: row.pagePath }
     }
+
     case 'outbound': {
       if (row.destination === null) return null
+
       return {
         ...common,
         kind: 'outbound',
@@ -469,8 +503,10 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
         destination: row.destination,
       }
     }
+
     case 'performance': {
       if (row.name === null || row.value === null) return null
+
       return {
         ...common,
         kind: 'performance',
@@ -480,8 +516,10 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
         unit: row.unit,
       }
     }
+
     case 'error': {
       if (row.name === null) return null
+
       return {
         ...common,
         kind: 'error',
@@ -492,6 +530,7 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
       }
     }
   }
+
   return null
 }
 

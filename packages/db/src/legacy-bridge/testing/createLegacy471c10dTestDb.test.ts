@@ -15,6 +15,7 @@ import { createLegacy471c10dTestDb } from '../../testing/legacy471c10d.ts'
 const FIXTURE_FOLDER = fileURLToPath(
   new URL('../../testing/fixtures/legacy-471c10d', import.meta.url),
 )
+
 const LEGACY_MIGRATION_TAGS = [
   '0000_windy_deathbird',
   '0001_mute_darkhawk',
@@ -46,6 +47,7 @@ describe('createLegacy471c10dTestDb', () => {
     const parsed: unknown = JSON.parse(
       readFileSync(join(FIXTURE_FOLDER, 'meta/_journal.json'), 'utf8'),
     )
+
     expect(Array.isArray(parsed)).toBe(false)
     const journal = parsed as { entries: Array<{ tag: string; when: number }> }
     expect(journal.entries.map((entry) => entry.when)).toEqual(
@@ -56,12 +58,14 @@ describe('createLegacy471c10dTestDb', () => {
 
   it('builds the legacy-final schema with the pinned fingerprint and ledger', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'legacy.sqlite') })
+
     try {
       expect(computeLegacySchemaFingerprint(fixture.client)).toBe(LEGACY_SCHEMA_FINGERPRINT)
 
       const rows = fixture.client
         .prepare('SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY id')
         .all() as Array<{ id: number; hash: string; created_at: number }>
+
       expect(rows).toHaveLength(4)
       rows.forEach((row, index) => {
         const pinned = LEGACY_471C10D_LEDGER[index]
@@ -76,6 +80,7 @@ describe('createLegacy471c10dTestDb', () => {
 
   it('seeds a representative legacy dataset', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'seeded.sqlite') })
+
     try {
       expect(fixture.client.prepare('SELECT COUNT(*) AS count FROM user').get()).toEqual({
         count: 1,

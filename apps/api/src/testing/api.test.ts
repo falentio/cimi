@@ -25,6 +25,7 @@ test('system health reports live control and analytics stores', async () => {
   ).not.toThrow()
 
   const owner = await signUpTestUser(app, 'health-owner@example.com', 'Health Owner')
+
   const created = await app.fetch(
     new Request('http://localhost/api/installation/initializeInstallation', {
       method: 'POST',
@@ -32,6 +33,7 @@ test('system health reports live control and analytics stores', async () => {
       body: JSON.stringify({}),
     }),
   )
+
   expect(created.status).toBe(201)
 
   const afterInit = await app.fetch(new Request('http://localhost/api/system/health'))
@@ -56,9 +58,11 @@ test('system health reports live control and analytics stores', async () => {
       },
     },
   })
+
   const lifecycleResponse = await lifecycleApp.fetch(
     new Request('http://localhost/api/system/health'),
   )
+
   expect(lifecycleResponse.status).toBe(200)
   await expect(lifecycleResponse.json()).resolves.toMatchObject({
     status: 'maintenance',
@@ -84,8 +88,10 @@ test('system health maps installation and legacy states', async () => {
         },
       },
     })
+
     const response = await app.fetch(new Request('http://localhost/api/system/health'))
     expect(response.status).toBe(200)
+
     return (await response.json()) as { status: string }
   }
 
@@ -169,9 +175,11 @@ test('system health maps installation and legacy states', async () => {
       },
     },
   })
+
   const throwingResponse = await throwingApp.fetch(
     new Request('http://localhost/api/system/health'),
   )
+
   expect(throwingResponse.status).toBe(200)
   await expect(throwingResponse.json()).resolves.toMatchObject({ status: 'recovering' })
 })
@@ -194,8 +202,10 @@ test('system health covers legacy installation states', async () => {
         },
       },
     })
+
     const response = await app.fetch(new Request('http://localhost/api/system/health'))
     expect(response.status).toBe(200)
+
     return (await response.json()) as { status: string }
   }
 
@@ -264,6 +274,7 @@ test('system health covers legacy installation states', async () => {
       status: 'recovering',
     },
   ]
+
   for (const { snapshot, status } of cases) {
     await expect(healthWith(snapshot)).resolves.toMatchObject({ status })
   }
@@ -282,6 +293,7 @@ test('system health degrades on store failures', async () => {
       body: JSON.stringify({}),
     }),
   )
+
   expect([200, 201]).toContain(initRes.status)
 
   async function healthWithStores(stores: { controlOk: boolean; analyticsOk: boolean | 'throw' }) {
@@ -295,11 +307,14 @@ test('system health degrades on store failures', async () => {
         : stores.analyticsOk
           ? analytics
           : { ready: async () => false, close: async () => undefined }
+
     let dbForTest = db
+
     if (!stores.controlOk) {
       dbForTest = createMigratedTestDb()
       closeDb(dbForTest)
     }
+
     const app = createApiApp({
       db: dbForTest,
       auth,
@@ -308,8 +323,10 @@ test('system health degrades on store failures', async () => {
       controlDatabasePath: ':memory:',
       dataDirectoryPath: '/tmp/cimi-test-data',
     })
+
     const response = await app.fetch(new Request('http://localhost/api/system/health'))
     expect(response.status).toBe(200)
+
     return (await response.json()) as { status: string; controlStore: string }
   }
 
@@ -405,6 +422,7 @@ test('normalizes provider errors before the public response', async () => {
   vi.spyOn(db, 'select').mockImplementation(() => {
     throw new Error('provider connection secret')
   })
+
   const app = createApiApp({
     db,
     auth,
@@ -467,7 +485,9 @@ test('blocks every native Better Auth governance mutation without changing autho
   const createdAuthorityOrganization = await auth.api.createOrganization({
     body: { name: 'Native Governance', slug: 'native-governance', userId: owner.userId },
   })
+
   const authorityOrganizationId = createdAuthorityOrganization.id
+
   const addedMember = await auth.api.addMember({
     headers: new Headers({ cookie: owner.cookie }),
     body: {
@@ -476,6 +496,7 @@ test('blocks every native Better Auth governance mutation without changing autho
       role: 'member',
     },
   })
+
   const invitation = await auth.api.createInvitation({
     headers: new Headers({ cookie: owner.cookie }),
     body: {
@@ -484,6 +505,7 @@ test('blocks every native Better Auth governance mutation without changing autho
       role: 'member',
     },
   })
+
   const before = await readNativeGovernanceState(db)
 
   const nativeMutations = [
@@ -556,6 +578,7 @@ test('blocks every native Better Auth governance mutation without changing autho
         body: JSON.stringify(mutation.body),
       }),
     )
+
     expect(response.status, mutation.path).toBe(404)
   }
 
@@ -568,6 +591,7 @@ test('blocks every native Better Auth governance mutation without changing autho
       body: '{}',
     }),
   )
+
   expect(harmlessResponse.status).not.toBe(404)
 })
 
@@ -577,6 +601,7 @@ async function readNativeGovernanceState(db: Db) {
     db.select().from(schema.TAuthMember),
     db.select().from(schema.TAuthInvitation),
   ])
+
   return { organizations, members, invitations }
 }
 

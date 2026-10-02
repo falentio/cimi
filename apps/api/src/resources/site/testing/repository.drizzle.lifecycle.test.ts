@@ -5,6 +5,7 @@ import { SiteRepositoryDrizzle } from '../repository.drizzle.ts'
 import { createSiteDrizzleFixture, createSiteTombstoneRow } from '../fixture.drizzle.ts'
 
 const requestedAt = new Date('2026-09-01T00:00:00.000Z')
+
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
 
 function insertInstallation(db: ReturnType<typeof createSiteDrizzleFixture>['db']): void {

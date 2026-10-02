@@ -7,16 +7,21 @@ import {
 } from '../fixture.ts'
 
 const organizationId = 'org_1'
+
 const ownerUserId = 'user_owner'
+
 const memberUserId = 'user_member'
 
 const owner = createMembershipRecord({ userId: ownerUserId, role: 'owner' })
+
 const currentMember = createMembershipRecord({ userId: memberUserId, role: 'member' })
+
 const targetAuthorityMember = createAuthorityMember({
   id: 'member_target',
   userId: memberUserId,
   role: 'member',
 })
+
 const pendingLeave = createMembershipOperation({
   id: 'gop_leave',
   organizationId,
@@ -35,6 +40,7 @@ describe('MembershipService.leave', () => {
         createAuthorityMember({ userId: memberUserId, role: 'member' }),
       ],
     )
+
     const operation = createMembershipOperation({
       id: 'gop_leave',
       organizationId,
@@ -43,11 +49,13 @@ describe('MembershipService.leave', () => {
       targetRole: null,
       attemptCount: 0,
     })
+
     const events: string[] = []
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
     fixture.repository.incrementMembershipAttempt.mockResolvedValue()
     fixture.repository.delete.mockImplementation(async () => {
       events.push('delete')
+
       return true
     })
     fixture.repository.completeMembershipOperation.mockResolvedValue()

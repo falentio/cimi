@@ -21,6 +21,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 async function buildOwner(email: string) {
@@ -45,10 +46,13 @@ async function buildOwner(email: string) {
       lifecycle: readyLifecycle(),
     }),
   })
+
   const owner = fixture.db.$client
     .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')
     .get() as { userId: string } | undefined
+
   if (owner === undefined) throw new Error('createOwnerSite did not seed an owner membership')
+
   return { fixture, admission, siteId, userId: owner.userId }
 }
 
@@ -85,15 +89,19 @@ describe('EventReportService.lifecycle', () => {
     const lock = new InMemoryLifecycleLock()
     const base = new DuckDbReportingQuery({ analytics: owner.fixture.analytics })
     let deletionRefusedDuringRead: boolean | undefined
+
     const query: ReportingQueryPort = new Proxy(base, {
       get(target, property, receiver) {
         if (property === 'eventOverview') {
           return async (input: EventOverviewQuery) => {
             deletionRefusedDuringRead = lock.acquire('site_deletion') === undefined
+
             return target.eventOverview(input)
           }
         }
+
         const value = Reflect.get(target, property, receiver) as unknown
+
         return typeof value === 'function' ? value.bind(target) : value
       },
     })
@@ -115,6 +123,7 @@ describe('EventReportService.lifecycle', () => {
     const owner = await buildOwner('event-release@example.com')
     await using _ = owner.fixture
     const lock = new InMemoryLifecycleLock()
+
     const query: ReportingQueryPort = new Proxy(
       new DuckDbReportingQuery({ analytics: owner.fixture.analytics }),
       {
@@ -124,11 +133,14 @@ describe('EventReportService.lifecycle', () => {
               throw new Error('projection read failed')
             }
           }
+
           const value = Reflect.get(target, property, receiver) as unknown
+
           return typeof value === 'function' ? value.bind(target) : value
         },
       },
     )
+
     const service = serviceOver({ ...owner, lock, query })
 
     await expect(
@@ -145,6 +157,7 @@ describe('EventReportService.lifecycle', () => {
     await using _ = owner.fixture
     const lock = new InMemoryLifecycleLock()
     const exclusive = lock.acquire('site_deletion')
+
     if (exclusive === undefined) throw new Error('Expected an exclusive lifecycle lease')
     const service = serviceOver({ ...owner, lock })
 
@@ -161,6 +174,7 @@ describe('EventReportService.lifecycle', () => {
     await using _ = owner.fixture
     const lock = new InMemoryLifecycleLock()
     const backup = lock.acquire('backup')
+
     if (backup === undefined) throw new Error('Expected a backup lease')
     const service = serviceOver({ ...owner, lock })
 

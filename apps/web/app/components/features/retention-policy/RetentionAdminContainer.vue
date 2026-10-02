@@ -15,18 +15,23 @@ import { useRetentionAdmin } from './useRetentionAdmin'
 
 // TEMPORARY variant harness — delete at promotion (variants + picker + this wiring).
 const route = useRoute()
+
 const CLEANUP_SECTIONS = {
   timeline: RetentionCleanupTimeline,
   register: RetentionCleanupRegister,
   strip: RetentionCleanupStrip,
 } as const
+
 const cleanupSection = computed(() => {
   const variant = route.query.variant
+
   if (typeof variant === 'string' && variant in CLEANUP_SECTIONS) {
     return CLEANUP_SECTIONS[variant as keyof typeof CLEANUP_SECTIONS]
   }
+
   return RetentionCleanupSection
 })
+
 const PICKER_VARIANTS = [
   { id: 'stacked', label: 'Stacked (current)' },
   { id: 'timeline', label: 'Timeline' },
@@ -35,11 +40,14 @@ const PICKER_VARIANTS = [
 ] as const
 
 const controller = useRetentionAdmin()
+
 const view = computed(() => controller.view.value)
+
 const refreshing = shallowRef(false)
 
 async function refresh(): Promise<void> {
   refreshing.value = true
+
   try {
     await controller.refresh()
   } finally {

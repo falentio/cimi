@@ -165,6 +165,7 @@ function errorMessageKey(error: LocalizableError): string | undefined {
   if (!Object.hasOwn(statusFallbackCodes, error.status)) return undefined
 
   const fallbackCode = statusFallbackCodes[error.status as keyof typeof statusFallbackCodes]
+
   return contractErrorMessageKeys[fallbackCode]
 }
 
@@ -182,5 +183,6 @@ export function localizeErrorMessage(
   translate: (key: string) => string,
 ): string {
   const key = errorMessageKey(error)
+
   return key === undefined ? error.message : translate(key)
 }

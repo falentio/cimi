@@ -21,9 +21,13 @@ const emit = defineEmits<{
 }>()
 
 const isOpen = shallowRef(false)
+
 const draftDefinitionKey = shallowRef('')
+
 const draftOperator = shallowRef<OverviewFilterOperator>('equals')
+
 const draftValue = shallowRef('')
+
 const editingFilter = shallowRef<OverviewFilter | null>(null)
 
 const selectedDefinition = computed(() =>
@@ -31,6 +35,7 @@ const selectedDefinition = computed(() =>
     (definition) => definitionKey(definition) === draftDefinitionKey.value,
   ),
 )
+
 const canApply = computed(
   () => selectedDefinition.value !== undefined && draftValue.value.trim().length > 0,
 )
@@ -61,6 +66,7 @@ function filterOperatorLabel(filter: OverviewFilter): string {
 
 function prepareAddEditor(): void {
   const firstDefinition = overviewFilterDefinitions.at(0)
+
   if (firstDefinition === undefined) return
 
   editingFilter.value = null
@@ -80,6 +86,7 @@ function openEditEditor(filter: OverviewFilter): void {
 function draftFilter(): OverviewFilter | null {
   const definition = selectedDefinition.value
   const value = draftValue.value.trim()
+
   if (definition === undefined || value.length === 0) return null
 
   if (definition.scope === 'event') {
@@ -101,6 +108,7 @@ function draftFilter(): OverviewFilter | null {
 
 function applyEditor(): void {
   const filter = draftFilter()
+
   if (filter === null) return
 
   if (editingFilter.value === null) {

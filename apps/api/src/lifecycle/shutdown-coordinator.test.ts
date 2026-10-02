@@ -4,6 +4,7 @@ import { createShutdownCoordinator } from './shutdown-coordinator.ts'
 describe('createShutdownCoordinator', () => {
   test('attempts every phase and labels each failure', async () => {
     const events: string[] = []
+
     const coordinator = createShutdownCoordinator([
       {
         label: 'first worker',
@@ -40,6 +41,7 @@ describe('createShutdownCoordinator', () => {
   test('retries failed phases and caches only a successful close', async () => {
     const attempts = new Map<string, number>()
     const events: string[] = []
+
     const coordinator = createShutdownCoordinator(
       ['first worker', 'second worker'].map((label) => ({
         label,
@@ -47,6 +49,7 @@ describe('createShutdownCoordinator', () => {
           events.push(label)
           const attempt = (attempts.get(label) ?? 0) + 1
           attempts.set(label, attempt)
+
           if (attempt === 1) throw new Error(`${label} failed`)
         },
       })),
@@ -67,10 +70,13 @@ describe('createShutdownCoordinator', () => {
 
   test('shares a close attempt across concurrent callers', async () => {
     let release: (() => void) | undefined
+
     const blocked = new Promise<void>((resolve) => {
       release = resolve
     })
+
     let attempts = 0
+
     const coordinator = createShutdownCoordinator([
       {
         label: 'worker',

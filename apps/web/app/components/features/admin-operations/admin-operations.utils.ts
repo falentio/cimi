@@ -12,11 +12,17 @@ import type {
 } from '../setup/setup.types'
 
 export type HealthStatus = Health['status']
+
 export type StoreHealthStatus = Health['controlStore']
+
 export type InstallationStatus = Installation['status']
+
 export type CleanupStageStatus = SetupInstallation['derivedCleanup']['status']
+
 export type OperationKind = SetupOperation['kind']
+
 export type OperationPhase = SetupOperation['phase']
+
 export type OperationCheckpoint = SetupOperation['checkpoint']
 
 type HealthMatrixEntry<Status extends HealthStatus> = {
@@ -223,13 +229,17 @@ export function toAdminOperationsView(view: SetupViewModel): AdminOperationsProj
 
 export function toAdminHealthProjection(health: HealthView): AdminHealthProjection {
   const matrix = HEALTH_MATRIX.map((entry) => ({ ...entry, current: false }))
+
   if (health.kind === 'loading') return { kind: 'loading', matrix }
+
   if (health.kind === 'failure') return { kind: 'failure', matrix, message: health.error.message }
 
   const report = toAdminHealthReport(health.report)
+
   if (health.kind === 'stale-report') {
     return { kind: 'stale-report', report, message: health.error.message }
   }
+
   return { kind: 'report', report }
 }
 
@@ -238,15 +248,18 @@ export function toAdminCleanupProjection(installation: SetupInstallation): Admin
     toAdminCleanupStage('derived', installation.derivedCleanup),
     toAdminCleanupStage('backup', installation.backupCleanup),
   ] as const satisfies AdminCleanupProjection['stages']
+
   return { pending: installation.cleanupPending, stages }
 }
 
 function toAdminHealthReport(health: SetupHealth): AdminHealthReport {
   const description = describeHealth(health)
+
   const matrix: readonly AdminHealthMatrixRow[] = HEALTH_MATRIX.map((entry) => ({
     ...entry,
     current: entry.status === health.status,
   }))
+
   return {
     status: health.status,
     title: description.title,
@@ -285,6 +298,7 @@ function toAdminInstallationProjection(view: SetupViewModel): AdminInstallationP
       return { kind: 'failure', message: view.installation.error.message }
     case 'operational': {
       const details = toAdminInstallationDetails(view.installation.installation, view.lifecycle)
+
       if (view.installation.kind === 'stale-failure') {
         return {
           kind: 'stale-report',
@@ -293,10 +307,13 @@ function toAdminInstallationProjection(view: SetupViewModel): AdminInstallationP
           ...details,
         }
       }
+
       return { kind: 'report', stale: false, ...details }
     }
+
     default: {
       const _exhaustive: never = view
+
       return _exhaustive
     }
   }
@@ -342,6 +359,7 @@ function toAdminLifecycleProjection(
       }
     default: {
       const _exhaustive: never = lifecycle
+
       return _exhaustive
     }
   }

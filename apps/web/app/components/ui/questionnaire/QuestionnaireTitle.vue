@@ -21,6 +21,7 @@ const props = withDefaults(
 const item = injectQuestionnaireItemContext()
 
 const primitiveRef = ref<ComponentPublicInstance | null>(null)
+
 const fallbackId = props.id ?? useId()
 
 let unregisterTitle: (() => void) | null = null

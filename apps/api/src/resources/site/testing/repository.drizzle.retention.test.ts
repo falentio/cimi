@@ -5,8 +5,11 @@ import { SiteRepositoryDrizzle } from '../repository.drizzle.ts'
 import { createSiteDrizzleFixture, createSiteTombstoneRow } from '../fixture.drizzle.ts'
 
 const requestedAt = new Date('2026-09-01T00:00:00.000Z')
+
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
+
 const recoverRequestedAt = new Date('2026-09-03T00:00:00.000Z')
+
 const recoverCompletedAt = new Date('2026-09-04T00:00:00.000Z')
 
 const identity = {
@@ -127,6 +130,7 @@ describe.concurrent('SiteRepositoryDrizzle.retention', () => {
       .from(schema.TSiteTombstone)
       .where(eq(schema.TSiteTombstone.siteId, 'ste_1'))
       .all()
+
     expect(tombstones.length, 'purge writes one tombstone').toBe(1)
     expect(tombstones[0], 'tombstone preserves hostname reservation').toMatchObject({
       siteId: 'ste_1',

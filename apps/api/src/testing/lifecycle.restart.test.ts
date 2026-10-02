@@ -12,13 +12,16 @@ async function initializeInstallation(
   email: string,
 ): Promise<{ cookie: string }> {
   const owner = await signUpTestUser(app, email, 'Restart Owner')
+
   const initialized = await apiTestRequest(
     app,
     '/installation/initializeInstallation',
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   return { cookie: owner.cookie }
 }
 
@@ -32,14 +35,17 @@ function ingestionSite(eventIngestionInput: { organizationId: string; hostname: 
 
 test('a restart recovers a durable interrupted upgrade and resumes collection', async () => {
   let releaseFirstMigration: (() => void) | undefined
+
   const firstMigration = new Promise<void>((resolve) => {
     releaseFirstMigration = resolve
   })
+
   let resumedMigrationCalls = 0
 
   await using fixture = await createApiTestFixture({
     upgradeExecutor: createFakeUpgradeExecutor({ migrate: () => firstMigration }),
   })
+
   const { app, auth, db, analytics } = fixture
   const { cookie } = await initializeInstallation(app, 'restart-resume@example.com')
 
@@ -51,25 +57,31 @@ test('a restart recovers a durable interrupted upgrade and resumes collection', 
       name: 'Restart Org',
     },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
   const siteResponse = await apiTestRequest(
     app,
     '/site/createSite',
     cookie,
     ingestionSite({ organizationId: organization.id, hostname: 'restart.example.com' }),
   )
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = parse(schema.SSiteCreateOutput, await siteResponse.json())
 
   const upgrade = await apiTestRequest(app, '/installation/upgradeInstallation', cookie, {
     confirmation: 'UPGRADE',
   })
+
   expect(upgrade.status, await upgrade.clone().text()).toBe(202)
+
   const started = (await upgrade.clone().json()) as {
     status: string
     activeOperation: { operationId: string }
   }
+
   const operationId = started.activeOperation.operationId
   expect(started.status).toBe('maintenance')
   expect(operationId).toBeTruthy()
@@ -77,6 +89,7 @@ test('a restart recovers a durable interrupted upgrade and resumes collection', 
   // Interrupt: the first app's migration never resolves, so its durable upgrade operation stays
   // non-terminal. A restarted process gets a fresh lifecycle lock and must claim and complete it.
   const restartedLock = new InMemoryLifecycleLock()
+
   const restarted = createApiApp({
     db,
     auth,
@@ -92,18 +105,22 @@ test('a restart recovers a durable interrupted upgrade and resumes collection', 
       },
     }),
   })
+
   try {
     let restartedOperation: unknown = { kind: 'upgrade' }
     let restartedStatus: string | undefined
+
     for (let attempt = 0; attempt < 400; attempt += 1) {
       const poll = await apiTestRequest(restarted, '/installation/getInstallationStatus', cookie)
       expect(poll.status, await poll.clone().text()).toBe(200)
       const body = (await poll.json()) as { status: string; activeOperation: unknown }
       restartedOperation = body.activeOperation
       restartedStatus = body.status
+
       if (restartedOperation === null) break
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
+
     expect(
       resumedMigrationCalls,
       'the restarted app resumes the durable migration',
@@ -126,6 +143,7 @@ test('a restart recovers a durable interrupted upgrade and resumes collection', 
         }),
       }),
     )
+
     expect(accepted.status, await accepted.clone().text()).toBe(200)
     await expect(accepted.json()).resolves.toMatchObject({ status: 'accepted' })
   } finally {
@@ -134,14 +152,18 @@ test('a restart recovers a durable interrupted upgrade and resumes collection', 
     await app.close()
   }
 }, 30_000)
+
 test('quiesce drains a pre-admitted candidate and rejects a new write in the same window', async () => {
   let releaseCapture: (() => void) | undefined
+
   const captureGate = new Promise<void>((resolve) => {
     releaseCapture = resolve
   })
+
   const executor: BackupRestoreExecutor = {
     async captureBackup({ operationId, artifactId, lastSafeSequence }) {
       await captureGate
+
       return {
         kind: 'source',
         id: artifactId,
@@ -182,14 +204,17 @@ test('quiesce drains a pre-admitted candidate and rejects a new write in the sam
       name: 'Drain Org',
     },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
   const siteResponse = await apiTestRequest(
     app,
     '/site/createSite',
     cookie,
     ingestionSite({ organizationId: organization.id, hostname: 'drain.example.com' }),
   )
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = parse(schema.SSiteCreateOutput, await siteResponse.json())
 
@@ -206,6 +231,7 @@ test('quiesce drains a pre-admitted candidate and rejects a new write in the sam
       }),
     }),
   )
+
   expect(admitted.status, await admitted.clone().text()).toBe(200)
 
   // Backup starts, stops admission, drains the queue, then blocks inside the executor.
@@ -224,20 +250,25 @@ test('quiesce drains a pre-admitted candidate and rejects a new write in the sam
       }),
     }),
   )
+
   expect(duringQuiesce.status, await duringQuiesce.clone().text()).toBe(503)
 
   const committed = db.$client
     .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
     .all('event_drained') as Array<{ event_id: string }>
+
   expect(committed, 'the drained candidate stays durable across quiescence').toHaveLength(1)
+
   const rejected = db.$client
     .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
     .all('event_during_quiesce') as Array<{ event_id: string }>
+
   expect(rejected, 'a write during quiescence must not be admitted').toHaveLength(0)
 
   // Release the executor so the backup finishes and admission resumes.
   releaseCapture?.()
   let resumed = false
+
   for (let attempt = 0; attempt < 400; attempt += 1) {
     const retry = await app.fetch(
       new Request('http://localhost/api/event-ingestion/collectEvent', {
@@ -251,11 +282,14 @@ test('quiesce drains a pre-admitted candidate and rejects a new write in the sam
         }),
       }),
     )
+
     if (retry.status === 200) {
       resumed = true
       break
     }
+
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
+
   expect(resumed, 'admission resumes after the backup completes').toBe(true)
 }, 30_000)

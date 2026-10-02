@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
   const getRetentionPolicy = vi.fn()
   const updateRetentionPolicy = vi.fn()
   const getInstallationStatus = vi.fn()
+
   return {
     getRetentionPolicy,
     updateRetentionPolicy,
@@ -73,11 +74,14 @@ function createController() {
   scope.run(() => {
     controller = useRetentionAdmin()
   })
+
   if (controller === undefined) throw new Error('Controller was not created.')
+
   return { controller, scope }
 }
 
 beforeEach(resetMocks)
+
 afterEach(() => vi.useRealTimers())
 
 describe('useRetentionAdmin', () => {
@@ -106,6 +110,7 @@ describe('useRetentionAdmin', () => {
         },
       },
     )
+
     mocks.updateRetentionPolicy.mockResolvedValue(saved)
     const { controller, scope } = createController()
     await controller.refresh()

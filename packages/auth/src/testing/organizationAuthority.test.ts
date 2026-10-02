@@ -5,6 +5,7 @@ import { BetterAuthOrganizationAuthority } from '../organization-authority.ts'
 import { createAuth } from '../server.ts'
 
 const headers = new Headers({ cookie: 'session=<REDACTED>' })
+
 const memberOne = {
   id: 'member_1',
   organizationId: 'authority_1',
@@ -20,6 +21,7 @@ const memberOne = {
   createdAt: Date
   user: { id: string; email: string; name: string; image?: string | undefined }
 }
+
 const memberTwo = {
   id: 'member_2',
   organizationId: 'authority_1',
@@ -35,6 +37,7 @@ const memberTwo = {
   createdAt: Date
   user: { id: string; email: string; name: string; image?: string | undefined }
 }
+
 const memberThree = {
   id: 'member_3',
   organizationId: 'authority_1',
@@ -61,12 +64,15 @@ afterEach(() => {
 describe('BetterAuthOrganizationAuthority', () => {
   it('creates an Organization and maps its initial Owner member', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
+
     const createOrganization = vi.spyOn(auth.api, 'createOrganization').mockResolvedValue({
       id: 'authority_1',
       name: 'Analytics',
@@ -100,12 +106,15 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('lists Organizations for the authenticated session and forwards headers', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
+
     const listOrganizations = vi.spyOn(auth.api, 'listOrganizations').mockResolvedValue([
       {
         id: 'authority_1',
@@ -129,20 +138,25 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('maps Organization reads and updates while forwarding headers', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
+
     const organization = {
       id: 'authority_1',
       name: 'Analytics',
       slug: 'analytics',
       createdAt: memberOne.createdAt,
     }
+
     const getOrganization = vi.spyOn(auth.api, 'getOrganization')
     getOrganization.mockResolvedValueOnce(organization).mockResolvedValueOnce(organization)
+
     const updateOrganization = vi
       .spyOn(auth.api, 'updateOrganization')
       .mockResolvedValue(organization)
@@ -173,15 +187,19 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('normalizes missing Organization reads and deletes without hiding provider failures', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
+
     const notFound = Object.assign(new Error('missing'), {
       body: { code: 'ORGANIZATION_NOT_FOUND' },
     })
+
     const getOrganization = vi.spyOn(auth.api, 'getOrganization')
     getOrganization.mockRejectedValueOnce(notFound).mockResolvedValueOnce(null)
     const deleteOrganization = vi.spyOn(auth.api, 'deleteOrganization')
@@ -218,20 +236,25 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('lists members, changes a role, and leaves through the authority API', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
+
     const listMembers = vi.spyOn(auth.api, 'listMembers').mockResolvedValue({
       members: [memberOne, memberTwo],
       total: 2,
     })
+
     const updateMemberRole = vi.spyOn(auth.api, 'updateMemberRole').mockResolvedValue({
       ...memberTwo,
       role: 'admin',
     })
+
     const leaveOrganization = vi.spyOn(auth.api, 'leaveOrganization').mockResolvedValue({
       id: memberTwo.id,
       organizationId: memberTwo.organizationId,
@@ -290,11 +313,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('rejects malformed authority roles from member mutations', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     vi.spyOn(auth.api, 'updateMemberRole').mockResolvedValue({
       ...memberTwo,
@@ -313,11 +338,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('finds a member on a later page and removes it by authority member ID', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     const listMembers = vi.spyOn(auth.api, 'listMembers')
     const removeMember = vi.spyOn(auth.api, 'removeMember')
@@ -354,11 +381,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('aggregates all member pages with stable offsets and mapped members', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     const listMembers = vi.spyOn(auth.api, 'listMembers')
     listMembers
@@ -407,11 +436,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('completes a successful ownership transfer and returns the final members', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     const listMembers = vi.spyOn(auth.api, 'listMembers')
     const updateMemberRole = vi.spyOn(auth.api, 'updateMemberRole')
@@ -457,11 +488,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('rejects an ownership transfer when the target member is missing', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     const listMembers = vi.spyOn(auth.api, 'listMembers')
     const updateMemberRole = vi.spyOn(auth.api, 'updateMemberRole')
@@ -483,11 +516,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('rejects an ownership transfer when another authority owner survives', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     const listMembers = vi.spyOn(auth.api, 'listMembers')
     const updateMemberRole = vi.spyOn(auth.api, 'updateMemberRole')
@@ -518,11 +553,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('recovers a transfer after target promotion succeeds but owner demotion fails', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     const listMembers = vi.spyOn(auth.api, 'listMembers')
     const updateMemberRole = vi.spyOn(auth.api, 'updateMemberRole')
@@ -563,11 +600,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('treats a removed requester as an absent member', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     vi.spyOn(auth.api, 'listMembers').mockRejectedValue(
       Object.assign(new Error('You are not a member of this organization'), {
@@ -582,11 +621,13 @@ describe('BetterAuthOrganizationAuthority', () => {
 
   it('propagates unknown member lookup failures', async () => {
     db = createMigratedTestDb()
+
     const auth = createAuth({
       db,
       schema: schema.betterAuthSchema,
       secret: 'test-secret-1234567890',
     })
+
     const authority = new BetterAuthOrganizationAuthority({ auth })
     const providerError = new Error('authority unavailable')
     vi.spyOn(auth.api, 'listMembers').mockRejectedValue(providerError)

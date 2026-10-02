@@ -20,6 +20,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
   it('rejects a null account issuer with count and samples and leaves the source untouched', () => {
     const path = createLegacyFileDb(dir)
     const fixture = createDb({ path })
+
     try {
       fixture.$client
         .prepare('UPDATE account SET issuer = NULL WHERE id = ?')
@@ -29,8 +30,10 @@ describe('bridgeLegacyControlDb.rejection', () => {
     }
 
     const db = createDb({ path })
+
     try {
       expect(() => migrateControlDb(db)).toThrow(ControlMigrationIncompatibilityError)
+
       try {
         migrateControlDb(db)
         throw new Error('expected migrateControlDb to throw')
@@ -61,6 +64,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
   it('rejects duplicate (issuer, account_id) pairs and leaves the source untouched', () => {
     const path = createLegacyFileDb(dir)
     const fixture = createDb({ path })
+
     try {
       fixture.$client
         .prepare(
@@ -85,8 +89,10 @@ describe('bridgeLegacyControlDb.rejection', () => {
     }
 
     const db = createDb({ path })
+
     try {
       expect(() => migrateControlDb(db)).toThrow(ControlMigrationIncompatibilityError)
+
       try {
         migrateControlDb(db)
         throw new Error('expected migrateControlDb to throw')
@@ -108,6 +114,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
   it('rejects a forged legacy ledger without mutating the source', () => {
     const path = createLegacyFileDb(dir)
     const fixture = createDb({ path })
+
     try {
       fixture.$client
         .prepare('UPDATE __drizzle_migrations SET hash = ? WHERE id = 1')
@@ -117,6 +124,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
     }
 
     const db = createDb({ path })
+
     try {
       expect(() => migrateControlDb(db)).toThrow(ControlMigrationIncompatibilityError)
 
@@ -137,6 +145,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
   it('rejects a partial legacy ledger without mutating the source', () => {
     const path = createLegacyFileDb(dir)
     const fixture = createDb({ path })
+
     try {
       fixture.$client.exec('DELETE FROM __drizzle_migrations WHERE id = 4')
     } finally {
@@ -144,6 +153,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
     }
 
     const db = createDb({ path })
+
     try {
       expect(() => migrateControlDb(db)).toThrow(ControlMigrationIncompatibilityError)
 
@@ -164,6 +174,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
   it('rejects a schema-mutated legacy database without mutating the source', () => {
     const path = createLegacyFileDb(dir)
     const fixture = createDb({ path })
+
     try {
       fixture.$client.pragma('foreign_keys = OFF')
       fixture.$client.exec('ALTER TABLE "user" DROP COLUMN "role"')
@@ -172,6 +183,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
     }
 
     const db = createDb({ path })
+
     try {
       expect(() => migrateControlDb(db)).toThrow(ControlMigrationIncompatibilityError)
 

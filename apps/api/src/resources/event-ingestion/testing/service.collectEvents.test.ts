@@ -36,6 +36,7 @@ function createFixture(
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
+
   const policy = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -70,6 +71,7 @@ function createFixture(
       repository.append.mockImplementation(async (candidates) =>
         candidates.map(() => ({ status: 'accepted' }) as const),
       )
+
       return repository
     })()
 
@@ -158,6 +160,7 @@ describe('EventIngestionService.collectEvents', () => {
         },
       ],
     })
+
     await service.flush()
 
     await expect(resultPromise).resolves.toEqual({

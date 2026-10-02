@@ -25,6 +25,7 @@ export function readActiveProfiles(db: Db, siteId: string): ReadonlyMap<string, 
   return new Map(
     rows.map((row) => {
       const traits = readJsonObject(row.traits ?? {})
+
       return [row.identifiedUserId, { identifiedUserId: row.identifiedUserId, traits }] as const
     }),
   )
@@ -44,10 +45,12 @@ export function readProfileTrait(
   field: string,
 ): AnalyticsReportScalar | undefined {
   let value: unknown = traits
+
   for (const key of field.slice('trait.'.length).split('.')) {
     if (!isRecord(value)) return undefined
     value = value[key]
   }
+
   return isAnalyticsReportScalar(value) ? value : undefined
 }
 
@@ -63,7 +66,9 @@ function isAnalyticsReportScalar(value: unknown): value is AnalyticsReportScalar
 function readJsonObject(value: unknown): JsonObject {
   if (!isRecord(value)) throw new Error('Profile traits are not a JSON object')
   const result: JsonObject = {}
+
   for (const [key, child] of Object.entries(value)) result[key] = readJsonValue(child)
+
   return result
 }
 
@@ -76,6 +81,8 @@ function readJsonValue(value: unknown): JsonValue {
   ) {
     return value
   }
+
   if (Array.isArray(value)) return value.map(readJsonValue)
+
   return readJsonObject(value)
 }

@@ -15,6 +15,7 @@ const content = computed(() => {
     ...new Map(
       props.errors.filter(Boolean).map((error) => {
         const message = typeof error === 'string' ? error : error?.message
+
         return [message, error]
       }),
     ).values(),

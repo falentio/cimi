@@ -17,6 +17,7 @@ describe('BackupRestoreService.getStatus', () => {
   it('does not expose executor storage details in the public operation', async () => {
     const repository = mock<BackupRestoreRepository>()
     repository.find.mockResolvedValue(createBackupOperation())
+
     const service = new BackupRestoreService({
       repository,
       executor: mock<BackupRestoreExecutor>(),

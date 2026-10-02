@@ -25,6 +25,7 @@ const statuses = {
 } as const
 
 type ErrorCode = keyof typeof statuses
+
 type ErrorMap = Record<string, { status?: number; message?: string }>
 
 const catalog = (...codes: ErrorCode[]): ErrorMap =>
@@ -33,8 +34,11 @@ const catalog = (...codes: ErrorCode[]): ErrorMap =>
   )
 
 const authenticatedRead = catalog('UNAUTHORIZED', 'NOT_FOUND')
+
 const administratorRead = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND')
+
 const definitionList = catalog('UNAUTHORIZED', 'NOT_FOUND', 'BAD_REQUEST')
+
 const definitionCreateOrUpdate = catalog(
   'UNAUTHORIZED',
   'FORBIDDEN',
@@ -42,7 +46,9 @@ const definitionCreateOrUpdate = catalog(
   'BAD_REQUEST',
   'CONFLICT',
 )
+
 const definitionArchive = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT')
+
 const analyticsReport = catalog(
   'UNAUTHORIZED',
   'NOT_FOUND',
@@ -50,8 +56,11 @@ const analyticsReport = catalog(
   'QUERY_LIMIT_EXCEEDED',
   'SERVICE_UNAVAILABLE',
 )
+
 const siteCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST', 'CONFLICT')
+
 const siteLifecycleCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT')
+
 const publicDashboardQuery = {
   ...catalog(
     'BAD_REQUEST',
@@ -65,6 +74,7 @@ const publicDashboardQuery = {
     data: SPublicRateLimitAdapterResponse,
   },
 }
+
 const expectedErrors: Record<string, ErrorMap> = {
   'backupRestore.listBackups': catalog(
     'UNAUTHORIZED',
@@ -326,6 +336,7 @@ const getErrorMap = (path: string): ErrorMap => {
     .reduce<unknown>((node, segment) => (node as Record<string, unknown>)[segment], contract) as {
     '~orpc': { errorMap: ErrorMap }
   }
+
   return procedure['~orpc'].errorMap
 }
 
@@ -368,6 +379,7 @@ const getRoutes = (
 ): Array<{ contractPath: string; method: string; routePath: string }> => {
   if (isContractProcedure(node)) {
     const route = node['~orpc'].route
+
     if (route.method === undefined || route.path === undefined) {
       throw new Error(`Procedure at ${path.join('.')} is missing route metadata`)
     }
@@ -438,6 +450,7 @@ describe('procedure error declarations', () => {
 
   it('preserves valid error data while applying catalog metadata', () => {
     const data = { retryAfter: 30 }
+
     const procedure = (
       oc as never as {
         errors(errors: Record<string, unknown>): {

@@ -5,12 +5,16 @@ import { helloRouter } from './router.ts'
 import { HelloService } from './service.ts'
 
 export { helloRouter }
+
 export { HelloGuard, type HelloGuardDependencies } from './guard.ts'
+
 export { HelloService, type HelloServiceDependencies } from './service.ts'
+
 export {
   HelloRepositoryDrizzle,
   type HelloRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { HelloRepository } from './repository.ts'
 
 export interface CreateHelloDependencies {
@@ -22,6 +26,7 @@ export function createHello({ db }: CreateHelloDependencies) {
   const guard = new HelloGuard({ repository })
   const service = new HelloService({ repository, guard })
   const router = helloRouter(service)
+
   return { guard, service, router }
 }
 

@@ -95,13 +95,17 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
     const result = await this.auth.api.createOrganization({
       body: { name: input.name, slug: input.slug, userId: input.ownerUserId },
     })
+
     const member = result.members[0]
+
     if (member === undefined) throw new Error('Better Auth returned no organization owner')
+
     return { organization: toOrganization(result), member: toMember(member) }
   }
 
   async listOrganizations(input: { headers: Headers }): Promise<AuthorityOrganization[]> {
     const organizations = await this.auth.api.listOrganizations({ headers: input.headers })
+
     return organizations.map(toOrganization)
   }
 
@@ -114,6 +118,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
         headers: input.headers,
         query: { organizationId: input.organizationId },
       })
+
       return organization === null ? undefined : toOrganization(organization)
     } catch (error) {
       if (isOrganizationNotFound(error)) return undefined
@@ -130,6 +135,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
         headers: input.headers,
         query: { organizationSlug: input.slug },
       })
+
       return organization === null ? undefined : toOrganization(organization)
     } catch (error) {
       if (isOrganizationNotFound(error)) return undefined
@@ -146,6 +152,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
       headers: input.headers,
       body: { organizationId: input.organizationId, data: { name: input.name } },
     })
+
     return organization === null ? undefined : toOrganization(organization)
   }
 
@@ -171,6 +178,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
       headers: input.headers,
       query: { organizationId: input.organizationId, offset: input.offset, limit: input.limit },
     })
+
     return { members: result.members.map(toMember), totalCount: result.total }
   }
 
@@ -181,8 +189,10 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
   }): Promise<AuthorityMember | undefined> {
     let offset = 0
     const limit = 100
+
     for (;;) {
       let result: Awaited<ReturnType<OrganizationAuthority['listMembers']>>
+
       try {
         result = await this.listMembers({
           organizationId: input.organizationId,
@@ -194,11 +204,15 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
         if (isRequesterNotOrganizationMember(error)) return undefined
         throw error
       }
+
       const member = result.members.find((candidate) => candidate.userId === input.userId)
+
       if (member !== undefined) return member
+
       if (result.members.length === 0 || offset + result.members.length >= result.totalCount) {
         return undefined
       }
+
       offset += result.members.length
     }
   }
@@ -218,13 +232,18 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
           role: input.role,
         },
       })
+
       return toMember(added)
     } catch (error) {
       if (!isAlreadyMember(error)) throw error
       const existing = await this.getMember(input)
+
       if (existing === undefined) throw error
+
       if (existing.role === input.role) return existing
+
       if (existing.role === 'owner') throw error
+
       return this.changeMemberRole({
         organizationId: input.organizationId,
         memberId: existing.id,
@@ -244,6 +263,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
       headers: input.headers,
       body: { organizationId: input.organizationId, memberId: input.memberId, role: input.role },
     })
+
     return toMember(result)
   }
 
@@ -253,11 +273,14 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
     headers: Headers
   }): Promise<AuthorityMember> {
     const member = await this.getMember(input)
+
     if (member === undefined) throw new Error('Better Auth member is unavailable')
+
     const result = await this.auth.api.removeMember({
       headers: input.headers,
       body: { organizationId: input.organizationId, memberIdOrEmail: member.id },
     })
+
     return toMember(result.member)
   }
 
@@ -278,10 +301,12 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
       organizationId: input.organizationId,
       headers: input.headers,
     })
+
     assertTransferInputState(members, input)
 
     let previousOwner = findMember(members, input.previousOwnerUserId)
     let target = findMember(members, input.targetUserId)
+
     if (previousOwner === undefined || target === undefined) {
       throw new Error('Better Auth ownership transfer members are unavailable')
     }
@@ -294,6 +319,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
         headers: input.headers,
       })
     }
+
     if (previousOwner.role !== 'admin') {
       previousOwner = await this.changeMemberRole({
         organizationId: input.organizationId,
@@ -307,12 +333,15 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
       organizationId: input.organizationId,
       headers: input.headers,
     })
+
     assertTransferFinalState(finalMembers, input)
     const finalPreviousOwner = findMember(finalMembers, input.previousOwnerUserId)
     const finalTarget = findMember(finalMembers, input.targetUserId)
+
     if (finalPreviousOwner === undefined || finalTarget === undefined) {
       throw new Error('Better Auth ownership transfer did not converge')
     }
+
     return { previousOwner: finalPreviousOwner, target: finalTarget }
   }
 
@@ -323,6 +352,7 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
     const members: AuthorityMember[] = []
     let offset = 0
     const limit = 100
+
     for (;;) {
       const page = await this.listMembers({
         organizationId: input.organizationId,
@@ -330,10 +360,13 @@ export class BetterAuthOrganizationAuthority implements OrganizationAuthority {
         limit,
         headers: input.headers,
       })
+
       members.push(...page.members)
+
       if (page.members.length === 0 || offset + page.members.length >= page.totalCount) {
         return members
       }
+
       offset += page.members.length
     }
   }
@@ -356,6 +389,7 @@ function assertTransferInputState(
   const target = findMember(members, input.targetUserId)
   const owners = members.filter((member) => member.role === 'owner')
   const isPendingTransfer = previousOwner?.role === 'owner' && target?.role !== 'owner'
+
   const isPartiallyAppliedTransfer =
     previousOwner?.role === 'owner' &&
     target?.role === 'owner' &&
@@ -363,7 +397,9 @@ function assertTransferInputState(
     owners.every(
       (owner) => owner.userId === input.previousOwnerUserId || owner.userId === input.targetUserId,
     )
+
   const isCompletedTransfer = previousOwner?.role === 'admin' && target?.role === 'owner'
+
   if (
     (!isPendingTransfer && !isPartiallyAppliedTransfer && !isCompletedTransfer) ||
     (isPendingTransfer && owners.length !== 1)
@@ -384,6 +420,7 @@ function assertTransferFinalState(
   const owners = members.filter((member) => member.role === 'owner')
   const previousOwner = findMember(members, input.previousOwnerUserId)
   const target = findMember(members, input.targetUserId)
+
   if (
     owners.length !== 1 ||
     owners[0]?.userId !== input.targetUserId ||
@@ -446,20 +483,26 @@ function toRole(value: string): AuthorityRole {
 function isOrganizationNotFound(error: unknown): boolean {
   if (typeof error !== 'object' || error === null || !('body' in error)) return false
   const body = error.body
+
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
+
   return body.code === 'ORGANIZATION_NOT_FOUND'
 }
 
 function isRequesterNotOrganizationMember(error: unknown): boolean {
   if (typeof error !== 'object' || error === null || !('body' in error)) return false
   const body = error.body
+
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
+
   return body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
 }
 
 function isAlreadyMember(error: unknown): boolean {
   if (typeof error !== 'object' || error === null || !('body' in error)) return false
   const body = error.body
+
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
+
   return body.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION'
 }

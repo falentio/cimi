@@ -92,6 +92,7 @@ describe('backup restore utilities', () => {
         errorCode: null,
       },
     })
+
     const cleanupPending = sourceBackup({
       id: 'backup-complete',
       phase: 'cleanup_pending',
@@ -141,6 +142,7 @@ describe('backup restore utilities', () => {
         { code, status: 500, message: '/private/path and checksum=secret' },
         'create',
       )
+
       expect(failure.code).toBe(code)
       expect(failure.message).not.toContain('/private/path')
       expect(failure.message).not.toContain('checksum')
@@ -150,6 +152,7 @@ describe('backup restore utilities', () => {
 
   it('blocks actions while lock state is unknown, held, or cleanup-pending', () => {
     expect(deriveLifecycleLock({ installation: { kind: 'loading' } })).toEqual({ kind: 'loading' })
+
     const states: readonly LockSectionView[] = [
       { kind: 'loading' },
       { kind: 'unknown', message: 'Refresh to verify installation state.' },
@@ -198,6 +201,7 @@ describe('backup restore utilities', () => {
         errorCode: 'BACKUP_FAILED',
       },
     })
+
     const view = toBackupRestoreViewModel({
       data: {
         order: [backup.id],
@@ -217,8 +221,10 @@ describe('backup restore utilities', () => {
     })
 
     expect(view.kind).toBe('ready')
+
     if (view.kind !== 'ready') return
     expect(view.cleanup.kind).toBe('visible')
+
     if (view.cleanup.kind !== 'visible') return
     expect(view.cleanup.stages.map((stage) => stage.kind)).toEqual(['derived', 'backup'])
     expect(view.cleanup.stages[1].error?.code).toBe('BACKUP_FAILED')

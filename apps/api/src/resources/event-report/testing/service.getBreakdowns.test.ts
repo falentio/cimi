@@ -7,6 +7,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number, offsetMs = 0): number {
@@ -82,6 +83,7 @@ async function projectedSiteWithKinds(email: string) {
     },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -99,6 +101,7 @@ describe('EventReportService.getBreakdowns', () => {
       breakdownPath(siteId, 'page_view', '&sort=value&direction=asc'),
       cookie,
     )
+
     expect(response.status, await response.clone().text()).toBe(200)
     const body = await response.json()
     expect(body.items).toEqual([
@@ -114,7 +117,9 @@ describe('EventReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds(
       'event-breakdown-filter@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       breakdownPath(
@@ -138,6 +143,7 @@ describe('EventReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds(
       'event-breakdown-page@example.com',
     )
+
     await using _ = fixture
 
     const first = await apiTestRequest(
@@ -145,6 +151,7 @@ describe('EventReportService.getBreakdowns', () => {
       breakdownPath(siteId, 'error', '&sort=count&direction=desc&limit=1'),
       cookie,
     )
+
     expect(first.status, await first.clone().text()).toBe(200)
     const firstBody = await first.json()
     expect(firstBody.items).toEqual([{ field: 'code', value: 'E1', count: 1 }])
@@ -157,6 +164,7 @@ describe('EventReportService.getBreakdowns', () => {
       breakdownPath(siteId, 'error', '&sort=count&direction=desc&limit=1&offset=1'),
       cookie,
     )
+
     expect(second.status, await second.clone().text()).toBe(200)
     const secondBody = await second.json()
     expect(secondBody.items).toEqual([{ field: 'code', value: 'E2', count: 1 }])
@@ -167,7 +175,9 @@ describe('EventReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds(
       'event-breakdown-cmp@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       breakdownPath(

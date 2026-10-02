@@ -28,6 +28,7 @@ describe('organization navigation', () => {
     })
     const home = navigation.items.find((item) => item.title === 'Home')
     const settings = navigation.items.find((item) => item.title === 'Settings')
+
     if (home === undefined || settings === undefined)
       throw new Error('organization nav is incomplete')
     expect(isNavItemActive('/org/org_1/home', home)).toBe(true)

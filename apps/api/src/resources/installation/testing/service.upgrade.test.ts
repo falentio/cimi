@@ -7,13 +7,16 @@ import {
 } from '../fixture.ts'
 
 const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+
 const input = { confirmation: 'UPGRADE' } as const
+
 const ids = {
   installationId: () => 'ins_1',
   retentionPolicyId: () => 'rtn_1',
   operationId: () => 'bop_1',
   artifactId: () => 'bar_1',
 }
+
 const maintenanceRecord = () =>
   createInstallationRecord({
     status: 'maintenance',
@@ -31,9 +34,11 @@ const maintenanceRecord = () =>
 describe('InstallationService.upgrade', () => {
   it('persists the operation before draining and returns accepted maintenance', async () => {
     const order: string[] = []
+
     const executor = createFakeUpgradeExecutor({
       createSafetyArtifact: async ({ operationId, artifactId }) => {
         order.push('create')
+
         return {
           id: artifactId,
           generationId: operationId,
@@ -51,33 +56,42 @@ describe('InstallationService.upgrade', () => {
         order.push('rebuild')
       },
     })
+
     const { repository, journal, service } = createInstallationFixture({
       ids,
       upgradeExecutor: executor,
     })
+
     journal.drain = () => {
       order.push('drain')
+
       return undefined
     }
+
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockImplementation(async () => {
       order.push('begin')
+
       return maintenanceRecord()
     })
     repository.findSafetyArtifact.mockImplementation(async () => {
       order.push('findArtifact')
+
       return undefined
     })
     repository.recordSafetyArtifact.mockImplementation(async () => {
       order.push('record')
+
       return maintenanceRecord()
     })
     repository.updateUpgradeProgress.mockImplementation(async (update) => {
       order.push(update.progress === 0.5 ? 'progress-0.5' : 'progress-0.9')
+
       return maintenanceRecord()
     })
     repository.completeUpgrade.mockImplementation(async () => {
       order.push('complete')
+
       return createInstallationRecord()
     })
 
@@ -101,6 +115,7 @@ describe('InstallationService.upgrade', () => {
 
   it('bumps progress to 0.5 when reusing an existing safety artifact', async () => {
     const order: string[] = []
+
     const existing = {
       id: 'bar_1',
       generationId: 'bop_1',
@@ -110,20 +125,24 @@ describe('InstallationService.upgrade', () => {
       checksumAlgorithm: 'sha256' as const,
       checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     }
+
     const executor = createFakeUpgradeExecutor()
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockImplementation(async () => {
       order.push('begin')
+
       return maintenanceRecord()
     })
     repository.findSafetyArtifact.mockResolvedValue(existing)
     repository.updateUpgradeProgress.mockImplementation(async (update) => {
       order.push(update.progress === 0.5 ? 'progress-0.5' : 'progress-0.9')
+
       return maintenanceRecord()
     })
     repository.completeUpgrade.mockImplementation(async () => {
       order.push('complete')
+
       return createInstallationRecord()
     })
 
@@ -135,14 +154,18 @@ describe('InstallationService.upgrade', () => {
 
   it('holds admission until the asynchronous executor reaches a terminal state', async () => {
     let releaseMigration: (() => void) | undefined
+
     const migration = new Promise<void>((resolve) => {
       releaseMigration = resolve
     })
+
     const executor = createFakeUpgradeExecutor({ migrate: () => migration })
+
     const { repository, lock, service } = createInstallationFixture({
       ids,
       upgradeExecutor: executor,
     })
+
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
     repository.findSafetyArtifact.mockResolvedValue(undefined)
@@ -169,10 +192,12 @@ describe('InstallationService.upgrade', () => {
 
   it('rolls back a migration failure and records a terminal internal error', async () => {
     const rollback = vi.fn().mockResolvedValue(undefined)
+
     const executor = createFakeUpgradeExecutor({
       migrate: vi.fn().mockRejectedValue(new Error('migration failed')),
       rollback,
     })
+
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
@@ -207,6 +232,7 @@ describe('InstallationService.upgrade', () => {
       checksumAlgorithm: 'sha256' as const,
       checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     }
+
     const createSafetyArtifact = vi.fn().mockResolvedValue(existing)
     const migrate = vi.fn().mockResolvedValue(undefined)
     const executor = createFakeUpgradeExecutor({ createSafetyArtifact, migrate })
@@ -252,6 +278,7 @@ describe('InstallationService.upgrade', () => {
     const rollback = vi.fn().mockResolvedValue(undefined)
     const executor = createFakeUpgradeExecutor({ rollback })
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+
     const existing = {
       id: 'bar_1',
       generationId: 'bop_1',
@@ -261,6 +288,7 @@ describe('InstallationService.upgrade', () => {
       checksumAlgorithm: 'sha256' as const,
       checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     }
+
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
     repository.findSafetyArtifact.mockResolvedValue(existing)
@@ -280,10 +308,12 @@ describe('InstallationService.upgrade', () => {
 
   it('rolls back a rebuild failure without completing', async () => {
     const rollback = vi.fn().mockResolvedValue(undefined)
+
     const executor = createFakeUpgradeExecutor({
       rebuildAnalytics: vi.fn().mockRejectedValue(new Error('rebuild failed')),
       rollback,
     })
+
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
@@ -311,9 +341,11 @@ describe('InstallationService.upgrade', () => {
 
   it('records INCOMPATIBLE_BACKUP when migration reports an incompatible manifest', async () => {
     const { UpgradeIncompatibilityError } = await import('../upgrade-executor.ts')
+
     const executor = createFakeUpgradeExecutor({
       migrate: vi.fn().mockRejectedValue(new UpgradeIncompatibilityError('manifest is newer')),
     })
+
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
@@ -334,11 +366,13 @@ describe('InstallationService.upgrade', () => {
 
   it('records INSUFFICIENT_STORAGE when the safety artifact cannot be stored', async () => {
     const { InsufficientStorageError } = await import('../upgrade-executor.ts')
+
     const executor = createFakeUpgradeExecutor({
       createSafetyArtifact: vi
         .fn()
         .mockRejectedValue(new InsufficientStorageError('no space left')),
     })
+
     const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
     repository.find.mockResolvedValue(createInstallationRecord())
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
@@ -376,6 +410,7 @@ describe('InstallationService.upgrade', () => {
         errorCode: 'INTERNAL_SERVER_ERROR',
       },
     })
+
     const { repository, service } = createInstallationFixture({ ids })
     repository.find.mockResolvedValue(terminal)
     repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
@@ -400,6 +435,7 @@ describe('InstallationService.upgrade', () => {
       operationId: () => '../evil',
       artifactId: () => 'bar_1',
     }
+
     const { repository, service } = createInstallationFixture({ ids: unsafeIds })
     repository.find.mockResolvedValue(createInstallationRecord())
 

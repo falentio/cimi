@@ -37,6 +37,7 @@ function createFixture(
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
+
   const policy = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -71,6 +72,7 @@ function createFixture(
       repository.append.mockImplementation(async (candidates) =>
         candidates.map(() => ({ status: 'accepted' }) as const),
       )
+
       return repository
     })()
 
@@ -142,6 +144,7 @@ describe('EventIngestionService.collectEvent', () => {
           payloadFingerprint: candidate.payloadFingerprint,
         })
       }
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
@@ -162,6 +165,7 @@ describe('EventIngestionService.collectEvent', () => {
 
   it('sanitizes error diagnostics before the acceptance repository persists them', async () => {
     const { service, acceptanceRepository } = createFixture()
+
     const resultPromise = service.collectEvent(
       event({
         kind: 'error',
@@ -170,6 +174,7 @@ describe('EventIngestionService.collectEvent', () => {
         message: "GET /search?q=O'Reilly&token=secret at async handler (/app/secret.ts:1:2)",
       }),
     )
+
     await service.flush()
 
     await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
@@ -236,12 +241,14 @@ describe('EventIngestionService.collectEvent', () => {
           botPolicyOutcome: 'recorded_excluded',
         },
       })
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
     const result = service.collectEvent(event({ anonymousIdentityId: 'anonymous-bot' }), {
       isBot: true,
     })
+
     await service.flush()
 
     await expect(result).resolves.toMatchObject({ status: 'accepted' })
@@ -265,6 +272,7 @@ describe('EventIngestionService.collectEvent', () => {
         kind: 'outbound',
         destination: 'https://example.com/checkout',
       })
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
@@ -275,6 +283,7 @@ describe('EventIngestionService.collectEvent', () => {
         destination: 'https://example.com/checkout?token=secret&campaign=spring',
       }),
     )
+
     await service.flush()
 
     await expect(resultPromise).resolves.toMatchObject({ status: 'accepted' })
@@ -288,6 +297,7 @@ describe('EventIngestionService.collectEvent', () => {
       sourceIpRatePerSecond: 1,
       sourceIpBurst: 1,
     })
+
     await protection.consume({
       siteId: 'ste_1',
       sourceIp: '203.0.113.10',
@@ -316,6 +326,7 @@ describe('EventIngestionService.collectEvent', () => {
         }
       },
     }
+
     const { service, acceptanceRepository } = createFixture({ identitySession })
     acceptanceRepository.append.mockImplementation(async (candidates) => {
       expect(candidates[0]).toMatchObject({
@@ -323,6 +334,7 @@ describe('EventIngestionService.collectEvent', () => {
         analyticsSessionId: 'session-1',
         event: { identifiedUserId: 'user-1' },
       })
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
@@ -353,6 +365,7 @@ describe('EventIngestionService.collectEvent', () => {
         status: 'deleting',
       })
       expect(candidates[0]?.event.eventId).toBe('event-1')
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
 
