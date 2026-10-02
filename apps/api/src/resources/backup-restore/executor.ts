@@ -896,10 +896,11 @@ export function classifyStorageExhausted(error: unknown): boolean {
   return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)
 }
 
-function isUnreadableSqliteError(error: unknown): boolean {
-  if (!(error instanceof Error) || !('code' in error)) return false
+export function unreadableSqliteCode(error: unknown): string | undefined {
+  if (!(error instanceof Error) || !('code' in error)) return undefined
   const code = error.code
-  return typeof code === 'string' && (code === 'SQLITE_NOTADB' || code.startsWith('SQLITE_CORRUPT'))
+  if (typeof code !== 'string') return undefined
+  return code === 'SQLITE_NOTADB' || code.startsWith('SQLITE_CORRUPT') ? code : undefined
 }
 
 function assertSafeOperationId(id: string): void {
@@ -952,8 +953,9 @@ function verifySqliteIntegrity(path: string, requireRetentionTable = false): voi
       throw new BackupIncompatibilityError('Backup SQLite retention table is missing')
     }
   } catch (error) {
-    if (isUnreadableSqliteError(error)) {
-      throw new BackupIncompatibilityError('Backup SQLite is unreadable')
+    const code = unreadableSqliteCode(error)
+    if (code !== undefined) {
+      throw new BackupIncompatibilityError(`Backup SQLite is unreadable (${code})`)
     }
     throw error
   } finally {
