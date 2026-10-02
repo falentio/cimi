@@ -287,6 +287,7 @@ function prepareExpiredProfiles(input: {
   readonly now: Date
 }): void {
   input.db.$client.transaction(() => {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting identity_profile cleanup candidates.
     const profiles = input.db.$client
       .prepare(
         `SELECT profile_id AS profileId, site_id AS siteId,
@@ -307,6 +308,7 @@ function prepareExpiredProfiles(input: {
 
 function preparePendingIdentityRedactions(input: { readonly db: Db; readonly now: Date }): void {
   input.db.$client.transaction(() => {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting pending identity redactions.
     const profiles = input.db.$client
       .prepare(
         `SELECT p.profile_id AS profileId, p.site_id AS siteId,
@@ -389,6 +391,7 @@ function prepareProfileRedaction(db: Db, profile: IdentityProfileCleanupRow, now
 }
 
 export function hasPendingIdentityRedactions(db: Db): boolean {
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting pending identity redaction check.
   const row = db.$client
     .prepare(
       `SELECT 1 AS pending
@@ -404,6 +407,7 @@ export function hasPendingIdentityRedactions(db: Db): boolean {
 }
 
 function hasPendingIdentityBackupCleanup(db: Db): boolean {
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting pending backup cleanup check.
   const row = db.$client
     .prepare(
       `SELECT 1 AS pending
@@ -479,6 +483,7 @@ async function cleanBackupArtifacts(input: {
 }): Promise<void> {
   const identityRedactions = pendingIdentityRedactions(input.db, input.boundary.siteId)
 
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting available backup artifacts.
   const artifacts = input.db.$client
     .prepare(
       `SELECT ba.id, ba.storage_key AS storageKey, ba.metadata
@@ -513,6 +518,7 @@ async function cleanBackupArtifacts(input: {
           )
           .run(input.boundary.siteId, input.boundary.rawReceiptCutoffAt.getTime())
 
+        // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting expired backup profiles.
         const expiredProfiles = backupDb.$client
           .prepare(
             `SELECT p.profile_id AS profileId, p.identified_user_id AS identifiedUserId,
@@ -588,6 +594,7 @@ interface IdentityRedactionTarget {
 function pendingIdentityRedactions(db: Db, siteId?: string): IdentityRedactionTarget[] {
   const siteClause = siteId === undefined ? '' : ' AND site_id = ?'
 
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting identity redaction targets.
   const rows = db.$client
     .prepare(
       `SELECT site_id AS siteId, profile_id AS profileId, identified_user_id AS identifiedUserId,
@@ -609,6 +616,7 @@ async function cleanBackupIdentityArtifacts(input: {
 
   if (targets.length === 0) return
 
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting available backup artifacts.
   const artifacts = input.db.$client
     .prepare(
       `SELECT ba.id, ba.storage_key AS storageKey, ba.metadata
@@ -635,6 +643,7 @@ async function cleanBackupIdentityArtifacts(input: {
 
 function cleanBackupIdentityRows(db: Db, targets: readonly IdentityRedactionTarget[]): void {
   for (const target of targets) {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting backup identity epoch bounds.
     const epoch = db.$client
       .prepare(
         `SELECT started_at AS startedAt, ended_at AS endedAt

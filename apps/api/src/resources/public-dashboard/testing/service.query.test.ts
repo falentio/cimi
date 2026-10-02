@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
+import type { SiteScopeGuardDependencies } from '@cimi/guard'
 import {
   createCalendarDate,
   createInstantMs,
@@ -146,7 +147,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock: new InMemoryLifecycleLock(),
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -191,7 +192,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock: new InMemoryLifecycleLock(),
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -223,7 +224,7 @@ describe('PublicDashboardService.query', () => {
     const service = new PublicDashboardService({
       repository,
       lock,
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
     })
 
     await expect(
@@ -257,7 +258,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock: new InMemoryLifecycleLock(),
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -316,7 +317,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query,
       lock: new InMemoryLifecycleLock(),
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -363,7 +364,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock: new InMemoryLifecycleLock(),
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -397,7 +398,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock: new InMemoryLifecycleLock(),
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
     })
 
     await expect(
@@ -453,7 +454,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock,
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -491,7 +492,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock,
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -538,7 +539,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query,
       lock,
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -579,7 +580,7 @@ describe('PublicDashboardService.query', () => {
       admission: admission.port,
       query: query.port,
       lock: new InMemoryLifecycleLock(),
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -627,7 +628,7 @@ describe('PublicDashboardService.query', () => {
       query: query.port,
       lock: new InMemoryLifecycleLock(),
       rateLimiter,
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
     })
 
     await expect(
@@ -673,7 +674,7 @@ describe('PublicDashboardService.query', () => {
       query: createQuery().port,
       lock: new InMemoryLifecycleLock(),
       rateLimiter: { consume: ({ sourceIp }) => sourceIps.push(sourceIp) },
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 
@@ -710,7 +711,7 @@ describe('PublicDashboardService.query', () => {
       query: query.port,
       lock: new InMemoryLifecycleLock(),
       rateLimiter: { consume: () => undefined },
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => now,
     })
 
@@ -747,7 +748,7 @@ describe('PublicDashboardService.query', () => {
       query: query.port,
       lock: new InMemoryLifecycleLock(),
       rateLimiter: { consume: () => undefined },
-      scope: { siteScope: {} as never, membership: {} as never },
+      scope: mock<SiteScopeGuardDependencies>(),
       clock: () => new Date('2026-09-01T00:00:00.000Z'),
     })
 

@@ -164,6 +164,7 @@ export function classifyControlLineage(client: Database.Database): ControlLineag
     return { kind: 'incompatible', reason: 'Schema does not match the legacy 471c10d fingerprint' }
   }
 
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL.
   const integrity = client.pragma('integrity_check', { simple: true }) as string
 
   if (integrity !== 'ok') {
@@ -180,6 +181,7 @@ export function classifyControlLineage(client: Database.Database): ControlLineag
 }
 
 function introspectSchema(client: Database.Database): IntrospectedSchema {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the SELECT name FROM sqlite_master.
   const tables = client
     .prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations' ORDER BY name",
@@ -201,6 +203,7 @@ function introspectColumns(
   client: Database.Database,
   table: string,
 ): readonly IntrospectedColumn[] {
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA table_info.
   const rows = client.prepare(`PRAGMA table_info('${table}')`).all() as Array<PragmaColumnRow>
 
   return rows.map((row) => ({
@@ -213,11 +216,13 @@ function introspectColumns(
 }
 
 function introspectIndexes(client: Database.Database, table: string): readonly IntrospectedIndex[] {
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA index_list.
   const rows = client.prepare(`PRAGMA index_list('${table}')`).all() as Array<PragmaIndexRow>
 
   return rows
     .toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     .map((row) => {
+        // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA index_info.
       const columns = client
         .prepare(`PRAGMA index_info('${row.name}')`)
         .all() as Array<PragmaIndexInfoRow>
@@ -234,6 +239,7 @@ function introspectForeignKeys(
   client: Database.Database,
   table: string,
 ): readonly IntrospectedForeignKey[] {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA foreign_key_list.
   const rows = client
     .prepare(`PRAGMA foreign_key_list('${table}')`)
     .all() as Array<PragmaForeignKeyRow>
@@ -251,6 +257,7 @@ function introspectForeignKeys(
 }
 
 function readObjectNames(client: Database.Database): readonly string[] {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the SELECT name FROM sqlite_master.
   const rows = client
     .prepare(
       "SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations' ORDER BY name",
@@ -261,6 +268,7 @@ function readObjectNames(client: Database.Database): readonly string[] {
 }
 
 function readUserTables(client: Database.Database): readonly string[] {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the SELECT name FROM sqlite_master.
   const rows = client
     .prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations' ORDER BY name",
@@ -277,6 +285,7 @@ interface LedgerRow {
 }
 
 function readLedgerRows(client: Database.Database): readonly LedgerRow[] {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the SELECT name FROM sqlite_master.
   const ledgerTable = client
     .prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'",
@@ -285,6 +294,7 @@ function readLedgerRows(client: Database.Database): readonly LedgerRow[] {
 
   if (ledgerTable === undefined) return []
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the SELECT id, hash, created_at FROM __drizzle_migrations.
   return client
     .prepare('SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at, id')
     .all() as Array<LedgerRow>
@@ -945,6 +955,7 @@ function readLegacySnapshot(
   for (const spec of copyPlan) {
     const primaryKeyIndices = readPrimaryKeyIndices(client, spec.table, spec.columns)
 
+    // SAFETY: better-sqlite3 returns any; cells are SQLite scalars by driver contract.
     const rows = client
       .prepare(
         `SELECT ${spec.columns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(spec.table)}`,
@@ -1011,6 +1022,7 @@ function readPrimaryKeyIndices(
   table: string,
   columns: readonly string[],
 ): readonly number[] {
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA table_info.
   const rows = client.prepare(`PRAGMA table_info('${table}')`).all() as Array<{
     name: string
     pk: number
@@ -1044,6 +1056,7 @@ function resolveInsertOrder(
   const dependencies = new Map<string, ReadonlySet<string>>()
 
   for (const table of tables) {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA foreign_key_list.
     const foreignKeys = client.prepare(`PRAGMA foreign_key_list('${table}')`).all() as Array<{
       table: string
     }>
@@ -1124,6 +1137,7 @@ function copyLegacyData(
       }
     }
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA foreign_key_check.
     const violations = client.prepare('PRAGMA foreign_key_check').all() as Array<{ table: string }>
 
     if (violations.length > 0) {
@@ -1163,6 +1177,7 @@ function assertPreservation(
       ...(spec.projectedColumns?.map((projection) => projection.column) ?? []),
     ]
 
+    // SAFETY: better-sqlite3 returns any; cells are SQLite scalars by driver contract.
     const rows = stagedClient
       .prepare(
         `SELECT ${readColumns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(snapshotTable.table)}`,
@@ -1245,6 +1260,7 @@ function serializeScalar(value: SqliteScalar): string {
 }
 
 function validateStagedFinalState(client: Database.Database, plan: CurrentMigrationPlan): void {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the SELECT hash, created_at FROM __drizzle_migrations.
   const ledger = client
     .prepare('SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at, id')
     .all() as Array<{ hash: string; created_at: number }>
@@ -1269,6 +1285,7 @@ function validateStagedFinalState(client: Database.Database, plan: CurrentMigrat
     }
   }
 
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL.
   const integrity = client.pragma('integrity_check', { simple: true }) as string
 
   if (integrity !== 'ok') {
@@ -1283,6 +1300,7 @@ function validateStagedFinalState(client: Database.Database, plan: CurrentMigrat
     throw new ControlMigrationIncompatibilityError('Staged database has foreign key violations')
   }
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the SELECT name FROM sqlite_master.
   const tableRows = client
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
     .all() as Array<{ name: string }>
