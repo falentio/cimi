@@ -1153,14 +1153,16 @@ function summarizeCleanupStage(
     return { status: 'pending', startedAt: null, completedAt: null, errorCode: null }
   }
 
+  const completedAtOptions = stageRuns.flatMap((run) =>
+    run.completedAt === null ? [] : [run.completedAt],
+  )
+
+  completedAtOptions.sort((left, right) => right.getTime() - left.getTime())
+
   return {
     status: 'completed',
     startedAt: stageRuns.find((run) => run.startedAt !== null)?.startedAt ?? now,
-    completedAt:
-      stageRuns
-        .map((run) => run.completedAt)
-        .filter((value): value is Date => value !== null)
-        .sort((left, right) => right.getTime() - left.getTime())[0] ?? now,
+    completedAt: completedAtOptions[0] ?? now,
     errorCode: null,
   }
 }

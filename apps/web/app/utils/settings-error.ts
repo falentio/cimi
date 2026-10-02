@@ -30,7 +30,9 @@ export function isLocalizableSettingsError(error: SettingsError): boolean {
   return isLocalizableError(error)
 }
 
-function withDetails(value: object, message: string): SettingsError {
+function withDetails(value: unknown, message: string): SettingsError {
+  if (!isRecord(value)) return { message }
+
   const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
   const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
 

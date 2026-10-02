@@ -16,7 +16,7 @@ function collectLeaves(value: unknown, path = ''): LocaleLeaf[] {
   )
 }
 
-function interpolationShape(message: string): string[] {
+function interpolationKeys(message: string): string[] {
   return (message.match(/{[^{}]+}/g) ?? []).sort()
 }
 
@@ -70,7 +70,7 @@ describe('auth validation locale messages', () => {
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 
@@ -87,7 +87,7 @@ describe('auth validation locale messages', () => {
     for (const leaves of localeLeaves) {
       for (const { message, path } of leaves) {
         expect(message.trim(), path).not.toBe('')
-        expect(interpolationShape(message), path).toEqual([])
+        expect(interpolationKeys(message), path).toEqual([])
       }
     }
   })
@@ -112,7 +112,7 @@ describe('auth validation locale messages', () => {
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 
@@ -130,7 +130,7 @@ describe('auth validation locale messages', () => {
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 
@@ -147,7 +147,7 @@ describe('auth validation locale messages', () => {
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 })

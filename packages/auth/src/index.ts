@@ -9,3 +9,5 @@ export {
 export { createOrganizationAuthority } from './organization-authority.ts'
 
 export type { Auth, AuthUser, CreateAuthDependencies } from './server.ts'
+
+export { createTestUser } from './server.ts'

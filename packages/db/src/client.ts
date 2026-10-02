@@ -21,7 +21,7 @@ export function createDb(options: CreateDbOptions) {
 
   const client = new Proxy(current, {
     get(_target, property) {
-      const value = Reflect.get(current, property, current)
+      const value: unknown = current[property as keyof typeof current]
 
       return typeof value === 'function' ? value.bind(current) : value
     },

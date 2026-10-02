@@ -18,7 +18,7 @@ describe('NAV_REGISTRY', () => {
   })
 
   it('flags exactly the admin entries', () => {
-    expect(ALL_ITEMS.filter((item) => item.admin).map((item) => item.to)).toEqual([
+    expect(ALL_ITEMS.flatMap((item) => (item.admin ? [item.to] : []))).toEqual([
       '/admin',
       '/setup',
     ])

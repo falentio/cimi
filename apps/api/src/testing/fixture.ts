@@ -21,7 +21,7 @@ function withAnalyticsReady(analytics: AnalyticsDb, ready: () => boolean): Analy
   return new Proxy(analytics, {
     get(target, property, receiver) {
       if (property === 'ready') return async () => ready()
-      const value = Reflect.get(target, property, receiver) as unknown
+      const value: unknown = target[property as keyof AnalyticsDb]
 
       return typeof value === 'function' ? value.bind(target) : value
     },
@@ -130,7 +130,7 @@ export async function apiTestRequest(
   app: ReturnType<typeof createApiApp>,
   path: string,
   cookie: string,
-  body?: object,
+  body?: Record<string, unknown>,
 ): Promise<Response> {
   const headers = body === undefined ? { cookie } : { 'content-type': 'application/json', cookie }
 

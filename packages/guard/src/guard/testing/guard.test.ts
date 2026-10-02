@@ -7,17 +7,13 @@ import {
   assertOwner,
   assertOwnerOrAdmin,
 } from '../../guard.ts'
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 
-const adminUser = { id: 'u1', role: 'admin' } as unknown as AuthUser
+const adminUser = createTestUser({ id: 'u1', email: 'u1@example.com', name: 'U1', installationGrant: false })
 
-const installationAdmin = {
-  id: 'u1',
-  role: 'admin',
-  installationGrant: true,
-} as unknown as AuthUser
+const installationAdmin = createTestUser({ id: 'u1', email: 'u1@example.com', name: 'U1' })
 
-const normalUser = { id: 'u1', role: 'user' } as unknown as AuthUser
+const normalUser = createTestUser({ id: 'u1', email: 'u1@example.com', name: 'U1', role: 'user', installationGrant: false })
 
 describe('assertIsAdmin', () => {
   it('throws FORBIDDEN for undefined user', () => {

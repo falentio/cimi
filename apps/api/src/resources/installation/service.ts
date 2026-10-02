@@ -174,7 +174,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
 
   async initialize(
     input: InstallationInitializeInput,
-    user: AuthUser,
+    user: AuthUser | undefined,
   ): Promise<InstallationInitializeOutput> {
     assertInstallationAdmin(user)
     const lease = await this.lock.acquire('initialization')
@@ -219,7 +219,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
     }
   }
 
-  async getStatus(user: AuthUser): Promise<InstallationStatusOutput> {
+  async getStatus(user: AuthUser | undefined): Promise<InstallationStatusOutput> {
     assertInstallationAdmin(user)
     const record = await this.repository.find()
 
@@ -231,7 +231,7 @@ export class InstallationService implements LifecycleOperationStatusReader {
 
   async upgrade(
     input: InstallationUpgradeInput,
-    user: AuthUser,
+    user: AuthUser | undefined,
   ): Promise<InstallationUpgradeOutput> {
     assertInstallationAdmin(user)
     const lease = await this.lock.acquire('upgrade')

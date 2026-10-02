@@ -100,7 +100,7 @@ describe('EventReportService.lifecycle', () => {
           }
         }
 
-        const value = Reflect.get(target, property, receiver) as unknown
+        const value: unknown = target[property as keyof typeof target]
 
         return typeof value === 'function' ? value.bind(target) : value
       },
@@ -134,7 +134,7 @@ describe('EventReportService.lifecycle', () => {
             }
           }
 
-          const value = Reflect.get(target, property, receiver) as unknown
+          const value: unknown = target[property as keyof typeof target]
 
           return typeof value === 'function' ? value.bind(target) : value
         },

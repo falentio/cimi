@@ -9,7 +9,7 @@ export const oc = wrapBuilder(baseOc.$meta<AuthMeta>({ devOnly: false })) as Bui
 function wrapBuilder<T extends object>(builder: T): T {
   return new Proxy(builder, {
     get(target, property) {
-      const value = Reflect.get(target, property, target)
+      const value: unknown = target[property as keyof T]
 
       if (typeof value !== 'function') return value
 
@@ -19,7 +19,7 @@ function wrapBuilder<T extends object>(builder: T): T {
             ? [withCentralErrorMessages(args[0] as Record<string, unknown>)]
             : args
 
-        const result = Reflect.apply(value, target, nextArgs)
+        const result = (value as (...callArgs: unknown[]) => unknown)(...nextArgs)
 
         return result !== null && typeof result === 'object' ? wrapBuilder(result) : result
       }

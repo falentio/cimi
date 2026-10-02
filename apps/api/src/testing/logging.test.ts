@@ -226,7 +226,7 @@ function parseRecords(calls: readonly unknown[][]): LogRecord[] {
 
 function isLogRecord(value: unknown): value is LogRecord {
   if (typeof value !== 'object' || value === null) return false
-  const properties = Reflect.get(value, 'properties')
+  const properties = (value as LogRecord).properties
 
   return properties === undefined || (typeof properties === 'object' && properties !== null)
 }

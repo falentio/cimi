@@ -4,6 +4,7 @@ import { ERROR_CATALOG, SSystemHealthOutput, schema as contractSchema } from '@c
 import { closeDb, schema, type Db } from '@cimi/db'
 import { createMigratedTestDb } from '@cimi/db/testing'
 import { createApiApp } from '../index.ts'
+import type { HealthSnapshot } from '../health.ts'
 import { createApiTestFixture, signUpTestUser } from './fixture.ts'
 
 test('system health reports live control and analytics stores', async () => {
@@ -74,7 +75,7 @@ test('system health maps installation and legacy states', async () => {
   await using fixture = await createApiTestFixture()
   const { auth, db, analytics } = fixture
 
-  async function healthWith(snapshot: object) {
+  async function healthWith(snapshot: HealthSnapshot) {
     const app = createApiApp({
       db,
       auth,
@@ -188,7 +189,7 @@ test('system health covers legacy installation states', async () => {
   await using fixture = await createApiTestFixture()
   const { auth, db, analytics } = fixture
 
-  async function healthWith(snapshot: object) {
+  async function healthWith(snapshot: HealthSnapshot) {
     const app = createApiApp({
       db,
       auth,

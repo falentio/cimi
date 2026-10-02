@@ -45,11 +45,11 @@ interface RetentionMetadataManifest extends JsonObject {
   boundaries: RetentionMetadataBoundary[]
 }
 
-interface RetentionMetadataShape extends JsonObject {
+interface RetentionMetadataDocument extends JsonObject {
   retentionManifest: RetentionMetadataManifest
 }
 
-export type RetentionMetadata = RetentionMetadataShape
+export type RetentionMetadata = RetentionMetadataDocument
 
 export function encodeRetentionManifest(manifest: RetentionManifest): RetentionMetadata {
   if (manifest.version !== 1) throw incompatible('Retention manifest version is unsupported')

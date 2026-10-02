@@ -11,9 +11,13 @@ const ASN_PATH = '/data/GeoLite2-ASN.mmdb'
 const IP = '203.0.113.10'
 
 const cityResponses = new Map<string, City>()
+
 const asnResponses = new Map<string, Asn>()
+
 const opened: Array<{ path: string, cacheSize: number }> = []
+
 let cityOpenFailures: Error[] = []
+
 let asnOpenFailures: Error[] = []
 
 function cityReaderFor(ip: string): City {

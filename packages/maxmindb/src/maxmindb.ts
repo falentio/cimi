@@ -57,6 +57,7 @@ export async function createMaxMindDb(options: CreateMaxMindDbOptions): Promise<
     openCityReader: (path, size) => loadCityReader(path, size),
     openAsnReader: (path, size) => loadAsnReaderOrThrow(path, size),
   }
+
   const [cityReader, asnReader] = await Promise.all([
     opener.openCityReader(options.cityPath, cacheSize),
     loadAsnReader(options.asnPath, cacheSize, options.onAsnLoadFailure, opener),

@@ -33,6 +33,13 @@ const catalog = (...codes: ErrorCode[]): ErrorMap =>
     codes.map((code) => [code, { status: statuses[code], message: ERROR_CATALOG[code].message }]),
   )
 
+type LooseErrorBuilder = {
+  errors(errors: Record<string, unknown>): unknown
+}
+
+// SAFETY: tests feed intentionally invalid error maps to prove the runtime catalog rejects them.
+const looseOc = oc as LooseErrorBuilder
+
 const authenticatedRead = catalog('UNAUTHORIZED', 'NOT_FOUND')
 
 const administratorRead = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND')
@@ -424,7 +431,7 @@ describe('procedure error declarations', () => {
 
   it('rejects error codes outside the central catalog', () => {
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         UNKNOWN_ERROR: { status: 500 },
       }),
     ).toThrow(/unknown contract error code/i)
@@ -432,17 +439,17 @@ describe('procedure error declarations', () => {
 
   it('rejects caller-supplied status or message metadata that bypasses the catalog', () => {
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         BAD_REQUEST: { status: 400 },
       }),
     ).toThrow(/catalog status/i)
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         BAD_REQUEST: { status: 418 },
       }),
     ).toThrow(/catalog status/i)
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         BAD_REQUEST: { message: 'database details' },
       }),
     ).toThrow(/catalog message/i)
@@ -451,13 +458,9 @@ describe('procedure error declarations', () => {
   it('preserves valid error data while applying catalog metadata', () => {
     const data = { retryAfter: 30 }
 
-    const procedure = (
-      oc as never as {
-        errors(errors: Record<string, unknown>): {
-          '~orpc': { errorMap: Record<string, { status: number; message: string; data: unknown }> }
-        }
-      }
-    ).errors({ TOO_MANY_REQUESTS: { data } })
+    const procedure = looseOc.errors({ TOO_MANY_REQUESTS: { data } }) as {
+      '~orpc': { errorMap: Record<string, { status: number; message: string; data: unknown }> }
+    }
 
     expect(procedure['~orpc'].errorMap['TOO_MANY_REQUESTS']).toEqual({
       status: 429,

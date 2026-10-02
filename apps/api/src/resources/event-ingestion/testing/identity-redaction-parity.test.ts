@@ -37,7 +37,7 @@ function seedActiveProfile(db: Db, lastSeenAt: Date): void {
     .run()
 }
 
-function transitionShape(db: Db) {
+function readTransitionOutcome(db: Db) {
   const redaction = db.select().from(schema.TIdentityRedaction).all()[0]
   const profile = db.select().from(schema.TIdentityProfile).all()[0]
 
@@ -75,10 +75,10 @@ describe('identity redaction transition', () => {
       now,
     })
 
-    const retentionShape = transitionShape(retentionFixture.db)
-    const explicitShape = transitionShape(explicitFixture.db)
-    expect(retentionShape).toEqual(explicitShape)
-    expect(retentionShape).toMatchObject({
+    const retentionOutcome = readTransitionOutcome(retentionFixture.db)
+    const explicitOutcome = readTransitionOutcome(explicitFixture.db)
+    expect(retentionOutcome).toEqual(explicitOutcome)
+    expect(retentionOutcome).toMatchObject({
       profileStatus: 'deletion-requested',
       redactionStatus: 'requested',
       derivedCleanupStatus: 'pending',

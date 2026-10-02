@@ -1,4 +1,4 @@
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 import { describe, expect, it, vi } from 'vitest'
 import {
   createInstallationFixture,
@@ -6,7 +6,7 @@ import {
   createInstallationRecord,
 } from '../fixture.ts'
 
-const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+const admin = createTestUser()
 
 const input = { confirmation: 'UPGRADE' } as const
 

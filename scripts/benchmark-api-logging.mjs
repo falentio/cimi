@@ -311,9 +311,9 @@ async function verifyRecords({ path, required, requestIds, ignoredRequestIdPrefi
 
   const missingRequestIds = requestIds.filter((requestId) => !requestIdCounts.has(requestId))
 
-  const duplicateRequestIds = [...requestIdCounts.entries()]
-    .filter(([, count]) => count > 1)
-    .map(([requestId, count]) => ({ requestId, count }))
+  const duplicateRequestIds = [...requestIdCounts.entries()].flatMap(([requestId, count]) =>
+    count > 1 ? [{ requestId, count }] : [],
+  )
 
   return {
     status: 'present',

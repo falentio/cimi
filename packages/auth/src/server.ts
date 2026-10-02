@@ -40,3 +40,21 @@ export function createAuth(deps: CreateAuthDependencies) {
 export type Auth = ReturnType<typeof createAuth>
 
 export type AuthUser = Auth['$Infer']['Session']['user'] & { installationGrant?: boolean }
+
+export function createTestUser(overrides: Partial<AuthUser> = {}): AuthUser {
+  return {
+    id: 'user_1',
+    email: 'admin@example.com',
+    name: 'Admin',
+    emailVerified: true,
+    image: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    role: 'admin',
+    banned: false,
+    banReason: null,
+    banExpires: null,
+    installationGrant: true,
+    ...overrides,
+  }
+}

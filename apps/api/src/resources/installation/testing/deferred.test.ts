@@ -1,4 +1,4 @@
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 import { assertInstallationAdmin } from '@cimi/guard'
 import { describe, expect, it } from 'vitest'
 import { createInstallationFixture, createInstallationRecord } from '../fixture.ts'
@@ -12,7 +12,7 @@ import {
 // desired behavior, fails today, and names its blocker plus green criterion.
 // Convert or delete each one as its fix lands.
 
-const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+const admin = createTestUser()
 
 const input = { confirmation: 'UPGRADE' } as const
 
@@ -122,7 +122,7 @@ describe('deferred installation gaps', () => {
     // Blocker: the installation principal shape is still a product decision.
     // Landing the guard change means migrating every caller that passes a
     // bare role admin today. Green when the guard requires the grant.
-    const bareAdmin = { id: 'user_1', role: 'admin' } as unknown as AuthUser
+    const bareAdmin = createTestUser({ installationGrant: false })
 
     expect(() => assertInstallationAdmin(bareAdmin)).toThrow()
   })

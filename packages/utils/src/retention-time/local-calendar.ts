@@ -170,10 +170,16 @@ export function resolveLocalDateTimeInstants(input: {
   }
 
   const candidates = [...offsets]
-    .map((offset) => new Date(syntheticUtc - offset))
-    .filter((candidate) =>
-      isSameLocalCalendarDateTime(getLocalCalendarDateTime(candidate, input.timeZone), target),
-    )
+    .flatMap((offset) => {
+      const candidate = new Date(syntheticUtc - offset)
+
+      return isSameLocalCalendarDateTime(
+        getLocalCalendarDateTime(candidate, input.timeZone),
+        target,
+      )
+        ? [candidate]
+        : []
+    })
     .sort((left, right) => left.getTime() - right.getTime())
 
   return candidates.filter(
