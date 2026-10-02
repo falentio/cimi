@@ -193,8 +193,8 @@ export class RetentionCleanupWorker {
         this.reportError(error, {
           operation: 'retention.cleanup',
           stage: 'release',
-          ...(runId === undefined ? {} : { runId }),
-          ...(siteId === undefined ? {} : { siteId }),
+          ...(runId !== undefined && { runId }),
+          ...(siteId !== undefined && { siteId }),
         })
       }
     }

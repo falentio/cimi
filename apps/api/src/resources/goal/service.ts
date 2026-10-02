@@ -194,7 +194,7 @@ export class GoalService {
 
         return {
           ...current,
-          ...(run.comparison === null ? {} : { comparison: goalReportPeriod(run.comparison) }),
+          ...(run.comparison !== null && { comparison: goalReportPeriod(run.comparison) }),
         }
       },
     })

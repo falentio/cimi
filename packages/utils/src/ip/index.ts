@@ -183,8 +183,8 @@ function prepareIpAddress(
 ): PreparedIpAddress {
   return {
     family: address instanceof Address4 ? 4 : 6,
-    ...(requirements.needsCanonical ? { canonical: address.correctForm() } : {}),
-    ...(requirements.needsValue ? { value: address.bigInt() } : {}),
+    ...(requirements.needsCanonical && { canonical: address.correctForm() }),
+    ...(requirements.needsValue && { value: address.bigInt() }),
   }
 }
 

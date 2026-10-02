@@ -592,9 +592,7 @@ export class EventIngestionService {
         payloadFingerprint: fingerprintAcceptedEvent(input),
         visitorId: identity.visitorId,
         analyticsSessionId: identity.analyticsSessionId,
-        ...(identity.sessionStartedAt === undefined
-          ? {}
-          : { sessionStartedAt: identity.sessionStartedAt }),
+        ...(identity.sessionStartedAt !== undefined && { sessionStartedAt: identity.sessionStartedAt }),
       },
     }
   }
@@ -621,9 +619,7 @@ export class EventIngestionService {
         identifiedUserId: candidate.event.identifiedUserId,
         analyticsSessionId: candidate.analyticsSessionId,
         attribution: normalizedAttribution(candidate.event),
-        ...(candidate.sessionStartedAt === undefined
-          ? {}
-          : { sessionStartedAt: candidate.sessionStartedAt }),
+        ...(candidate.sessionStartedAt !== undefined && { sessionStartedAt: candidate.sessionStartedAt }),
       },
     })
   }
@@ -638,9 +634,7 @@ export class EventIngestionService {
         identifiedUserId: candidate.event.identifiedUserId,
         analyticsSessionId: candidate.analyticsSessionId,
         attribution: normalizedAttribution(candidate.event),
-        ...(candidate.sessionStartedAt === undefined
-          ? {}
-          : { sessionStartedAt: candidate.sessionStartedAt }),
+        ...(candidate.sessionStartedAt !== undefined && { sessionStartedAt: candidate.sessionStartedAt }),
       },
     })
   }

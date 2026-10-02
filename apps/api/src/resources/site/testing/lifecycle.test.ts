@@ -16,7 +16,7 @@ function createWorker(onPurgedSite?: (input: { siteId: string; now: Date }) => P
     repository,
     lock: new InMemoryLifecycleLock(),
     onError,
-    ...(onPurgedSite === undefined ? {} : { onPurgedSite }),
+    ...(onPurgedSite !== undefined && { onPurgedSite }),
   })
 
   return { repository, onError, worker }

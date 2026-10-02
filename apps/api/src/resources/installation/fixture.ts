@@ -21,8 +21,8 @@ export function createInstallationFixture(options: InstallationFixtureOptions = 
     lock,
     journal,
     dataDirectoryReady: options.dataDirectoryReady ?? true,
-    ...(options.clock === undefined ? {} : { clock: options.clock }),
-    ...(options.ids === undefined ? {} : { ids: options.ids }),
+    ...(options.clock !== undefined && { clock: options.clock }),
+    ...(options.ids !== undefined && { ids: options.ids }),
     upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
   })
 

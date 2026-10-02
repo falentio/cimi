@@ -765,7 +765,7 @@ function reportInstallationError(
     kind: 'operation.failure',
     operation: 'installation.upgrade',
     stage,
-    ...(operationId === undefined ? {} : { operationId }),
+    ...(operationId !== undefined && { operationId }),
     error,
   })
 }

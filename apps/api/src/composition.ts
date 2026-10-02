@@ -140,12 +140,12 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     db: deps.db,
     analytics: deps.analytics,
     lock,
-    ...(deps.journal === undefined ? {} : { journal: deps.journal }),
+    ...(deps.journal !== undefined && { journal: deps.journal }),
     dataDirectoryReady: deps.dataDirectoryReady,
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
-    ...(deps.migrationsFolder === undefined ? {} : { migrationsFolder: deps.migrationsFolder }),
-    ...(deps.upgradeExecutor === undefined ? {} : { upgradeExecutor: deps.upgradeExecutor }),
+    ...(deps.migrationsFolder !== undefined && { migrationsFolder: deps.migrationsFolder }),
+    ...(deps.upgradeExecutor !== undefined && { upgradeExecutor: deps.upgradeExecutor }),
   })
 
   const site = createSite({
@@ -167,9 +167,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     db: deps.db,
     lock,
     lifecycle: installation.service,
-    ...(deps.retentionCleanupIntervalMs === undefined
-      ? {}
-      : { intervalMs: deps.retentionCleanupIntervalMs }),
+    ...(deps.retentionCleanupIntervalMs !== undefined && { intervalMs: deps.retentionCleanupIntervalMs }),
   })
 
   const collectionPolicy = createCollectionPolicy({
@@ -235,16 +233,14 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     analytics: deps.analytics,
     lock,
     acceptance: upgradeAcceptance,
-    ...(deps.reads === undefined ? {} : { reads: deps.reads }),
-    ...(deps.backupRestoreExecutor === undefined ? {} : { executor: deps.backupRestoreExecutor }),
+    ...(deps.reads !== undefined && { reads: deps.reads }),
+    ...(deps.backupRestoreExecutor !== undefined && { executor: deps.backupRestoreExecutor }),
     cleanup: deps.cleanup ?? createBackupRestoreCleanup(deps, eventIngestion.acceptanceRepository),
     dataDirectoryReady: deps.dataDirectoryReady,
-    ...(deps.backupLeaseAcquisitionTimeoutMs === undefined
-      ? {}
-      : { leaseAcquisitionTimeoutMs: deps.backupLeaseAcquisitionTimeoutMs }),
+    ...(deps.backupLeaseAcquisitionTimeoutMs !== undefined && { leaseAcquisitionTimeoutMs: deps.backupLeaseAcquisitionTimeoutMs }),
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
-    ...(deps.migrationsFolder === undefined ? {} : { migrationsFolder: deps.migrationsFolder }),
+    ...(deps.migrationsFolder !== undefined && { migrationsFolder: deps.migrationsFolder }),
   })
 
   const lifecycle: HealthLifecycle = {
@@ -276,7 +272,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
 
       return {
         ...installationSnapshot,
-        ...(admissionMode === undefined ? {} : { admissionMode }),
+        ...(admissionMode !== undefined && { admissionMode }),
         ingestion: eventIngestion.service.diagnostics,
       }
     },

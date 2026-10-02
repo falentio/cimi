@@ -81,8 +81,8 @@ function periodsFor(input: {
   return resolveReportPeriods({
     metadata: siteMetadata,
     current,
-    ...(comparison === undefined ? {} : { comparison }),
-    ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
+    ...(comparison !== undefined && { comparison }),
+    ...(input.bucket !== undefined && { bucket: input.bucket }),
   })
 }
 
@@ -187,8 +187,8 @@ function admissionInput(
   return {
     siteId,
     current: currentInput,
-    ...(comparison === undefined ? {} : { comparison }),
-    ...(overrides.periodization === undefined ? {} : { periodization: overrides.periodization }),
+    ...(comparison !== undefined && { comparison }),
+    ...(overrides.periodization !== undefined && { periodization: overrides.periodization }),
     coverage: overrides.coverage ?? ['event-occurrence'],
     work: {
       extraMetricCount: 0,

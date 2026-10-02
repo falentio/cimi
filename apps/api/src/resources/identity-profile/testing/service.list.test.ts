@@ -34,7 +34,7 @@ function createFixture(
     scope: { siteScope: policyFixture.scope, membership: policyFixture.scope },
     profileActivityCutoff: async () => profileActivityCutoff,
     projectionDebt,
-    ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
+    ...(options.lifecycleLock !== undefined && { lifecycleLock: options.lifecycleLock }),
     clock: () => now,
   })
 

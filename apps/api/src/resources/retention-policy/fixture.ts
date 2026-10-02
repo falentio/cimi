@@ -77,8 +77,8 @@ export function createRetentionPolicyFixture(options: RetentionPolicyFixtureOpti
     lock,
     scope: { siteScope: scope, membership: scope },
     lifecycle,
-    ...(options.clock === undefined ? {} : { clock: options.clock }),
-    ...(options.ids === undefined ? {} : { ids: options.ids }),
+    ...(options.clock !== undefined && { clock: options.clock }),
+    ...(options.ids !== undefined && { ids: options.ids }),
   })
 
   return { repository, lock, scope, lifecycle, service }

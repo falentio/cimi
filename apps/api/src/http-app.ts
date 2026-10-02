@@ -58,7 +58,7 @@ export function createApiHttpApp(
             procedure: context.procedure,
             code: error.code,
             status: error.status,
-            ...(error.cause === undefined ? {} : { error: error.cause }),
+            ...(error.cause !== undefined && { error: error.cause }),
           })
 
           return

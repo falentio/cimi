@@ -97,16 +97,14 @@ const result = {
   ),
   statusFailures,
   recordCapture,
-  ...(options.baselineP95Ms === undefined
-    ? {}
-    : {
-        performanceGate: evaluateP95Gate({
-          baselineP95Ms: options.baselineP95Ms,
-          maxIncreasePercent: options.maxP95IncreasePercent,
-          p95Ms,
-          statusFailures,
-        }),
-      }),
+  ...(options.baselineP95Ms !== undefined && {
+    performanceGate: evaluateP95Gate({
+      baselineP95Ms: options.baselineP95Ms,
+      maxIncreasePercent: options.maxP95IncreasePercent,
+      p95Ms,
+      statusFailures,
+    }),
+  }),
 }
 
 console.log(JSON.stringify(result))

@@ -189,7 +189,7 @@ export class FunnelService {
       },
       render: (run) => ({
         ...funnelReportPeriod(run.current),
-        ...(run.comparison === null ? {} : { comparison: funnelReportPeriod(run.comparison) }),
+        ...(run.comparison !== null && { comparison: funnelReportPeriod(run.comparison) }),
       }),
     })
   }

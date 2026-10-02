@@ -304,9 +304,9 @@ function toGoal(
   const definition = parse(contractSchema.SGoalDefinitionFields, {
     name: version.name,
     action: version.actionJson,
-    ...(version.propertyFiltersJson === null
-      ? {}
-      : { propertyFilters: version.propertyFiltersJson }),
+    ...(version.propertyFiltersJson !== null && {
+      propertyFilters: version.propertyFiltersJson,
+    }),
     identityKind: version.identityKind,
   })
 

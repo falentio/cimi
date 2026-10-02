@@ -166,9 +166,9 @@ export class CohortService {
         const preparation = await planning.prepare({
           periodization: {
             current: { kind: anchor.period, maxPeriods: 12 },
-            ...(comparisonAnchor === null
-              ? {}
-              : { comparison: { kind: comparisonAnchor.period, maxPeriods: 12 } }),
+            ...(comparisonAnchor !== null && {
+              comparison: { kind: comparisonAnchor.period, maxPeriods: 12 },
+            }),
           },
         })
 
@@ -229,7 +229,7 @@ export class CohortService {
       },
       render: (run) => ({
         ...cohortReportPeriod(run.current),
-        ...(run.comparison === null ? {} : { comparison: cohortReportPeriod(run.comparison) }),
+        ...(run.comparison !== null && { comparison: cohortReportPeriod(run.comparison) }),
       }),
     })
   }

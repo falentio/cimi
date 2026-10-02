@@ -47,10 +47,10 @@ export function createCohort({
     db,
     admission,
     lifecycleLock,
-    ...(query === undefined ? {} : { query }),
+    ...(query !== undefined && { query }),
     scope: scope ?? createSiteScopeDependencies({ db }),
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
   })
 
   return { repository, service, router: cohortRetentionRouter(service) }

@@ -17,7 +17,7 @@ export default defineNuxtPlugin(() => {
 
   const client = createClient({
     baseUrl,
-    ...(cookie === undefined ? {} : { headers: { cookie } }),
+    ...(cookie !== undefined && { headers: { cookie } }),
   })
 
   const orpc = createORPCVueColadaUtils(client)

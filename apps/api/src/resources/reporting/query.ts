@@ -243,9 +243,7 @@ async function evaluatePeriod<T>(input: {
       period: input.period,
       snapshot: input.snapshot,
       identity: input.identity,
-      ...(input.identityForPeriod === undefined
-        ? {}
-        : { identityForPeriod: input.identityForPeriod }),
+      ...(input.identityForPeriod !== undefined && { identityForPeriod: input.identityForPeriod }),
       filters: input.filters,
     }),
     freshness:
@@ -268,15 +266,13 @@ function createPreparationInput(
       fromDate: createCalendarDate(window.fromDate),
       toDate: createCalendarDate(window.toDate),
     },
-    ...(comparison === undefined
-      ? {}
-      : {
-          comparison: {
-            fromDate: createCalendarDate(comparison.fromDate),
-            toDate: createCalendarDate(comparison.toDate),
-          },
-        }),
-    ...(periodization === undefined ? {} : { periodization }),
+    ...(comparison !== undefined && {
+      comparison: {
+        fromDate: createCalendarDate(comparison.fromDate),
+        toDate: createCalendarDate(comparison.toDate),
+      },
+    }),
+    ...(periodization !== undefined && { periodization }),
   }
 }
 

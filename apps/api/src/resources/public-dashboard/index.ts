@@ -62,12 +62,12 @@ export function createPublicDashboard({
   const service = new PublicDashboardService({
     repository,
     lock,
-    ...(admission === undefined ? {} : { admission }),
-    ...(query === undefined ? {} : { query }),
-    ...(rateLimiter === undefined ? {} : { rateLimiter }),
+    ...(admission !== undefined && { admission }),
+    ...(query !== undefined && { query }),
+    ...(rateLimiter !== undefined && { rateLimiter }),
     scope: scope ?? createSiteScopeDependencies({ db }),
-    ...(clock === undefined ? {} : { clock }),
-    ...(identifiers === undefined ? {} : { identifiers }),
+    ...(clock !== undefined && { clock }),
+    ...(identifiers !== undefined && { identifiers }),
   })
 
   return {

@@ -38,10 +38,10 @@ export function extractRequestContext(
   const country = options.countryResolver?.(headers)
 
   return {
-    ...(sourceIp === undefined ? {} : { sourceIp }),
-    ...(isBot === undefined ? {} : { isBot }),
-    ...(userAgent === undefined ? {} : { userAgent }),
-    ...(country === undefined ? {} : { country }),
+    ...(sourceIp !== undefined && { sourceIp }),
+    ...(isBot !== undefined && { isBot }),
+    ...(userAgent !== undefined && { userAgent }),
+    ...(country !== undefined && { country }),
   }
 }
 

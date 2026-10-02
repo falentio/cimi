@@ -82,15 +82,13 @@ function createFixture(
     retention: retentionRepository,
     acceptance: acceptanceRepository,
     clock: () => now,
-    ...(options.withoutResolver === true
-      ? {}
-      : {
-          identitySession:
-            options.identitySession ?? new DefaultIdentitySessionResolver({ clock: () => now }),
-        }),
-    ...(options.protection === undefined ? {} : { protection: options.protection }),
-    ...(options.coalescer === undefined ? {} : { coalescer: options.coalescer }),
-    ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
+    ...(options.withoutResolver !== true && {
+      identitySession:
+        options.identitySession ?? new DefaultIdentitySessionResolver({ clock: () => now }),
+    }),
+    ...(options.protection !== undefined && { protection: options.protection }),
+    ...(options.coalescer !== undefined && { coalescer: options.coalescer }),
+    ...(options.lifecycleLock !== undefined && { lifecycleLock: options.lifecycleLock }),
   })
 
   return { service, siteRepository, policyRepository, acceptanceRepository }

@@ -180,7 +180,7 @@ export class BackupRestoreCleanupWorker {
         this.reportError(error, {
           operation: 'backup.cleanup',
           stage: 'release',
-          ...(operationId === undefined ? {} : { operationId }),
+          ...(operationId !== undefined && { operationId }),
         })
       }
     }

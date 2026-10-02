@@ -343,9 +343,7 @@ export async function createApiE2eFixture(
         dataDirectoryPath: paths.dataDirectoryPath,
         startRetentionCleanupWorker: options.startRetentionCleanupWorker ?? false,
         retentionCleanupIntervalMs: options.retentionCleanupIntervalMs,
-        ...(options.backupLeaseAcquisitionTimeoutMs === undefined
-          ? {}
-          : { backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs }),
+        ...(options.backupLeaseAcquisitionTimeoutMs !== undefined && { backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs }),
         upgradeExecutor: new FaultingUpgradeExecutor(realUpgradeExecutor, faults, faultGeneration),
         backupRestoreExecutor: new FaultingBackupRestoreExecutor(
           realBackupRestoreExecutor,

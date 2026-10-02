@@ -108,9 +108,9 @@ export function createBackupRestore({
     acceptance: acceptance ?? new InMemoryAcceptanceQuiescencePort(),
     reads: reads ?? new InMemoryReadQuiescencePort(),
     dataDirectoryReady,
-    ...(leaseAcquisitionTimeoutMs === undefined ? {} : { leaseAcquisitionTimeoutMs }),
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(leaseAcquisitionTimeoutMs !== undefined && { leaseAcquisitionTimeoutMs }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
   })
 
   const router = backupRestoreRouter(service)
@@ -118,7 +118,7 @@ export function createBackupRestore({
   const worker: BackupRestoreCleanupWorker = new BackupRestoreCleanupWorker({
     repository,
     lock,
-    ...(cleanup === undefined ? {} : { cleanup }),
+    ...(cleanup !== undefined && { cleanup }),
   })
 
   return { repository, executor: operationExecutor, service, router, worker }

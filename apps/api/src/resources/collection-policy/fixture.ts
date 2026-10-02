@@ -57,7 +57,7 @@ export function createCollectionPolicyFixture(options: CollectionPolicyFixtureOp
     lock,
     scope: { siteScope: scope, membership: scope },
     lifecycle,
-    ...(options.clock === undefined ? {} : { clock: options.clock }),
+    ...(options.clock !== undefined && { clock: options.clock }),
     ids: { collectionPolicyRevisionId: () => 'cpr_fixed' },
   })
 

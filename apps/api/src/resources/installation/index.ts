@@ -74,11 +74,11 @@ export function createInstallation({
     repository,
     lock,
     journal: journal ?? new InMemoryAcceptanceJournalPort(),
-    ...(acceptance === undefined ? {} : { acceptance }),
+    ...(acceptance !== undefined && { acceptance }),
     analyticsProjectionReady: () => isAnalyticsProjectionReady({ db, analytics }),
     dataDirectoryReady,
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
     upgradeExecutor: executor,
   })
 

@@ -35,9 +35,9 @@ export class ReportingAdmissionService {
     const preparation = await this.prepare({
       siteId: input.siteId,
       current: input.current,
-      ...(input.comparison === undefined ? {} : { comparison: input.comparison }),
-      ...(input.periodization === undefined ? {} : { periodization: input.periodization }),
-      ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
+      ...(input.comparison !== undefined && { comparison: input.comparison }),
+      ...(input.periodization !== undefined && { periodization: input.periodization }),
+      ...(input.bucket !== undefined && { bucket: input.bucket }),
     })
 
     return this.admitPrepared(preparation, input)
@@ -59,8 +59,8 @@ export class ReportingAdmissionService {
     const periods = resolveReportPeriods({
       metadata,
       current: input.current,
-      ...(input.comparison === undefined ? {} : { comparison: input.comparison }),
-      ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
+      ...(input.comparison !== undefined && { comparison: input.comparison }),
+      ...(input.bucket !== undefined && { bucket: input.bucket }),
     })
 
     const evaluation = resolveEvaluationPeriods({

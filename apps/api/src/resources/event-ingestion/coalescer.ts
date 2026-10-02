@@ -494,7 +494,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
     const context: LogOperationContext = {
       operation: 'event-ingestion.flush',
       stage: 'flush',
-      ...(batchSize === undefined ? {} : { batchSize }),
+      ...(batchSize !== undefined && { batchSize }),
     }
 
     if (this.onError === undefined) {

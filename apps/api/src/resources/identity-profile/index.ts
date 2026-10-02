@@ -73,7 +73,7 @@ export function createIdentityProfile({
 }: CreateIdentityProfileDependencies) {
   const repository = new IdentityProfileRepositoryDrizzle({
     db,
-    ...(ids === undefined ? {} : { ids }),
+    ...(ids !== undefined && { ids }),
   })
 
   const service = new IdentityProfileService({
@@ -92,11 +92,11 @@ export function createIdentityProfile({
 
       return row[0]?.profileActivityCutoffAt
     },
-    ...(projectionDebt === undefined ? {} : { projectionDebt }),
-    ...(membership === undefined ? {} : { membership }),
-    ...(protection === undefined ? {} : { protection }),
+    ...(projectionDebt !== undefined && { projectionDebt }),
+    ...(membership !== undefined && { membership }),
+    ...(protection !== undefined && { protection }),
     lifecycleLock,
-    ...(clock === undefined ? {} : { clock }),
+    ...(clock !== undefined && { clock }),
   })
 
   return { repository, service, router: identityProfileRouter(service, router) }

@@ -19,7 +19,7 @@ function wrapBuilder<T extends object>(builder: T): T {
             ? [withCentralErrorMessages(args[0] as Record<string, unknown>)]
             : args
 
-        const result = (value as (...callArgs: unknown[]) => unknown)(...nextArgs)
+        const result = (value as (...callArgs: unknown[]) => unknown).call(target, ...nextArgs)
 
         return result !== null && typeof result === 'object' ? wrapBuilder(result) : result
       }

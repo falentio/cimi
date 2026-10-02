@@ -61,8 +61,8 @@ export function createRetentionPolicy({
     lock,
     scope: scope ?? createSiteScopeDependencies({ db }),
     lifecycle,
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
   })
 
   const router = retentionPolicyRouter(service)
@@ -70,8 +70,8 @@ export function createRetentionPolicy({
   const workerDependencies: RetentionCleanupWorkerDependencies = {
     repository,
     lock,
-    ...(cleanup === undefined ? {} : { cleanup }),
-    ...(intervalMs === undefined ? {} : { intervalMs }),
+    ...(cleanup !== undefined && { cleanup }),
+    ...(intervalMs !== undefined && { intervalMs }),
   }
 
   const worker = new RetentionCleanupWorker(workerDependencies)

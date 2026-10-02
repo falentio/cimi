@@ -207,43 +207,37 @@ export function toLogProperties(event: LogEvent): Record<string, unknown> {
     case 'api.http':
       return {
         schemaVersion: 1,
-        ...(event.requestId === undefined ? {} : { requestId: safeField(event.requestId) }),
+        ...(event.requestId !== undefined && { requestId: safeField(event.requestId) }),
         method: safeMethod(event.method),
         path: safePath(event.path),
         status: safeStatus(event.status),
         responseTime: safeDuration(event.responseTimeMs),
-        ...(event.contentLength === undefined
-          ? {}
-          : { contentLength: safeContentLength(event.contentLength) }),
-        ...(event.userAgent === undefined ? {} : { userAgent: safeField(event.userAgent) }),
-        ...(event.referrer === undefined
-          ? {}
-          : (() => {
-              const referrer = safeUrl(event.referrer)
-
-              return referrer === undefined ? {} : { referrer }
-            })()),
+        ...(event.contentLength !== undefined && {
+          contentLength: safeContentLength(event.contentLength),
+        }),
+        ...(event.userAgent !== undefined && { userAgent: safeField(event.userAgent) }),
+        ...toReferrerEntry(event.referrer),
       }
     case 'api.error':
       return {
         schemaVersion: 1,
-        ...(event.requestId === undefined ? {} : { requestId: safeField(event.requestId) }),
-        ...(event.method === undefined ? {} : { method: safeMethod(event.method) }),
-        ...(event.path === undefined ? {} : { path: safePath(event.path) }),
-        ...(event.procedure === undefined ? {} : { procedure: safeField(event.procedure) }),
+        ...(event.requestId !== undefined && { requestId: safeField(event.requestId) }),
+        ...(event.method !== undefined && { method: safeMethod(event.method) }),
+        ...(event.path !== undefined && { path: safePath(event.path) }),
+        ...(event.procedure !== undefined && { procedure: safeField(event.procedure) }),
         code: safeField(event.code),
         status: safeStatus(event.status),
-        ...(event.error === undefined ? {} : { error: toLogError(event.error) }),
+        ...(event.error !== undefined && { error: toLogError(event.error) }),
       }
     case 'operation.failure':
       return {
         schemaVersion: 1,
         operation: safeField(event.operation),
         stage: safeField(event.stage),
-        ...(event.operationId === undefined ? {} : { operationId: safeField(event.operationId) }),
-        ...(event.runId === undefined ? {} : { runId: safeField(event.runId) }),
-        ...(event.siteId === undefined ? {} : { siteId: safeField(event.siteId) }),
-        ...(event.batchSize === undefined ? {} : { batchSize: safeBatchSize(event.batchSize) }),
+        ...(event.operationId !== undefined && { operationId: safeField(event.operationId) }),
+        ...(event.runId !== undefined && { runId: safeField(event.runId) }),
+        ...(event.siteId !== undefined && { siteId: safeField(event.siteId) }),
+        ...(event.batchSize !== undefined && { batchSize: safeBatchSize(event.batchSize) }),
         error: toLogError(event.error),
       }
     case 'health.failure':
@@ -261,7 +255,7 @@ export function toLogError(error: unknown): LogError {
     return {
       name: safeField(error.name),
       message: safeErrorField(error.message),
-      ...(error.stack === undefined ? {} : { stack: safeStack(error.stack) }),
+      ...(error.stack !== undefined && { stack: safeStack(error.stack) }),
     }
   }
 
@@ -333,10 +327,10 @@ function logAt(
 
 function toLogContext(context: LogContext): Record<string, string> {
   return {
-    ...(context.requestId === undefined ? {} : { requestId: safeField(context.requestId) }),
-    ...(context.method === undefined ? {} : { method: safeMethod(context.method) }),
-    ...(context.path === undefined ? {} : { path: safePath(context.path) }),
-    ...(context.procedure === undefined ? {} : { procedure: safeField(context.procedure) }),
+    ...(context.requestId !== undefined && { requestId: safeField(context.requestId) }),
+    ...(context.method !== undefined && { method: safeMethod(context.method) }),
+    ...(context.path !== undefined && { path: safePath(context.path) }),
+    ...(context.procedure !== undefined && { procedure: safeField(context.procedure) }),
   }
 }
 
@@ -368,6 +362,13 @@ function safePath(value: string): string {
   } catch {
     return redactCredentials(normalized).split(/[?#]/, 1)[0]?.slice(0, 256) || '/'
   }
+}
+
+function toReferrerEntry(value: string | undefined): { referrer: string } | undefined {
+  if (value === undefined) return undefined
+  const referrer = safeUrl(value)
+
+  return referrer === undefined ? undefined : { referrer }
 }
 
 function safeUrl(value: string): string | undefined {

@@ -253,7 +253,7 @@ export async function systemHealthHandler(
     cleanupPending,
     version: '0.0.1',
     checkedAt: new Date().toISOString(),
-    ...(lifecycle.ingestion === undefined ? {} : { ingestion: lifecycle.ingestion }),
+    ...(lifecycle.ingestion !== undefined && { ingestion: lifecycle.ingestion }),
   }
 
   return v.parse(schema.SHealth, response)

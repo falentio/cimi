@@ -283,22 +283,20 @@ export class EventReportService {
           fromDate: createCalendarDate(input.fromDate),
           toDate: createCalendarDate(input.toDate),
         },
-        ...('comparison' in input && input.comparison !== undefined && input.comparison !== null
-          ? {
-              comparison: {
-                fromDate: createCalendarDate(input.comparison.fromDate),
-                toDate: createCalendarDate(input.comparison.toDate),
-              },
-            }
-          : {}),
-        ...('granularity' in input
-          ? {
-              bucket: {
-                granularity: input.granularity,
-                maxStarts: AUTHENTICATED_EVENT_BUCKET_LIMITS[input.granularity],
-              },
-            }
-          : {}),
+        ...('comparison' in input &&
+          input.comparison !== undefined &&
+          input.comparison !== null && {
+            comparison: {
+              fromDate: createCalendarDate(input.comparison.fromDate),
+              toDate: createCalendarDate(input.comparison.toDate),
+            },
+          }),
+        ...('granularity' in input && {
+          bucket: {
+            granularity: input.granularity,
+            maxStarts: AUTHENTICATED_EVENT_BUCKET_LIMITS[input.granularity],
+          },
+        }),
         coverage: ['event-occurrence'],
         work: {
           extraMetricCount: 0,
@@ -428,7 +426,7 @@ function toEventFilterInput(filter: ContractEventFilter): EventFilterInput {
       operator: filter.operator,
       action: {
         kind: filter.action.kind,
-        ...('name' in filter.action ? { name: filter.action.name } : {}),
+        ...('name' in filter.action && { name: filter.action.name }),
         propertyFilters: (filter.action.propertyFilters ?? []).map((property) => ({
           key: property.field,
           operator: property.operator,

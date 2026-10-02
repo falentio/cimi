@@ -64,18 +64,14 @@ export async function createApiTestFixture(
         dataDirectoryReady: true,
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
-        ...(options.logging === undefined ? {} : { logging: options.logging }),
+        ...(options.logging !== undefined && { logging: options.logging }),
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
         eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
         startRetentionCleanupWorker: false,
-        ...(options.lifecycle === undefined ? {} : { lifecycle: options.lifecycle }),
-        ...(options.lock === undefined ? {} : { lock: options.lock }),
-        ...(options.eventIngestionProtection === undefined
-          ? {}
-          : { eventIngestionProtection: options.eventIngestionProtection }),
-        ...(options.backupRestoreExecutor === undefined
-          ? {}
-          : { backupRestoreExecutor: options.backupRestoreExecutor }),
+        ...(options.lifecycle !== undefined && { lifecycle: options.lifecycle }),
+        ...(options.lock !== undefined && { lock: options.lock }),
+        ...(options.eventIngestionProtection !== undefined && { eventIngestionProtection: options.eventIngestionProtection }),
+        ...(options.backupRestoreExecutor !== undefined && { backupRestoreExecutor: options.backupRestoreExecutor }),
       })
 
       return {
@@ -138,7 +134,7 @@ export async function apiTestRequest(
     new Request(`http://localhost/api${path}`, {
       method: body === undefined ? 'GET' : 'POST',
       headers,
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body !== undefined && { body: JSON.stringify(body) }),
     }),
   )
 }

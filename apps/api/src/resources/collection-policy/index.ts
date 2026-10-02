@@ -80,8 +80,8 @@ export function createCollectionPolicy({
     lock,
     scope: scope ?? createSiteScopeDependencies({ db }),
     lifecycle,
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
   })
 
   return { repository, service, router: collectionPolicyRouter(service) }
