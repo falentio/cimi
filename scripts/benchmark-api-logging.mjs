@@ -276,6 +276,7 @@ async function verifyRecords({ path, required, requestIds, ignoredRequestIdPrefi
     try {
       const record = JSON.parse(line)
 
+      // eslint-disable-next-line anti-slop/no-runtime-typeof -- standalone script validating JSON lines; no predicate syntax in .mjs.
       if (typeof record !== 'object' || record === null || Array.isArray(record)) {
         malformedRecords.push({ line: index + 1, reason: 'record is not an object' })
       } else {
@@ -296,6 +297,7 @@ async function verifyRecords({ path, required, requestIds, ignoredRequestIdPrefi
     httpRecords += 1
     const requestId = record.properties?.requestId
 
+    // eslint-disable-next-line anti-slop/no-runtime-typeof -- standalone script validating JSON lines; no predicate syntax in .mjs.
     if (typeof requestId !== 'string') {
       malformedRecords.push({ line, reason: 'HTTP record has no request ID' })
       continue

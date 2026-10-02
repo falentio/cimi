@@ -1240,6 +1240,7 @@ function serializeScalar(value: SqliteScalar): string {
   if (isBigintValue(value)) return `int:${value}`
 
   if (isStringValue(value)) return `str:${JSON.stringify(value)}`
+  // eslint-disable-next-line anti-slop/no-runtime-typeof -- names the offending type in an error message; not a narrowing check.
   throw new Error(`Unsupported SQLite scalar type: ${typeof value}`)
 }
 

@@ -5,6 +5,7 @@ import {
   ReportingAdmissionService,
   type ReportingQueryPort,
 } from '@cimi/kernel'
+import { isFunctionValue } from '@cimi/utils'
 import { createSiteScopeDependencies } from '../../site/scope.ts'
 import {
   ReportingEvidenceDrizzleDuckDb,
@@ -101,7 +102,7 @@ describe('TrafficReportService.lifecycle', () => {
 
         const value: unknown = target[property as keyof typeof target]
 
-        return typeof value === 'function' ? value.bind(target) : value
+        return isFunctionValue(value) ? value.bind(target) : value
       },
     })
 
@@ -135,7 +136,7 @@ describe('TrafficReportService.lifecycle', () => {
 
           const value: unknown = target[property as keyof typeof target]
 
-          return typeof value === 'function' ? value.bind(target) : value
+          return isFunctionValue(value) ? value.bind(target) : value
         },
       },
     )
