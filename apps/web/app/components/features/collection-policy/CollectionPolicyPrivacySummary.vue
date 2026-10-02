@@ -13,7 +13,7 @@ const exclusionTotal = computed(() =>
 <template>
   <Card>
     <CardHeader>
-      <CardTitle><h3>Privacy summary</h3></CardTitle>
+      <CardTitle><h4>Privacy summary</h4></CardTitle>
       <CardDescription>
         Derived from the values currently in the editor, before anything is saved.
       </CardDescription>
@@ -39,21 +39,21 @@ const exclusionTotal = computed(() =>
       </dl>
 
       <div>
-        <h4 class="font-medium">URL capture</h4>
+        <h5 class="font-medium">URL capture in effect</h5>
         <ul class="text-muted-foreground mt-1 list-inside list-disc">
           <li v-for="line in editor.summary.urlCapture" :key="line">{{ line }}</li>
         </ul>
       </div>
 
       <div>
-        <h4 class="font-medium">Property capture</h4>
+        <h5 class="font-medium">Property capture</h5>
         <ul class="text-muted-foreground mt-1 list-inside list-disc">
           <li v-for="line in editor.summary.propertyCapture" :key="line">{{ line }}</li>
         </ul>
       </div>
 
       <div>
-        <h4 class="font-medium">Exclusions</h4>
+        <h5 class="font-medium">Exclusions</h5>
         <p v-if="exclusionTotal === 0" class="text-muted-foreground mt-1">
           Nothing is excluded. Every request that passes the rules above can create a record.
         </p>
@@ -65,7 +65,7 @@ const exclusionTotal = computed(() =>
       </div>
 
       <div class="rounded-md border p-3">
-        <h4 class="font-medium">What a refusal means</h4>
+        <h5 class="font-medium">What a refusal means</h5>
         <p class="text-muted-foreground mt-1">
           A refused request creates no accepted record, no Visitor, no Identified User, and no
           Session. The server evaluates this policy when the request arrives; nothing here changes
@@ -74,9 +74,9 @@ const exclusionTotal = computed(() =>
       </div>
 
       <div>
-        <h4 class="font-medium">
+        <h5 class="font-medium">
           {{ editor.changes.length === 0 ? 'No pending changes' : 'Pending changes' }}
-        </h4>
+        </h5>
         <p v-if="editor.changes.length === 0" class="text-muted-foreground mt-1">
           The editor matches the current Site values.
         </p>

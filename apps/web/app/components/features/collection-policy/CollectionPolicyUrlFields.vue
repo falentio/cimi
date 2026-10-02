@@ -35,12 +35,12 @@ function handleUrlSwitch(field: keyof UrlPolicyValues, value: unknown): void {
 </script>
 
 <template>
-  <div class="min-w-0">
-    <h3 class="text-sm font-medium">URL capture</h3>
+  <fieldset :disabled="editor.saving" class="min-w-0">
+    <legend class="text-base font-medium">URL capture</legend>
     <p class="text-muted-foreground mt-1 text-sm">
       These controls decide what part of a URL survives into an accepted record.
     </p>
-    <FieldGroup class="mt-3">
+    <FieldGroup class="mt-4">
       <Field
         v-for="spec in URL_POLICY_SPECS"
         :key="spec.field"
@@ -56,6 +56,7 @@ function handleUrlSwitch(field: keyof UrlPolicyValues, value: unknown): void {
             :id="spec.id"
             :model-value="urlValue(spec.field)"
             :disabled="editor.saving"
+            :aria-describedby="`${spec.id}-help`"
             @update:model-value="(value) => handleUrlSwitch(spec.field, value)"
           />
           <span class="text-muted-foreground text-sm">
@@ -67,5 +68,5 @@ function handleUrlSwitch(field: keyof UrlPolicyValues, value: unknown): void {
         </FieldError>
       </Field>
     </FieldGroup>
-  </div>
+  </fieldset>
 </template>
