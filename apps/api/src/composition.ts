@@ -188,6 +188,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
   })
   const identityProfile = createIdentityProfile({
     db: deps.db,
+    sites: site.ingestionPort,
     collectionPolicy: collectionPolicy.service,
     membership: membership.service,
     protection: eventIngestionProtection,
