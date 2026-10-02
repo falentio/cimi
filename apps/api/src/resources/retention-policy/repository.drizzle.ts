@@ -5,6 +5,7 @@ import { generateId, resolveSiteLocalCutoff, resolveSiteLocalDay } from '@cimi/u
 import { parse } from 'valibot'
 import { ORPCError } from '@orpc/server'
 import { identityRedactionRequest } from '../event-ingestion/identity-redaction-transition.ts'
+import type { CleanupCheckpoint, SiteRetentionBoundary } from './cleanup-payload.ts'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 export interface RetentionPolicyRepositoryDrizzleDependencies {
@@ -160,7 +161,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         input.target.scope === 'installation'
           ? selectActiveSites(tx)
           : [selectActiveSite(tx, input.target.siteId)!]
-      const affectedBoundaries: RetentionPolicyRepository.SiteRetentionBoundary[] = []
+      const affectedBoundaries: SiteRetentionBoundary[] = []
       const queuedRunIds: string[] = []
       for (const site of sites) {
         const activeSitePolicy = selectActiveSitePolicy(tx, installation.id, site.id)
@@ -664,7 +665,7 @@ function createBoundary(input: {
   policyId: string
   policy: RetentionPolicyRepository.Policy
   now: Date
-}): RetentionPolicyRepository.SiteRetentionBoundary {
+}): SiteRetentionBoundary {
   return {
     siteId: input.site.id,
     installationId: input.installationId,
@@ -699,10 +700,7 @@ function createBoundary(input: {
   }
 }
 
-function upsertBoundary(
-  tx: SqliteTransaction,
-  boundary: RetentionPolicyRepository.SiteRetentionBoundary,
-): void {
+function upsertBoundary(tx: SqliteTransaction, boundary: SiteRetentionBoundary): void {
   tx.insert(schema.TRetentionEffectiveCutoff)
     .values(boundary)
     .onConflictDoUpdate({
@@ -714,7 +712,7 @@ function upsertBoundary(
 
 function shouldQueueCleanup(
   previous: typeof schema.TRetentionEffectiveCutoff.$inferSelect | undefined,
-  next: RetentionPolicyRepository.SiteRetentionBoundary,
+  next: SiteRetentionBoundary,
 ): boolean {
   if (previous === undefined) return true
   return (
@@ -745,7 +743,7 @@ const CLEANUP_DATA_CLASSES = [
 
 function queueCleanupRun(
   tx: SqliteTransaction,
-  boundary: RetentionPolicyRepository.SiteRetentionBoundary,
+  boundary: SiteRetentionBoundary,
   kind: 'derived' | 'backup',
   now: Date,
 ): string {
@@ -832,7 +830,7 @@ function queueCleanupRun(
 
 function redactExpiredProfiles(
   tx: SqliteTransaction,
-  boundary: RetentionPolicyRepository.SiteRetentionBoundary,
+  boundary: SiteRetentionBoundary,
   now: Date,
 ): void {
   const profiles = tx
@@ -952,7 +950,7 @@ function selectNextBackupRun(tx: SqliteTransaction) {
 
 function toBoundary(
   row: typeof schema.TRetentionEffectiveCutoff.$inferSelect,
-): RetentionPolicyRepository.SiteRetentionBoundary {
+): SiteRetentionBoundary {
   return {
     siteId: row.siteId,
     installationId: row.installationId,
@@ -970,7 +968,7 @@ function toBoundary(
 
 function toCleanupCheckpoint(
   row: typeof schema.TRetentionCleanupCheckpoint.$inferSelect,
-): RetentionPolicyRepository.CleanupCheckpoint {
+): CleanupCheckpoint {
   return {
     id: row.id,
     dataClass: row.dataClass,

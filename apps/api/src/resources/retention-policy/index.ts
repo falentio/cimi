@@ -18,16 +18,12 @@ export {
   type RetentionCleanupBatchResult,
   type RetentionCleanupWorkerDependencies,
 } from './cleanup.ts'
+export type { CleanupCheckpoint, CleanupKind, SiteRetentionBoundary } from './cleanup-payload.ts'
 export {
   RetentionPolicyService,
   type RetentionPolicyServiceDependencies,
   type RetentionPolicyIdFactory,
 } from './service.ts'
-export {
-  RetentionPolicyRepositoryDrizzle,
-  type RetentionPolicyRepositoryDrizzleDependencies,
-} from './repository.drizzle.ts'
-export type { RetentionPolicyRepository } from './repository.ts'
 
 export interface CreateRetentionPolicyDependencies {
   db: Db
