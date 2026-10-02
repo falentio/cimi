@@ -7,8 +7,6 @@ const resourcesRoot = join(dirname(fileURLToPath(import.meta.url)), '..', 'resou
 
 const repositoryModule = /\/repository(\.drizzle)?\.ts$/
 
-const pendingMigration = new Set<string>([])
-
 function productionFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
     const path = join(directory, entry)
@@ -86,13 +84,6 @@ function crossResourceRepositoryEdges(): string[] {
 }
 
 test("resources do not depend on another resource's repository", () => {
-  const files = productionFiles(resourcesRoot)
-  expect(files.length).toBeGreaterThan(100)
-
-  const edges = crossResourceRepositoryEdges()
-  const unexpected = edges.filter((edge) => !pendingMigration.has(edge))
-  const migrated = [...pendingMigration].filter((edge) => !edges.includes(edge))
-
-  expect(unexpected).toEqual([])
-  expect(migrated).toEqual([])
+  expect(productionFiles(resourcesRoot).length).toBeGreaterThan(100)
+  expect(crossResourceRepositoryEdges()).toEqual([])
 })
