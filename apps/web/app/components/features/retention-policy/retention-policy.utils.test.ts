@@ -3,6 +3,7 @@ import type {
   Installation,
   InstallationRetentionResult,
   RetentionDraft,
+  RetentionProposal,
   RetentionResource,
 } from './retention-policy.types'
 import {
@@ -13,6 +14,8 @@ import {
   isRetentionShortening,
   normalizeRetentionError,
   parseRetentionDraft,
+  proposedPolicy,
+  retentionPolicyRows,
   toRetentionAdminView,
   toRetentionCleanupProjection,
 } from './retention-policy.utils'
@@ -144,13 +147,16 @@ describe('retention-policy.utils', () => {
   it('blocks writes for every unknown or unsafe installation status', () => {
     expect(deriveRetentionLock({ kind: 'loading' })).toEqual({ kind: 'loading' })
     expect(
-      deriveRetentionLock({ kind: 'failed', error: normalizeRetentionError({}, 'status') }),
+      deriveRetentionLock({
+        kind: 'failed',
+        error: normalizeRetentionError({}, 'status', 'installation'),
+      }),
     ).toMatchObject({ kind: 'unknown' })
     expect(
       deriveRetentionLock({
         kind: 'stale',
         installation,
-        error: normalizeRetentionError({}, 'status'),
+        error: normalizeRetentionError({}, 'status', 'installation'),
         refreshing: false,
       }),
     ).toMatchObject({ kind: 'unknown' })
@@ -185,14 +191,47 @@ describe('retention-policy.utils', () => {
       'CONFLICT',
       'INTERNAL_SERVER_ERROR',
     ]) {
-      const failure = normalizeRetentionError(
-        { code, status: 500, message: '/srv/private SQL secret' },
-        'read',
-      )
-      expect(failure.code).toBe(code)
-      expect(failure.message).not.toContain('/srv/private')
-      expect(failure.message).not.toContain('SQL')
+      for (const scope of ['installation', 'site'] as const) {
+        const failure = normalizeRetentionError(
+          { code, status: 500, message: '/srv/private SQL secret' },
+          'read',
+          scope,
+        )
+        expect(failure.code).toBe(code)
+        expect(failure.message).not.toContain('/srv/private')
+        expect(failure.message).not.toContain('SQL')
+      }
     }
+  })
+
+  it('never maps a Site not-found to the installation setup action', () => {
+    expect(normalizeRetentionError({ code: 'NOT_FOUND' }, 'read', 'installation')).toMatchObject({
+      action: 'setup',
+    })
+    expect(normalizeRetentionError({ code: 'NOT_FOUND' }, 'read', 'site')).toMatchObject({
+      message: 'This Site is unavailable. Refresh or choose another Site.',
+      action: 'refresh',
+    })
+    expect(normalizeRetentionError({ code: 'FORBIDDEN' }, 'read', 'site').message).not.toContain(
+      'installation administrator',
+    )
+    expect(normalizeRetentionError({ code: 'CONFLICT' }, 'update', 'site').message).toContain(
+      'Refresh',
+    )
+  })
+
+  it('derives the proposed policy and the three display rows from a proposal', () => {
+    const proposal: RetentionProposal = { kind: 'policy', policy: result.installationDefault }
+    expect(proposedPolicy(proposal)).toEqual(result.installationDefault)
+    expect(
+      proposedPolicy({ kind: 'inherit', installationDefault: result.installationDefault }),
+    ).toEqual(result.installationDefault)
+    expect(retentionPolicyRows({ eventMonths: 24, profileMonths: 12, replayMonths: 6 })).toEqual([
+      { label: 'Events', value: '24 months' },
+      { label: 'Profiles', value: '12 months' },
+      { label: 'Replay', value: '6 months' },
+    ])
+    expect(retentionPolicyRows(result.installationDefault)[2]?.value).toBe('Disabled')
   })
 
   it('projects loading, access, uninitialized, stale, and ready states', () => {
@@ -206,7 +245,7 @@ describe('retention-policy.utils', () => {
       }),
     ).toMatchObject({ kind: 'loading' })
 
-    const accessError = normalizeRetentionError({ code: 'FORBIDDEN' }, 'read')
+    const accessError = normalizeRetentionError({ code: 'FORBIDDEN' }, 'read', 'installation')
     expect(
       toRetentionAdminView({
         retention: { kind: 'failed', error: accessError },
@@ -221,7 +260,7 @@ describe('retention-policy.utils', () => {
       toRetentionAdminView({
         retention: {
           kind: 'failed',
-          error: normalizeRetentionError({ code: 'NOT_FOUND' }, 'read'),
+          error: normalizeRetentionError({ code: 'NOT_FOUND' }, 'read', 'installation'),
         },
         installation: {
           kind: 'ready',
@@ -237,7 +276,7 @@ describe('retention-policy.utils', () => {
     const stale: RetentionResource = {
       kind: 'stale',
       result,
-      error: normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'read'),
+      error: normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'read', 'installation'),
       refreshing: false,
     }
     expect(

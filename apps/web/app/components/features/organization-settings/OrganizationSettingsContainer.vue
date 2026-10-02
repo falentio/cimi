@@ -84,7 +84,7 @@ async function retry(): Promise<void> {
       </p>
     </header>
 
-    <nav aria-label="Organization settings" class="">
+    <nav aria-label="Organization settings" class="overflow-x-auto">
       <UITabs :model-value="activeSection" activation-mode="manual" class="w-full">
         <UITabsList aria-label="Organization settings sections" class="min-w-max justify-start">
           <UITabsTrigger

@@ -10,14 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { RETENTION_MONTH_FIELDS } from './retention-policy.utils'
+import { RETENTION_MONTH_FIELDS, formatRetentionDate } from './retention-policy.utils'
 import type {
   RetentionField,
   RetentionPolicy,
   RetentionPolicyEditorView,
 } from './retention-policy.types'
+import RetentionPolicyCard from './RetentionPolicyCard.vue'
 import RetentionPolicyMonthFields from './RetentionPolicyMonthFields.vue'
-import RetentionPolicySummary from './RetentionPolicySummary.vue'
 
 const props = defineProps<{ section: RetentionPolicyEditorView }>()
 
@@ -67,14 +67,26 @@ function submit(): void {
       </CardAction>
     </CardHeader>
     <CardContent class="min-w-0">
-      <RetentionPolicySummary
+      <RetentionPolicyCard
         v-if="!editing"
-        :effective="section.effective"
-        :updated-at="section.updatedAt"
+        heading="Effective policy"
+        caption="This is the policy currently resolved for installation scope."
+        :footer="{
+          label: 'Updated',
+          value: formatRetentionDate(section.updatedAt),
+          datetime: section.updatedAt,
+        }"
+        :policy="section.effective"
       />
 
       <form v-else class="min-w-0" @submit.prevent="submit">
-        <RetentionPolicyMonthFields :section="section" @field-change="updateField" />
+        <RetentionPolicyMonthFields
+          legend="Installation default values"
+          :disabled="section.saving"
+          :draft="section.draft"
+          :validation="section.validation"
+          @field-change="updateField"
+        />
         <div class="mt-5 flex justify-end gap-2">
           <Button type="button" variant="outline" @click="editing = false">Cancel</Button>
           <Button type="submit" :disabled="!section.canAttemptSubmit">
