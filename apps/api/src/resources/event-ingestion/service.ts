@@ -12,9 +12,9 @@ import {
   SCollectEventsOutput,
   SEvent,
 } from '@cimi/contract'
+import type { IngestionSite, SiteIngestionPort } from '@cimi/guard'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
-import type { SiteRepository } from '../site/repository.ts'
 import {
   AcceptanceAdmissionStoppedError,
   AcceptanceCoalescer,
@@ -41,7 +41,7 @@ export type CollectEventsInput = InferOutput<typeof SCollectEventsInput>
 export type CollectEventsOutput = InferOutput<typeof SCollectEventsOutput>
 
 export interface EventIngestionServiceDependencies {
-  readonly siteRepository: SiteRepository
+  readonly sites: SiteIngestionPort
   readonly collectionPolicy: CollectionPolicyService
   readonly retention: RetentionPolicyRepository | RetentionResolver
   readonly acceptance: AcceptanceRepository
@@ -122,7 +122,7 @@ type SuccessfulReservation = Exclude<Reservation, { readonly status: 'conflict' 
 
 export class EventIngestionService {
   readonly coalescer: AcceptanceCoalescer
-  private readonly siteRepository: SiteRepository
+  private readonly sites: SiteIngestionPort
   private readonly collectionPolicy: CollectionPolicyService
   private readonly retention: RetentionPolicyRepository | RetentionResolver
   private readonly acceptance: AcceptanceRepository
@@ -136,7 +136,7 @@ export class EventIngestionService {
   }
 
   constructor({
-    siteRepository,
+    sites,
     collectionPolicy,
     retention,
     acceptance,
@@ -146,7 +146,7 @@ export class EventIngestionService {
     protection,
     identitySession,
   }: EventIngestionServiceDependencies) {
-    this.siteRepository = siteRepository
+    this.sites = sites
     this.collectionPolicy = collectionPolicy
     this.retention = retention
     this.acceptance = acceptance
@@ -422,9 +422,9 @@ export class EventIngestionService {
     return this.coalescer.stop()
   }
 
-  private async resolveSite(ingestionIdentifier: string): Promise<SiteRepository.SiteRecord> {
-    const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
-    if (site === undefined || site.status !== 'active') throw new ORPCError('NOT_FOUND')
+  private async resolveSite(ingestionIdentifier: string): Promise<IngestionSite> {
+    const site = await this.sites.findActiveByIngestionIdentifier(ingestionIdentifier)
+    if (site === undefined) throw new ORPCError('NOT_FOUND')
     return site
   }
 
@@ -450,7 +450,7 @@ export class EventIngestionService {
 
   private async prepare(
     input: EventInput,
-    site: SiteRepository.SiteRecord,
+    site: IngestionSite,
     request: IngestionRequestContext = {},
   ): Promise<PreparedEvent> {
     const receipt = this.clock()
@@ -620,7 +620,7 @@ export class EventIngestionService {
     if (this.lifecycleLock === undefined) return operation()
     const lease = await this.lifecycleLock.acquire('ingestion')
     if (lease === undefined) {
-      const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
+      const site = await this.sites.findActiveByIngestionIdentifier(ingestionIdentifier)
       if (site === undefined) throw new ORPCError('NOT_FOUND')
       throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     }

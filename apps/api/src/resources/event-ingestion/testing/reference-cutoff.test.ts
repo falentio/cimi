@@ -10,6 +10,7 @@ import { InMemorySiteScopePort } from '@cimi/guard'
 import type { PolicyLayers } from '../../collection-policy/model.ts'
 import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
 import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
+import { createSiteIngestionPort } from '../../site/ingestion-port.ts'
 import { SiteRepositoryDrizzle } from '../../site/repository.drizzle.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
@@ -68,7 +69,7 @@ function createFixture() {
   })
   const ingestion = createEventIngestion({
     db,
-    siteRepository: new SiteRepositoryDrizzle({ db }),
+    sites: createSiteIngestionPort({ repository: new SiteRepositoryDrizzle({ db }) }),
     collectionPolicy: service,
     retention,
   })

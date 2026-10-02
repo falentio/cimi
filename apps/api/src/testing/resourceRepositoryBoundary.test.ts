@@ -9,11 +9,8 @@ const repositoryModule = /\/repository(\.drizzle)?\.ts$/
 
 const pendingMigration = new Set([
   'event-ingestion/index.ts|../retention-policy/repository.ts',
-  'event-ingestion/index.ts|../site/repository.drizzle.ts',
-  'event-ingestion/index.ts|../site/repository.ts',
   'event-ingestion/retention-cleanup.ts|../retention-policy/repository.ts',
   'event-ingestion/service.ts|../retention-policy/repository.ts',
-  'event-ingestion/service.ts|../site/repository.ts',
   'identity-profile/index.ts|../site/repository.drizzle.ts',
   'identity-profile/index.ts|../site/repository.ts',
   'identity-profile/service.ts|../site/repository.ts',

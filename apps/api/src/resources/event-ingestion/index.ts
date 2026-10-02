@@ -1,6 +1,7 @@
 import { schema, type Db } from '@cimi/db'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
+import type { SiteIngestionPort } from '@cimi/guard'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
 import { eventIngestionRouter, type EventIngestionRouterOptions } from './router.ts'
@@ -10,8 +11,6 @@ import { EventIngestionService } from './service.ts'
 import type { IdentitySessionResolver, IngestionProtection } from './service.ts'
 import { InMemoryIngestionProtection } from './protection.ts'
 import { DefaultIdentitySessionResolver } from './identity-session.ts'
-import type { SiteRepository } from '../site/repository.ts'
-import { SiteRepositoryDrizzle } from '../site/repository.drizzle.ts'
 
 export { eventIngestionRouter }
 export type { EventIngestionRouterOptions } from './router.ts'
@@ -83,7 +82,7 @@ export {
 
 export interface CreateEventIngestionDependencies {
   readonly db: Db
-  readonly siteRepository?: SiteRepository | undefined
+  readonly sites: SiteIngestionPort
   readonly collectionPolicy: CollectionPolicyService
   readonly retention: RetentionPolicyRepository | RetentionResolver
   readonly lifecycleLock?: LifecycleLock | undefined
@@ -94,7 +93,7 @@ export interface CreateEventIngestionDependencies {
 
 export function createEventIngestion({
   db,
-  siteRepository,
+  sites,
   collectionPolicy,
   retention,
   lifecycleLock,
@@ -105,7 +104,7 @@ export function createEventIngestion({
   const acceptanceRepository = new AcceptanceRepositoryDrizzle({ db })
   const coalescer = new AcceptanceCoalescer({ repository: acceptanceRepository })
   const service = new EventIngestionService({
-    siteRepository: siteRepository ?? new SiteRepositoryDrizzle({ db }),
+    sites,
     collectionPolicy,
     retention,
     acceptance: acceptanceRepository,

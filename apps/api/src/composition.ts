@@ -175,6 +175,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
   const identityProjectionDebt = createIdentityProjectionDebt({ db: deps.db })
   const eventIngestion = createEventIngestion({
     db: deps.db,
+    sites: site.ingestionPort,
     collectionPolicy: collectionPolicy.service,
     retention: retentionPolicy.repository,
     lifecycleLock: lock,

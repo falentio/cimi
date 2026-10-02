@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { schema } from '@cimi/contract'
-import { InMemorySiteScopePort } from '@cimi/guard'
+import { InMemorySiteScopePort, type SiteIngestionPort } from '@cimi/guard'
 import {
   InMemoryLifecycleLock,
   InMemoryLifecycleOperationStatusReader,
@@ -12,7 +12,6 @@ import { CollectionPolicyService } from '../../collection-policy/service.ts'
 import { createPolicyLayers } from '../../collection-policy/fixture.ts'
 import type { CollectionPolicyRepository } from '../../collection-policy/repository.ts'
 import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
-import type { SiteRepository } from '../../site/repository.ts'
 import { EventIngestionService } from '../service.ts'
 import { DefaultIdentitySessionResolver } from '../identity-session.ts'
 import type { AcceptanceRepository } from '../repository.ts'
@@ -31,8 +30,12 @@ function createFixture(
     acceptance?: MockProxy<AcceptanceRepository> & AcceptanceRepository
   } = {},
 ) {
-  const siteRepository = mock<SiteRepository>()
-  siteRepository.findByIngestionIdentifier.mockResolvedValue(site())
+  const sites = mock<SiteIngestionPort>()
+  sites.findActiveByIngestionIdentifier.mockResolvedValue({
+    id: 'ste_1',
+    hostname: 'example.com',
+    reportingTimezone: 'UTC',
+  })
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
@@ -74,7 +77,7 @@ function createFixture(
     })()
 
   const service = new EventIngestionService({
-    siteRepository,
+    sites,
     collectionPolicy: policy,
     retention: retentionRepository,
     acceptance: acceptanceRepository,
@@ -90,7 +93,7 @@ function createFixture(
     ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
   })
 
-  return { service, siteRepository, policyRepository, acceptanceRepository }
+  return { service, sites, policyRepository, acceptanceRepository }
 }
 
 function event(overrides: Record<string, unknown> = {}) {
@@ -100,30 +103,6 @@ function event(overrides: Record<string, unknown> = {}) {
     kind: 'custom_event' as const,
     name: 'checkout_completed',
     ...overrides,
-  }
-}
-
-function site(): SiteRepository.SiteRecord {
-  return {
-    id: 'ste_1',
-    organizationId: 'org_1',
-    name: 'Production',
-    hostname: 'example.com',
-    ingestionIdentifier: 'ing-1',
-    reportingTimezone: 'UTC',
-    weekStartsOn: 'monday',
-    createdAt: '2026-09-01T00:00:00.000Z',
-    updatedAt: '2026-09-01T00:00:00.000Z',
-    status: 'active',
-    deleteRequestedAt: null,
-    deletedAt: null,
-    recoveryDeadline: null,
-    purgeAt: null,
-    purgedAt: null,
-    currentOperationId: null,
-    cleanupStatus: 'not-required',
-    cleanupUpdatedAt: null,
-    cleanupError: null,
   }
 }
 
