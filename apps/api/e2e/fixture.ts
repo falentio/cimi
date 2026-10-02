@@ -1381,7 +1381,7 @@ function createGenerationOwnership(): GenerationOwnership {
   return Object.assign(resources, { close: () => shutdown.close() })
 }
 
-function constructionFailure(error: unknown, cleanupError: unknown): unknown {
+function constructionFailure(error: unknown, cleanupError: unknown): never {
   if (cleanupError === undefined) return error
 
   return new AggregateError(

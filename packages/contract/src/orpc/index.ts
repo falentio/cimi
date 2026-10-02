@@ -4,6 +4,11 @@ import { ERROR_CATALOG, type ContractErrorCode } from '../schema/errors.ts'
 
 type Builder = ReturnType<typeof baseOc.$meta<AuthMeta>>
 
+/** A builder method forwarded through the proxy; its result is narrowed by the caller. */
+interface ForwardedBuilderMethod {
+  <R>(...callArgs: unknown[]): R
+}
+
 export const oc = wrapBuilder(baseOc.$meta<AuthMeta>({ devOnly: false })) as Builder
 
 function wrapBuilder<T extends object>(builder: T): T {
@@ -19,7 +24,7 @@ function wrapBuilder<T extends object>(builder: T): T {
             ? [withCentralErrorMessages(args[0] as Record<string, unknown>)]
             : args
 
-        const result = (value as (...callArgs: unknown[]) => unknown).call(target, ...nextArgs)
+        const result = (value as ForwardedBuilderMethod).call(target, ...nextArgs)
 
         return result !== null && typeof result === 'object' ? wrapBuilder(result) : result
       }

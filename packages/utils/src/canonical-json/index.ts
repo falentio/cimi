@@ -6,7 +6,13 @@ export interface SortedRecordOptions {
   readonly excludeKeys?: ReadonlySet<string> | undefined
 }
 
-export function sortedRecord(value: unknown, options: SortedRecordOptions = {}): unknown {
+export type JsonValue = string | number | boolean | null | JsonObject | JsonValue[]
+
+export interface JsonObject {
+  [key: string]: JsonValue
+}
+
+export function sortedRecord(value: JsonValue, options: SortedRecordOptions = {}): JsonValue {
   if (Array.isArray(value)) return value.map((entry) => sortedRecord(entry, options))
 
   if (!isRecord(value)) return value
@@ -20,6 +26,6 @@ export function sortedRecord(value: unknown, options: SortedRecordOptions = {}):
   )
 }
 
-export function canonicalJsonString(value: unknown, options: SortedRecordOptions = {}): string {
+export function canonicalJsonString(value: JsonValue, options: SortedRecordOptions = {}): string {
   return JSON.stringify(sortedRecord(value, options))
 }

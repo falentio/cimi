@@ -34,7 +34,9 @@ const catalog = (...codes: ErrorCode[]): ErrorMap =>
   )
 
 type LooseErrorBuilder = {
-  errors(errors: Record<string, unknown>): unknown
+  errors(errors: Record<string, unknown>): {
+    '~orpc': { errorMap: Record<string, { status: number; message: string; data: unknown }> }
+  }
 }
 
 // SAFETY: tests feed intentionally invalid error maps to prove the runtime catalog rejects them.
@@ -458,9 +460,7 @@ describe('procedure error declarations', () => {
   it('preserves valid error data while applying catalog metadata', () => {
     const data = { retryAfter: 30 }
 
-    const procedure = looseOc.errors({ TOO_MANY_REQUESTS: { data } }) as {
-      '~orpc': { errorMap: Record<string, { status: number; message: string; data: unknown }> }
-    }
+    const procedure = looseOc.errors({ TOO_MANY_REQUESTS: { data } })
 
     expect(procedure['~orpc'].errorMap['TOO_MANY_REQUESTS']).toEqual({
       status: 429,

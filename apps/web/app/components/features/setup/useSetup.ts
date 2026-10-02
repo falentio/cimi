@@ -15,6 +15,7 @@ import type {
   InitializationView,
   PollingView,
   SetupController,
+  SetupFailure,
   SetupNotice,
   SetupOperation,
   SetupViewModel,
@@ -200,7 +201,7 @@ export function useSetup(): SetupController {
       if (!isCurrentPoll(operationId, generation)) return
 
       if (statusError !== undefined) {
-        finishPolling({ kind: 'failure', error: mapSetupError(statusError, 'upgrade') })
+        finishPolling({ kind: 'failure', error: statusError })
 
         return
       }
@@ -242,7 +243,7 @@ export function useSetup(): SetupController {
     }
   }
 
-  async function refreshForPoll(): Promise<unknown> {
+  async function refreshForPoll(): Promise<SetupFailure | undefined> {
     let statusError: unknown
 
     try {
@@ -253,7 +254,7 @@ export function useSetup(): SetupController {
 
     await healthQuery.refetch().catch(() => undefined)
 
-    return statusError
+    return statusError === undefined ? undefined : mapSetupError(statusError, 'upgrade')
   }
 
   function finishPolling(nextUpgrade: UpgradeView): void {

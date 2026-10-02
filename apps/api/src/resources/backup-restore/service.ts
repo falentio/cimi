@@ -56,7 +56,7 @@ export interface BackupRestoreServiceDependencies {
   readonly leaseAcquisitionTimeoutMs?: number | undefined
   readonly clock?: (() => Date) | undefined
   readonly ids?: BackupRestoreIdFactory | undefined
-  readonly onError?: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
+  readonly onError?: ((error: unknown, context?: LogOperationContext) => void) | undefined
 }
 
 export interface BackupRestoreHealthSnapshot {
@@ -83,7 +83,7 @@ export class BackupRestoreService {
   private readonly leaseAcquisitionTimeoutMs: number
   private readonly clock: () => Date
   private readonly ids: BackupRestoreIdFactory
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
+  private readonly onError: ((error: unknown, context?: LogOperationContext) => void) | undefined
   private readonly tasks = new Set<Promise<void>>()
   private pendingStarts = 0
   private readonly pendingStartWaiters = new Set<() => void>()

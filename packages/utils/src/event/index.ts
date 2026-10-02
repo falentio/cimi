@@ -19,7 +19,7 @@ export interface EventEmitterOptions {
 }
 
 export class EventEmitter {
-  #listeners = new Map<string, Set<(data: unknown) => unknown | Promise<unknown>>>()
+  #listeners = new Map<string, Set<(data: unknown) => void | Promise<void>>>()
   #errorHandlers = new Set<(error: unknown, event: string) => void>()
   #pending = 0
   #settledResolvers: (() => void)[] = []
@@ -59,19 +59,19 @@ export class EventEmitter {
 
   on<T>(
     name: EventName<T>,
-    callback: (data: NoInfer<T>) => unknown | Promise<unknown>,
+    callback: (data: NoInfer<T>) => void | Promise<void>,
   ): UnlistenFn {
     if (!this.#listeners.has(name)) {
       this.#listeners.set(name, new Set())
     }
 
-    this.#listeners.get(name)!.add(callback as (data: unknown) => unknown | Promise<unknown>)
+    this.#listeners.get(name)!.add(callback as (data: unknown) => void | Promise<void>)
 
     return () => {
       const handlers = this.#listeners.get(name)
 
       if (!handlers) return
-      handlers.delete(callback as (data: unknown) => unknown | Promise<unknown>)
+      handlers.delete(callback as (data: unknown) => void | Promise<void>)
 
       if (handlers.size === 0) {
         this.#listeners.delete(name)

@@ -47,7 +47,7 @@ export const expectORPCError = vi.defineHelper(
 )
 
 export const expectSyncORPCError = vi.defineHelper(
-  (call: () => unknown, code: string, status: number, message?: MessageExpectation) =>
+  (call: () => void, code: string, status: number, message?: MessageExpectation) =>
     expectORPCError(Promise.resolve().then(call), code, status, message),
 )
 

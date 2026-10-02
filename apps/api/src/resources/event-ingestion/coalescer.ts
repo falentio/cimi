@@ -69,7 +69,7 @@ export interface AcceptanceCoalescerDependencies {
   readonly schedule?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>
   readonly cancel?: (timer: ReturnType<typeof setTimeout>) => void
   readonly clock?: (() => Date) | undefined
-  readonly onError?: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
+  readonly onError?: ((error: unknown, context?: LogOperationContext) => void) | undefined
 }
 
 export interface AcceptanceDiagnosticsSnapshot {
@@ -99,7 +99,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   ) => ReturnType<typeof setTimeout>
   private readonly cancel: (timer: ReturnType<typeof setTimeout>) => void
   private readonly clock: () => Date
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
+  private readonly onError: ((error: unknown, context?: LogOperationContext) => void) | undefined
   private readonly reservations = new Map<string, Map<string, ReservationState>>()
   private active: ReservationState[] = []
   private pending: ReservationState[] = []

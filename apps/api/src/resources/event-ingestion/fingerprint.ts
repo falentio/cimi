@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { canonicalJsonString } from '@cimi/utils'
+import { canonicalJsonString, type JsonValue } from '@cimi/utils'
 import type { EventInput } from './repository.ts'
 
 const FINGERPRINT_EXCLUDED_KEYS = new Set(['ingestionIdentifier'])
@@ -19,6 +19,6 @@ export function fingerprintAcceptedEvent(event: EventInput): string {
     .digest('hex')
 }
 
-export function canonicalEventJson(value: unknown): string {
+export function canonicalEventJson(value: JsonValue): string {
   return canonicalJsonString(value, { excludeKeys: FINGERPRINT_EXCLUDED_KEYS })
 }

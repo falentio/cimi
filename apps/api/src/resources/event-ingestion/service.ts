@@ -828,7 +828,7 @@ function normalizeEvent(
   }
 }
 
-function withBatchContext(rawEvent: unknown, input: CollectEventsInput): unknown {
+function withBatchContext(rawEvent: unknown, input: CollectEventsInput) {
   if (!isRecord(rawEvent)) return rawEvent
   const event = { ...rawEvent }
 

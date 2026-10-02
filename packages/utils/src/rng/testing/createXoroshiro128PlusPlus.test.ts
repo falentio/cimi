@@ -9,12 +9,12 @@ import {
 
 const MASK = (1n << 64n) - 1n
 
-function createAtRuntime(value: unknown): unknown {
-  return (createXoroshiro128PlusPlus as (input: unknown) => unknown)(value)
+function createAtRuntime(value: unknown): void {
+  createXoroshiro128PlusPlus(value as Xoroshiro128PlusPlusOptions)
 }
 
-function nextIntAtRuntime(generator: Xoroshiro128PlusPlus, maxExclusive: unknown): unknown {
-  return (generator.nextInt as (limit: unknown) => unknown)(maxExclusive)
+function nextIntAtRuntime(generator: Xoroshiro128PlusPlus, maxExclusive: unknown): void {
+  generator.nextInt(maxExclusive as number)
 }
 
 describe('createXoroshiro128PlusPlus', () => {

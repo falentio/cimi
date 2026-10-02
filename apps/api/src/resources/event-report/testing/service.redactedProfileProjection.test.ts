@@ -1,3 +1,4 @@
+import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import type { Db } from '@cimi/db'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
@@ -62,14 +63,14 @@ function markProfileRedacted(db: Db, siteId: string): void {
 async function projectedIdentifiedUserId(
   fixture: Awaited<ReturnType<typeof createApiTestFixture>>,
   siteId: string,
-): Promise<unknown> {
+): Promise<string | null> {
   return fixture.analytics.readWindowed(async (reader) => {
     const rows = await reader.read(
       'SELECT identified_user_id AS identifiedUserId FROM events WHERE site_id = ?',
       [siteId],
     )
 
-    return rows[0]?.['identifiedUserId']
+    return v.parse(v.nullable(v.string()), rows[0]?.['identifiedUserId'] ?? null)
   })
 }
 

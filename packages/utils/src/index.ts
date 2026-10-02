@@ -87,7 +87,13 @@ export {
   type UnlistenFn,
 } from './event/index.ts'
 
-export { canonicalJsonString, isRecord, sortedRecord } from './canonical-json/index.ts'
+export {
+  canonicalJsonString,
+  isRecord,
+  sortedRecord,
+  type JsonObject,
+  type JsonValue,
+} from './canonical-json/index.ts'
 
 export { redactDiagnosticMessage } from './diagnostic-message/index.ts'
 

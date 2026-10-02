@@ -201,7 +201,7 @@ function admissionInput(
 }
 
 async function expectAdmissionError(
-  operation: () => Promise<unknown>,
+  operation: () => Promise<void>,
   code: ReportingAdmissionError['code'],
 ): Promise<ReportingAdmissionError> {
   try {
