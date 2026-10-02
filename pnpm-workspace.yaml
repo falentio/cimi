@@ -48,6 +48,7 @@ catalog:
   vitest-mock-extended: ^5.1.1
   '@logtape/logtape': 2.3.5
   '@logtape/hono': 2.2.8
+  '@oxlint/plugins': 1.81.0
 
 catalogs:
   vue-compiler:
