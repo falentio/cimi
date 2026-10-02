@@ -3,7 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
 import type { SiteIngestionPort } from '@cimi/guard'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
-import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
+
 import { eventIngestionRouter, type EventIngestionRouterOptions } from './router.ts'
 import { AcceptanceCoalescer } from './coalescer.ts'
 import { AcceptanceRepositoryDrizzle } from './repository.drizzle.ts'
@@ -84,7 +84,7 @@ export interface CreateEventIngestionDependencies {
   readonly db: Db
   readonly sites: SiteIngestionPort
   readonly collectionPolicy: CollectionPolicyService
-  readonly retention: RetentionPolicyRepository | RetentionResolver
+  readonly retention: RetentionResolver
   readonly lifecycleLock?: LifecycleLock | undefined
   readonly protection?: IngestionProtection | undefined
   readonly identitySession?: IdentitySessionResolver | undefined

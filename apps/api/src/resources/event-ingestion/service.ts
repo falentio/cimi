@@ -14,7 +14,6 @@ import {
 } from '@cimi/contract'
 import type { IngestionSite, SiteIngestionPort } from '@cimi/guard'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
-import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
 import {
   AcceptanceAdmissionStoppedError,
   AcceptanceCoalescer,
@@ -43,7 +42,7 @@ export type CollectEventsOutput = InferOutput<typeof SCollectEventsOutput>
 export interface EventIngestionServiceDependencies {
   readonly sites: SiteIngestionPort
   readonly collectionPolicy: CollectionPolicyService
-  readonly retention: RetentionPolicyRepository | RetentionResolver
+  readonly retention: RetentionResolver
   readonly acceptance: AcceptanceRepository
   readonly lifecycleLock?: LifecycleLock | undefined
   readonly clock?: (() => Date) | undefined
@@ -124,7 +123,7 @@ export class EventIngestionService {
   readonly coalescer: AcceptanceCoalescer
   private readonly sites: SiteIngestionPort
   private readonly collectionPolicy: CollectionPolicyService
-  private readonly retention: RetentionPolicyRepository | RetentionResolver
+  private readonly retention: RetentionResolver
   private readonly acceptance: AcceptanceRepository
   private readonly lifecycleLock: LifecycleLock | undefined
   private readonly clock: () => Date
@@ -599,12 +598,8 @@ export class EventIngestionService {
   }
 
   private async retentionPolicy(siteId: string): Promise<{ readonly eventMonths: number }> {
-    if ('effective' in this.retention) {
-      const policy = await this.retention.effective(siteId)
-      return { eventMonths: policy.eventMonths }
-    }
-    const resolution = await this.retention.findResolved({ siteId })
-    return { eventMonths: resolution.effectivePolicy.eventMonths }
+    const policy = await this.retention.effective(siteId)
+    return { eventMonths: policy.eventMonths }
   }
 
   private reserve(candidates: readonly ReservableCandidate[]): Promise<readonly Reservation[]> {

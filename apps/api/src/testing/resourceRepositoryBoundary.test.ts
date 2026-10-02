@@ -8,8 +8,6 @@ const resourcesRoot = join(dirname(fileURLToPath(import.meta.url)), '..', 'resou
 const repositoryModule = /\/repository(\.drizzle)?\.ts$/
 
 const pendingMigration = new Set([
-  'event-ingestion/index.ts|../retention-policy/repository.ts',
-  'event-ingestion/service.ts|../retention-policy/repository.ts',
   'membership/fixture.ts|../organization/repository.ts',
   'membership/repository.drizzle.ts|../organization/repository.ts',
   'membership/repository.ts|../organization/repository.ts',

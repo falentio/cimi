@@ -4,6 +4,7 @@ import { InMemorySiteScopePort, type SiteIngestionPort } from '@cimi/guard'
 import {
   InMemoryLifecycleLock,
   InMemoryLifecycleOperationStatusReader,
+  InMemoryRetentionResolver,
   type LifecycleLock,
 } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
@@ -11,7 +12,6 @@ import type { MockProxy } from 'vitest-mock-extended'
 import { CollectionPolicyService } from '../../collection-policy/service.ts'
 import { createPolicyLayers } from '../../collection-policy/fixture.ts'
 import type { CollectionPolicyRepository } from '../../collection-policy/repository.ts'
-import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
 import { EventIngestionService } from '../service.ts'
 import { DefaultIdentitySessionResolver } from '../identity-session.ts'
 import type { AcceptanceRepository } from '../repository.ts'
@@ -51,19 +51,7 @@ function createFixture(
     clock: () => now,
   })
 
-  const retentionRepository = mock<RetentionPolicyRepository>()
-  retentionRepository.findResolved.mockResolvedValue({
-    installationId: 'ins_1',
-    installationDefault: schema.DEFAULT_RETENTION_POLICY,
-    siteOverride: null,
-    effectivePolicy: schema.DEFAULT_RETENTION_POLICY,
-    cleanup: {
-      pending: false,
-      derived: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
-      backup: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
-    },
-    updatedAt: now.toISOString(),
-  })
+  const retention = new InMemoryRetentionResolver(schema.DEFAULT_RETENTION_POLICY)
 
   const acceptanceRepository: MockProxy<AcceptanceRepository> =
     options.acceptance ??
@@ -80,7 +68,7 @@ function createFixture(
   const service = new EventIngestionService({
     sites,
     collectionPolicy: policy,
-    retention: retentionRepository,
+    retention,
     acceptance: acceptanceRepository,
     clock: () => now,
     ...(options.withoutResolver === true
