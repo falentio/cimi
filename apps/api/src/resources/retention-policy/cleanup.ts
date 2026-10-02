@@ -34,7 +34,7 @@ export interface RetentionCleanupWorkerDependencies {
   lock: LifecycleLock
   cleanup?: RetentionCleanupPort | undefined
   intervalMs?: number
-  onError?: (error: unknown, context?: LogOperationContext) => void
+  onError?: (cause: unknown, context?: LogOperationContext) => void
 }
 
 export class RetentionCleanupWorker {
@@ -42,7 +42,7 @@ export class RetentionCleanupWorker {
   private readonly lock: LifecycleLock
   private cleanup: RetentionCleanupPort | undefined
   private readonly intervalMs: number
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  private readonly onError: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private timerGeneration = 0
   private runPromise: Promise<void> | undefined

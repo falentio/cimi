@@ -34,7 +34,7 @@ export interface CreateSiteLifecycleWorkerDependencies {
   db: Db
   lock: LifecycleLock
   intervalMs?: number | undefined
-  onError?: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  onError?: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined
 }
 

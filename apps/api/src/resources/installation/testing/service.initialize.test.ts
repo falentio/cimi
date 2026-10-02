@@ -4,7 +4,13 @@ import { createInstallationFixture, createInstallationRecord } from '../fixture.
 
 const admin = createTestUser()
 
-const member = createTestUser({ id: 'user_2', email: 'member@example.com', name: 'Member', role: 'member', installationGrant: false })
+const member = createTestUser({
+  id: 'user_2',
+  email: 'member@example.com',
+  name: 'Member',
+  role: 'member',
+  installationGrant: false,
+})
 
 const retention = { eventMonths: 12, profileMonths: 12, replayMonths: null }
 
@@ -323,9 +329,9 @@ describe('InstallationService.initialize', () => {
   it('rejects an unauthenticated caller without touching the repository', async () => {
     const { repository, service } = createInstallationFixture()
 
-    await expect(service.initialize(input, undefined)).rejects.toMatchObject(
-      { code: 'UNAUTHORIZED' },
-    )
+    await expect(service.initialize(input, undefined)).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    })
     expect(repository.find).not.toHaveBeenCalled()
     expect(repository.insert).not.toHaveBeenCalled()
   })

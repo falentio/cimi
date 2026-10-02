@@ -277,6 +277,6 @@ function ratio(numerator: number, denominator: number): number {
   return denominator === 0 ? 0 : numerator / denominator
 }
 
-function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique|reserved/i.test(error.message)
+function isConstraintError(cause: unknown): boolean {
+  return cause instanceof Error && /constraint|unique|reserved/i.test(cause.message)
 }

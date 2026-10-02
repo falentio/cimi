@@ -449,9 +449,9 @@ export class EventIngestionService {
               throw error
             }
           },
-          async (error: unknown) => {
+          async (cause: unknown) => {
             await this.rollbackIdentity(pending.candidate)
-            throw error
+            throw cause
           },
         ),
       )
@@ -592,7 +592,9 @@ export class EventIngestionService {
         payloadFingerprint: fingerprintAcceptedEvent(input),
         visitorId: identity.visitorId,
         analyticsSessionId: identity.analyticsSessionId,
-        ...(identity.sessionStartedAt !== undefined && { sessionStartedAt: identity.sessionStartedAt }),
+        ...(identity.sessionStartedAt !== undefined && {
+          sessionStartedAt: identity.sessionStartedAt,
+        }),
       },
     }
   }
@@ -619,7 +621,9 @@ export class EventIngestionService {
         identifiedUserId: candidate.event.identifiedUserId,
         analyticsSessionId: candidate.analyticsSessionId,
         attribution: normalizedAttribution(candidate.event),
-        ...(candidate.sessionStartedAt !== undefined && { sessionStartedAt: candidate.sessionStartedAt }),
+        ...(candidate.sessionStartedAt !== undefined && {
+          sessionStartedAt: candidate.sessionStartedAt,
+        }),
       },
     })
   }
@@ -634,7 +638,9 @@ export class EventIngestionService {
         identifiedUserId: candidate.event.identifiedUserId,
         analyticsSessionId: candidate.analyticsSessionId,
         attribution: normalizedAttribution(candidate.event),
-        ...(candidate.sessionStartedAt !== undefined && { sessionStartedAt: candidate.sessionStartedAt }),
+        ...(candidate.sessionStartedAt !== undefined && {
+          sessionStartedAt: candidate.sessionStartedAt,
+        }),
       },
     })
   }

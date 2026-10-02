@@ -4,11 +4,29 @@ import { describe, expect, it } from 'vitest'
 import { assertAuthorization } from '../../guard.ts'
 import { assertOrganizationRole, assertSiteScope, InMemorySiteScopePort } from '../../site.ts'
 
-const user = createTestUser({ id: 'user-1', email: 'user-1@example.com', name: 'User 1', role: 'user', installationGrant: false })
+const user = createTestUser({
+  id: 'user-1',
+  email: 'user-1@example.com',
+  name: 'User 1',
+  role: 'user',
+  installationGrant: false,
+})
 
-const organizationAdmin = createTestUser({ id: 'admin-1', email: 'admin-1@example.com', name: 'Admin 1', role: 'user', installationGrant: false })
+const organizationAdmin = createTestUser({
+  id: 'admin-1',
+  email: 'admin-1@example.com',
+  name: 'Admin 1',
+  role: 'user',
+  installationGrant: false,
+})
 
-const nonMember = createTestUser({ id: 'stranger-1', email: 'stranger-1@example.com', name: 'Stranger', role: 'user', installationGrant: false })
+const nonMember = createTestUser({
+  id: 'stranger-1',
+  email: 'stranger-1@example.com',
+  name: 'Stranger',
+  role: 'user',
+  installationGrant: false,
+})
 
 describe('authorization guards', () => {
   it('applies coarse admission and installation-admin levels separately', () => {

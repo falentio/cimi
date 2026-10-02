@@ -70,8 +70,12 @@ export async function createApiTestFixture(
         startRetentionCleanupWorker: false,
         ...(options.lifecycle !== undefined && { lifecycle: options.lifecycle }),
         ...(options.lock !== undefined && { lock: options.lock }),
-        ...(options.eventIngestionProtection !== undefined && { eventIngestionProtection: options.eventIngestionProtection }),
-        ...(options.backupRestoreExecutor !== undefined && { backupRestoreExecutor: options.backupRestoreExecutor }),
+        ...(options.eventIngestionProtection !== undefined && {
+          eventIngestionProtection: options.eventIngestionProtection,
+        }),
+        ...(options.backupRestoreExecutor !== undefined && {
+          backupRestoreExecutor: options.backupRestoreExecutor,
+        }),
       })
 
       return {

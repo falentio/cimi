@@ -249,8 +249,8 @@ function toNonOwnerMembership(
   }
 }
 
-function isConstraintError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false
+function isConstraintError(cause: unknown): boolean {
+  if (!(cause instanceof Error)) return false
 
-  return /constraint|unique/i.test(error.message)
+  return /constraint|unique/i.test(cause.message)
 }

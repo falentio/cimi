@@ -110,10 +110,10 @@ export function createDuckDbCloseController(options: {
         lifecycle = 'closed'
         closePromise = undefined
       },
-      (error: unknown) => {
+      (cause: unknown) => {
         lifecycle = 'retryable-failure'
         closePromise = undefined
-        throw error
+        throw cause
       },
     )
 

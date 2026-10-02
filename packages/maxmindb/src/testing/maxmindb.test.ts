@@ -14,7 +14,7 @@ const cityResponses = new Map<string, City>()
 
 const asnResponses = new Map<string, Asn>()
 
-const opened: Array<{ path: string, cacheSize: number }> = []
+const opened: Array<{ path: string; cacheSize: number }> = []
 
 let cityOpenFailures: Error[] = []
 

@@ -9,11 +9,22 @@ import {
 } from '../../guard.ts'
 import { createTestUser } from '@cimi/auth'
 
-const adminUser = createTestUser({ id: 'u1', email: 'u1@example.com', name: 'U1', installationGrant: false })
+const adminUser = createTestUser({
+  id: 'u1',
+  email: 'u1@example.com',
+  name: 'U1',
+  installationGrant: false,
+})
 
 const installationAdmin = createTestUser({ id: 'u1', email: 'u1@example.com', name: 'U1' })
 
-const normalUser = createTestUser({ id: 'u1', email: 'u1@example.com', name: 'U1', role: 'user', installationGrant: false })
+const normalUser = createTestUser({
+  id: 'u1',
+  email: 'u1@example.com',
+  name: 'U1',
+  role: 'user',
+  installationGrant: false,
+})
 
 describe('assertIsAdmin', () => {
   it('throws FORBIDDEN for undefined user', () => {

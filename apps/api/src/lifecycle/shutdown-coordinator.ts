@@ -15,9 +15,9 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
     close() {
       if (closePromise !== undefined) return closePromise
       const attempt = closePending()
-      closePromise = attempt.catch((error: unknown) => {
+      closePromise = attempt.catch((cause: unknown) => {
         closePromise = undefined
-        throw error
+        throw cause
       })
 
       return closePromise

@@ -56,7 +56,7 @@ export interface BackupRestoreServiceDependencies {
   readonly leaseAcquisitionTimeoutMs?: number | undefined
   readonly clock?: (() => Date) | undefined
   readonly ids?: BackupRestoreIdFactory | undefined
-  readonly onError?: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  readonly onError?: ((cause: unknown, context?: LogOperationContext) => void) | undefined
 }
 
 export interface BackupRestoreHealthSnapshot {
@@ -83,7 +83,7 @@ export class BackupRestoreService {
   private readonly leaseAcquisitionTimeoutMs: number
   private readonly clock: () => Date
   private readonly ids: BackupRestoreIdFactory
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  private readonly onError: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   private readonly tasks = new Set<Promise<void>>()
   private pendingStarts = 0
   private readonly pendingStartWaiters = new Set<() => void>()
@@ -794,17 +794,17 @@ export class BackupRestoreService {
   private async failAfterAdmissionError(
     operationId: string,
     ownerToken: string,
-    error: unknown,
+    cause: unknown,
     operation: 'backup.create' | 'backup.restore',
   ): Promise<void> {
-    if (error instanceof ORPCError && error.code === 'CONFLICT') return
-    this.reportError(error, { operation, stage: 'admission', operationId })
+    if (cause instanceof ORPCError && cause.code === 'CONFLICT') return
+    this.reportError(cause, { operation, stage: 'admission', operationId })
 
     try {
       await this.repository.fail({
         operationId,
         ownerToken,
-        errorCode: errorCodeFor(error, 'INTERNAL_SERVER_ERROR'),
+        errorCode: errorCodeFor(cause, 'INTERNAL_SERVER_ERROR'),
         now: this.clock(),
       })
     } catch (failureError) {
@@ -923,21 +923,21 @@ function operationLogName(
   return operationType === 'restore' ? 'backup.restore' : 'backup.create'
 }
 
-function toCommandError(error: unknown): ORPCError<string, unknown> {
-  if (error instanceof ORPCError) return error
+function toCommandError(cause: unknown): ORPCError<string, unknown> {
+  if (cause instanceof ORPCError) return cause
 
   if (
-    error instanceof BackupIncompatibilityError ||
-    (error instanceof Error && /incompatible|newer|unsupported|manifest/i.test(error.message))
+    cause instanceof BackupIncompatibilityError ||
+    (cause instanceof Error && /incompatible|newer|unsupported|manifest/i.test(cause.message))
   ) {
     return new ORPCError('INCOMPATIBLE_BACKUP', { status: 422 })
   }
 
-  if (error instanceof InsufficientStorageError) {
+  if (cause instanceof InsufficientStorageError) {
     return new ORPCError('INSUFFICIENT_STORAGE', { status: 507 })
   }
 
-  if (error instanceof SafetyArtifactUnavailableError) {
+  if (cause instanceof SafetyArtifactUnavailableError) {
     return new ORPCError('INSUFFICIENT_STORAGE', { status: 507 })
   }
 

@@ -6,7 +6,7 @@ export interface SortedRecordOptions {
   readonly excludeKeys?: ReadonlySet<string> | undefined
 }
 
-export type JsonValue = string | number | boolean | null | JsonObject | JsonValue[]
+export type JsonValue = string | number | boolean | null | undefined | JsonObject | JsonValue[]
 
 export interface JsonObject {
   [key: string]: JsonValue

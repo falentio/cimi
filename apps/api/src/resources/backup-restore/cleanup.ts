@@ -17,7 +17,7 @@ export interface BackupRestoreCleanupWorkerDependencies {
   readonly intervalMs?: number
   readonly clock?: (() => Date) | undefined
   readonly ownerToken?: (() => string) | undefined
-  readonly onError?: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  readonly onError?: ((cause: unknown, context?: LogOperationContext) => void) | undefined
 }
 
 export class BackupRestoreCleanupWorker {
@@ -27,7 +27,7 @@ export class BackupRestoreCleanupWorker {
   private readonly intervalMs: number
   private readonly clock: () => Date
   private readonly ownerToken: () => string
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  private readonly onError: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private timerGeneration = 0
   private runPromise: Promise<void> | undefined

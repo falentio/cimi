@@ -57,10 +57,7 @@ export class EventEmitter {
     this.#waitUntil?.(Promise.allSettled(work))
   }
 
-  on<T>(
-    name: EventName<T>,
-    callback: (data: NoInfer<T>) => void | Promise<void>,
-  ): UnlistenFn {
+  on<T>(name: EventName<T>, callback: (data: NoInfer<T>) => void | Promise<void>): UnlistenFn {
     if (!this.#listeners.has(name)) {
       this.#listeners.set(name, new Set())
     }
@@ -79,7 +76,7 @@ export class EventEmitter {
     }
   }
 
-  onError(callback: (error: unknown, event: string) => void): UnlistenFn {
+  onError(callback: (cause: unknown, event: string) => void): UnlistenFn {
     this.#errorHandlers.add(callback)
 
     return () => {
@@ -97,7 +94,9 @@ export class EventEmitter {
 
   createCollector<T>(name: EventName<T>): { collect(): Promise<T[]> } {
     const items: T[] = []
-    this.on(name, (data: NoInfer<T>) => items.push(data))
+    this.on(name, (data: NoInfer<T>) => {
+      items.push(data)
+    })
 
     return {
       collect: async () => {

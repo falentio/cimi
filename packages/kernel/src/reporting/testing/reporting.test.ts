@@ -200,8 +200,8 @@ function admissionInput(
   } as const
 }
 
-async function expectAdmissionError(
-  operation: () => Promise<void>,
+async function expectAdmissionError<T>(
+  operation: () => Promise<T>,
   code: ReportingAdmissionError['code'],
 ): Promise<ReportingAdmissionError> {
   try {

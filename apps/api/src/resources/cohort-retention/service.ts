@@ -367,6 +367,6 @@ function cohortReportPeriod(period: ReportRun<readonly CohortReportPeriod[]>['cu
   }
 }
 
-function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique|reserved/i.test(error.message)
+function isConstraintError(cause: unknown): boolean {
+  return cause instanceof Error && /constraint|unique|reserved/i.test(cause.message)
 }

@@ -69,7 +69,7 @@ export interface AcceptanceCoalescerDependencies {
   readonly schedule?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>
   readonly cancel?: (timer: ReturnType<typeof setTimeout>) => void
   readonly clock?: (() => Date) | undefined
-  readonly onError?: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  readonly onError?: ((cause: unknown, context?: LogOperationContext) => void) | undefined
 }
 
 export interface AcceptanceDiagnosticsSnapshot {
@@ -99,7 +99,7 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
   ) => ReturnType<typeof setTimeout>
   private readonly cancel: (timer: ReturnType<typeof setTimeout>) => void
   private readonly clock: () => Date
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  private readonly onError: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   private readonly reservations = new Map<string, Map<string, ReservationState>>()
   private active: ReservationState[] = []
   private pending: ReservationState[] = []
@@ -344,9 +344,9 @@ export class AcceptanceCoalescer implements AcceptanceQuiescencePort {
           this.sequence = sequence
           this.lastSafeSequence = sequence
         })
-        .catch((error: unknown) => {
+        .catch((cause: unknown) => {
           this.sequencePromise = undefined
-          throw error
+          throw cause
         })
     }
 
@@ -521,7 +521,7 @@ export function acceptanceReservationKey(event: {
 
 function createDeferred(): Deferred {
   let resolvePromise: () => void = () => undefined
-  let rejectPromise: (error: unknown) => void = () => undefined
+  let rejectPromise: (cause: unknown) => void = () => undefined
 
   const promise = new Promise<void>((resolve, reject) => {
     resolvePromise = resolve

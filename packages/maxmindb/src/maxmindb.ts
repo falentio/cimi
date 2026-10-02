@@ -29,7 +29,7 @@ export interface CreateMaxMindDbOptions {
   cityPath: string
   asnPath?: string
   cacheSize?: number
-  onAsnLoadFailure?: (error: unknown, path: string) => void
+  onAsnLoadFailure?: (cause: unknown, path: string) => void
   readerOpener?: ReaderOpener
 }
 

@@ -530,13 +530,13 @@ export class MembershipService {
     }
   }
 
-  private async recordMembershipFailure(id: string, error: unknown): Promise<void> {
+  private async recordMembershipFailure(id: string, cause: unknown): Promise<void> {
     try {
       await this.repository.failMembershipOperation({
         id,
-        failureCode: error instanceof ORPCError ? error.code : 'CONFLICT',
+        failureCode: cause instanceof ORPCError ? cause.code : 'CONFLICT',
         failureMessage:
-          error instanceof Error ? error.message : 'Membership reconciliation did not complete',
+          cause instanceof Error ? cause.message : 'Membership reconciliation did not complete',
       })
     } catch {
       // Preserve the pending operation when failure metadata cannot be recorded.
@@ -771,13 +771,13 @@ export class MembershipService {
     }
   }
 
-  private async recordTransferFailure(id: string, error: unknown): Promise<void> {
+  private async recordTransferFailure(id: string, cause: unknown): Promise<void> {
     try {
       await this.repository.failTransfer({
         id,
         now: new Date(),
-        failureCode: error instanceof ORPCError ? error.code : 'CONFLICT',
-        failureMessage: error instanceof Error ? error.message : 'Ownership transfer failed',
+        failureCode: cause instanceof ORPCError ? cause.code : 'CONFLICT',
+        failureMessage: cause instanceof Error ? cause.message : 'Ownership transfer failed',
       })
     } catch {
       // Preserve the pending operation when failure metadata cannot be recorded.

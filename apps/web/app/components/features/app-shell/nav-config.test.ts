@@ -18,10 +18,7 @@ describe('NAV_REGISTRY', () => {
   })
 
   it('flags exactly the admin entries', () => {
-    expect(ALL_ITEMS.flatMap((item) => (item.admin ? [item.to] : []))).toEqual([
-      '/admin',
-      '/setup',
-    ])
+    expect(ALL_ITEMS.flatMap((item) => (item.admin ? [item.to] : []))).toEqual(['/admin', '/setup'])
   })
 
   it('defines Setup as an exact admin navigation entry', () => {

@@ -4,7 +4,13 @@ import { createInstallationFixture, createInstallationRecord } from '../fixture.
 
 const admin = createTestUser()
 
-const member = createTestUser({ id: 'user_2', email: 'member@example.com', name: 'Member', role: 'member', installationGrant: false })
+const member = createTestUser({
+  id: 'user_2',
+  email: 'member@example.com',
+  name: 'Member',
+  role: 'member',
+  installationGrant: false,
+})
 
 describe('InstallationService.getStatus', () => {
   it('returns only safe public fields', async () => {

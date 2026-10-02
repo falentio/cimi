@@ -739,10 +739,10 @@ function toPublicInstallation(
   }
 }
 
-function isConstraintError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false
+function isConstraintError(cause: unknown): boolean {
+  if (!(cause instanceof Error)) return false
 
-  return /constraint|unique|reserved|lifecycle operation is active/i.test(error.message)
+  return /constraint|unique|reserved|lifecycle operation is active/i.test(cause.message)
 }
 
 function isSiteLifecycleOperation(kind: InstallationRepository.ActiveOperation['kind']): boolean {

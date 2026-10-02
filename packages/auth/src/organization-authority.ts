@@ -480,27 +480,27 @@ function toRole(value: string): AuthorityRole {
   }
 }
 
-function isOrganizationNotFound(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null || !('body' in error)) return false
-  const body = error.body
+function isOrganizationNotFound(cause: unknown): boolean {
+  if (typeof cause !== 'object' || cause === null || !('body' in cause)) return false
+  const body = cause.body
 
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
 
   return body.code === 'ORGANIZATION_NOT_FOUND'
 }
 
-function isRequesterNotOrganizationMember(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null || !('body' in error)) return false
-  const body = error.body
+function isRequesterNotOrganizationMember(cause: unknown): boolean {
+  if (typeof cause !== 'object' || cause === null || !('body' in cause)) return false
+  const body = cause.body
 
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
 
   return body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
 }
 
-function isAlreadyMember(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null || !('body' in error)) return false
-  const body = error.body
+function isAlreadyMember(cause: unknown): boolean {
+  if (typeof cause !== 'object' || cause === null || !('body' in cause)) return false
+  const body = cause.body
 
   if (typeof body !== 'object' || body === null || !('code' in body)) return false
 

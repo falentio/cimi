@@ -95,9 +95,9 @@ export async function createApiServerApp(
       return Object.assign(app, {
         close(): Promise<void> {
           if (closePromise !== undefined) return closePromise
-          closePromise = closeResources().catch((error: unknown) => {
+          closePromise = closeResources().catch((cause: unknown) => {
             closePromise = undefined
-            throw error
+            throw cause
           })
 
           return closePromise

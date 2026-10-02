@@ -343,7 +343,9 @@ export async function createApiE2eFixture(
         dataDirectoryPath: paths.dataDirectoryPath,
         startRetentionCleanupWorker: options.startRetentionCleanupWorker ?? false,
         retentionCleanupIntervalMs: options.retentionCleanupIntervalMs,
-        ...(options.backupLeaseAcquisitionTimeoutMs !== undefined && { backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs }),
+        ...(options.backupLeaseAcquisitionTimeoutMs !== undefined && {
+          backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs,
+        }),
         upgradeExecutor: new FaultingUpgradeExecutor(realUpgradeExecutor, faults, faultGeneration),
         backupRestoreExecutor: new FaultingBackupRestoreExecutor(
           realBackupRestoreExecutor,
@@ -391,7 +393,14 @@ export async function createApiE2eFixture(
         }
       }
 
-      throw constructionFailure(error, cleanupError)
+      throw (
+        cleanupError === undefined
+          ? error
+          : new AggregateError(
+              [error, cleanupError],
+              'E2E fixture construction and cleanup both failed',
+            )
+      )
     }
   }
 
@@ -467,9 +476,9 @@ export async function createApiE2eFixture(
       }
     })
 
-    closePromise = pending.catch((error: unknown) => {
+    closePromise = pending.catch((cause: unknown) => {
       closePromise = undefined
-      throw error
+      throw cause
     })
 
     return closePromise
@@ -1379,15 +1388,6 @@ function createGenerationOwnership(): GenerationOwnership {
   ])
 
   return Object.assign(resources, { close: () => shutdown.close() })
-}
-
-function constructionFailure(error: unknown, cleanupError: unknown): never {
-  if (cleanupError === undefined) return error
-
-  return new AggregateError(
-    [error, cleanupError],
-    'E2E fixture construction and cleanup both failed',
-  )
 }
 
 function operationIdOf(value: unknown): string | undefined {

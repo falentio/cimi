@@ -668,8 +668,8 @@ function cleanupStatus(status: 'not-required' | 'pending' | 'complete', updatedA
   return { status, updatedAt: updatedAt.toISOString() }
 }
 
-function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique|foreign key/i.test(error.message)
+function isConstraintError(cause: unknown): boolean {
+  return cause instanceof Error && /constraint|unique|foreign key/i.test(cause.message)
 }
 
 function isActivityExpired(row: ProfileRow, cutoff: Date | undefined): boolean {

@@ -9,7 +9,7 @@ export interface SiteLifecycleWorkerDependencies {
   repository: SiteRepository
   lock: LifecycleLock
   intervalMs?: number
-  onError?: (error: unknown, context?: LogOperationContext) => void
+  onError?: (cause: unknown, context?: LogOperationContext) => void
   onPurgedSite?: (input: { siteId: string; now: Date }) => Promise<void>
 }
 
@@ -17,7 +17,7 @@ export class SiteLifecycleWorker {
   private readonly repository: SiteRepository
   private readonly lock: LifecycleLock
   private readonly intervalMs: number
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => void) | undefined
+  private readonly onError: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   private readonly onPurgedSite:
     | ((input: { siteId: string; now: Date }) => Promise<void>)
     | undefined

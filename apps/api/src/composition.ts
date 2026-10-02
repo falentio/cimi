@@ -167,7 +167,9 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     db: deps.db,
     lock,
     lifecycle: installation.service,
-    ...(deps.retentionCleanupIntervalMs !== undefined && { intervalMs: deps.retentionCleanupIntervalMs }),
+    ...(deps.retentionCleanupIntervalMs !== undefined && {
+      intervalMs: deps.retentionCleanupIntervalMs,
+    }),
   })
 
   const collectionPolicy = createCollectionPolicy({
@@ -237,7 +239,9 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     ...(deps.backupRestoreExecutor !== undefined && { executor: deps.backupRestoreExecutor }),
     cleanup: deps.cleanup ?? createBackupRestoreCleanup(deps, eventIngestion.acceptanceRepository),
     dataDirectoryReady: deps.dataDirectoryReady,
-    ...(deps.backupLeaseAcquisitionTimeoutMs !== undefined && { leaseAcquisitionTimeoutMs: deps.backupLeaseAcquisitionTimeoutMs }),
+    ...(deps.backupLeaseAcquisitionTimeoutMs !== undefined && {
+      leaseAcquisitionTimeoutMs: deps.backupLeaseAcquisitionTimeoutMs,
+    }),
     controlDatabasePath: deps.controlDatabasePath,
     dataDirectoryPath: deps.dataDirectoryPath,
     ...(deps.migrationsFolder !== undefined && { migrationsFolder: deps.migrationsFolder }),
@@ -251,12 +255,12 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
 
       const backupSnapshot: BackupRestoreHealthSnapshot = await backupRestore.service
         .getSnapshot()
-        .catch((error: unknown) => {
+        .catch((cause: unknown) => {
           reportLogEvent({
             kind: 'health.failure',
             operation: 'backup-snapshot',
             stage: 'snapshot',
-            error,
+            error: cause,
           })
 
           return { admissionMode: 'normal' }
@@ -365,8 +369,8 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
   siteLifecycleWorker.start()
   const siteLifecycleStartup = siteLifecycleWorker.runOnce()
 
-  const installationStartup = installation.service.resumeOnStartup().catch((error: unknown) => {
-    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
+  const installationStartup = installation.service.resumeOnStartup().catch((cause: unknown) => {
+    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error: cause })
 
     return undefined
   })
@@ -378,12 +382,12 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
 
   const backupRestoreStartup = installationStartup
     .then(() => backupRestore.service.start())
-    .catch((error: unknown) => {
+    .catch((cause: unknown) => {
       reportLogEvent({
         kind: 'operation.failure',
         operation: 'api.startup',
         stage: 'startup',
-        error,
+        error: cause,
       })
 
       return undefined

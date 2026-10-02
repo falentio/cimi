@@ -372,11 +372,11 @@ export class OrganizationService {
     }
   }
 
-  private async recordRepairFailure(repairId: string, error: unknown): Promise<void> {
+  private async recordRepairFailure(repairId: string, cause: unknown): Promise<void> {
     try {
       await this.repository.recordRepairFailure(
         repairId,
-        error instanceof Error ? error.message : 'Organization repair did not complete',
+        cause instanceof Error ? cause.message : 'Organization repair did not complete',
       )
     } catch {
       // Keep the repair pending when failure metadata cannot be recorded.
@@ -588,11 +588,11 @@ export class OrganizationService {
     }
   }
 
-  private async recordDeleteFailure(operationId: string, error: unknown): Promise<void> {
+  private async recordDeleteFailure(operationId: string, cause: unknown): Promise<void> {
     try {
       await this.repository.recordDeleteFailure(
         operationId,
-        error instanceof Error ? error.message : 'Organization deletion did not complete',
+        cause instanceof Error ? cause.message : 'Organization deletion did not complete',
       )
     } catch {
       // Keep the operation pending when failure metadata cannot be recorded.
@@ -696,6 +696,6 @@ function assertAuthorityOwner(
   }
 }
 
-function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique/i.test(error.message)
+function isConstraintError(cause: unknown): boolean {
+  return cause instanceof Error && /constraint|unique/i.test(cause.message)
 }

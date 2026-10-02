@@ -180,12 +180,13 @@ export class TrafficReportService {
           fromDate: createCalendarDate(input.fromDate),
           toDate: createCalendarDate(input.toDate),
         },
-        ...(input.comparison !== undefined && input.comparison !== null && {
-          comparison: {
-            fromDate: createCalendarDate(input.comparison.fromDate),
-            toDate: createCalendarDate(input.comparison.toDate),
-          },
-        }),
+        ...(input.comparison !== undefined &&
+          input.comparison !== null && {
+            comparison: {
+              fromDate: createCalendarDate(input.comparison.fromDate),
+              toDate: createCalendarDate(input.comparison.toDate),
+            },
+          }),
         bucket: {
           granularity: input.granularity,
           maxStarts: AUTHENTICATED_REPORT_BUCKET_LIMITS[input.granularity],
