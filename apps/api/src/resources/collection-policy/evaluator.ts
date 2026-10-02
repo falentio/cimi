@@ -1,6 +1,7 @@
-import type { schema } from '@cimi/contract'
+import type { schema, SEvent } from '@cimi/contract'
 import { canonicalizeHostname, createIpMatcher } from '@cimi/utils'
 import type { InferOutput } from 'valibot'
+import type { IdentifyInput } from '../identity-profile/service.ts'
 import {
   clonePolicyValues,
   type PolicyResolution,
@@ -21,9 +22,9 @@ export interface AdmissionInput {
   readonly isBot?: boolean | undefined
   readonly url?: string | undefined
   readonly referrer?: string | undefined
-  readonly properties?: Readonly<Record<string, unknown>> | undefined
+  readonly properties?: InferOutput<typeof SEvent>['properties'] | undefined
   readonly identifiedUserId?: string | undefined
-  readonly traits?: Readonly<Record<string, unknown>> | undefined
+  readonly traits?: IdentifyInput['traits'] | undefined
   readonly operation?: 'event' | 'identify' | undefined
   readonly collectionContext?: CollectionContext | undefined
 }
@@ -150,7 +151,7 @@ export function sanitizeDestination(value: string, policy: UrlSanitizationPolicy
 }
 
 export function sanitizeProperties(
-  properties: Readonly<Record<string, unknown>> | undefined,
+  properties: InferOutput<typeof SEvent>['properties'],
   policy: PolicyValues,
 ): Readonly<Record<string, ScalarValue>> {
   if (!policy.propertyPolicy.allowScalarProperties || properties === undefined) return {}
