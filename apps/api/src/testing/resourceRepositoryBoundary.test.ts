@@ -7,11 +7,7 @@ const resourcesRoot = join(dirname(fileURLToPath(import.meta.url)), '..', 'resou
 
 const repositoryModule = /\/repository(\.drizzle)?\.ts$/
 
-const pendingMigration = new Set([
-  'membership/fixture.ts|../organization/repository.ts',
-  'membership/repository.drizzle.ts|../organization/repository.ts',
-  'membership/repository.ts|../organization/repository.ts',
-])
+const pendingMigration = new Set<string>([])
 
 function productionFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
