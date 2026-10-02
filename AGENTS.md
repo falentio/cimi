@@ -42,6 +42,7 @@ vp install                       # only when deps change
 - Constructors with dependencies receive one named dependency object with explicit property names rather than positional arguments.
 - Sociable fixtures use `vitest-mock-extended` for typed repository mocks, configure behavior in each test, and expose assertions through the repository mock rather than returning duplicate method references.
 - Resource tests live under `apps/api/src/resources/<resource>/testing/` and follow the per-method layout in `apps/api/src/resources/site/testing/`. One test file per service or repository method (`service.<method>.test.ts`, `repository.drizzle.<method>.test.ts`), one test file per cross-method concern (`service.<concern>.test.ts`), and `<module>.test.ts` for standalone modules. Each file has exactly one top-level `describe` named `<ClassName>.<method>`. A `service.test.ts` or `repository.drizzle.test.ts` bundling many methods is banned; `router.test.ts` is the only permitted single-file surface. `apps/api/src/testing/resourceTestLayout.test.ts` fails the suite when a banned filename reappears.
+- A resource may import only its own `repository.ts` and `repository.drizzle.ts` from production code. Cross-resource reads go through a narrow port the provider or a shared package owns. `apps/api/src/testing/resourceRepositoryBoundary.test.ts` fails the suite on a cross-resource repository import, including a type-only import and a barrel that re-exports a repository. See `docs/adr/0008-resource-repository-boundaries.md`.
 
 ### Narrow lint and format fixes
 
