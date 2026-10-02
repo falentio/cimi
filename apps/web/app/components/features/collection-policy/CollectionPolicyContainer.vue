@@ -3,6 +3,10 @@ import { computed } from 'vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import {
+  siteCollectionSettingsPath,
+  siteSettingsPath,
+} from '@/components/features/app-shell/organization-nav-config'
 import CollectionPolicyEditor from './CollectionPolicyEditor.vue'
 import type { SiteCollectionPolicyController } from './collection-policy.types'
 
@@ -18,7 +22,7 @@ async function refresh(): Promise<void> {
   await props.controller.refresh()
 }
 
-const settingsPath = computed(() => `/sites/${props.siteId}/settings/general`)
+const collectionSettingsPath = computed(() => siteCollectionSettingsPath(props.siteId))
 </script>
 
 <template>
@@ -57,10 +61,10 @@ const settingsPath = computed(() => `/sites/${props.siteId}/settings/general`)
       <AlertTitle>Collection settings require Site administrator access</AlertTitle>
       <AlertDescription>{{ view.error.message }}</AlertDescription>
       <Button v-if="view.error.kind === 'authentication'" class="mt-3" size="sm" as-child>
-        <NuxtLink :to="`/login?redirect=${settingsPath}`">Sign in</NuxtLink>
+        <NuxtLink :to="`/login?redirect=${collectionSettingsPath}`">Sign in</NuxtLink>
       </Button>
       <Button v-else class="mt-3" size="sm" variant="outline" as-child>
-        <NuxtLink to="/">Return to your workspace</NuxtLink>
+        <NuxtLink :to="siteSettingsPath(siteId)">Return to Site settings</NuxtLink>
       </Button>
     </Alert>
 
