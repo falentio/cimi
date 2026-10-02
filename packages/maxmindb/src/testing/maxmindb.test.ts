@@ -1,16 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const mocks = vi.hoisted(() => ({
-  open: vi.fn(),
-  city: vi.fn(),
-  asn: vi.fn(),
-}))
-
-vi.mock('@maxmind/geoip2-node', () => ({
-  Reader: {
-    open: mocks.open,
-  },
-}))
+import type { Asn, City } from '@maxmind/geoip2-node'
+import type { AsnReader, CityReader, ReaderOpener } from '../index.ts'
 
 import { createAsnLookup, createMaxMindDb } from '../index.ts'
 
@@ -20,32 +10,75 @@ const ASN_PATH = '/data/GeoLite2-ASN.mmdb'
 
 const IP = '203.0.113.10'
 
+const cityResponses = new Map<string, City>()
+const asnResponses = new Map<string, Asn>()
+const opened: Array<{ path: string, cacheSize: number }> = []
+let cityOpenFailures: Error[] = []
+let asnOpenFailures: Error[] = []
+
+function cityReaderFor(ip: string): City {
+  const response = cityResponses.get(ip)
+
+  if (!response) throw new Error('address not found')
+
+  return response
+}
+
+function asnReaderFor(ip: string): Asn {
+  const response = asnResponses.get(ip)
+
+  if (!response) throw new Error('address not found')
+
+  return response
+}
+
+const opener: ReaderOpener = {
+  async openCityReader(path: string, cacheSize: number): Promise<CityReader> {
+    opened.push({ path, cacheSize })
+    const failure = cityOpenFailures.shift()
+
+    if (failure) throw failure
+
+    return { city: cityReaderFor }
+  },
+  async openAsnReader(path: string, cacheSize: number): Promise<AsnReader> {
+    opened.push({ path, cacheSize })
+    const failure = asnOpenFailures.shift()
+
+    if (failure) throw failure
+
+    return { asn: asnReaderFor }
+  },
+}
+
+const options = { readerOpener: opener }
+
 beforeEach(() => {
-  vi.resetAllMocks()
-  mocks.open.mockResolvedValueOnce({ city: mocks.city }).mockResolvedValueOnce({ asn: mocks.asn })
-  mocks.city.mockReset()
-  mocks.asn.mockReset()
+  cityResponses.clear()
+  asnResponses.clear()
+  opened.length = 0
+  cityOpenFailures = []
+  asnOpenFailures = []
+  cityResponses.set(IP, {
+    city: { names: { en: 'New York' } },
+    country: { names: { en: 'United States' }, isoCode: 'US' },
+    location: { latitude: 40.7128, longitude: -74.006, timeZone: 'America/New_York' },
+    subdivisions: [{ isoCode: 'NY' }],
+  } as City)
+  asnResponses.set(IP, {
+    autonomousSystemNumber: 13335,
+    autonomousSystemOrganization: 'Cloudflare',
+  } as Asn)
 })
 
 describe('createMaxMindDb', () => {
   it('maps city data and resolves each requested IP once', async () => {
-    mocks.city.mockImplementation((ip: string) => {
-      if (ip === IP) {
-        return {
-          city: { names: { en: 'New York' } },
-          country: { names: { en: 'United States' }, isoCode: 'US' },
-          location: { latitude: 40.7128, longitude: -74.006, timeZone: 'America/New_York' },
-          subdivisions: [{ isoCode: 'NY' }],
-        }
-      }
+    const maxmindb = await createMaxMindDb({ cityPath: CITY_PATH, asnPath: ASN_PATH, ...options })
 
-      throw new Error('address not found')
-    })
-
-    const maxmindb = await createMaxMindDb({ cityPath: CITY_PATH, asnPath: ASN_PATH })
-
-    expect(mocks.open).toHaveBeenNthCalledWith(1, CITY_PATH, { cache: { max: 10000 } })
-    expect(mocks.open).toHaveBeenNthCalledWith(2, ASN_PATH, { cache: { max: 10000 } })
+    expect(opened).toEqual([
+      { path: CITY_PATH, cacheSize: 10000 },
+      { path: ASN_PATH, cacheSize: 10000 },
+    ])
     await expect(maxmindb.getLocation([IP, IP, '198.51.100.10'])).resolves.toEqual({
       [IP]: {
         city: 'New York',
@@ -58,27 +91,25 @@ describe('createMaxMindDb', () => {
       },
       '198.51.100.10': null,
     })
-    expect(mocks.city).toHaveBeenCalledTimes(2)
   })
 
   it('fails when the required city database cannot be loaded', async () => {
-    mocks.open.mockReset()
-    mocks.open.mockRejectedValueOnce(new Error('city database missing'))
+    cityOpenFailures = [new Error('city database missing')]
 
-    await expect(createMaxMindDb({ cityPath: CITY_PATH })).rejects.toThrow('city database missing')
+    await expect(createMaxMindDb({ cityPath: CITY_PATH, ...options })).rejects.toThrow(
+      'city database missing',
+    )
   })
 
   it('disables ASN lookups when the optional database cannot be loaded', async () => {
     const onAsnLoadFailure = vi.fn()
-    mocks.open.mockReset()
-    mocks.open
-      .mockResolvedValueOnce({ city: mocks.city })
-      .mockRejectedValueOnce(new Error('asn database missing'))
+    asnOpenFailures = [new Error('asn database missing')]
 
     const maxmindb = await createMaxMindDb({
       cityPath: CITY_PATH,
       asnPath: ASN_PATH,
       onAsnLoadFailure,
+      ...options,
     })
 
     expect(maxmindb.lookupAsn(IP)).toBeNull()
@@ -95,24 +126,13 @@ describe('createMaxMindDb', () => {
   })
 
   it('uses a caller-provided bounded reader cache size', async () => {
-    await createMaxMindDb({ cityPath: CITY_PATH, cacheSize: 64 })
+    await createMaxMindDb({ cityPath: CITY_PATH, cacheSize: 64, ...options })
 
-    expect(mocks.open).toHaveBeenCalledWith(CITY_PATH, { cache: { max: 64 } })
+    expect(opened).toEqual([{ path: CITY_PATH, cacheSize: 64 }])
   })
 
   it('maps ASN data and treats failed lookups as unavailable', async () => {
-    mocks.asn.mockImplementation((ip: string) => {
-      if (ip === IP) {
-        return {
-          autonomousSystemNumber: 13335,
-          autonomousSystemOrganization: 'Cloudflare',
-        }
-      }
-
-      throw new Error('address not found')
-    })
-
-    const maxmindb = await createMaxMindDb({ cityPath: CITY_PATH, asnPath: ASN_PATH })
+    const maxmindb = await createMaxMindDb({ cityPath: CITY_PATH, asnPath: ASN_PATH, ...options })
 
     expect(maxmindb.lookupAsn(IP)).toEqual({ asn: 13335, organization: 'Cloudflare' })
     expect(maxmindb.lookupAsn('198.51.100.10')).toBeNull()

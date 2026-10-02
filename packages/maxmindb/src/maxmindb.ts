@@ -20,11 +20,17 @@ export interface AsnInfo {
 
 export type AsnLookup = (ip: string) => AsnInfo | null
 
+export interface ReaderOpener {
+  openCityReader(path: string, cacheSize: number): Promise<CityReader>
+  openAsnReader(path: string, cacheSize: number): Promise<AsnReader>
+}
+
 export interface CreateMaxMindDbOptions {
   cityPath: string
   asnPath?: string
   cacheSize?: number
   onAsnLoadFailure?: (error: unknown, path: string) => void
+  readerOpener?: ReaderOpener
 }
 
 export interface MaxMindDb {
@@ -32,11 +38,11 @@ export interface MaxMindDb {
   lookupAsn(ip: string): AsnInfo | null
 }
 
-interface CityReader {
+export interface CityReader {
   city(ip: string): City
 }
 
-interface AsnReader {
+export interface AsnReader {
   asn(ip: string): Asn
 }
 
@@ -47,9 +53,13 @@ export async function createMaxMindDb(options: CreateMaxMindDbOptions): Promise<
     throw new RangeError('cacheSize must be a positive integer')
   }
 
+  const opener: ReaderOpener = options.readerOpener ?? {
+    openCityReader: (path, size) => loadCityReader(path, size),
+    openAsnReader: (path, size) => loadAsnReaderOrThrow(path, size),
+  }
   const [cityReader, asnReader] = await Promise.all([
-    loadCityReader(options.cityPath, cacheSize),
-    loadAsnReader(options.asnPath, cacheSize, options.onAsnLoadFailure),
+    opener.openCityReader(options.cityPath, cacheSize),
+    loadAsnReader(options.asnPath, cacheSize, options.onAsnLoadFailure, opener),
   ])
 
   return {
@@ -77,15 +87,20 @@ async function loadCityReader(path: string, cacheSize: number): Promise<CityRead
   return (await Reader.open(path, { cache: { max: cacheSize } })) as CityReader
 }
 
+async function loadAsnReaderOrThrow(path: string, cacheSize: number): Promise<AsnReader> {
+  return (await Reader.open(path, { cache: { max: cacheSize } })) as AsnReader
+}
+
 async function loadAsnReader(
   path: string | undefined,
   cacheSize: number,
   onFailure: CreateMaxMindDbOptions['onAsnLoadFailure'],
+  opener: ReaderOpener,
 ): Promise<AsnReader | null> {
   if (!path) return null
 
   try {
-    return (await Reader.open(path, { cache: { max: cacheSize } })) as AsnReader
+    return await opener.openAsnReader(path, cacheSize)
   } catch (error) {
     onFailure?.(error, path)
 
