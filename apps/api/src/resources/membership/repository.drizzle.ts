@@ -1,6 +1,6 @@
 import { and, count, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
-import type { OrganizationRole } from '../organization/repository.ts'
+import type { MembershipRole } from './repository.ts'
 import { isOwnerInvariantValid } from '../organization/owner-invariant.ts'
 import type { MembershipListRecord, MembershipRecord, MembershipRepository } from './repository.ts'
 
@@ -227,7 +227,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
   async updateRole(options: {
     organizationId: string
     userId: string
-    role: OrganizationRole
+    role: MembershipRole
     updatedAt: Date
   }): Promise<MembershipRecord | undefined> {
     const rows = await this.db

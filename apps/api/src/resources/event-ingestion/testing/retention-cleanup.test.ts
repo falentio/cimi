@@ -18,7 +18,7 @@ import {
   createSiteRow,
   createSiteUserRow,
 } from '../../site/fixture.drizzle.ts'
-import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
+import type { SiteRetentionBoundary } from '../../retention-policy/cleanup-payload.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
 import { createIdentityProjectionDebt } from '../identity-projection-debt.ts'
@@ -35,7 +35,7 @@ async function createAnalyticsFixture() {
   }
 }
 
-function boundary(): RetentionPolicyRepository.SiteRetentionBoundary {
+function boundary(): SiteRetentionBoundary {
   return {
     siteId: 'ste_1',
     installationId: 'ins_1',

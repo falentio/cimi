@@ -7,7 +7,10 @@ import type {
   RetentionCleanupBatchResult,
   RetentionCleanupPort,
 } from '../retention-policy/cleanup.ts'
-import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
+import type {
+  CleanupCheckpoint,
+  SiteRetentionBoundary,
+} from '../retention-policy/cleanup-payload.ts'
 import type { AcceptanceRepository } from './repository.ts'
 import type { BackupRestoreCleanupPort } from '../backup-restore/cleanup.ts'
 import {
@@ -76,8 +79,8 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
     runId: string
     siteId: string
     now: Date
-    boundary: RetentionPolicyRepository.SiteRetentionBoundary
-    checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
+    boundary: SiteRetentionBoundary
+    checkpoints: readonly CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult> {
     const dataClasses = new Set(input.checkpoints.map((checkpoint) => checkpoint.dataClass))
     const needsProfileCleanup =
@@ -142,8 +145,8 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
     runId: string
     siteId: string
     now: Date
-    boundary: RetentionPolicyRepository.SiteRetentionBoundary
-    checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
+    boundary: SiteRetentionBoundary
+    checkpoints: readonly CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult> {
     if (this.db === undefined || this.dataDirectoryPath === undefined) {
       throw new Error('Backup cleanup is not configured')
@@ -236,9 +239,7 @@ export class AcceptanceBackupRestoreCleanup implements BackupRestoreCleanupPort 
   }
 }
 
-function effectiveRetentionBoundaries(
-  db: Db,
-): readonly RetentionPolicyRepository.SiteRetentionBoundary[] {
+function effectiveRetentionBoundaries(db: Db): readonly SiteRetentionBoundary[] {
   return db
     .select()
     .from(schema.TRetentionEffectiveCutoff)
@@ -260,7 +261,7 @@ function effectiveRetentionBoundaries(
 
 function prepareExpiredProfiles(input: {
   readonly db: Db
-  readonly boundary: RetentionPolicyRepository.SiteRetentionBoundary
+  readonly boundary: SiteRetentionBoundary
   readonly now: Date
 }): void {
   input.db.$client.transaction(() => {
@@ -443,7 +444,7 @@ interface BackupArtifactRow {
 async function cleanBackupArtifacts(input: {
   readonly db: Db
   readonly dataDirectoryPath: string
-  readonly boundary: RetentionPolicyRepository.SiteRetentionBoundary
+  readonly boundary: SiteRetentionBoundary
   readonly now: Date
 }): Promise<void> {
   const identityRedactions = pendingIdentityRedactions(input.db, input.boundary.siteId)
@@ -664,7 +665,7 @@ function markBackupCleanupComplete(input: {
 function updateBackupMetadata(input: {
   readonly db: Db
   readonly artifact: BackupArtifactRow
-  readonly boundary?: RetentionPolicyRepository.SiteRetentionBoundary | undefined
+  readonly boundary?: SiteRetentionBoundary | undefined
   readonly path: string
 }): void {
   const metadata = input.artifact.metadata === null ? null : JSON.parse(input.artifact.metadata)

@@ -1,6 +1,6 @@
 import type { Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import type { LifecycleLock, LifecycleOperationStatusReader } from '@cimi/kernel'
+import type { LifecycleLock, LifecycleOperationStatusReader, RetentionResolver } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import { RetentionPolicyRepositoryDrizzle } from './repository.drizzle.ts'
 import { retentionPolicyRouter } from './router.ts'
@@ -18,16 +18,12 @@ export {
   type RetentionCleanupBatchResult,
   type RetentionCleanupWorkerDependencies,
 } from './cleanup.ts'
+export type { CleanupCheckpoint, CleanupKind, SiteRetentionBoundary } from './cleanup-payload.ts'
 export {
   RetentionPolicyService,
   type RetentionPolicyServiceDependencies,
   type RetentionPolicyIdFactory,
 } from './service.ts'
-export {
-  RetentionPolicyRepositoryDrizzle,
-  type RetentionPolicyRepositoryDrizzleDependencies,
-} from './repository.drizzle.ts'
-export type { RetentionPolicyRepository } from './repository.ts'
 
 export interface CreateRetentionPolicyDependencies {
   db: Db
@@ -60,6 +56,11 @@ export function createRetentionPolicy({
     ...(ids === undefined ? {} : { ids }),
   })
   const router = retentionPolicyRouter(service)
+  const resolver: RetentionResolver = {
+    async effective(siteId) {
+      return (await repository.findResolved({ siteId })).effectivePolicy
+    },
+  }
   const workerDependencies: RetentionCleanupWorkerDependencies = {
     repository,
     lock,
@@ -67,7 +68,7 @@ export function createRetentionPolicy({
     ...(intervalMs === undefined ? {} : { intervalMs }),
   }
   const worker = new RetentionCleanupWorker(workerDependencies)
-  return { repository, service, router, worker }
+  return { resolver, service, router, worker }
 }
 
 export type RetentionPolicyModule = ReturnType<typeof createRetentionPolicy>

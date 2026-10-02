@@ -1,14 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mock } from 'vitest-mock-extended'
 import { schema as contractSchema } from '@cimi/contract'
-import type { InMemorySiteMembership } from '@cimi/guard'
+import type { InMemorySiteMembership, SiteIngestionPort } from '@cimi/guard'
 import { InMemoryLifecycleLock } from '@cimi/kernel'
 import {
   createCollectionPolicyFixture,
   createPolicyLayers,
 } from '../../collection-policy/fixture.ts'
-import { createSiteRecord } from '../../site/fixture.ts'
-import type { SiteRepository } from '../../site/repository.ts'
 import type { IdentityProfileRepository } from '../repository.ts'
 import { IdentityProfileService } from '../service.ts'
 
@@ -22,13 +20,17 @@ function createFixture(
   } = {},
 ) {
   const repository = mock<IdentityProfileRepository>()
-  const siteRepository = mock<SiteRepository>()
-  siteRepository.findByIngestionIdentifier.mockResolvedValue(createSiteRecord())
+  const sites = mock<SiteIngestionPort>()
+  sites.findActiveByIngestionIdentifier.mockResolvedValue({
+    id: 'ste_1',
+    hostname: 'example.com',
+    reportingTimezone: 'UTC',
+  })
   const policyFixture = createCollectionPolicyFixture({ clock: () => now, ...options })
   const projectionDebt = { mark: vi.fn() }
   const service = new IdentityProfileService({
     repository,
-    siteRepository,
+    sites,
     collectionPolicy: policyFixture.service,
     scope: { siteScope: policyFixture.scope, membership: policyFixture.scope },
     profileActivityCutoff: async () => profileActivityCutoff,
@@ -36,7 +38,7 @@ function createFixture(
     ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
     clock: () => now,
   })
-  return { repository, siteRepository, policyFixture, projectionDebt, service }
+  return { repository, sites, policyFixture, projectionDebt, service }
 }
 
 describe('IdentityProfileService.identify', () => {

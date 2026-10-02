@@ -3,6 +3,7 @@ import type { LifecycleLock, LifecycleOperationStatusReader } from '@cimi/kernel
 import type { LogOperationContext } from '@cimi/logging'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
 import { SiteLifecycleWorker, type SiteLifecycleWorkerDependencies } from './lifecycle.ts'
+import { createSiteIngestionPort } from './ingestion-port.ts'
 import { SiteRepositoryDrizzle } from './repository.drizzle.ts'
 import { siteRouter } from './router.ts'
 import { createSiteScopeDependencies } from './scope.ts'
@@ -11,12 +12,11 @@ import { SiteService } from './service.ts'
 export { siteRouter }
 export { SiteService, type SiteServiceDependencies } from './service.ts'
 export { SiteLifecycleWorker, type SiteLifecycleWorkerDependencies } from './lifecycle.ts'
-export {
-  SiteRepositoryDrizzle,
-  type SiteRepositoryDrizzleDependencies,
-} from './repository.drizzle.ts'
-export type { SiteRepository } from './repository.ts'
 export { createSiteScopeDependencies, type SiteScopeDependencies } from './scope.ts'
+export {
+  createSiteIngestionPort,
+  type CreateSiteIngestionPortDependencies,
+} from './ingestion-port.ts'
 
 export interface CreateSiteDependencies {
   db: Db
@@ -53,7 +53,7 @@ export function createSite({ db, lock, lifecycle, membership }: CreateSiteDepend
   const scope = createSiteScopeDependencies({ db })
   const service = new SiteService({ repository, scope, lock, lifecycle, membership })
   const router = siteRouter(service)
-  return { service, router }
+  return { service, router, ingestionPort: createSiteIngestionPort({ repository }) }
 }
 
 export type SiteModule = ReturnType<typeof createSite>

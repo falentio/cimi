@@ -14,6 +14,8 @@ import {
 import {
   assertSiteManagementScope,
   assertSiteScope,
+  type IngestionSite,
+  type SiteIngestionPort,
   type SiteScopeGuardDependencies,
 } from '@cimi/guard'
 import type { LifecycleLock } from '@cimi/kernel'
@@ -21,7 +23,6 @@ import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
-import type { SiteRepository } from '../site/repository.ts'
 import type { IdentityProfileRepository } from './repository.ts'
 
 export type IdentifyInput = InferOutput<typeof SIdentifyInput>
@@ -55,7 +56,7 @@ export interface IdentityProjectionDebtMarker {
 
 export interface IdentityProfileServiceDependencies {
   readonly repository: IdentityProfileRepository
-  readonly siteRepository: SiteRepository
+  readonly sites: SiteIngestionPort
   readonly collectionPolicy: CollectionPolicyService
   readonly scope: SiteScopeGuardDependencies
   readonly profileActivityCutoff?: ((siteId: string) => Promise<Date | undefined>) | undefined
@@ -70,7 +71,7 @@ const DEFAULT_PAGE_SIZE = 20
 
 export class IdentityProfileService {
   private readonly repository: IdentityProfileRepository
-  private readonly siteRepository: SiteRepository
+  private readonly sites: SiteIngestionPort
   private readonly collectionPolicy: CollectionPolicyService
   private readonly scope: SiteScopeGuardDependencies
   private readonly profileActivityCutoff: (siteId: string) => Promise<Date | undefined>
@@ -82,7 +83,7 @@ export class IdentityProfileService {
 
   constructor({
     repository,
-    siteRepository,
+    sites,
     collectionPolicy,
     scope,
     profileActivityCutoff,
@@ -93,7 +94,7 @@ export class IdentityProfileService {
     clock,
   }: IdentityProfileServiceDependencies) {
     this.repository = repository
-    this.siteRepository = siteRepository
+    this.sites = sites
     this.collectionPolicy = collectionPolicy
     this.scope = scope
     this.profileActivityCutoff = profileActivityCutoff ?? (async () => undefined)
@@ -212,9 +213,9 @@ export class IdentityProfileService {
     return result.output
   }
 
-  private async resolveSite(ingestionIdentifier: string): Promise<SiteRepository.SiteRecord> {
-    const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
-    if (site === undefined || site.status !== 'active') throw new ORPCError('NOT_FOUND')
+  private async resolveSite(ingestionIdentifier: string): Promise<IngestionSite> {
+    const site = await this.sites.findActiveByIngestionIdentifier(ingestionIdentifier)
+    if (site === undefined) throw new ORPCError('NOT_FOUND')
     return site
   }
 
@@ -236,7 +237,7 @@ export class IdentityProfileService {
     if (this.lifecycleLock === undefined) return operation()
     const lease = await this.lifecycleLock.acquire('ingestion')
     if (lease === undefined) {
-      const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
+      const site = await this.sites.findActiveByIngestionIdentifier(ingestionIdentifier)
       if (site === undefined) throw new ORPCError('NOT_FOUND')
       throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     }
