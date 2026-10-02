@@ -7,7 +7,7 @@ import { h, render } from 'vue'
 const cache = new Map<string, string>()
 
 // Convert object to a consistent string key
-function serializeKey(key: Record<string, any>): string {
+function serializeKey<T extends object>(key: T): string {
   return JSON.stringify(key, Object.keys(key).sort())
 }
 

@@ -18,6 +18,7 @@ import { DefaultIdentitySessionResolver } from '../identity-session.ts'
 import type { AcceptanceRepository } from '../repository.ts'
 import type { IdentitySessionResolver, IngestionProtection } from '../service.ts'
 import { AcceptanceCoalescer } from '../coalescer.ts'
+import type { JsonValue } from '@cimi/utils'
 
 const now = new Date('2026-09-05T00:00:00.000Z')
 
@@ -93,7 +94,7 @@ function createFixture(
   return { service, siteRepository, policyRepository, acceptanceRepository }
 }
 
-function event(overrides: Record<string, unknown> = {}) {
+function event(overrides: Record<string, JsonValue> = {}) {
   return {
     eventId: 'event-1',
     ingestionIdentifier: 'ing-1',

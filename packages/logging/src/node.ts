@@ -20,6 +20,7 @@ export function configureNodeLogging(logging?: LoggingConfig): void {
 
   configureSync({
     ...createLoggingConfiguration(logging),
+    // eslint-disable-next-line anti-slop/no-unsafe-dictionary-type -- logtape owns ContextLocalStorage<Record<string, unknown>>.
     contextLocalStorage: new AsyncLocalStorage<Record<string, unknown>>(),
   })
   configuredLevel = lowestLevel

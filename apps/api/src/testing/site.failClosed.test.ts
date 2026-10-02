@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import { parse } from 'valibot'
+import type { JsonValue } from '@cimi/utils'
 import { SOrganizationCreateOutput, schema } from '@cimi/contract'
 import { InMemoryLifecycleLock } from '@cimi/kernel'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.ts'
@@ -210,7 +211,8 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
   )
 
   expect(deletionStatus.status, await deletionStatus.clone().text()).toBe(200)
-  const deletionStatusBody = (await deletionStatus.json()) as Record<string, unknown>
+  // SAFETY: route returns a JSON object; field assertions below verify the shape.
+  const deletionStatusBody = (await deletionStatus.json()) as Record<string, JsonValue>
   expect(deletionStatusBody['siteId']).toBe(site.id)
   expect(['deleting', 'deleted']).toContain(deletionStatusBody['status'])
   expect(Object.keys(deletionStatusBody)).not.toContain('hostname')
@@ -459,7 +461,8 @@ test('purging a deleted site fails closed and keeps operation status observable 
   )
 
   expect(deletionStatus.status, await deletionStatus.clone().text()).toBe(200)
-  const deletionStatusBody = (await deletionStatus.json()) as Record<string, unknown>
+  // SAFETY: route returns a JSON object; field assertions below verify the shape.
+  const deletionStatusBody = (await deletionStatus.json()) as Record<string, JsonValue>
   expect(deletionStatusBody).toMatchObject({ siteId: site.id, status: 'purged' })
   expect(Object.keys(deletionStatusBody)).not.toContain('hostname')
   expect(Object.keys(deletionStatusBody)).not.toContain('ingestionIdentifier')

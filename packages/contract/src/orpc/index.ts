@@ -1,4 +1,5 @@
 import { oc as baseOc } from '@orpc/contract'
+import type { JsonValue } from '@cimi/utils'
 import type { AuthMeta } from './meta.ts'
 import { ERROR_CATALOG, type ContractErrorCode } from '../schema/errors.ts'
 
@@ -19,9 +20,10 @@ function wrapBuilder<T extends object>(builder: T): T {
       if (typeof value !== 'function') return value
 
       return (...args: unknown[]) => {
+        // SAFETY: .errors() receives object literals; withCentralErrorMessages validates or throws.
         const nextArgs =
           property === 'errors'
-            ? [withCentralErrorMessages(args[0] as Record<string, unknown>)]
+            ? [withCentralErrorMessages(args[0] as Record<string, JsonValue>)]
             : args
 
         const result = (value as ForwardedBuilderMethod).call(target, ...nextArgs)
@@ -32,7 +34,9 @@ function wrapBuilder<T extends object>(builder: T): T {
   })
 }
 
-function withCentralErrorMessages(errors: Record<string, unknown>): Record<string, unknown> {
+function withCentralErrorMessages(
+  errors: Record<string, JsonValue>,
+): Record<string, JsonValue> {
   return Object.fromEntries(
     Object.entries(errors).map(([code, definition]) => {
       const catalogDefinition = ERROR_CATALOG[code as ContractErrorCode]

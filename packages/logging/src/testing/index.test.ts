@@ -113,7 +113,7 @@ describe('log event contract', () => {
   })
 
   it('keeps only safe request context', () => {
-    let context: Record<string, unknown> | undefined
+    let context: { requestId: string } | undefined
 
     const requestContext = {
       requestId: 'request-1',

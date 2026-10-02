@@ -1,3 +1,5 @@
+import type { JsonValue } from '@cimi/utils'
+
 export type PortResult<T> = T | PromiseLike<T>
 
 export interface RetentionPolicy {
@@ -123,7 +125,7 @@ export interface LifecycleOperationStatusReader {
   getActiveOperation(): PortResult<LifecycleOperationStatus | null>
 }
 
-export type CollectionPolicy = Readonly<Record<string, unknown>>
+export type CollectionPolicy = Readonly<Record<string, JsonValue>>
 
 export interface CollectionPolicyResolver {
   effective(siteId: string): PortResult<CollectionPolicy>

@@ -87,10 +87,11 @@ export function decodeRetentionManifest(metadata: JsonObject | null | undefined)
 
   if (!('retentionManifest' in metadata)) return null
 
-  return decodeManifest(metadata['retentionManifest'])
+  // SAFETY: decodeManifest validates the manifest shape and throws incompatible on malformed input.
+  return decodeManifest(metadata['retentionManifest'] as JsonObject)
 }
 
-function decodeManifest(value: JsonValue): RetentionManifest {
+function decodeManifest(value: JsonObject): RetentionManifest {
   if (!isRecord(value) || value['version'] !== 1 || !isUnknownArray(value['boundaries'])) {
     throw incompatible('Retention manifest version or shape is unsupported')
   }
@@ -99,7 +100,7 @@ function decodeManifest(value: JsonValue): RetentionManifest {
 
   const boundaries = value['boundaries'].map((boundary) => {
     // SAFETY: decodeBoundary validates the element shape and throws incompatible on malformed input.
-    const decoded = decodeBoundary(boundary as JsonValue)
+    const decoded = decodeBoundary(boundary as JsonObject)
     assertUniqueSite(siteIds, decoded.siteId)
 
     return decoded
@@ -108,7 +109,7 @@ function decodeManifest(value: JsonValue): RetentionManifest {
   return { version: 1, boundaries }
 }
 
-function decodeBoundary(value: JsonValue): RetentionManifestBoundary {
+function decodeBoundary(value: JsonObject): RetentionManifestBoundary {
   if (!isRecord(value)) throw incompatible('Retention boundary is malformed')
   const siteId = readString(value, 'siteId')
   const installationId = readString(value, 'installationId')
@@ -151,7 +152,7 @@ function assertUniqueSite(siteIds: Set<string>, siteId: string): void {
   siteIds.add(siteId)
 }
 
-function readString(value: Record<string, unknown>, name: string): string {
+function readString(value: JsonObject, name: string): string {
   const field = value[name]
 
   if (typeof field !== 'string' || field.length === 0) {
@@ -169,7 +170,8 @@ function encodeDate(value: Date): string {
   return value.toISOString()
 }
 
-function decodeDate(value: Record<string, unknown>, name: string): Date {
+function decodeDate(value: JsonObject, name: string): Date {
+  if (!isRecord(value)) throw incompatible(`Retention boundary ${name} is invalid`)
   const field = value[name]
 
   if (typeof field !== 'string') throw incompatible(`Retention boundary ${name} is invalid`)

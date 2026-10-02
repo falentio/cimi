@@ -322,7 +322,6 @@ export const isValidReportRange = (input: {
   fromDate: string
   toDate: string
   comparison?: { fromDate: string; toDate: string } | undefined
-  [key: string]: unknown
 }) =>
   isOrderedDateRange(input.fromDate, input.toDate) &&
   (input.comparison === undefined ||
@@ -336,7 +335,6 @@ export const isValidGranularReportRange = (input: {
   toDate: string
   granularity: string
   comparison?: { fromDate: string; toDate: string } | undefined
-  [key: string]: unknown
 }) => {
   return isValidReportRange(input)
 }

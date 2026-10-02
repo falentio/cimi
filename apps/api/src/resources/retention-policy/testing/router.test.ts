@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { expect, test } from 'vitest'
+import type { JsonValue } from '@cimi/utils'
 import { schema } from '@cimi/db'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from '../../../testing/fixture.ts'
 
@@ -538,11 +539,12 @@ test('retention policy routes validate transport, boundaries, and exact response
   ]
 
   for (const invalid of invalidInputs) {
+    // SAFETY: intentionally invalid wire payload; the 400 assertion below verifies rejection.
     const response = await apiTestRequest(
       app,
       '/retention-policy/updateRetentionPolicy',
       owner.cookie,
-      invalid.body as Record<string, unknown>,
+      invalid.body as JsonValue,
     )
 
     expect(response.status, invalid.name).toBe(400)

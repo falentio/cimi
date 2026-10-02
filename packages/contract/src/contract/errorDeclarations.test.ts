@@ -1,4 +1,5 @@
-import { isContractProcedure } from '@orpc/contract'
+import { isContractProcedure, type AnyContractProcedure } from '@orpc/contract'
+import type { JsonValue } from '@cimi/utils'
 import { describe, expect, it } from 'vitest'
 import { contract } from '../contract.ts'
 import { SPublicRateLimitAdapterResponse } from './public-dashboard/schema.ts'
@@ -34,8 +35,8 @@ const catalog = (...codes: ErrorCode[]): ErrorMap =>
   )
 
 type LooseErrorBuilder = {
-  errors(errors: Record<string, unknown>): {
-    '~orpc': { errorMap: Record<string, { status: number; message: string; data: unknown }> }
+  errors(errors: Record<string, JsonValue>): {
+    '~orpc': { errorMap: Record<string, { status: number; message: string; data: JsonValue }> }
   }
 }
 
@@ -339,14 +340,23 @@ const expectedErrors = {
   'trafficReport.getTrafficBreakdowns': analyticsReport,
 } satisfies Record<string, ErrorMap>
 
+type ContractNode = AnyContractProcedure | { readonly [key: string]: ContractNode | undefined }
+
 const getErrorMap = (path: string): ErrorMap => {
-  const procedure = path
-    .split('.')
-    .reduce<unknown>((node, segment) => (node as Record<string, unknown>)[segment], contract) as {
+  // SAFETY: errorMap presence is verified by the catalog assertions below.
+  const node = path.split('.').reduce<ContractNode>((node, segment) => {
+    if (isContractProcedure(node)) throw new Error(`Expected a router at ${segment}`)
+
+    const child = node[segment]
+
+    if (child === undefined) throw new Error(`Unknown contract path ${path}`)
+
+    return child
+  }, contract) as {
     '~orpc': { errorMap: ErrorMap }
   }
 
-  return procedure['~orpc'].errorMap
+  return node['~orpc'].errorMap
 }
 
 const getMissingSuccessStatuses = <T extends object>(node: T, path: string[] = []): string[] => {

@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest'
+import type { JsonValue } from '@cimi/utils'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.ts'
 
 test('correlates a supplied request ID in API responses and errors', async () => {
@@ -207,7 +208,7 @@ test('reports health fallbacks without changing the health response', async () =
 
 type LogRecord = {
   logger?: string
-  properties?: Record<string, unknown>
+  properties?: Record<string, JsonValue>
 }
 
 function parseRecords(calls: readonly unknown[][]): LogRecord[] {

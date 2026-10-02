@@ -105,7 +105,7 @@ export function isProfileTraitKeyAllowed(key: string): boolean {
 }
 
 export function hasAllowedProfileTraitKeys(
-  value: Readonly<Record<string, unknown>> | undefined,
+  value: Readonly<v.InferOutput<typeof SScalarMap>> | undefined,
 ): boolean {
   return (
     value === undefined ||

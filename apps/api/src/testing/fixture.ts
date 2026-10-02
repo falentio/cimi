@@ -5,6 +5,7 @@ import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
 import type { LoggingConfig } from '@cimi/logging'
 import type { LifecycleLock } from '@cimi/kernel'
+import type { JsonValue } from '@cimi/utils'
 import { createApiApp } from '../index.ts'
 import type { HealthLifecycle } from '../health.ts'
 import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
@@ -130,7 +131,7 @@ export async function apiTestRequest(
   app: ReturnType<typeof createApiApp>,
   path: string,
   cookie: string,
-  body?: Record<string, unknown>,
+  body?: JsonValue,
 ): Promise<Response> {
   const headers = body === undefined ? { cookie } : { 'content-type': 'application/json', cookie }
 

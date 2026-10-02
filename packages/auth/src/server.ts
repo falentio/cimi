@@ -1,12 +1,12 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import type { DB } from 'better-auth/adapters/drizzle'
+import type { DB, DrizzleAdapterConfig } from 'better-auth/adapters/drizzle'
 import { admin, organization } from 'better-auth/plugins'
 import { firstUserAdmin } from './first-user-admin.ts'
 
 export interface CreateAuthDependencies {
   db: DB
-  schema?: Record<string, unknown> | undefined
+  schema?: DrizzleAdapterConfig['schema'] | undefined
   baseURL?: string | undefined
   secret?: string | undefined
   trustedOrigins?: readonly string[] | undefined

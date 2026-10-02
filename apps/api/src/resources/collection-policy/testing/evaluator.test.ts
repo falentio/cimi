@@ -388,6 +388,7 @@ describe('collection policy admission evaluation', () => {
       referrer: 'https://ref.example/from?source=ad',
     })
     expect(
+      // @ts-expect-error: intentionally invalid properties to prove the sanitizer drops them.
       sanitizeProperties({ secret: 'no', name: 'long', nested: { value: true } }, policy),
     ).toEqual({ name: 'lon' })
   })

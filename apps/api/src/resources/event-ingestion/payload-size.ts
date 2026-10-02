@@ -1,10 +1,10 @@
-import { isRecord } from '@cimi/utils'
+import { isRecord, type JsonValue } from '@cimi/utils'
 
 const LONG_TEXT_KEYS = new Set(['pagePath', 'referrer', 'destination'])
 
 const IDE_KEYS = new Set(['eventId', 'ingestionIdentifier'])
 
-export function isParsedPayloadOversized(value: unknown): value is Record<string, unknown> {
+export function isParsedPayloadOversized(value: unknown): value is Record<string, JsonValue> {
   if (!isRecord(value)) return false
 
   for (const [key, entry] of Object.entries(value)) {
