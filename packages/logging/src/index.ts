@@ -169,25 +169,35 @@ export function normalizeRequestId(value: string): string | null {
 export function reportLogEvent(event: LogEvent): void {
   try {
     const logger = getEventLogger(event)
-    const properties = toLogProperties(event)
 
     switch (event.kind) {
-      case 'api.http':
+      case 'api.http': {
+        const properties = toLogProperties(event)
         logger.info('API request', properties)
 
         return
-      case 'api.error':
+      }
+
+      case 'api.error': {
+        const properties = toLogProperties(event)
         logAt(logger, apiErrorSeverity(event.status), 'API request failed', properties)
 
         return
-      case 'operation.failure':
+      }
+
+      case 'operation.failure': {
+        const properties = toLogProperties(event)
         logger.error('Operation failed', properties)
 
         return
-      case 'health.failure':
+      }
+
+      case 'health.failure': {
+        const properties = toLogProperties(event)
         logger.error('Health fallback failed', properties)
 
         return
+      }
     }
   } catch {
     return
@@ -202,6 +212,55 @@ export function apiErrorSeverity(status: number): ApiErrorSeverity {
   return 'error'
 }
 
+export interface ApiHttpLogProperties {
+  readonly schemaVersion: 1
+  readonly requestId?: string
+  readonly method: string
+  readonly path: string
+  readonly status: number
+  readonly responseTime: number
+  readonly contentLength?: string
+  readonly userAgent?: string
+  readonly referrer?: string
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export interface ApiErrorLogProperties {
+  readonly schemaVersion: 1
+  readonly requestId?: string
+  readonly method?: string
+  readonly path?: string
+  readonly procedure?: string
+  readonly code: string
+  readonly status: number
+  readonly error?: LogError
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export interface OperationFailureLogProperties {
+  readonly schemaVersion: 1
+  readonly operation: string
+  readonly stage: string
+  readonly operationId?: string
+  readonly runId?: string
+  readonly siteId?: string
+  readonly batchSize?: number
+  readonly error: LogError
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export interface HealthFailureLogProperties {
+  readonly schemaVersion: 1
+  readonly operation: string
+  readonly stage: string
+  readonly error: LogError
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export function toLogProperties(event: ApiHttpLogEvent): ApiHttpLogProperties
+export function toLogProperties(event: ApiErrorLogEvent): ApiErrorLogProperties
+export function toLogProperties(event: OperationFailureLogEvent): OperationFailureLogProperties
+export function toLogProperties(event: HealthFailureLogEvent): HealthFailureLogProperties
 export function toLogProperties(event: LogEvent) {
   switch (event.kind) {
     case 'api.http':
@@ -307,7 +366,7 @@ function logAt(
   logger: Logger,
   severity: ApiErrorSeverity,
   message: string,
-  properties: Record<string, unknown>,
+  properties: Record<string, string | number | LogError | undefined>,
 ): void {
   switch (severity) {
     case 'info':

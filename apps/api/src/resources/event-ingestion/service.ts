@@ -1,6 +1,12 @@
 import { schema } from '@cimi/contract'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
-import { isRecord, redactDiagnosticMessage, resolveSiteLocalCutoff, type JsonValue } from '@cimi/utils'
+import {
+  isRecord,
+  redactDiagnosticMessage,
+  resolveSiteLocalCutoff,
+  type JsonObject,
+  type JsonValue,
+} from '@cimi/utils'
 import { createHash } from 'node:crypto'
 import { ORPCError } from '@orpc/server'
 import { safeParse, type InferOutput } from 'valibot'
@@ -309,8 +315,8 @@ export class EventIngestionService {
 
     try {
       for (const [index, rawEvent] of input.events.entries()) {
-        // SAFETY: transport delivers parsed JSON; safeParse(SEvent) validates per item below.
-        const eventInput = withBatchContext(rawEvent as JsonValue, input)
+        // SAFETY: transport delivers parsed JSON objects here; safeParse(SEvent) validates per item below.
+        const eventInput = withBatchContext(rawEvent as JsonObject, input)
         const parsed = safeParse(SEvent, eventInput)
 
         if (!parsed.success) {
@@ -835,7 +841,7 @@ function normalizeEvent(
   }
 }
 
-function withBatchContext(rawEvent: JsonValue, input: CollectEventsInput) {
+function withBatchContext(rawEvent: JsonObject, input: CollectEventsInput) {
   if (!isRecord(rawEvent)) return rawEvent
   const event = { ...rawEvent }
 

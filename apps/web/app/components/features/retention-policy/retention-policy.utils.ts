@@ -549,6 +549,16 @@ function readErrorDetails(cause: unknown) {
   return { code, status }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface ErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
+  readonly statusCode?: unknown
+}
+
+function isRecord(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }

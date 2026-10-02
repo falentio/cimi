@@ -751,7 +751,17 @@ function getLockReason(lock: LockSectionView): string {
   }
 }
 
-function toErrorRecord(cause: unknown): Record<string, unknown> | null {
+interface ErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
+  readonly statusCode?: unknown
+}
+
+function toErrorRecord(cause: unknown): ErrorDetails | null {
   return isRecord(cause) ? cause : null
 }
 
@@ -784,6 +794,13 @@ function readErrorDetails(cause: unknown) {
   return { code, status }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface ErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
+}
+
+function isRecord(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }

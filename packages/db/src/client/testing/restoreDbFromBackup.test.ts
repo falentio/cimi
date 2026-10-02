@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { closeDb, createDb, restoreDbFromBackup, type Db } from '../../client.ts'
+import { closeDb, createDb, restoreDbFromBackup } from '../../client.ts'
 
 describe('restoreDbFromBackup', () => {
   let dir: string

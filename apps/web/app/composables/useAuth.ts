@@ -196,7 +196,17 @@ function isAuthUser(value: unknown): value is AuthUser {
   )
 }
 
-function isRecord<T>(value: T): value is T & Record<string, unknown> {
+interface AuthResponse {
+  readonly user?: unknown
+  readonly role?: unknown
+  readonly id?: unknown
+  readonly name?: unknown
+  readonly email?: unknown
+  readonly emailVerified?: unknown
+  readonly image?: unknown
+}
+
+function isRecord<T>(value: T): value is T & AuthResponse {
   return typeof value === 'object' && value !== null
 }
 

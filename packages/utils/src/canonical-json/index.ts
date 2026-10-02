@@ -1,4 +1,4 @@
-export function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord<T>(value: T): value is T & Record<string, JsonValue> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 

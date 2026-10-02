@@ -43,6 +43,12 @@ function withDetails(cause: unknown, message: string): SettingsError {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface ErrorDetails {
+  readonly message?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
+}
+
+function isRecord(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }
