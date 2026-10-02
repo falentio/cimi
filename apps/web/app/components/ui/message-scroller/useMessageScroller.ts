@@ -107,7 +107,7 @@ function parseNumber(value: string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function getPadding(element: HTMLElement): { start: number; end: number } {
+function getPadding(element: HTMLElement) {
   const style = window.getComputedStyle(element)
 
   return {

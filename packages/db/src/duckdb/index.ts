@@ -1407,7 +1407,7 @@ function nullableString(value: DuckDBValue | undefined): string | null {
   return null
 }
 
-function readReportProperties(value: DuckDBValue | undefined): Readonly<Record<string, AnalyticsReportScalar>> {
+function readReportProperties(value: DuckDBValue | undefined) {
   if (value === null || value === undefined) return {}
   const parsed = typeof value === 'string' ? JSON.parse(value) : value
 

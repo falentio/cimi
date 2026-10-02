@@ -29,7 +29,7 @@ test('initializes convergently and rejects strict or divergent inputs without mu
     call(fixture.router.installation.getInstallationStatus, {}, { context: await admin.context() }),
   ).rejects.toMatchObject({ code: 'NOT_FOUND' })
 
-  const invalidInput = { unexpected: true } as unknown as InstallationInitializeInput
+  const invalidInput = JSON.parse('{"unexpected":true}')
   await expect(
     call(fixture.router.installation.initializeInstallation, invalidInput, {
       context: await admin.context(),
@@ -450,12 +450,9 @@ test('rejects wrong lifecycle confirmation before creating an operation', async 
     { context: await admin.context() },
   )
 
-  const wrongUpgrade = { confirmation: 'WRONG' } as unknown as { confirmation: 'UPGRADE' }
+  const wrongUpgrade = JSON.parse('{"confirmation":"WRONG"}')
 
-  const wrongRestore = {
-    backupId: 'bop_missing',
-    confirmation: 'WRONG',
-  } as unknown as BackupRestoreInput
+  const wrongRestore = JSON.parse('{"backupId":"bop_missing","confirmation":"WRONG"}')
 
   await expect(
     call(fixture.router.installation.upgradeInstallation, wrongUpgrade, {

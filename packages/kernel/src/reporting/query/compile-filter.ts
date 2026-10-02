@@ -98,39 +98,39 @@ const OPERATOR_MAP: Readonly<Record<ContractOperator, PredicateOperator>> = {
   less_than: 'lt',
 }
 
-const TRAFFIC_EVENT_TARGETS: Readonly<Record<string, PredicateTarget>> = {
-  kind: 'event.kind',
-  name: 'event.name',
-  pagePath: 'event.pagePath',
-  referrer: 'event.referrer',
-  destination: 'event.destination',
-  unit: 'event.unit',
-  code: 'event.code',
-}
+const TRAFFIC_EVENT_TARGETS = new Map<string, PredicateTarget>([
+  ['kind', 'event.kind'],
+  ['name', 'event.name'],
+  ['pagePath', 'event.pagePath'],
+  ['referrer', 'event.referrer'],
+  ['destination', 'event.destination'],
+  ['unit', 'event.unit'],
+  ['code', 'event.code'],
+])
 
-const TRAFFIC_SESSION_TARGETS: Readonly<Record<string, PredicateTarget>> = {
-  device: 'session.device',
-  browser: 'session.browser',
-  os: 'session.os',
-  country: 'session.country',
-  region: 'session.region',
-  city: 'session.city',
-  entryPage: 'session.entryPage',
-  exitPage: 'session.exitPage',
-  utmSource: 'session.utmSource',
-  utmMedium: 'session.utmMedium',
-  utmCampaign: 'session.utmCampaign',
-}
+const TRAFFIC_SESSION_TARGETS = new Map<string, PredicateTarget>([
+  ['device', 'session.device'],
+  ['browser', 'session.browser'],
+  ['os', 'session.os'],
+  ['country', 'session.country'],
+  ['region', 'session.region'],
+  ['city', 'session.city'],
+  ['entryPage', 'session.entryPage'],
+  ['exitPage', 'session.exitPage'],
+  ['utmSource', 'session.utmSource'],
+  ['utmMedium', 'session.utmMedium'],
+  ['utmCampaign', 'session.utmCampaign'],
+])
 
-const EVENT_TARGETS: Readonly<Record<string, PredicateTarget>> = {
-  kind: 'event.kind',
-  name: 'event.name',
-  pagePath: 'event.pagePath',
-  referrer: 'event.referrer',
-  destination: 'event.destination',
-  unit: 'event.unit',
-  code: 'event.code',
-}
+const EVENT_TARGETS = new Map<string, PredicateTarget>([
+  ['kind', 'event.kind'],
+  ['name', 'event.name'],
+  ['pagePath', 'event.pagePath'],
+  ['referrer', 'event.referrer'],
+  ['destination', 'event.destination'],
+  ['unit', 'event.unit'],
+  ['code', 'event.code'],
+])
 
 const TRAIT_KEY_PATTERN = /^trait\.([A-Za-z0-9_.-]{1,63})$/
 
@@ -216,7 +216,7 @@ export function compileTrafficFilterPlan(input: CompileTrafficFilterInput): Comp
         continue
       }
 
-      const target = targets[field]
+      const target = targets.get(field)
 
       if (target === undefined) return { ok: false, reason: 'unsupported-field' }
 
@@ -304,7 +304,7 @@ export function compileEventFilterPlan(input: CompileEventFilterInput): CompileF
       continue
     }
 
-    const target = EVENT_TARGETS[field]
+    const target = EVENT_TARGETS.get(field)
 
     if (target === undefined) return { ok: false, reason: 'unsupported-field' }
 

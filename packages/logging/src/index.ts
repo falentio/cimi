@@ -202,7 +202,7 @@ export function apiErrorSeverity(status: number): ApiErrorSeverity {
   return 'error'
 }
 
-export function toLogProperties(event: LogEvent): Record<string, unknown> {
+export function toLogProperties(event: LogEvent) {
   switch (event.kind) {
     case 'api.http':
       return {
@@ -325,7 +325,7 @@ function logAt(
   }
 }
 
-function toLogContext(context: LogContext): Record<string, string> {
+function toLogContext(context: LogContext) {
   return {
     ...(context.requestId !== undefined && { requestId: safeField(context.requestId) }),
     ...(context.method !== undefined && { method: safeMethod(context.method) }),

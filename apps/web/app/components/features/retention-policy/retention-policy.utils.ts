@@ -527,10 +527,7 @@ function buildAnnouncement(state: RetentionState): string {
   return ''
 }
 
-function readErrorDetails(cause: unknown): {
-  readonly code: string | undefined
-  readonly status: number | undefined
-} {
+function readErrorDetails(cause: unknown) {
   const candidates: unknown[] = [cause]
 
   if (isRecord(cause)) candidates.push(cause.data, cause.error, cause.cause, cause.response)

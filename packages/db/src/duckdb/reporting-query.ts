@@ -59,23 +59,23 @@ type EventColumnTarget = keyof typeof EVENT_COLUMNS
 
 export type EventColumnOverrides = Readonly<Partial<Record<EventColumnTarget, string>>>
 
-const SESSION_COLUMNS: Readonly<Record<string, string>> = {
-  'session.device': 'device',
-  'session.browser': 'browser',
-  'session.os': 'operating_system',
-  'session.country': 'country',
-  'session.region': 'region',
-  'session.city': 'city',
-  'session.entryPage': 'entry_page',
-  'session.utmSource': 'utm_source',
-  'session.utmMedium': 'utm_medium',
-  'session.utmCampaign': 'utm_campaign',
-}
+const SESSION_COLUMNS = new Map<string, string>([
+  ['session.device', 'device'],
+  ['session.browser', 'browser'],
+  ['session.os', 'operating_system'],
+  ['session.country', 'country'],
+  ['session.region', 'region'],
+  ['session.city', 'city'],
+  ['session.entryPage', 'entry_page'],
+  ['session.utmSource', 'utm_source'],
+  ['session.utmMedium', 'utm_medium'],
+  ['session.utmCampaign', 'utm_campaign'],
+])
 
-const IDENTITY_KIND_TO_STORE: Readonly<Record<string, string>> = {
-  visitor: 'anonymous',
-  identified_user: 'identified',
-}
+const IDENTITY_KIND_TO_STORE = new Map<string, string>([
+  ['visitor', 'anonymous'],
+  ['identified_user', 'identified'],
+])
 
 const BREAKDOWN_VALUE_MAX_LENGTH = 2048
 
@@ -931,7 +931,7 @@ function renderSessionPredicate(predicate: Predicate): RenderedFragment {
     return renderSessionExitPagePredicate(predicate)
   }
 
-  const column = SESSION_COLUMNS[predicate.target]
+  const column = SESSION_COLUMNS.get(predicate.target)
 
   if (column === undefined) {
     throw new Error(`Unsupported reporting session filter target '${predicate.target}'`)
@@ -971,7 +971,7 @@ function renderVisitorPredicate(predicate: Predicate): RenderedFragment {
   }
 
   const values = predicate.bind.map((value) =>
-    typeof value === 'string' ? (IDENTITY_KIND_TO_STORE[value] ?? value) : value,
+    typeof value === 'string' ? (IDENTITY_KIND_TO_STORE.get(value) ?? value) : value,
   )
 
   const comparison = renderColumnComparison('visitor.identity_kind', predicate.operator, values)

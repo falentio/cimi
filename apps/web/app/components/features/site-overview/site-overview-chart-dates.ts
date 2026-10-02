@@ -39,10 +39,7 @@ export function resolvePreviousDate(value: string | Date, range: OverviewRange):
 }
 
 /** Label pair for the tooltip: the hovered date and the previous-period date. */
-export function resolveTooltipDates(
-  value: string | undefined,
-  range: OverviewRange,
-): { current: string; previous: string } {
+export function resolveTooltipDates(value: string | undefined, range: OverviewRange) {
   if (value === undefined) return { current: '', previous: '' }
 
   return {

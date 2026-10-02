@@ -196,7 +196,7 @@ function isAuthUser(value: unknown): value is AuthUser {
   )
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord<T>(value: T): value is T & Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 

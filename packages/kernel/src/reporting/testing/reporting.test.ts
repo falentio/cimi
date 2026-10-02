@@ -112,15 +112,7 @@ function projectionEvidence(
   }
 }
 
-function createPorts(): {
-  readonly dependencies: ReportingAdmissionDependencies
-  readonly metadata: ReturnType<typeof mock<ReportingMetadataPort>>
-  readonly projection: ReturnType<typeof mock<ReportingProjectionPort>>
-  readonly statistics: ReturnType<typeof mock<ReportingStatisticsPort>>
-  readonly retention: ReturnType<typeof mock<ReportingRetentionPort>>
-  readonly readiness: ReturnType<typeof mock<AnalyticsReadinessPort>>
-  readonly factWork: ReturnType<typeof mock<FactWorkPort>>
-} {
+function createPorts() {
   const metadataPort = mock<ReportingMetadataPort>()
   const projectionPort = mock<ReportingProjectionPort>()
   const statisticsPort = mock<ReportingStatisticsPort>()

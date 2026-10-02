@@ -1112,17 +1112,19 @@ function recomputeCleanupStatus(
   void installation
 }
 
+interface CleanupStageSummary {
+  status: 'not_applicable' | 'not_started' | 'pending' | 'running' | 'completed' | 'failed'
+  startedAt: Date | null
+  completedAt: Date | null
+  errorCode: string | null
+}
+
 function summarizeCleanupStage(
   runs: Array<typeof schema.TRetentionCleanupRun.$inferSelect>,
   kind: 'derived' | 'backup',
   now: Date,
   failureCode: 'CLEANUP_FAILED' | null,
-): {
-  status: 'not_applicable' | 'not_started' | 'pending' | 'running' | 'completed' | 'failed'
-  startedAt: Date | null
-  completedAt: Date | null
-  errorCode: string | null
-} {
+): CleanupStageSummary {
   const stageRuns = runs.filter((run) => run.cleanupKind === kind)
 
   if (stageRuns.length === 0) {

@@ -492,7 +492,7 @@ test('upgrade quiesces ingestion and blocks other lifecycle mutations', async ()
 
   releaseMigration?.()
 
-  let finalActive: unknown = { kind: 'upgrade' }
+  let finalActive = { kind: 'upgrade' }
   let finalStatus: string | undefined
 
   for (let attempt = 0; attempt < 200; attempt += 1) {

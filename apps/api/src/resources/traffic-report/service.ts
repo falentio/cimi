@@ -323,11 +323,7 @@ function readCompleteThrough(freshness: FreshnessEvidence) {
   return freshness.occurrenceTimeCoverageThrough
 }
 
-function freshnessOutput(freshness: FreshnessEvidence): {
-  readonly projectedAcceptanceSequence: number | null
-  readonly occurrenceTimeCoverageThrough: string | null
-  readonly status: 'current' | 'stale'
-} {
+function freshnessOutput(freshness: FreshnessEvidence) {
   return {
     projectedAcceptanceSequence: freshness.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough:

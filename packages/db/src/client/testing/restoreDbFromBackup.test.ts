@@ -17,7 +17,7 @@ describe('restoreDbFromBackup', () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  function seedDestination(): { db: Db; destinationPath: string; backupPath: string } {
+  function seedDestination() {
     const destinationPath = join(dir, 'control.sqlite')
     const backupPath = join(dir, 'backup.sqlite')
     const db = createDb({ path: destinationPath })

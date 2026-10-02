@@ -405,10 +405,7 @@ function pickHealth(health: Health): SetupHealth {
   }
 }
 
-function readErrorDetails(cause: unknown): {
-  readonly code: string | undefined
-  readonly status: number | undefined
-} {
+function readErrorDetails(cause: unknown) {
   const candidates: unknown[] = [cause]
 
   if (isRecord(cause)) {

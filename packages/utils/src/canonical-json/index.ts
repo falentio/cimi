@@ -12,10 +12,14 @@ export interface JsonObject {
   [key: string]: JsonValue
 }
 
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export function sortedRecord(value: JsonValue, options: SortedRecordOptions = {}): JsonValue {
   if (Array.isArray(value)) return value.map((entry) => sortedRecord(entry, options))
 
-  if (!isRecord(value)) return value
+  if (!isJsonObject(value)) return value
   const { excludeKeys } = options
 
   return Object.fromEntries(

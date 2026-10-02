@@ -84,7 +84,7 @@ const publicDashboardQuery = {
   },
 }
 
-const expectedErrors: Record<string, ErrorMap> = {
+const expectedErrors = {
   'backupRestore.listBackups': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
@@ -337,7 +337,7 @@ const expectedErrors: Record<string, ErrorMap> = {
   'site.rotateIngestionIdentifier': siteLifecycleCommand,
   'trafficReport.getTrafficOverview': analyticsReport,
   'trafficReport.getTrafficBreakdowns': analyticsReport,
-}
+} satisfies Record<string, ErrorMap>
 
 const getErrorMap = (path: string): ErrorMap => {
   const procedure = path

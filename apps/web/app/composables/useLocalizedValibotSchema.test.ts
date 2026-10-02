@@ -18,17 +18,27 @@ describe('useLocalizedValibotSchema', () => {
   })
 
   it('translates active-locale stable keys and falls back to English', () => {
-    const messages: Record<string, Record<string, string | undefined>> = {
-      en: {
-        'validation.auth.email.invalid': 'Enter a valid email address.',
-        'validation.auth.password.required': 'Password is required.',
-      },
-      fr: {
-        'validation.auth.email.invalid': 'Saisissez une adresse e-mail valide.',
-      },
-    }
+    const messages = new Map<string, Map<string, string>>([
+      [
+        'en',
+        new Map(
+          Object.entries({
+            'validation.auth.email.invalid': 'Enter a valid email address.',
+            'validation.auth.password.required': 'Password is required.',
+          }),
+        ),
+      ],
+      [
+        'fr',
+        new Map(
+          Object.entries({
+            'validation.auth.email.invalid': 'Saisissez une adresse e-mail valide.',
+          }),
+        ),
+      ],
+    ])
 
-    const resolveKey = (key: string, locale: string) => messages[locale]?.[key]
+    const resolveKey = (key: string, locale: string) => messages.get(locale)?.get(key)
     const resolveMessage = createStableMessageResolver('fr', resolveKey)
 
     expect(resolveMessage('validation.auth.email.invalid')).toBe(

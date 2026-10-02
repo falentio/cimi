@@ -1236,7 +1236,7 @@ function faultError(point: FaultPoint, error: FaultError): Error {
   return new Error(`E2E fault at ${keyOf(point)}: ${error}`)
 }
 
-function interruptedOperationState(input: InterruptedState): {
+interface InterruptedOperationStateOutput {
   readonly status: 'creating' | 'restoring'
   readonly phase: 'capturing_sqlite' | 'restoring_sqlite' | 'rebuilding_duckdb'
   readonly progress: number
@@ -1248,7 +1248,9 @@ function interruptedOperationState(input: InterruptedState): {
   readonly installationStatus: 'maintenance' | 'recovering'
   readonly installationPhase: 'pre_upgrade_safety' | 'lifecycle_transition'
   readonly installationCheckpoint: 'none' | 'sqlite_captured' | 'duckdb_rebuilt'
-} {
+}
+
+function interruptedOperationState(input: InterruptedState): InterruptedOperationStateOutput {
   if (input.kind === 'upgrade') {
     const duckdbRebuilt = input.checkpoint === 'duckdb_rebuilt'
 

@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 
 export type TokenHash = string & { readonly __brand: 'TokenHash' }
 
-export function mintInvitationToken(): { token: string; tokenHash: TokenHash } {
+export function mintInvitationToken() {
   const token = randomBytes(32).toString('base64url')
 
   return { token, tokenHash: hashInvitationToken(token) }

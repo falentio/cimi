@@ -6,7 +6,7 @@ import { COMPLEX_RULES, LITERAL_RULES, type LiteralRule } from '../matching.ts'
 import { classifyUA as classifyUAPublic } from '../../index.ts'
 import { NON_BOT, type BotClassification } from '../types.ts'
 
-const COMPLEX_PATTERN_PROBES: Record<string, string> = {
+const COMPLEX_PATTERN_PROBES = new Map<string, string>(Object.entries({
   ' daum[ /]': 'Mozilla daum/1',
   '(?:^|[^g])news(?!sapphire)': 'news!',
   '(?<! (?:channel/|google/))google(?!(app|/google| pixel))': 'googlebot',
@@ -37,7 +37,7 @@ const COMPLEX_PATTERN_PROBES: Record<string, string> = {
   'java(?!;)': 'java!',
   'mail\\.ru/': 'mail.ru/',
   'ptst[ /]\\d': 'ptst/1 extra',
-}
+}))
 
 describe('dense Aho-Corasick compatibility', () => {
   it('covers every literal-safe pattern', () => {
@@ -53,12 +53,12 @@ describe('dense Aho-Corasick compatibility', () => {
   })
 
   it('covers every complex pattern with an independent probe', () => {
-    expect(Object.keys(COMPLEX_PATTERN_PROBES).sort()).toEqual(
+    expect([...COMPLEX_PATTERN_PROBES.keys()].sort()).toEqual(
       COMPLEX_RULES.map((rule) => rule.pattern).sort(),
     )
 
     for (const rule of COMPLEX_RULES) {
-      const userAgent = COMPLEX_PATTERN_PROBES[rule.pattern]
+      const userAgent = COMPLEX_PATTERN_PROBES.get(rule.pattern)
       expect(userAgent, rule.pattern).toBeDefined()
       expect(new RegExp(rule.pattern, 'i').test(userAgent!), rule.pattern).toBe(true)
       expect(classifyUAAhoDense(userAgent!), rule.pattern).toEqual(regexOracle(userAgent!))

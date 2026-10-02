@@ -107,13 +107,13 @@ test('a restart recovers a durable interrupted upgrade and resumes collection', 
   })
 
   try {
-    let restartedOperation: unknown = { kind: 'upgrade' }
+    let restartedOperation = { kind: 'upgrade' }
     let restartedStatus: string | undefined
 
     for (let attempt = 0; attempt < 400; attempt += 1) {
       const poll = await apiTestRequest(restarted, '/installation/getInstallationStatus', cookie)
       expect(poll.status, await poll.clone().text()).toBe(200)
-      const body = (await poll.json()) as { status: string; activeOperation: unknown }
+      const body = await poll.json()
       restartedOperation = body.activeOperation
       restartedStatus = body.status
 

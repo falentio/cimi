@@ -260,10 +260,7 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
   return { view, refresh, edit, submit, cancelConfirmation, confirmShortening }
 }
 
-function resolveRetentionResult(result: PromiseSettledResult<RetentionResult>): {
-  readonly result: InstallationRetentionResult | null
-  readonly error: RetentionFailure
-} {
+function resolveRetentionResult(result: PromiseSettledResult<RetentionResult>) {
   if (result.status === 'rejected')
     return { result: null, error: normalizeRetentionError(result.reason, 'read') }
 
@@ -276,10 +273,7 @@ function resolveRetentionResult(result: PromiseSettledResult<RetentionResult>): 
   }
 }
 
-function resolveInstallationResult(result: PromiseSettledResult<Installation>): {
-  readonly result: Installation | null
-  readonly error: RetentionFailure
-} {
+function resolveInstallationResult(result: PromiseSettledResult<Installation>) {
   if (result.status === 'fulfilled')
     return { result: result.value, error: normalizeRetentionError({}, 'status') }
 

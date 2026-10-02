@@ -532,11 +532,7 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
   return null
 }
 
-function freshnessOutput(freshness: FreshnessEvidence): {
-  readonly projectedAcceptanceSequence: number | null
-  readonly occurrenceTimeCoverageThrough: string | null
-  readonly status: 'current' | 'stale'
-} {
+function freshnessOutput(freshness: FreshnessEvidence) {
   return {
     projectedAcceptanceSequence: freshness.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough:

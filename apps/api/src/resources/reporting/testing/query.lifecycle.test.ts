@@ -150,10 +150,7 @@ describe('ReportQueryKernel.lifecycle', () => {
   })
 })
 
-function createAdmission(): {
-  readonly service: ReportingAdmissionService
-  readonly reads: { readiness: number; metadata: number; evidence: number }
-} {
+function createAdmission() {
   const reads = { readiness: 0, metadata: 0, evidence: 0 }
 
   const readiness: AnalyticsReadinessPort = {

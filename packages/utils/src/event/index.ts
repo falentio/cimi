@@ -97,7 +97,7 @@ export class EventEmitter {
     })
   }
 
-  createCollector<T>(name: EventName<T>): { collect(): Promise<T[]> } {
+  createCollector<T>(name: EventName<T>) {
     const items: T[] = []
     this.on(name, (data: NoInfer<T>) => {
       items.push(data)

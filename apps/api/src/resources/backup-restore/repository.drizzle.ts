@@ -1028,14 +1028,16 @@ function advanceTx(
   return toOperation(tx, input.operationId)
 }
 
-function readinessForAdvance(
-  operation: typeof schema.TBackupOperation.$inferSelect,
-  input: BackupRestoreRepository.AdvanceInput,
-): {
+interface AdvanceReadiness {
   readonly controlStore: 'not_ready' | 'ready'
   readonly analyticsStore: 'not_ready' | 'ready' | 'rebuilding'
   readonly structural: 'not_ready' | 'ready'
-} {
+}
+
+function readinessForAdvance(
+  operation: typeof schema.TBackupOperation.$inferSelect,
+  input: BackupRestoreRepository.AdvanceInput,
+): AdvanceReadiness {
   if (operation.operationType === 'backup') {
     return {
       controlStore: operation.controlReadiness,
@@ -1181,10 +1183,7 @@ function selectArtifact(
 function selectCleanupStages(
   tx: SqliteTransaction,
   operationId: string,
-): {
-  readonly derived: CleanupStage
-  readonly backup: CleanupStage
-} {
+): CleanupStages {
   const stages = tx
     .select()
     .from(schema.TBackupCleanupStage)
@@ -1200,10 +1199,12 @@ function selectCleanupStages(
   return { derived: toCleanupStage(derived), backup: toCleanupStage(backup) }
 }
 
-function cleanupStagesFromRows(rows: readonly (typeof schema.TBackupCleanupStage.$inferSelect)[]): {
+interface CleanupStages {
   readonly derived: CleanupStage
   readonly backup: CleanupStage
-} {
+}
+
+function cleanupStagesFromRows(rows: readonly (typeof schema.TBackupCleanupStage.$inferSelect)[]): CleanupStages {
   const derived = rows.find((stage) => stage.stage === 'derived_cleanup')
   const backup = rows.find((stage) => stage.stage === 'backup_cleanup')
 

@@ -755,10 +755,7 @@ function toErrorRecord(cause: unknown): Record<string, unknown> | null {
   return isRecord(cause) ? cause : null
 }
 
-function readErrorDetails(cause: unknown): {
-  readonly code: string | undefined
-  readonly status: number | undefined
-} {
+function readErrorDetails(cause: unknown) {
   const candidates: unknown[] = [cause]
   const record = toErrorRecord(cause)
 

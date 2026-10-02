@@ -30,6 +30,7 @@ async function createWebApiApp(): Promise<ApiServerApp> {
   try {
     // SAFETY: nitro-serialized runtime config built by loadLoggingConfig; parseLoggingConfig validates or throws.
     const logging = useRuntimeConfig().public.logging as LoggingConfig
+
     return await createApiServerApp({
       migrationsFolder: folder,
       logging: parseLoggingConfig(logging),
