@@ -1,23 +1,25 @@
 import { effectScope } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CimiOrpc } from '~/plugins/orpc'
 import type {
   Installation,
   InstallationRetentionResult,
+  RetentionAdminClient,
   RetentionPolicy,
 } from './retention-policy.types'
 
 const getRetentionPolicy = vi.fn()
+
 const updateRetentionPolicy = vi.fn()
+
 const getInstallationStatus = vi.fn()
 
-const client = {
+const client: RetentionAdminClient = {
   retentionPolicy: {
     getRetentionPolicy: { call: getRetentionPolicy },
     updateRetentionPolicy: { call: updateRetentionPolicy },
   },
   installation: { getInstallationStatus: { call: getInstallationStatus } },
-} as unknown as CimiOrpc
+}
 
 const mocks = {
   getRetentionPolicy,

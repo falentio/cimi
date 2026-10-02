@@ -5,6 +5,18 @@ type GetRetentionPolicyCall = CimiOrpc['retentionPolicy']['getRetentionPolicy'][
 
 type UpdateRetentionPolicyCall = CimiOrpc['retentionPolicy']['updateRetentionPolicy']['call']
 
+type GetInstallationStatusCall = CimiOrpc['installation']['getInstallationStatus']['call']
+
+export interface RetentionAdminClient {
+  readonly retentionPolicy: {
+    readonly getRetentionPolicy: { readonly call: GetRetentionPolicyCall }
+    readonly updateRetentionPolicy: { readonly call: UpdateRetentionPolicyCall }
+  }
+  readonly installation: {
+    readonly getInstallationStatus: { readonly call: GetInstallationStatusCall }
+  }
+}
+
 export type RetentionResult = Awaited<ReturnType<GetRetentionPolicyCall>>
 
 export type InstallationRetentionResult = Extract<RetentionResult, { scope: 'installation' }>
