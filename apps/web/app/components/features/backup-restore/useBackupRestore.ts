@@ -1,5 +1,6 @@
 import { computed, getCurrentInstance, onMounted, onScopeDispose, shallowRef } from 'vue'
-import { useOrpc } from '@/composables/useOrpc'
+import { useOrpc } from '../../../composables/useOrpc'
+import type { BackupRestoreClient } from './backup-restore.types'
 import { createInitialBackupRestoreData, reduceBackupRestoreData } from './backup-restore.reducer'
 import type {
   Backup,
@@ -28,8 +29,8 @@ const POLL_INTERVAL_MS = 1_500
 
 const MAX_POLL_ATTEMPTS = 20
 
-export function useBackupRestore(): BackupRestoreController {
-  const orpc = useOrpc()
+export function useBackupRestore(client?: BackupRestoreClient): BackupRestoreController {
+  const orpc: BackupRestoreClient = client ?? useOrpc()
   const data = shallowRef<BackupRestoreDataState>(createInitialBackupRestoreData())
   const list = shallowRef<ListSignal>({ kind: 'loading' })
   const installation = shallowRef<InstallationSignal>({ kind: 'loading' })

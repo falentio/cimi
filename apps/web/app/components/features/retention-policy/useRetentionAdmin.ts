@@ -1,5 +1,6 @@
 import { computed, getCurrentInstance, onMounted, onScopeDispose, shallowRef } from 'vue'
-import { useOrpc } from '@/composables/useOrpc'
+import type { CimiOrpc } from '~/plugins/orpc'
+import { useOrpc } from '../../../composables/useOrpc'
 import { createInitialRetentionState, reduceRetention } from './retention-policy.reducer'
 import type {
   Installation,
@@ -36,8 +37,8 @@ const STALE_CONFIRMATION_FAILURE: RetentionFailure = {
   action: 'refresh',
 }
 
-export function useRetentionAdmin(): RetentionController {
-  const orpc = useOrpc()
+export function useRetentionAdmin(client?: CimiOrpc): RetentionController {
+  const orpc = client ?? useOrpc()
   const state = shallowRef<RetentionState>(createInitialRetentionState())
   const view = computed(() => toRetentionAdminView(state.value))
   let requestVersion = 0

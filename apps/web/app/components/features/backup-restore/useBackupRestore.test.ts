@@ -1,33 +1,35 @@
 import { effectScope, nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Backup, Installation } from './backup-restore.types'
+import type { Backup, BackupRestoreClient, Installation } from './backup-restore.types'
 
-const mocks = vi.hoisted(() => {
-  const listBackups = vi.fn()
-  const getBackupStatus = vi.fn()
-  const createBackup = vi.fn()
-  const restoreBackup = vi.fn()
-  const getInstallationStatus = vi.fn()
+const listBackups = vi.fn()
 
-  return {
-    listBackups,
-    getBackupStatus,
-    createBackup,
-    restoreBackup,
-    getInstallationStatus,
-    client: {
-      backupRestore: {
-        listBackups: { call: listBackups },
-        getBackupStatus: { call: getBackupStatus },
-        createBackup: { call: createBackup },
-        restoreBackup: { call: restoreBackup },
-      },
-      installation: { getInstallationStatus: { call: getInstallationStatus } },
-    },
-  }
-})
+const getBackupStatus = vi.fn()
 
-vi.mock('@/composables/useOrpc', () => ({ useOrpc: () => mocks.client }))
+const createBackup = vi.fn()
+
+const restoreBackup = vi.fn()
+
+const getInstallationStatus = vi.fn()
+
+const client: BackupRestoreClient = {
+  backupRestore: {
+    listBackups: { call: listBackups },
+    getBackupStatus: { call: getBackupStatus },
+    createBackup: { call: createBackup },
+    restoreBackup: { call: restoreBackup },
+  },
+  installation: { getInstallationStatus: { call: getInstallationStatus } },
+}
+
+const mocks = {
+  listBackups,
+  getBackupStatus,
+  createBackup,
+  restoreBackup,
+  getInstallationStatus,
+  client,
+}
 
 import { useBackupRestore } from './useBackupRestore'
 
@@ -126,7 +128,7 @@ function createController() {
   const scope = effectScope()
   let controller: ReturnType<typeof useBackupRestore> | undefined
   scope.run(() => {
-    controller = useBackupRestore()
+    controller = useBackupRestore(mocks.client)
   })
 
   if (controller === undefined) throw new Error('Controller was not created.')

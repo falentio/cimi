@@ -1,31 +1,30 @@
 import { effectScope } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { CimiOrpc } from '~/plugins/orpc'
 import type {
   Installation,
   InstallationRetentionResult,
   RetentionPolicy,
 } from './retention-policy.types'
 
-const mocks = vi.hoisted(() => {
-  const getRetentionPolicy = vi.fn()
-  const updateRetentionPolicy = vi.fn()
-  const getInstallationStatus = vi.fn()
+const getRetentionPolicy = vi.fn()
+const updateRetentionPolicy = vi.fn()
+const getInstallationStatus = vi.fn()
 
-  return {
-    getRetentionPolicy,
-    updateRetentionPolicy,
-    getInstallationStatus,
-    client: {
-      retentionPolicy: {
-        getRetentionPolicy: { call: getRetentionPolicy },
-        updateRetentionPolicy: { call: updateRetentionPolicy },
-      },
-      installation: { getInstallationStatus: { call: getInstallationStatus } },
-    },
-  }
-})
+const client = {
+  retentionPolicy: {
+    getRetentionPolicy: { call: getRetentionPolicy },
+    updateRetentionPolicy: { call: updateRetentionPolicy },
+  },
+  installation: { getInstallationStatus: { call: getInstallationStatus } },
+} as unknown as CimiOrpc
 
-vi.mock('@/composables/useOrpc', () => ({ useOrpc: () => mocks.client }))
+const mocks = {
+  getRetentionPolicy,
+  updateRetentionPolicy,
+  getInstallationStatus,
+  client,
+}
 
 import { useRetentionAdmin } from './useRetentionAdmin'
 
@@ -72,7 +71,7 @@ function createController() {
   const scope = effectScope()
   let controller: ReturnType<typeof useRetentionAdmin> | undefined
   scope.run(() => {
-    controller = useRetentionAdmin()
+    controller = useRetentionAdmin(mocks.client)
   })
 
   if (controller === undefined) throw new Error('Controller was not created.')
