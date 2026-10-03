@@ -158,10 +158,12 @@ function seedSiteRetentionCutoff(
   db: Awaited<ReturnType<typeof createApiTestFixture>>['db'],
   siteId: string,
 ): void {
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const installation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined
 
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const policy = db.$client
     .prepare(
       `SELECT id FROM retention_policy
@@ -226,8 +228,8 @@ test('backup quiesces ingestion writes while analytics reads stay available', as
   const created = await apiTestRequest(app, '/backup-restore/createBackup', owner.cookie, {})
   expect(created.status, await created.clone().text()).toBe(202)
   const createdBody = await created.json()
-  const backupId = createdBody.id as string
-  expect(backupId).toEqual(expect.any(String))
+  expect(createdBody.id).toEqual(expect.any(String))
+  const backupId: string = createdBody.id
 
   // Lock ownership is observable through safe operation status: the kind is named, the id is an
   // opaque operation id, and no path, storage key, credential, or Site identifier appears.
@@ -318,7 +320,7 @@ test('restore quiesces analytics reads and writes', async () => {
 
   const created = await apiTestRequest(app, '/backup-restore/createBackup', owner.cookie, {})
   expect(created.status, await created.clone().text()).toBe(202)
-  const backupId = ((await created.json()) as { id: string }).id
+  const { id: backupId } = await created.json()
 
   let backupStatus: string | undefined
 
@@ -330,7 +332,7 @@ test('restore quiesces analytics reads and writes', async () => {
     )
 
     expect(poll.status, await poll.clone().text()).toBe(200)
-    backupStatus = ((await poll.json()) as { status: string }).status
+    backupStatus = (await poll.json()).status
 
     if (backupStatus === 'available' || backupStatus === 'failed') break
     await new Promise((resolve) => setTimeout(resolve, 5))

@@ -22,7 +22,7 @@ test('system health reports live control and analytics stores', async () => {
   expect(body.cleanupPending).toBe(false)
   expect(body.version).toBe('0.0.1')
   expect(() =>
-    v.parse(contractSchema.SDateTime, (body as { checkedAt: string }).checkedAt),
+    v.parse(contractSchema.SDateTime, body.checkedAt),
   ).not.toThrow()
 
   const owner = await signUpTestUser(app, 'health-owner@example.com', 'Health Owner')
@@ -93,7 +93,7 @@ test('system health maps installation and legacy states', async () => {
     const response = await app.fetch(new Request('http://localhost/api/system/health'))
     expect(response.status).toBe(200)
 
-    return (await response.json()) as { status: string }
+    return await response.json()
   }
 
   await expect(
@@ -207,7 +207,7 @@ test('system health covers legacy installation states', async () => {
     const response = await app.fetch(new Request('http://localhost/api/system/health'))
     expect(response.status).toBe(200)
 
-    return (await response.json()) as { status: string }
+    return await response.json()
   }
 
   const cases: Array<{ snapshot: object; status: string }> = [
@@ -319,6 +319,7 @@ test('system health degrades on store failures', async () => {
     const app = createApiApp({
       db: dbForTest,
       auth,
+      // SAFETY: the health path under test only calls ready(); both stubs implement it.
       analytics: analyticsForTest as typeof analytics,
       dataDirectoryReady: true,
       controlDatabasePath: ':memory:',
@@ -328,7 +329,7 @@ test('system health degrades on store failures', async () => {
     const response = await app.fetch(new Request('http://localhost/api/system/health'))
     expect(response.status).toBe(200)
 
-    return (await response.json()) as { status: string; controlStore: string }
+    return await response.json()
   }
 
   await expect(healthWithStores({ controlOk: true, analyticsOk: false })).resolves.toMatchObject({

@@ -1,3 +1,4 @@
+import { strict as assert } from 'node:assert'
 import { describe, expect, it } from 'vitest'
 import { ORPCError } from '@orpc/server'
 import {
@@ -33,8 +34,8 @@ describe('assertIsAdmin', () => {
     try {
       assertIsAdmin(undefined)
     } catch (error) {
-      expect(error).toBeInstanceOf(ORPCError)
-      expect((error as ORPCError<string, unknown>).code).toBe('FORBIDDEN')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('FORBIDDEN')
     }
   })
 
@@ -44,8 +45,8 @@ describe('assertIsAdmin', () => {
     try {
       assertIsAdmin(normalUser)
     } catch (error) {
-      expect(error).toBeInstanceOf(ORPCError)
-      expect((error as ORPCError<string, unknown>).code).toBe('FORBIDDEN')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('FORBIDDEN')
     }
   })
 
@@ -61,8 +62,8 @@ describe('assertOwner', () => {
     try {
       assertOwner({ id: 'a' }, 'b')
     } catch (error) {
-      expect(error).toBeInstanceOf(ORPCError)
-      expect((error as ORPCError<string, unknown>).code).toBe('FORBIDDEN')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('FORBIDDEN')
     }
   })
 
@@ -76,7 +77,8 @@ describe('assertOwner', () => {
     try {
       assertOwner(undefined, 'a')
     } catch (error) {
-      expect((error as ORPCError<string, unknown>).code).toBe('UNAUTHORIZED')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('UNAUTHORIZED')
     }
   })
 })
@@ -96,8 +98,8 @@ describe('assertOwnerOrAdmin', () => {
     try {
       assertOwnerOrAdmin(normalUser, 'other')
     } catch (error) {
-      expect(error).toBeInstanceOf(ORPCError)
-      expect((error as ORPCError<string, unknown>).code).toBe('FORBIDDEN')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('FORBIDDEN')
     }
   })
 })
@@ -107,8 +109,8 @@ describe('AssertOptions.code', () => {
     try {
       assertIsAdmin(undefined, { code: 'NOT_FOUND' })
     } catch (error) {
-      expect(error).toBeInstanceOf(ORPCError)
-      expect((error as ORPCError<string, unknown>).code).toBe('NOT_FOUND')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('NOT_FOUND')
     }
   })
 
@@ -116,8 +118,8 @@ describe('AssertOptions.code', () => {
     try {
       assertOwner({ id: 'a' }, 'b', { code: 'NOT_FOUND' })
     } catch (error) {
-      expect(error).toBeInstanceOf(ORPCError)
-      expect((error as ORPCError<string, unknown>).code).toBe('NOT_FOUND')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('NOT_FOUND')
     }
   })
 
@@ -125,8 +127,8 @@ describe('AssertOptions.code', () => {
     try {
       assertOwnerOrAdmin(normalUser, 'other', { code: 'NOT_FOUND' })
     } catch (error) {
-      expect(error).toBeInstanceOf(ORPCError)
-      expect((error as ORPCError<string, unknown>).code).toBe('NOT_FOUND')
+      assert(error instanceof ORPCError)
+      expect(error.code).toBe('NOT_FOUND')
     }
   })
 })

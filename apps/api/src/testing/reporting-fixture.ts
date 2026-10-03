@@ -71,6 +71,7 @@ export function seedRetentionCutoff(db: Db, siteId: string): void {
     )
     .run(installationId, now, now)
 
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const existingInstallation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined
@@ -138,6 +139,7 @@ interface SeedEvent {
 }
 
 export function seedAcceptedEvents(db: Db, siteId: string, events: readonly SeedEvent[]): void {
+  // SAFETY: better-sqlite3 returns any; single policy_revision_id column selected below.
   const policyId = db.$client
     .prepare('SELECT policy_revision_id FROM accepted_event LIMIT 1')
     .get() as { policy_revision_id: string } | undefined
@@ -240,6 +242,7 @@ function insertProperty(
 }
 
 function readEventPk(db: Db, siteId: string, eventId: string): number {
+  // SAFETY: better-sqlite3 returns any; single eventPk column selected below.
   const row = db.$client
     .prepare('SELECT event_pk AS eventPk FROM accepted_event WHERE site_id = ? AND event_id = ?')
     .get(siteId, eventId) as { eventPk: number } | undefined
@@ -250,6 +253,7 @@ function readEventPk(db: Db, siteId: string, eventId: string): number {
 }
 
 function readMaxReplaySequence(db: Db): number {
+  // SAFETY: better-sqlite3 returns any; single coalesced sequence column selected below.
   const row = db.$client
     .prepare('SELECT coalesce(max(replay_sequence), 0) AS sequence FROM accepted_event')
     .get() as { sequence: number } | undefined
@@ -258,6 +262,7 @@ function readMaxReplaySequence(db: Db): number {
 }
 
 function ensurePolicyRevision(db: Db): string {
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const installation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined

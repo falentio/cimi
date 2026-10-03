@@ -1000,6 +1000,7 @@ interface SessionRow {
 }
 
 function readEvents(db: Db): EventRow[] {
+  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
   const rows = db.$client
     .prepare(
       `SELECT
@@ -1064,6 +1065,7 @@ function readEvents(db: Db): EventRow[] {
 }
 
 function readProperties(db: Db): PropertyRow[] {
+  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
   return db.$client
     .prepare(
       `SELECT
@@ -1076,6 +1078,7 @@ function readProperties(db: Db): PropertyRow[] {
 }
 
 function readIdentities(db: Db): Identities {
+  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
   const epochs = db.$client
     .prepare(
       `SELECT
@@ -1090,6 +1093,7 @@ function readIdentities(db: Db): Identities {
     )
     .all() as IdentityEpochRow[]
 
+  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
   const links = db.$client
     .prepare(
       `SELECT
@@ -1101,6 +1105,7 @@ function readIdentities(db: Db): Identities {
     )
     .all() as IdentityLinkRow[]
 
+  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
   const redactions = db.$client
     .prepare(
       `SELECT
@@ -1115,6 +1120,7 @@ function readIdentities(db: Db): Identities {
 }
 
 function readActiveSiteIds(db: Db): string[] {
+  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
   return (
     db.$client
       .prepare(
@@ -1226,6 +1232,7 @@ async function writeProjectionGeneration(
 }
 
 function readProjectionGaps(db: Db): GapRow[] {
+  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
   return db.$client
     .prepare(
       `SELECT

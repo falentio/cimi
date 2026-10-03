@@ -166,12 +166,14 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   }): Promise<void> {
     assertSafeOperationId(input.operationId)
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL below.
     const tombstones = this.db.$client
       .prepare(
         'SELECT site_id AS siteId, organization_id AS organizationId, hostname, purge_operation_id AS purgeOperationId, purged_at AS purgedAt, created_at AS createdAt FROM site_tombstone',
       )
       .all() as TombstoneRow[]
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL below.
     const redactions = this.db.$client
       .prepare(
         'SELECT id, site_id AS siteId, profile_id AS profileId, identified_user_id AS identifiedUserId, profile_epoch AS profileEpoch, reason, status, requested_at AS requestedAt, applied_at AS appliedAt, derived_cleanup_status AS derivedCleanupStatus, backup_cleanup_status AS backupCleanupStatus, derived_cleanup_updated_at AS derivedCleanupUpdatedAt, backup_cleanup_updated_at AS backupCleanupUpdatedAt, created_at AS createdAt, updated_at AS updatedAt FROM identity_redaction',
@@ -443,6 +445,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   }
 
   private captureIdentityRedactions(): readonly RedactionRow[] {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL below.
     return this.db.$client
       .prepare(
         `SELECT id, site_id AS siteId, profile_id AS profileId,
@@ -743,6 +746,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   }
 
   private applyRedactionToDatabase(db: Db, row: RedactionRow, scrubAll = false): void {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL below.
     const epoch = db.$client
       .prepare(
         `SELECT started_at AS startedAt, ended_at AS endedAt
@@ -753,6 +757,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       | { readonly startedAt: number; readonly endedAt: number | null }
       | undefined
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL below.
     const profile = db.$client
       .prepare(
         `SELECT profile_epoch AS profileEpoch
@@ -1034,6 +1039,7 @@ function verifySqliteIntegrity(path: string, requireRetentionTable = false): voi
   const database = createDb({ path })
 
   try {
+    // SAFETY: better-sqlite3 returns any; single integrity_check column selected below.
     const rows = database.$client.prepare('PRAGMA integrity_check').all() as Array<{
       integrity_check: string
     }>

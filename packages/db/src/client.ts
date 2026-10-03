@@ -22,6 +22,7 @@ export function createDb(options: CreateDbOptions) {
 
   const client = new Proxy(current, {
     get(_target, property) {
+      // SAFETY: Proxy trap scopes dynamic keys to the current client's own keys.
       const value: unknown = current[property as keyof typeof current]
 
       return isFunctionValue(value) ? value.bind(current) : value
@@ -190,6 +191,7 @@ export async function restoreDbFromBackup(input: {
     const restored = new Database(tmpPath, { readonly: true })
 
     try {
+      // SAFETY: better-sqlite3 returns any; single integrity_check column selected below.
       const rows = restored.prepare('PRAGMA integrity_check').all() as Array<{
         integrity_check: string
       }>
@@ -256,6 +258,7 @@ function openMemoryDatabaseFromStagedFile(stagedPath: string): Database.Database
     candidate.pragma('synchronous = FULL')
     candidate.pragma('foreign_keys = ON')
     candidate.pragma('busy_timeout = 5000')
+    // SAFETY: better-sqlite3 returns any; integrity_check with simple:true returns a string.
     const integrity = candidate.pragma('integrity_check', { simple: true }) as string
 
     if (integrity !== 'ok') {
@@ -281,7 +284,8 @@ function unlinkIfPresent(path: string): void {
   try {
     unlinkSync(path)
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
+    throw error
   }
 }
 
