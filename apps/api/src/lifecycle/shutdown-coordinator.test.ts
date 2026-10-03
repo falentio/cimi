@@ -38,6 +38,7 @@ describe('createShutdownCoordinator', () => {
     expect(
       failure.errors.map((error) => {
         assert(error instanceof Error)
+
         return error.message
       }),
     ).toEqual([

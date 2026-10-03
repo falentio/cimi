@@ -68,7 +68,7 @@ export async function createProbeMigrationsFolder(): Promise<string> {
     await cp(SOURCE_MIGRATIONS_FOLDER, folder, { recursive: true })
     const journalPath = join(folder, 'meta', '_journal.json')
 
-    const journal = JSON.parse(await readFile(journalPath, 'utf8')) as {
+    const journal: {
       entries: Array<{
         idx: number
         version: string
@@ -76,7 +76,7 @@ export async function createProbeMigrationsFolder(): Promise<string> {
         tag: string
         breakpoints: boolean
       }>
-    }
+    } = JSON.parse(await readFile(journalPath, 'utf8'))
 
     const last = journal.entries[journal.entries.length - 1]
 

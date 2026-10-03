@@ -331,7 +331,10 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
       )
       break
     } catch (error) {
-      if ((error as { code?: string }).code !== 'CONFLICT' || Date.now() > createBackupDeadline) {
+      if (
+        !(error instanceof Error && 'code' in error && error.code === 'CONFLICT') ||
+        Date.now() > createBackupDeadline
+      ) {
         throw error
       }
 
@@ -356,7 +359,10 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
       )
       break
     } catch (error) {
-      if ((error as { code?: string }).code !== 'CONFLICT' || Date.now() > savePolicyDeadline) {
+      if (
+        !(error instanceof Error && 'code' in error && error.code === 'CONFLICT') ||
+        Date.now() > savePolicyDeadline
+      ) {
         throw error
       }
 
