@@ -64,6 +64,7 @@ export async function normalizeApiError(
 function getCatalogDefinition(code: string) {
   if (!Object.prototype.hasOwnProperty.call(ERROR_CATALOG, code)) return undefined
 
+  // SAFETY: hasOwnProperty above proves the code is a known catalog key.
   return ERROR_CATALOG[code as keyof typeof ERROR_CATALOG]
 }
 

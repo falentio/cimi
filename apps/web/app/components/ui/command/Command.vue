@@ -30,9 +30,9 @@ const filterState = reactive({
     /** The count of all visible items. */
     count: 0,
     /** Map from visible item id to its search score. */
-    items: new Map() as Map<string, number>,
+    items: new Map<string, number>(),
     /** Set of groups with at least one visible item. */
-    groups: new Set() as Set<string>,
+    groups: new Set<string>(),
   },
 })
 

@@ -62,6 +62,7 @@ async function buildOwner() {
     lifecycleLock: new InMemoryLifecycleLock(),
   })
 
+  // SAFETY: better-sqlite3 returns any; single userId column selected below.
   const owner = fixture.db.$client
     .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')
     .get() as { userId: string } | undefined

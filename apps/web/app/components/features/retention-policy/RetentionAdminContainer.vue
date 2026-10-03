@@ -27,6 +27,7 @@ const cleanupSection = computed(() => {
   const variant = route.query.variant
 
   if (isStringValue(variant) && variant in CLEANUP_SECTIONS) {
+    // SAFETY: `in` above proves the variant is a known section key.
     return CLEANUP_SECTIONS[variant as keyof typeof CLEANUP_SECTIONS]
   }
 

@@ -76,6 +76,7 @@ describe('AcceptanceRepositoryDrizzle.replayCleanup', () => {
 
     const site = parse(schema.SSiteCreateOutput, await siteResponse.json())
 
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const revision = db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { id: string }

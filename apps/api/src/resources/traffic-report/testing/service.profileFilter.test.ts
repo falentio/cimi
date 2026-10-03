@@ -28,6 +28,7 @@ function seedSitePolicyKeys(
   siteId: string,
   keys: readonly string[],
 ): void {
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const installation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined

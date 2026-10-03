@@ -79,7 +79,8 @@ function handleChange(event: Event) {
     return
   }
 
-  const nextChecked = (event.target as HTMLInputElement).checked
+  if (!(event.target instanceof HTMLInputElement)) return
+  const nextChecked = event.target.checked
 
   emits('update:checked', nextChecked)
 

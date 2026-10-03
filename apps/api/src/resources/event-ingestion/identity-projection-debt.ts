@@ -51,6 +51,7 @@ class SqliteIdentityProjectionDebt implements IdentityProjectionDebt {
   }
 
   private debtThrough(): number | null {
+    // SAFETY: better-sqlite3 returns any; single debtThrough column selected below.
     const row = this.db.$client
       .prepare(
         `SELECT debt_through AS debtThrough

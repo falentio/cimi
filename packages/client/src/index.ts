@@ -24,6 +24,7 @@ export function createClient(options: CreateClientOptions) {
       }),
   })
 
+  // SAFETY: OpenAPILink serves the contract router, so the client shape matches by construction.
   return createORPCClient(link) as JsonifiedClient<ContractRouterClient<typeof contract>>
 }
 

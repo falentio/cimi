@@ -77,9 +77,7 @@ test('Site administrators can manage public dashboard configuration without inst
 
   expect(response.status, await response.clone().text()).toBe(200)
 
-  const enabledConfig = (await response.clone().json()) as {
-    publicDashboardIdentifier: string
-  }
+  const enabledConfig = await response.clone().json()
 
   const queryUrl = new URL('http://localhost/api/public-dashboard/queryPublicDashboard')
   queryUrl.search = new URLSearchParams({

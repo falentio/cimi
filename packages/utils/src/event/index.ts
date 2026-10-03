@@ -5,6 +5,7 @@ export type EventName<T> = string & { [_eventTypeBrandSymbol]: T }
 export type UnlistenFn = () => void
 
 export function createEvent<T>(name: string): EventName<T> {
+  // SAFETY: brand established by the createEvent contract; callers bind T to the emitter.
   return name as EventName<T>
 }
 

@@ -41,6 +41,7 @@ const emits = defineEmits<CalendarRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class', 'layout', 'placeholder')
 
+// SAFETY: defaultValue below guarantees the placeholder is always defined.
 const placeholder = useVModel(props, 'placeholder', emits, {
   passive: true,
   defaultValue: props.defaultPlaceholder ?? today(getLocalTimeZone()),

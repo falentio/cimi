@@ -35,8 +35,8 @@ const active = computed(() =>
 
 function onClick(event: MouseEvent) {
   if (!active.value) return
-  const target = event.currentTarget as HTMLElement | null
-  target?.blur()
+
+  if (event.currentTarget instanceof HTMLElement) event.currentTarget.blur()
 
   if (event.defaultPrevented) return
 

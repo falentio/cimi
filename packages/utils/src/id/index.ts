@@ -38,6 +38,7 @@ export function createIdGenerator(options: IdGeneratorOptions = {}) {
     const timeFragment = getTimeFragment(now)
     const entropy = takeEntropy()
 
+    // SAFETY: brand established by validatePrefix above plus fixed time/entropy encoding below.
     return `${prefix}_${encodeIdFragment(timeFragment, entropy)}` as EntityId<Prefix>
 
     function takeEntropy(): Uint8Array {

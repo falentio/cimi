@@ -34,6 +34,7 @@ function createAdapter(
     factCardinality,
   })
   const db = mock<Db>()
+  // SAFETY: mock chain stub; tests assert only the evidence mapping, never the query builder.
   db.select.mockReturnValue({
     from: () => ({ where: () => ({ limit: async () => [] }) }),
   } as never)

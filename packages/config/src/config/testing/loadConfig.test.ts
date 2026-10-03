@@ -1,3 +1,4 @@
+import { strict as assert } from 'node:assert'
 import { describe, expect, it } from 'vitest'
 
 import { ConfigError, loadConfig, loadLoggingConfig, parseLoggingConfig } from '../index.ts'
@@ -13,7 +14,8 @@ describe('loadConfig', () => {
     }
 
     expect(caught).toBeInstanceOf(ConfigError)
-    expect((caught as Error).message).toContain('BETTER_AUTH_SECRET')
+    assert(caught instanceof Error)
+    expect(caught.message).toContain('BETTER_AUTH_SECRET')
   })
 
   it('treats an empty secret as invalid', () => {

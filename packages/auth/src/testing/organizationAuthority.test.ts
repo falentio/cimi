@@ -321,6 +321,7 @@ describe('BetterAuthOrganizationAuthority', () => {
     })
 
     const authority = new BetterAuthOrganizationAuthority({ auth })
+    // SAFETY: mock deliberately supplies an out-of-contract role to exercise the rejection path.
     vi.spyOn(auth.api, 'updateMemberRole').mockResolvedValue({
       ...memberTwo,
       role: 'moderator' as 'admin' | 'member' | 'owner',

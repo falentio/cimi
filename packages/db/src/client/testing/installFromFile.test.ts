@@ -57,6 +57,7 @@ describe('installFromFile', () => {
 
       expect(existsSync(stagedPath)).toBe(false)
 
+      // SAFETY: better-sqlite3 returns any; single COUNT(*) column selected below.
       const ledgerRows = db.$client
         .prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations')
         .get() as { count: number }

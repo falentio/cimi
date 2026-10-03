@@ -654,6 +654,7 @@ function cleanBackupIdentityRows(db: Db, targets: readonly IdentityRedactionTarg
       | { readonly startedAt: number; readonly endedAt: number | null }
       | undefined
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
     const profile = db.$client
       .prepare(
         `SELECT profile_epoch AS profileEpoch, status

@@ -67,7 +67,8 @@ function syncValueElement() {
 }
 
 function handleInput(event: Event) {
-  const nextValue = (event.target as HTMLInputElement).value
+  if (!(event.target instanceof HTMLInputElement)) return
+  const nextValue = event.target.value
 
   emits('update:modelValue', nextValue)
 

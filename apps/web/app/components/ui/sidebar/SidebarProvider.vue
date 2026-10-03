@@ -35,8 +35,8 @@ const openMobile = ref(false)
 
 const open = useVModel(props, 'open', emits, {
   defaultValue: props.defaultOpen ?? false,
-  passive: (props.open === undefined) as false,
-}) as Ref<boolean>
+  passive: props.open === undefined,
+})
 
 function setOpen(value: boolean) {
   open.value = value // emits('update:open', value)

@@ -384,10 +384,7 @@ test('a second app does not steal a fresh upgrade operation', async () => {
 
   expect(upgrade.status, await upgrade.clone().text()).toBe(202)
 
-  const upgraded = (await upgrade.clone().json()) as {
-    status: string
-    activeOperation: { operationId: string }
-  }
+  const upgraded = await upgrade.clone().json()
 
   const operationId = upgraded.activeOperation.operationId
   expect(upgraded.status).toBe('maintenance')

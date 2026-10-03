@@ -9,5 +9,6 @@ export function mintInvitationToken() {
 }
 
 export function hashInvitationToken(token: string): TokenHash {
+  // SAFETY: sha256 hex digest is the canonical TokenHash representation by construction.
   return createHash('sha256').update(token).digest('hex') as TokenHash
 }

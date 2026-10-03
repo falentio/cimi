@@ -854,7 +854,8 @@ function createEngine(props: MessageScrollerProviderProps) {
       visibilityObserver = new IntersectionObserver(
         (entries) => {
           for (const entry of entries) {
-            const messageId = (entry.target as HTMLElement).dataset.messageId
+            if (!(entry.target instanceof HTMLElement)) continue
+            const messageId = entry.target.dataset.messageId
 
             if (!messageId) continue
 

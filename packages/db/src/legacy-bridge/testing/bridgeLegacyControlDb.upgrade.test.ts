@@ -43,6 +43,7 @@ describe('bridgeLegacyControlDb.upgrade', () => {
         expect(countRows(db, table)).toBe(0)
       }
 
+      // SAFETY: better-sqlite3 returns any; PRAGMA table_info columns selected below.
       const issuerColumn = db.$client.prepare("PRAGMA table_info('account')").all() as Array<{
         name: string
         notnull: number

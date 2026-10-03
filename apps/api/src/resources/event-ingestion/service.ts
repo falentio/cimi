@@ -320,6 +320,7 @@ export class EventIngestionService {
         const parsed = safeParse(SEvent, eventInput)
 
         if (!parsed.success) {
+          // SAFETY: transport delivers parsed JSON objects here; eventId extraction below tolerates any shape.
           results[index] = {
             status: 'itemError',
             eventId: validEventId(rawEvent as JsonValue),

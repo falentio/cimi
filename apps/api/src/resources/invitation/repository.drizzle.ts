@@ -274,6 +274,7 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
 function toRecord(
   row: typeof schema.TInvitation.$inferSelect,
 ): InvitationRepository.InvitationRecord {
+  // SAFETY: tokenHash column is written only via hashInvitationToken, which establishes the brand.
   return {
     id: row.id,
     organizationId: row.organizationId,

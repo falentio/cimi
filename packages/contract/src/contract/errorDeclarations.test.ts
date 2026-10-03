@@ -427,6 +427,7 @@ describe('procedure error declarations', () => {
     expect(routes).toHaveLength(76)
 
     for (const { contractPath, method, routePath } of routes) {
+      // SAFETY: contract paths are `resource.operation` pairs by construction; split yields two segments.
       const [resource, operation] = contractPath.split('.') as [keyof typeof resourcePaths, string]
       const expectedPath = `/${resourcePaths[resource]}/${operation}`
       const routeKey = `${method} ${routePath}`

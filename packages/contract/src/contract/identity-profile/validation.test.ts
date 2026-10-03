@@ -22,9 +22,9 @@ const serializedBytes = (value: Record<string, string>) =>
   new TextEncoder().encode(JSON.stringify(value)).byteLength
 
 const exactLimitTraits = () => {
-  const traits = Object.fromEntries(
-    Array.from({ length: 64 }, (_, index) => [`trait-${index}`, '']),
-  ) as Record<string, string>
+  const traits: Record<string, string> = Object.fromEntries(
+    Array.from({ length: 64 }, (_, index): [string, string] => [`trait-${index}`, '']),
+  )
 
   for (const key of Object.keys(traits)) {
     while (

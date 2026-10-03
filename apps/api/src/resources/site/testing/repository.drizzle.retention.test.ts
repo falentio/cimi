@@ -117,6 +117,7 @@ describe.concurrent('SiteRepositoryDrizzle.retention', () => {
     await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
     const deleted = await repo.findById('ste_1')
     expect(deleted?.purgeAt, 'deleted site carries a purge deadline').not.toBeNull()
+    // SAFETY: completeDelete above sets the purge deadline; null would fail the Date below.
     const purgeAt = new Date(deleted?.purgeAt as string)
 
     await expect(

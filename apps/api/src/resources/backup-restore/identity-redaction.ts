@@ -28,6 +28,7 @@ export function scrubAcceptedEventIdentity(db: Db, input: BackupIdentityBoundary
 }
 
 export function scrubCanonicalEventPayloads(db: Db, input: BackupIdentityBoundary): void {
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
   const payloads = db.$client
     .prepare(
       `SELECT ep.event_pk AS eventPk, ep.canonical_payload_json AS payload,

@@ -11,7 +11,10 @@ const active = computed(() => {
   const raw = route.query.variant
   const id = Array.isArray(raw) ? String(raw[0]) : raw === undefined ? undefined : String(raw)
 
-  return props.variants.some((v) => v.id === id) ? (id as string) : props.variants[0]!.id
+  // SAFETY: some() above proves the query id matches a known variant id.
+  return props.variants.some((v) => v.id === id)
+    ? (id as string)
+    : props.variants[0]!.id
 })
 
 function select(id: string): void {
