@@ -17,14 +17,17 @@ const props = defineProps<
 const delegatedProps = reactiveOmit(props, 'class')
 
 const { allGroups, filterState } = useCommand()
+
 const id = useId()
 
 const isRender = computed(() => (!filterState.search ? true : filterState.filtered.groups.has(id)))
 
 provideCommandGroupContext({ id })
+
 onMounted(() => {
   if (!allGroups.value.has(id)) allGroups.value.set(id, new Set())
 })
+
 onUnmounted(() => {
   allGroups.value.delete(id)
 })

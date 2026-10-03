@@ -89,10 +89,13 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
     readonly anonymousIdentityId: string | null
   }): Promise<IdentitySessionAssignment> {
     const nowMs = this.clock().getTime()
+
     const receiptMs = Number.isFinite(input.receiptTime.getTime())
       ? input.receiptTime.getTime()
       : nowMs
+
     const identifiedUserId = input.identifiedUserId
+
     if (
       identifiedUserId !== null &&
       this.references !== undefined &&
@@ -102,19 +105,23 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
     }
 
     const key = identityKey(input)
+
     if (key === undefined) {
       return { visitorId: null, identifiedUserId: null, analyticsSessionId: null }
     }
 
     const staged = this.getPending(input.siteId, key.kind, key.id)
     let state = staged?.state ?? this.getSession(input.siteId, key.kind, key.id)
+
     if (staged !== undefined) staged.reservations += 1
+
     if (state === undefined && this.history !== undefined) {
       const stored = await this.history.findIdentitySession({
         siteId: input.siteId,
         anonymousIdentityId: input.anonymousIdentityId,
         identifiedUserId,
       })
+
       if (stored !== undefined) state = fromStored(stored, identifiedUserId)
     }
 
@@ -122,18 +129,21 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
       identifiedUserId === null && key.kind === 'anonymous'
         ? await this.resolveLinkedUserId(input, state?.sessionId ?? null, receiptMs)
         : null
+
     const resolvedUserId = identifiedUserId ?? linkedUserId
 
     const next =
       state === undefined
         ? createState(input.event, receiptMs, resolvedUserId)
         : nextState(state, input.event, receiptMs, resolvedUserId)
+
     if (staged !== undefined) {
       staged.state = next
       staged.assignments.set(next.sessionId, next)
     } else {
       this.stagePending(input.siteId, key.kind, key.id, next)
     }
+
     return assignment(next, resolvedUserId)
   }
 
@@ -147,11 +157,14 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
     receiptMs: number,
   ): Promise<string | null> {
     if (this.links === undefined || input.anonymousIdentityId === null) return null
+
     const link = await this.links.currentForAnonymous({
       siteId: input.siteId,
       anonymousIdentityId: input.anonymousIdentityId,
     })
+
     if (link === undefined) return null
+
     if (
       !linkCoversEvent(link, {
         siteId: input.siteId,
@@ -161,15 +174,18 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
       })
     )
       return null
+
     return link.identifiedUserId
   }
 
   commit(input: Parameters<NonNullable<IdentitySessionResolver['commit']>>[0]): void {
     const key = identityKey(input.event)
+
     if (key === undefined) return
     const sitePending = this.pending.get(input.siteId)
     const pending = sitePending?.get(key.kind)?.get(key.id)
     const assigned = pending?.assignments.get(input.assignment.analyticsSessionId ?? '')
+
     if (
       pending === undefined ||
       assigned === undefined ||
@@ -178,16 +194,19 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
       return
     pending.reservations -= 1
     pending.committed.push(assigned)
+
     if (pending.reservations > 0) return
     this.finishPending(input.siteId, key.kind, key.id, pending)
   }
 
   rollback(input: Parameters<NonNullable<IdentitySessionResolver['rollback']>>[0]): void {
     const key = identityKey(input.event)
+
     if (key === undefined) return
     const sitePending = this.pending.get(input.siteId)
     const pending = sitePending?.get(key.kind)?.get(key.id)
     const assigned = pending?.assignments.get(input.assignment.analyticsSessionId ?? '')
+
     if (
       pending === undefined ||
       assigned === undefined ||
@@ -195,6 +214,7 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
     )
       return
     pending.reservations -= 1
+
     if (pending.reservations > 0) return
     this.finishPending(input.siteId, key.kind, key.id, pending)
   }
@@ -205,15 +225,19 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
 
   private setSession(siteId: string, kind: IdentityKind, id: string, state: SessionState): void {
     let byKind = this.sessions.get(siteId)
+
     if (byKind === undefined) {
       byKind = new Map()
       this.sessions.set(siteId, byKind)
     }
+
     let byId = byKind.get(kind)
+
     if (byId === undefined) {
       byId = new Map()
       byKind.set(kind, byId)
     }
+
     byId.set(id, state)
   }
 
@@ -223,15 +247,19 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
 
   private stagePending(siteId: string, kind: IdentityKind, id: string, state: SessionState): void {
     let byKind = this.pending.get(siteId)
+
     if (byKind === undefined) {
       byKind = new Map()
       this.pending.set(siteId, byKind)
     }
+
     let byId = byKind.get(kind)
+
     if (byId === undefined) {
       byId = new Map()
       byKind.set(kind, byId)
     }
+
     byId.set(id, {
       state,
       reservations: 1,
@@ -248,9 +276,12 @@ export class DefaultIdentitySessionResolver implements IdentitySessionResolver {
   ): void {
     const sitePending = this.pending.get(siteId)
     sitePending?.get(kind)?.delete(id)
+
     if (sitePending?.get(kind)?.size === 0) sitePending.delete(kind)
+
     if (sitePending?.size === 0) this.pending.delete(siteId)
     const committed = pending.committed.at(-1)
+
     if (committed !== undefined) this.setSession(siteId, kind, id, committed)
   }
 }
@@ -261,7 +292,9 @@ function identityKey(input: {
 }): { readonly kind: IdentityKind; readonly id: string } | undefined {
   if (input.anonymousIdentityId !== null)
     return { kind: 'anonymous', id: input.anonymousIdentityId }
+
   if (input.identifiedUserId !== null) return { kind: 'identified', id: input.identifiedUserId }
+
   return undefined
 }
 
@@ -293,6 +326,7 @@ function nextState(
       identifiedUserId: identifiedUserId ?? state.identifiedUserId,
     }
   }
+
   return {
     ...state,
     sessionId: generateId('ses'),

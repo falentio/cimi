@@ -19,6 +19,7 @@ export class ReportingDataDrizzleDuckDb implements ReportDataPort {
       from: new Date(input.from),
       toExclusive: new Date(input.toExclusive),
     })
+
     return {
       events: data.events.map((event) => ({
         ...event,

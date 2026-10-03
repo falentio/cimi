@@ -30,8 +30,15 @@ import {
   type TrafficTrendBucket,
   type HalfOpenInterval,
 } from '@cimi/kernel'
-import { isEventKind } from '@cimi/utils'
+import {
+  isBigintValue,
+  isBooleanValue,
+  isNumberValue,
+  isStringValue,
+  isEventKind,
+} from '@cimi/utils'
 import type { AnalyticsDb, AnalyticsWindowReader } from './index.ts'
+import type { DuckDBValue } from '@duckdb/node-api'
 
 export interface DuckDbReportingQueryDependencies {
   readonly analytics: AnalyticsDb
@@ -58,23 +65,23 @@ type EventColumnTarget = keyof typeof EVENT_COLUMNS
 
 export type EventColumnOverrides = Readonly<Partial<Record<EventColumnTarget, string>>>
 
-const SESSION_COLUMNS: Readonly<Record<string, string>> = {
-  'session.device': 'device',
-  'session.browser': 'browser',
-  'session.os': 'operating_system',
-  'session.country': 'country',
-  'session.region': 'region',
-  'session.city': 'city',
-  'session.entryPage': 'entry_page',
-  'session.utmSource': 'utm_source',
-  'session.utmMedium': 'utm_medium',
-  'session.utmCampaign': 'utm_campaign',
-}
+const SESSION_COLUMNS = new Map<string, string>([
+  ['session.device', 'device'],
+  ['session.browser', 'browser'],
+  ['session.os', 'operating_system'],
+  ['session.country', 'country'],
+  ['session.region', 'region'],
+  ['session.city', 'city'],
+  ['session.entryPage', 'entry_page'],
+  ['session.utmSource', 'utm_source'],
+  ['session.utmMedium', 'utm_medium'],
+  ['session.utmCampaign', 'utm_campaign'],
+])
 
-const IDENTITY_KIND_TO_STORE: Readonly<Record<string, string>> = {
-  visitor: 'anonymous',
-  identified_user: 'identified',
-}
+const IDENTITY_KIND_TO_STORE = new Map<string, string>([
+  ['visitor', 'anonymous'],
+  ['identified_user', 'identified'],
+])
 
 const BREAKDOWN_VALUE_MAX_LENGTH = 2048
 
@@ -116,16 +123,20 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
   async trafficAggregate(query: TrafficAggregateQuery): Promise<TrafficAggregateResult> {
     return this.deps.analytics.readWindowed(async (reader) => {
       const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
+
       const args: BoundValue[] = [
         query.siteId,
         timestamp(query.period.interval.start),
         timestamp(query.period.interval.endExclusive),
         ...predicate.args,
       ]
+
       const metrics = await this.readMetrics(reader, predicate.sql, args)
+
       const trend = query.includeTrend
         ? await this.readTrend(reader, query, predicate.sql, predicate.args)
         : []
+
       return { metrics, trend }
     })
   }
@@ -138,6 +149,7 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
       const totalCount = await this.readBreakdownGroupCount(reader, query, predicate)
       const rows = await this.readBreakdownRows(reader, query, predicate)
       const hasMore = query.offset + query.limit < totalCount
+
       return {
         rows,
         totalCount,
@@ -151,6 +163,7 @@ export class DuckDbReportingQuery implements ReportingQueryPort {
   async eventOverview(query: EventOverviewQuery): Promise<EventOverviewFacts> {
     return this.deps.analytics.readWindowed(async (reader) => {
       const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
+
       const sql = `WITH windowed AS (
   SELECT e.visitor_id AS visitor_id,
          e.analytics_session_id AS session_id
@@ -164,6 +177,7 @@ SELECT count(*) AS total,
        count(DISTINCT visitor_id) AS unique_visitors,
        count(DISTINCT session_id) AS unique_sessions
 FROM windowed`
+
       const rows = await reader.read(sql, [
         query.siteId,
         timestamp(query.period.interval.start),
@@ -171,7 +185,9 @@ FROM windowed`
         query.eventKind,
         ...predicate.args,
       ])
+
       const row = rows[0] ?? {}
+
       return {
         total: readCount(row['total']),
         uniqueVisitors: readCount(row['unique_visitors']),
@@ -183,11 +199,13 @@ FROM windowed`
   async eventBuckets(query: EventBucketsQuery): Promise<readonly EventBucketFacts[]> {
     return this.deps.analytics.readWindowed(async (reader) => {
       const starts = query.period.bucketStarts
+
       if (starts === null || starts.length === 0) return []
 
       const predicate = renderFilterPlan(query.filterPlan, query.period.interval)
       const bucketArgs: BoundValue[] = []
       const rows: string[] = []
+
       for (let index = 0; index < starts.length; index += 1) {
         const bucket = starts[index]!
         const end = starts[index + 1]?.at ?? query.period.interval.endExclusive
@@ -214,6 +232,7 @@ JOIN windowed
  AND windowed.occurrence_ms < buckets.end_ms
 GROUP BY buckets.bucket_index
 ORDER BY buckets.bucket_index`
+
       const result = await reader.read(sql, [
         query.siteId,
         timestamp(query.period.interval.start),
@@ -222,13 +241,17 @@ ORDER BY buckets.bucket_index`
         ...predicate.args,
         ...bucketArgs,
       ])
+
       const facts: EventBucketFacts[] = []
+
       for (const row of result) {
         const index = Number(row['bucket_index'] ?? -1)
         const bucket = starts[index]
+
         if (bucket === undefined) continue
         facts.push({ at: createInstantMs(bucket.at), count: readCount(row['event_count']) })
       }
+
       return facts
     })
   }
@@ -239,6 +262,7 @@ ORDER BY buckets.bucket_index`
       const totalCount = await this.readEventRowCount(reader, query, predicate)
       const rows = await this.readEventRowPage(reader, query, predicate)
       const hasMore = query.offset + query.limit < totalCount
+
       return {
         rows,
         totalCount,
@@ -254,6 +278,7 @@ ORDER BY buckets.bucket_index`
       const totalCount = await this.readEventBreakdownCount(reader, query, predicate)
       const rows = await this.readEventBreakdownRows(reader, query, predicate)
       const hasMore = query.offset + query.limit < totalCount
+
       return {
         rows,
         totalCount,
@@ -278,6 +303,7 @@ ORDER BY buckets.bucket_index`
 )
 SELECT count(DISTINCT event_id) AS total_count
 FROM windowed`
+
     const rows = await reader.read(sql, [
       query.siteId,
       timestamp(query.period.interval.start),
@@ -285,6 +311,7 @@ FROM windowed`
       query.eventKind,
       ...predicate.args,
     ])
+
     return readCount(rows[0]?.['total_count'])
   }
 
@@ -294,6 +321,7 @@ FROM windowed`
     predicate: RenderedFragment,
   ): Promise<readonly EventRowFacts[]> {
     const direction = query.direction === 'desc' ? 'DESC' : 'ASC'
+
     const sql = `WITH windowed AS (
   SELECT e.site_id AS site_id,
          e.event_id AS event_id,
@@ -319,6 +347,7 @@ SELECT event_id, event_kind, occurrence_ms, receipt_ms, page_path, referrer,
  FROM windowed
 ORDER BY occurrence_ms ${direction}, event_id ASC
 LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
+
     const rows = await reader.read(sql, [
       query.siteId,
       timestamp(query.period.interval.start),
@@ -328,10 +357,13 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
       query.limit,
       query.offset,
     ])
+
     const facts: EventRowFacts[] = []
+
     for (const row of rows) {
       const eventId = readString(row['event_id'])
       const kind = readEventKind(row['event_kind'])
+
       if (eventId === null || kind === null) continue
       facts.push({
         eventId,
@@ -349,6 +381,7 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
         properties: await this.readEventProperties(reader, query.siteId, eventId),
       })
     }
+
     return facts
   }
 
@@ -362,14 +395,19 @@ FROM event_properties
 WHERE site_id = ? AND event_id = ?
 ORDER BY property_key
 LIMIT ${EVENT_PROPERTIES_MAX_KEYS}`
+
     const rows = await reader.read(sql, [siteId, eventId])
+
     if (rows.length === 0) return null
     const properties: Record<string, string | number | boolean | null> = {}
+
     for (const row of rows) {
       const key = readString(row['property_key'])
+
       if (key === null) continue
       properties[key] = readPropertyValue(row)
     }
+
     return Object.keys(properties).length === 0 ? null : properties
   }
 
@@ -379,6 +417,7 @@ LIMIT ${EVENT_PROPERTIES_MAX_KEYS}`
     predicate: RenderedFragment,
   ): Promise<number> {
     const value = eventBreakdownValueExpression(query.field)
+
     const sql = `WITH windowed AS (
   SELECT ${value} AS value
    FROM events e
@@ -390,6 +429,7 @@ LIMIT ${EVENT_PROPERTIES_MAX_KEYS}`
 SELECT count(DISTINCT value) AS total_count
 FROM windowed
 WHERE value IS NOT NULL AND trim(value) <> ''`
+
     const rows = await reader.read(sql, [
       query.siteId,
       timestamp(query.period.interval.start),
@@ -397,6 +437,7 @@ WHERE value IS NOT NULL AND trim(value) <> ''`
       query.eventKind,
       ...predicate.args,
     ])
+
     return readCount(rows[0]?.['total_count'])
   }
 
@@ -408,6 +449,7 @@ WHERE value IS NOT NULL AND trim(value) <> ''`
     const value = eventBreakdownValueExpression(query.field)
     const direction = query.direction === 'desc' ? 'DESC' : 'ASC'
     const order = query.sort === 'count' ? `event_count ${direction}` : `value ${direction}`
+
     const sql = `WITH windowed AS (
   SELECT ${value} AS value
    FROM events e
@@ -422,6 +464,7 @@ WHERE value IS NOT NULL AND trim(value) <> ''
 GROUP BY value
 ORDER BY ${order}, value ASC
 LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
+
     const rows = await reader.read(sql, [
       query.siteId,
       timestamp(query.period.interval.start),
@@ -431,12 +474,16 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
       query.limit,
       query.offset,
     ])
+
     const facts: EventBreakdownRowFacts[] = []
+
     for (const row of rows) {
       const raw = readString(row['value'])
+
       if (raw === null || raw.length === 0) continue
       facts.push({ value: clampValue(raw), count: readCount(row['event_count']) })
     }
+
     return facts
   }
 
@@ -455,12 +502,14 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
 SELECT count(DISTINCT session_id) AS denominator
 FROM windowed
 WHERE session_id IS NOT NULL`
+
     const rows = await reader.read(sql, [
       query.siteId,
       timestamp(query.period.interval.start),
       timestamp(query.period.interval.endExclusive),
       ...predicate.args,
     ])
+
     return readCount(rows[0]?.['denominator'])
   }
 
@@ -470,10 +519,12 @@ WHERE session_id IS NOT NULL`
     predicate: RenderedFragment,
   ): Promise<number> {
     const grouped = breakdownGroupCte(query.dimension)
+
     const sql = `WITH ${sessionScopeCte(predicate.sql)},
 ${grouped.cte}
 SELECT count(DISTINCT value) AS total_count
 FROM breakdown_values`
+
     const rows = await reader.read(sql, [
       query.siteId,
       timestamp(query.period.interval.start),
@@ -481,6 +532,7 @@ FROM breakdown_values`
       ...predicate.args,
       ...breakdownJoinArgs(query.dimension, query.siteId),
     ])
+
     return readCount(rows[0]?.['total_count'])
   }
 
@@ -491,6 +543,7 @@ FROM breakdown_values`
   ): Promise<readonly TrafficBreakdownRowFacts[]> {
     const grouped = breakdownGroupCte(query.dimension)
     const order = breakdownOrderSql(query.sort, query.direction)
+
     const sql = `WITH ${sessionScopeCte(predicate.sql)},
 ${grouped.cte}
 SELECT value,
@@ -499,6 +552,7 @@ FROM breakdown_values
 GROUP BY value
 ORDER BY ${order}, value ASC
 LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
+
     const rows = await reader.read(sql, [
       query.siteId,
       timestamp(query.period.interval.start),
@@ -508,12 +562,16 @@ LIMIT CAST(? AS BIGINT) OFFSET CAST(? AS BIGINT)`
       query.limit,
       query.offset,
     ])
+
     const facts: TrafficBreakdownRowFacts[] = []
+
     for (const row of rows) {
       const raw = row['value']
-      if (typeof raw !== 'string' || raw.length === 0) continue
+
+      if (!isStringValue(raw) || raw.length === 0) continue
       facts.push({ value: clampValue(raw), count: readCount(row['session_count']) })
     }
+
     return facts
   }
 
@@ -570,8 +628,10 @@ SELECT
      WHERE stats.page_view_count = 1 AND stats.custom_event_count = 0 AND stats.outbound_count = 0
        AND (stats.max_ms - stats.min_ms) < 10000
        AND stats.session_id IN (SELECT session_id FROM eligible_sessions)) AS bounced_sessions`
+
     const rows = await reader.read(sql, [...args, args[0] ?? null])
     const row = rows[0] ?? {}
+
     return {
       visitors: readCount(row['visitors']),
       sessions: readCount(row['sessions']),
@@ -590,10 +650,12 @@ SELECT
     predicateArgs: readonly BoundValue[],
   ): Promise<readonly TrafficTrendBucket[]> {
     const starts = query.period.bucketStarts
+
     if (starts === null || starts.length === 0) return []
 
     const bucketArgs: BoundValue[] = []
     const rows: string[] = []
+
     for (let index = 0; index < starts.length; index += 1) {
       const bucket = starts[index]!
       const end = starts[index + 1]?.at ?? query.period.interval.endExclusive
@@ -620,6 +682,7 @@ JOIN windowed
  AND windowed.occurrence_ms < buckets.end_ms
 GROUP BY buckets.bucket_index
 ORDER BY buckets.bucket_index`
+
     const args: BoundValue[] = [
       query.siteId,
       timestamp(query.period.interval.start),
@@ -627,20 +690,25 @@ ORDER BY buckets.bucket_index`
       ...predicateArgs,
       ...bucketArgs,
     ]
+
     const result = await reader.read(sql, args)
     const buckets: TrafficTrendBucket[] = []
+
     for (const row of result) {
       const index = Number(row['bucket_index'] ?? -1)
       const bucket = starts[index]
+
       if (bucket === undefined) continue
       buckets.push({ at: createInstantMs(bucket.at), visitors: readCount(row['visitors']) })
     }
+
     return buckets
   }
 }
 
-function readCount(value: unknown): number {
+function readCount(value: DuckDBValue | undefined): number {
   const parsed = Number(value ?? 0)
+
   return Number.isFinite(parsed) ? parsed : 0
 }
 
@@ -652,47 +720,57 @@ function clampValue(value: string): string {
 
 function eventBreakdownValueExpression(field: EventBreakdownField): string {
   const column = EVENT_BREAKDOWN_COLUMNS[field]
+
   if (column === undefined) {
     throw new Error(`Unsupported event breakdown field '${field}'`)
   }
+
   return column
 }
 
-function readEventKind(value: unknown): EventKind | null {
-  return typeof value === 'string' && isEventKind(value) ? value : null
+function readEventKind(value: DuckDBValue | undefined): EventKind | null {
+  return isStringValue(value) && isEventKind(value) ? value : null
 }
 
-function readString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null
+function readString(value: DuckDBValue | undefined): string | null {
+  return isStringValue(value) ? value : null
 }
 
-function readNullableString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null
+function readNullableString(value: DuckDBValue | undefined): string | null {
+  return isStringValue(value) ? value : null
 }
 
-function clampNullableString(value: unknown, maxLength: number): string | null {
-  if (typeof value !== 'string') return null
+function clampNullableString(value: DuckDBValue | undefined, maxLength: number): string | null {
+  if (!isStringValue(value)) return null
+
   return value.length > maxLength ? value.slice(0, maxLength) : value
 }
 
-function readNullableNumber(value: unknown): number | null {
+function readNullableNumber(value: DuckDBValue | undefined): number | null {
   if (value === null || value === undefined) return null
   const parsed = Number(value)
+
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function readInstantValue(value: unknown, column: string): number {
+function readInstantValue(value: DuckDBValue | undefined, column: string): number {
   if (value instanceof Date) return value.getTime()
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'bigint') return Number(value)
+
+  if (isNumberValue(value) && Number.isFinite(value)) return value
+
+  if (isBigintValue(value)) return Number(value)
   throw new Error(`Expected a numeric ${column} from the events projection`)
 }
 
-function readPropertyValue(row: Record<string, unknown>): string | number | boolean | null {
+function readPropertyValue(row: Record<string, DuckDBValue>): string | number | boolean | null {
   const type = readString(row['value_type'])
+
   if (type === 'number') return readNullableNumber(row['number_value']) ?? 0
+
   if (type === 'boolean') return Boolean(row['boolean_value'])
+
   if (type === 'null') return null
+
   return readString(row['string_value'])
 }
 
@@ -743,6 +821,7 @@ function breakdownGroupCte(dimension: TrafficBreakdownDimension): BreakdownGroup
   }
 
   const value = breakdownSessionValueExpression(dimension)
+
   return {
     cte: `breakdown_values AS (
   SELECT windowed.session_id AS session_id, ${value} AS value
@@ -758,16 +837,21 @@ function breakdownSessionValueExpression(dimension: TrafficBreakdownDimension): 
   if (dimension === 'utm') {
     return "NULLIF(concat_ws(' / ', NULLIF(trim(session.utm_source), ''), NULLIF(trim(session.utm_medium), ''), NULLIF(trim(session.utm_campaign), '')), '')"
   }
+
   const column = BREAKDOWN_SESSION_COLUMNS[dimension]
+
   if (column === undefined) {
     throw new Error(`Unsupported traffic breakdown dimension '${dimension}'`)
   }
+
   return `session.${column}`
 }
 
 function breakdownOrderSql(sort: BreakdownSort, direction: 'asc' | 'desc'): string {
   const order = direction === 'desc' ? 'DESC' : 'ASC'
+
   if (sort === 'value') return `value ${order}`
+
   return `count(DISTINCT session_id) ${order}`
 }
 
@@ -793,21 +877,25 @@ export function renderFilterPlan(
     fragments.push(` AND (${rendered.sql})`)
     args.push(...rendered.args)
   }
+
   for (const predicate of plan.session) {
     const rendered = renderSessionPredicate(predicate)
     fragments.push(` AND (${rendered.sql})`)
     args.push(...rendered.args)
   }
+
   for (const predicate of plan.visitor) {
     const rendered = renderVisitorPredicate(predicate)
     fragments.push(` AND (${rendered.sql})`)
     args.push(...rendered.args)
   }
+
   for (const presence of plan.sessionPresence) {
     const rendered = renderPresencePredicate(presence, interval)
     fragments.push(` AND (${rendered.sql})`)
     args.push(...rendered.args)
   }
+
   for (const predicate of plan.profile) {
     throw new ReportingQueryUnsupportedError(
       `Reporting profile filter '${predicate.propertyKey ?? ''}' requires the profile join, which the projection does not carry`,
@@ -824,15 +912,19 @@ function renderEventPredicate(
   if (predicate.target === 'event.property') {
     return renderPropertyExists(predicate)
   }
+
   if (predicate.target === 'profile.trait') {
     throw new ReportingQueryUnsupportedError(
       `Reporting profile filter '${predicate.propertyKey ?? ''}' requires the profile join, which the projection does not carry`,
     )
   }
+
   if (!isEventColumnTarget(predicate.target)) {
     throw new Error(`Unsupported reporting event filter target '${predicate.target}'`)
   }
+
   const column = eventColumnOverrides?.[predicate.target] ?? EVENT_COLUMNS[predicate.target]
+
   return renderColumnComparison(column, predicate.operator, predicate.bind)
 }
 
@@ -844,11 +936,15 @@ function renderSessionPredicate(predicate: Predicate): RenderedFragment {
   if (predicate.target === 'session.exitPage') {
     return renderSessionExitPagePredicate(predicate)
   }
-  const column = SESSION_COLUMNS[predicate.target]
+
+  const column = SESSION_COLUMNS.get(predicate.target)
+
   if (column === undefined) {
     throw new Error(`Unsupported reporting session filter target '${predicate.target}'`)
   }
+
   const comparison = renderColumnComparison(`session.${column}`, predicate.operator, predicate.bind)
+
   return {
     sql: `EXISTS (SELECT 1 FROM analytics_sessions session
        WHERE session.site_id = e.site_id AND session.session_id = e.analytics_session_id
@@ -862,6 +958,7 @@ const EXIT_PAGE_VALUE =
 
 function renderSessionExitPagePredicate(predicate: Predicate): RenderedFragment {
   const comparison = renderColumnComparison(EXIT_PAGE_VALUE, predicate.operator, predicate.bind)
+
   return {
     sql: `EXISTS (SELECT 1
        FROM events exit_event
@@ -878,10 +975,13 @@ function renderVisitorPredicate(predicate: Predicate): RenderedFragment {
   if (predicate.target !== 'visitor.identityKind') {
     throw new Error(`Unsupported reporting visitor filter target '${predicate.target}'`)
   }
+
   const values = predicate.bind.map((value) =>
-    typeof value === 'string' ? (IDENTITY_KIND_TO_STORE[value] ?? value) : value,
+    isStringValue(value) ? (IDENTITY_KIND_TO_STORE.get(value) ?? value) : value,
   )
+
   const comparison = renderColumnComparison('visitor.identity_kind', predicate.operator, values)
+
   return {
     sql: `EXISTS (SELECT 1 FROM visitors visitor
        WHERE visitor.site_id = e.site_id AND visitor.visitor_id = e.visitor_id
@@ -892,16 +992,20 @@ function renderVisitorPredicate(predicate: Predicate): RenderedFragment {
 
 function renderPropertyExists(predicate: Predicate): RenderedFragment {
   const key = predicate.propertyKey ?? ''
+
   if (predicate.operator === 'contains') {
     const args: BoundValue[] = [key]
     const parts: string[] = []
+
     for (const value of predicate.bind) {
-      if (typeof value !== 'string') {
+      if (!isStringValue(value)) {
         throw new Error('Reporting property contains filter requires string values')
       }
+
       parts.push("property.string_value LIKE ? ESCAPE '\\'")
       args.push(`%${escapeLike(value)}%`)
     }
+
     return {
       sql: `EXISTS (SELECT 1 FROM event_properties property
          WHERE property.site_id = e.site_id AND property.event_id = e.event_id
@@ -909,8 +1013,10 @@ function renderPropertyExists(predicate: Predicate): RenderedFragment {
       args,
     }
   }
+
   const args: BoundValue[] = [key]
   const comparison = renderPropertyComparison(predicate, args)
+
   return {
     sql: `EXISTS (SELECT 1 FROM event_properties property
        WHERE property.site_id = e.site_id AND property.event_id = e.event_id
@@ -921,6 +1027,7 @@ function renderPropertyExists(predicate: Predicate): RenderedFragment {
 
 function renderPropertyComparison(predicate: Predicate, args: BoundValue[]): string {
   const parts: string[] = []
+
   for (const value of predicate.bind) {
     if (value === null) {
       parts.push(
@@ -930,19 +1037,23 @@ function renderPropertyComparison(predicate: Predicate, args: BoundValue[]): str
       )
       continue
     }
-    if (typeof value === 'number') {
+
+    if (isNumberValue(value)) {
       parts.push(`property.number_value ${operatorSql(predicate.operator)} ?`)
       args.push(value)
       continue
     }
-    if (typeof value === 'boolean') {
+
+    if (isBooleanValue(value)) {
       parts.push(`property.boolean_value ${operatorSql(predicate.operator)} ?`)
       args.push(value)
       continue
     }
+
     parts.push(`property.string_value ${operatorSql(predicate.operator)} ?`)
     args.push(value)
   }
+
   return parts.join(' OR ')
 }
 
@@ -952,20 +1063,24 @@ function renderPresencePredicate(
 ): RenderedFragment {
   const args: BoundValue[] = [presence.action]
   const conditions = ['present.event_kind = ?']
+
   if (presence.name !== null) {
     conditions.push('present.name = ?')
     args.push(presence.name)
   }
+
   if (presence.scope === 'visitor') {
     conditions.push('present.visitor_id = e.visitor_id')
   } else {
     conditions.push('present.analytics_session_id = e.analytics_session_id')
+
     if (presence.withinPeriod) {
       conditions.push('present.occurrence_time >= CAST(? AS TIMESTAMP)')
       conditions.push('present.occurrence_time < CAST(? AS TIMESTAMP)')
       args.push(timestamp(interval.start), timestamp(interval.endExclusive))
     }
   }
+
   for (const property of presence.propertyFilters) {
     const comparison = renderPropertyFilterComparison(property.operator, property.bind)
     args.push(property.key, ...comparison.args)
@@ -975,9 +1090,11 @@ function renderPresencePredicate(
            AND property.property_key = ? AND (${comparison.sql}))`,
     )
   }
+
   const inner = `SELECT 1 FROM events present
      WHERE present.site_id = e.site_id
        AND ${conditions.join(' AND ')}`
+
   return {
     sql: presence.negated ? `NOT EXISTS (${inner})` : `EXISTS (${inner})`,
     args,
@@ -990,15 +1107,16 @@ function renderPropertyFilterComparison(
 ): RenderedFragment {
   const parts: string[] = []
   const args: BoundValue[] = []
+
   for (const value of bind) {
     if (value === null) {
       parts.push(
         operator === 'neq' ? "property.value_type <> 'null'" : "property.value_type = 'null'",
       )
-    } else if (typeof value === 'number') {
+    } else if (isNumberValue(value)) {
       parts.push(`property.number_value ${operatorSql(operator)} ?`)
       args.push(value)
-    } else if (typeof value === 'boolean') {
+    } else if (isBooleanValue(value)) {
       parts.push(`property.boolean_value ${operatorSql(operator)} ?`)
       args.push(value)
     } else if (operator === 'contains') {
@@ -1009,6 +1127,7 @@ function renderPropertyFilterComparison(
       args.push(value)
     }
   }
+
   return { sql: parts.join(' OR '), args }
 }
 
@@ -1019,22 +1138,27 @@ function renderColumnComparison(
 ): RenderedFragment {
   const args: BoundValue[] = []
   const parts: string[] = []
+
   for (const value of bind) {
     if (value === null) {
       parts.push(`${column} IS ${operator === 'neq' ? 'NOT ' : ''}NULL`)
       continue
     }
+
     if (operator === 'contains') {
-      if (typeof value !== 'string') {
+      if (!isStringValue(value)) {
         throw new Error('Reporting contains filter requires string values')
       }
+
       parts.push(`${column} LIKE ? ESCAPE '\\'`)
       args.push(`%${escapeLike(value)}%`)
       continue
     }
+
     parts.push(`${column} ${operatorSql(operator)} ?`)
     args.push(value)
   }
+
   return { sql: parts.join(' OR '), args }
 }
 
@@ -1051,5 +1175,6 @@ const OPERATOR_SQL: Readonly<Record<Exclude<PredicateOperator, 'contains'>, stri
 
 function operatorSql(operator: PredicateOperator): string {
   if (operator === 'contains') throw new Error('contains is rendered as LIKE, not as an operator')
+
   return OPERATOR_SQL[operator]
 }

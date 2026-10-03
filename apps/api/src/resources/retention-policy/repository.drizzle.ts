@@ -24,14 +24,18 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
     input: RetentionPolicyRepository.FindResolvedInput,
   ): Promise<RetentionPolicyRepository.StoredResolution> {
     const installation = await this.findInstallation()
+
     if (installation === undefined) throw new ORPCError('NOT_FOUND')
     const installationPolicy = await this.findActiveInstallationPolicy(installation.id)
     const installationDefault = installationPolicy?.policy ?? { ...DEFAULT_POLICY }
+
     const siteRow =
       input.siteId === null
         ? undefined
         : await this.findActiveSitePolicy(installation.id, input.siteId)
+
     const siteOverride = siteRow?.policy ?? null
+
     return {
       installationId: installation.id,
       installationDefault,
@@ -51,15 +55,19 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
   ): Promise<RetentionPolicyRepository.PolicyCommit> {
     return this.db.transaction((tx) => {
       const installation = selectInstallation(tx)
+
       if (installation === undefined) throw new ORPCError('NOT_FOUND')
 
       let installationPolicy = selectActiveInstallationPolicy(tx, installation.id)
       let clearedSiteOverride = false
+
       if (input.target.scope === 'installation') {
         if (input.policy === null) throw new ORPCError('BAD_REQUEST')
+
         if (installationPolicy !== undefined) {
           supersedePolicy(tx, installationPolicy.id, input.now)
         }
+
         tx.insert(schema.TRetentionPolicy)
           .values({
             id: input.policyId,
@@ -95,12 +103,15 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         }
       } else {
         const site = selectActiveSite(tx, input.target.siteId)
+
         if (site === undefined) throw new ORPCError('NOT_FOUND')
         const active = selectActiveSitePolicy(tx, installation.id, input.target.siteId)
+
         if (active !== undefined) {
           clearedSiteOverride = input.policy === null
           supersedePolicy(tx, active.id, input.now)
         }
+
         if (input.policy !== null) {
           tx.insert(schema.TRetentionPolicy)
             .values({
@@ -160,14 +171,18 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         input.target.scope === 'installation'
           ? selectActiveSites(tx)
           : [selectActiveSite(tx, input.target.siteId)!]
+
       const affectedBoundaries: RetentionPolicyRepository.SiteRetentionBoundary[] = []
       const queuedRunIds: string[] = []
+
       for (const site of sites) {
         const activeSitePolicy = selectActiveSitePolicy(tx, installation.id, site.id)
         const policySource = activeSitePolicy ?? installationPolicy
+
         if (policySource === undefined) continue
         const effectivePolicy = policySource.policy
         const policyId = policySource.id
+
         const boundary = createBoundary({
           site,
           installationId: installation.id,
@@ -175,23 +190,29 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           policy: effectivePolicy,
           now: input.now,
         })
+
         const previous = selectBoundary(tx, site.id)
         upsertBoundary(tx, boundary)
         affectedBoundaries.push(boundary)
+
         if (shouldQueueCleanup(previous, boundary)) {
           for (const kind of ['derived', 'backup'] as const) {
             queuedRunIds.push(queueCleanupRun(tx, boundary, kind, input.now))
           }
+
           redactExpiredProfiles(tx, boundary, input.now)
         }
       }
+
       if (queuedRunIds.length > 0) markCleanupPending(tx, installation.id, input.now)
 
       const committedInstallation = selectInstallation(tx)
+
       if (committedInstallation === undefined)
         throw new Error('Installation disappeared during commit')
       const siteId = input.target.scope === 'site' ? input.target.siteId : null
       const resolved = selectResolved(tx, committedInstallation, siteId)
+
       return {
         resolution: resolved,
         affectedBoundaries,
@@ -203,15 +224,20 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
   async refreshDueBoundaries(now: Date): Promise<void> {
     this.db.transaction((tx) => {
       const installation = selectInstallation(tx)
+
       if (installation === undefined) return
       const installationPolicy = selectActiveInstallationPolicy(tx, installation.id)
+
       for (const site of selectActiveSites(tx)) {
         const sitePolicy = selectActiveSitePolicy(tx, installation.id, site.id)
         const policySource = sitePolicy ?? installationPolicy
+
         if (policySource === undefined) continue
         const current = selectBoundary(tx, site.id)
         const localDay = resolveSiteLocalDay({ now, timeZone: site.reportingTimezone })
+
         if (current?.localDay === localDay && current.policyId === policySource.id) continue
+
         const boundary = createBoundary({
           site,
           installationId: installation.id,
@@ -219,7 +245,9 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           policy: policySource.policy,
           now,
         })
+
         upsertBoundary(tx, boundary)
+
         if (shouldQueueCleanup(current, boundary)) {
           queueCleanupRun(tx, boundary, 'derived', now)
           queueCleanupRun(tx, boundary, 'backup', now)
@@ -258,6 +286,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         .from(schema.TRetentionCleanupRun)
         .where(eq(schema.TRetentionCleanupRun.status, 'queued'))
         .all()
+
       for (const slot of queuedSlots) {
         tx.update(schema.TRetentionCleanupRun)
           .set({ status: 'cancelled', completedAt: input.now, updatedAt: input.now })
@@ -271,11 +300,15 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           )
           .run()
       }
+
       const derived = selectNextRun(tx, 'derived')
       const candidate = derived ?? selectNextBackupRun(tx)
+
       if (candidate === undefined) return undefined
       const boundaryRow = selectBoundary(tx, candidate.siteId)
+
       if (boundaryRow === undefined) return undefined
+
       const updated = tx
         .update(schema.TRetentionCleanupRun)
         .set({
@@ -292,6 +325,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           ),
         )
         .run()
+
       if (updated.changes !== 1) return undefined
       tx.update(schema.TRetentionCleanupCheckpoint)
         .set({ status: 'running', updatedAt: input.now })
@@ -303,12 +337,14 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         )
         .run()
       markCleanupStageRunning(tx, candidate.cleanupKind, input.now)
+
       const checkpoints = tx
         .select()
         .from(schema.TRetentionCleanupCheckpoint)
         .where(eq(schema.TRetentionCleanupCheckpoint.cleanupRunId, candidate.id))
         .all()
         .map(toCleanupCheckpoint)
+
       return {
         runId: candidate.id,
         kind: candidate.cleanupKind,
@@ -362,6 +398,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           ),
         )
         .run()
+
       if (updated.changes !== 1) return
       tx.update(schema.TRetentionCleanupCheckpoint)
         .set({ status: 'completed', updatedAt: input.now })
@@ -389,6 +426,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
           ),
         )
         .run()
+
       if (updated.changes !== 1) return
       tx.update(schema.TRetentionCleanupCheckpoint)
         .set({ status: 'failed', updatedAt: input.now })
@@ -413,6 +451,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
       changedBy: null,
       now: input.now,
     })
+
     return result.resolution
   }
 
@@ -426,6 +465,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
       changedBy: null,
       now: input.now,
     })
+
     return result.resolution
   }
 
@@ -439,6 +479,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
       changedBy: null,
       now: input.now,
     })
+
     return result.resolution
   }
 
@@ -448,6 +489,7 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.singletonKey, 'default'))
       .limit(1)
+
     return rows[0]
   }
 
@@ -463,7 +505,9 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined
       ? undefined
       : {
@@ -487,7 +531,9 @@ export class RetentionPolicyRepositoryDrizzle implements RetentionPolicyReposito
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined
       ? undefined
       : {
@@ -523,6 +569,7 @@ function selectActiveInstallationPolicy(tx: SqliteTransaction, installationId: s
     )
     .limit(1)
     .all()[0]
+
   return row === undefined
     ? undefined
     : {
@@ -546,6 +593,7 @@ function selectMaxInstallationVersion(tx: SqliteTransaction, installationId: str
     .orderBy(desc(schema.TRetentionPolicy.version))
     .limit(1)
     .all()[0]
+
   return row?.version ?? 0
 }
 
@@ -567,6 +615,7 @@ function selectMaxSiteVersion(
     .orderBy(desc(schema.TRetentionPolicy.version))
     .limit(1)
     .all()[0]
+
   return row?.version ?? 0
 }
 
@@ -584,6 +633,7 @@ function selectActiveSitePolicy(tx: SqliteTransaction, installationId: string, s
     )
     .limit(1)
     .all()[0]
+
   return row === undefined
     ? undefined
     : {
@@ -642,8 +692,10 @@ function selectResolved(
 ): RetentionPolicyRepository.StoredResolution {
   const installationPolicy = selectActiveInstallationPolicy(tx, installation.id)
   const installationDefault = installationPolicy?.policy ?? { ...DEFAULT_POLICY }
+
   const sitePolicy =
     siteId === null ? undefined : selectActiveSitePolicy(tx, installation.id, siteId)
+
   return {
     installationId: installation.id,
     installationDefault,
@@ -717,6 +769,7 @@ function shouldQueueCleanup(
   next: RetentionPolicyRepository.SiteRetentionBoundary,
 ): boolean {
   if (previous === undefined) return true
+
   return (
     next.eventOccurrenceCutoffAt > previous.eventOccurrenceCutoffAt ||
     next.rawReceiptCutoffAt > previous.rawReceiptCutoffAt ||
@@ -763,6 +816,7 @@ function queueCleanupRun(
     )
     .limit(1)
     .all()[0]
+
   if (active !== undefined) {
     tx.update(schema.TRetentionCleanupRun)
       .set({
@@ -775,6 +829,7 @@ function queueCleanupRun(
       })
       .where(eq(schema.TRetentionCleanupRun.id, active.id))
       .run()
+
     return active.id
   }
 
@@ -791,6 +846,7 @@ function queueCleanupRun(
     )
     .limit(1)
     .all()[0]
+
   if (running !== undefined) return running.id
 
   const runId = generateId('rcl')
@@ -813,6 +869,7 @@ function queueCleanupRun(
       updatedAt: now,
     })
     .run()
+
   for (const dataClass of CLEANUP_DATA_CLASSES) {
     tx.insert(schema.TRetentionCleanupCheckpoint)
       .values({
@@ -827,6 +884,7 @@ function queueCleanupRun(
       })
       .run()
   }
+
   return runId
 }
 
@@ -846,6 +904,7 @@ function redactExpiredProfiles(
       ),
     )
     .all()
+
   for (const profile of profiles) {
     const epoch = tx
       .select()
@@ -858,7 +917,9 @@ function redactExpiredProfiles(
       )
       .limit(1)
       .all()[0]
+
     if (epoch === undefined) continue
+
     const existing = tx
       .select({ reason: schema.TIdentityRedaction.reason })
       .from(schema.TIdentityRedaction)
@@ -871,6 +932,7 @@ function redactExpiredProfiles(
       )
       .limit(1)
       .all()[0]
+
     if (existing?.reason === 'explicit') continue
     const request = identityRedactionRequest({ reason: 'retention', now })
     tx.insert(schema.TIdentityRedaction)
@@ -898,9 +960,11 @@ function redactExpiredProfiles(
 
 function markCleanupPending(tx: SqliteTransaction, installationId: string, now: Date): void {
   const installation = selectInstallation(tx)
+
   if (installation === undefined || installation.id !== installationId) {
     throw new Error('Installation disappeared while queuing retention cleanup')
   }
+
   const derivedRunning = installation.derivedCleanupStatus === 'running'
   const backupRunning = installation.backupCleanupStatus === 'running'
   tx.update(schema.TInstallation)
@@ -947,6 +1011,7 @@ function selectNextBackupRun(tx: SqliteTransaction) {
     )
     .limit(1)
     .all()[0]
+
   return blocked === undefined ? selectNextRun(tx, 'backup') : undefined
 }
 
@@ -988,7 +1053,9 @@ function markCleanupStageRunning(
   now: Date,
 ): void {
   const installation = selectInstallation(tx)
+
   if (installation === undefined) throw new Error('Installation disappeared while claiming cleanup')
+
   const fields =
     kind === 'derived'
       ? {
@@ -1003,6 +1070,7 @@ function markCleanupStageRunning(
           backupCleanupCompletedAt: null,
           backupCleanupErrorCode: null,
         }
+
   tx.update(schema.TInstallation)
     .set({ ...fields, cleanupPending: true, updatedAt: now })
     .where(eq(schema.TInstallation.singletonKey, 'default'))
@@ -1015,14 +1083,17 @@ function recomputeCleanupStatus(
   failureCode: 'CLEANUP_FAILED' | null = null,
 ): void {
   const installation = selectInstallation(tx)
+
   if (installation === undefined)
     throw new Error('Installation disappeared while completing cleanup')
   const runs = tx.select().from(schema.TRetentionCleanupRun).all()
   const derived = summarizeCleanupStage(runs, 'derived', now, failureCode)
   const backup = summarizeCleanupStage(runs, 'backup', now, failureCode)
+
   const pending =
     (derived.status !== 'not_applicable' && derived.status !== 'completed') ||
     (backup.status !== 'not_applicable' && backup.status !== 'completed')
+
   tx.update(schema.TInstallation)
     .set({
       cleanupPending: pending,
@@ -1041,21 +1112,25 @@ function recomputeCleanupStatus(
   void installation
 }
 
+interface CleanupStageSummary {
+  status: 'not_applicable' | 'not_started' | 'pending' | 'running' | 'completed' | 'failed'
+  startedAt: Date | null
+  completedAt: Date | null
+  errorCode: string | null
+}
+
 function summarizeCleanupStage(
   runs: Array<typeof schema.TRetentionCleanupRun.$inferSelect>,
   kind: 'derived' | 'backup',
   now: Date,
   failureCode: 'CLEANUP_FAILED' | null,
-): {
-  status: 'not_applicable' | 'not_started' | 'pending' | 'running' | 'completed' | 'failed'
-  startedAt: Date | null
-  completedAt: Date | null
-  errorCode: string | null
-} {
+): CleanupStageSummary {
   const stageRuns = runs.filter((run) => run.cleanupKind === kind)
+
   if (stageRuns.length === 0) {
     return { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null }
   }
+
   if (stageRuns.some((run) => run.status === 'running')) {
     return {
       status: 'running',
@@ -1064,7 +1139,9 @@ function summarizeCleanupStage(
       errorCode: null,
     }
   }
+
   const failed = stageRuns.find((run) => run.status === 'failed')
+
   if (failed !== undefined) {
     return {
       status: 'failed',
@@ -1073,17 +1150,21 @@ function summarizeCleanupStage(
       errorCode: failureCode ?? 'CLEANUP_FAILED',
     }
   }
+
   if (stageRuns.some((run) => run.status === 'queued')) {
     return { status: 'pending', startedAt: null, completedAt: null, errorCode: null }
   }
+
+  const completedAtOptions = stageRuns.flatMap((run) =>
+    run.completedAt === null ? [] : [run.completedAt],
+  )
+
+  completedAtOptions.sort((left, right) => right.getTime() - left.getTime())
+
   return {
     status: 'completed',
     startedAt: stageRuns.find((run) => run.startedAt !== null)?.startedAt ?? now,
-    completedAt:
-      stageRuns
-        .map((run) => run.completedAt)
-        .filter((value): value is Date => value !== null)
-        .sort((left, right) => right.getTime() - left.getTime())[0] ?? now,
+    completedAt: completedAtOptions[0] ?? now,
     errorCode: null,
   }
 }

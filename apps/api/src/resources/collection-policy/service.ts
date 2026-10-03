@@ -16,8 +16,11 @@ import {
 import type { CollectionPolicyRepository } from './repository.ts'
 
 export type CollectionPolicyGetInput = InferOutput<typeof schema.SCollectionPolicySiteFields>
+
 export type CollectionPolicyUpdateInput = InferOutput<typeof schema.SCollectionPolicyUpdateFields>
+
 export type CollectionPolicyOutput = InferOutput<typeof schema.PSafePolicy>
+
 export type CollectionPolicyUpdateOutput = InferOutput<typeof schema.SPolicy>
 
 export interface CollectionPolicyIdFactory {
@@ -63,6 +66,7 @@ export class CollectionPolicyService {
   ): Promise<CollectionPolicyOutput> {
     await assertSiteScope(user, input.siteId, this.scope, { requiredRole: 'admin' })
     const layers = await this.repository.loadLayers(input.siteId)
+
     return toSafePolicy(resolvePolicy({ siteId: input.siteId, layers }))
   }
 
@@ -73,11 +77,14 @@ export class CollectionPolicyService {
     if (input.scope === 'installation') {
       assertInstallationAdmin(user)
       const lease = await this.lock.acquire('collection_policy')
+
       if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+
       try {
         await this.assertNoActiveLifecycleOperation()
         const values = policyValues(input.policy)
         assertPolicyIsValid(values)
+
         const committed = await this.repository.commitRevision({
           target: { scope: 'installation' },
           values,
@@ -85,6 +92,7 @@ export class CollectionPolicyService {
           changedBy: user?.id ?? null,
           now: this.clock(),
         })
+
         return { scope: 'installation', ...committed.layers.installation.values }
       } finally {
         await lease.release()
@@ -93,15 +101,21 @@ export class CollectionPolicyService {
 
     const siteId = input.policy.siteId
     await assertSiteManagementScope(user, siteId, this.scope)
+
     if (!(await this.scope.siteScope.isActive(siteId))) {
       throw new ORPCError('CONFLICT', { status: 409 })
     }
+
     const lease = await this.lock.acquire('collection_policy')
+
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+
     try {
       await this.assertNoActiveLifecycleOperation()
       const values = 'clear' in input.policy ? null : policyValues(input.policy)
+
       if (values !== null) assertPolicyIsValid(values)
+
       const committed = await this.repository.commitRevision({
         target: { scope: 'site', siteId },
         values,
@@ -109,8 +123,11 @@ export class CollectionPolicyService {
         changedBy: user?.id ?? null,
         now: this.clock(),
       })
+
       const outputValues = committed.layers.site?.values ?? committed.resolution?.effective.values
+
       if (outputValues === undefined) throw new ORPCError('INTERNAL_SERVER_ERROR')
+
       return {
         scope: 'site',
         siteId,
@@ -125,7 +142,9 @@ export class CollectionPolicyService {
     if (!(await this.scope.siteScope.isActive(input.siteId))) {
       throw new ORPCError('NOT_FOUND')
     }
+
     const layers = await this.repository.loadLayers(input.siteId)
+
     return evaluateAdmission({
       resolution: resolvePolicy({ siteId: input.siteId, layers }),
       input,
@@ -140,11 +159,13 @@ export class CollectionPolicyService {
    */
   async getEffectiveProfileFilterKeys(siteId: string): Promise<readonly string[]> {
     const layers = await this.repository.loadLayers(siteId)
+
     return resolvePolicy({ siteId, layers }).effective.values.profileFilterKeys
   }
 
   private async assertNoActiveLifecycleOperation(): Promise<void> {
     const active = await this.lifecycle.getActiveOperation()
+
     if (active === null || active.errorCode !== null) return
     throw new ORPCError('CONFLICT', { status: 409 })
   }
@@ -152,7 +173,9 @@ export class CollectionPolicyService {
 
 function policyValues(input: NonNullable<CollectionPolicyUpdateInput['policy']>): PolicyValues {
   if ('clear' in input) throw new Error('Cannot read values from a clear request')
+
   if (!('siteId' in input)) return input
+
   return {
     anonymousCollection: input.anonymousCollection,
     honorGpcDnt: input.honorGpcDnt,
@@ -173,6 +196,7 @@ function assertPolicyIsValid(values: PolicyValues): void {
     if (error instanceof PolicyValidationError) {
       throw new ORPCError('BAD_REQUEST', { status: 400 })
     }
+
     throw error
   }
 }

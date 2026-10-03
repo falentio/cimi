@@ -104,6 +104,7 @@ describe('MembershipRepositoryDrizzle.replaceMembers', () => {
       .select()
       .from(schema.TMembership)
       .where(eq(schema.TMembership.organizationId, 'org_1'))
+
     expect(rows).toEqual([
       expect.objectContaining({
         organizationId: 'org_1',

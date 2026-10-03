@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { resolveAuthDecision } from './auth-guard'
 
-function route(fullPath: string, meta: Record<string, unknown> = {}) {
+function route(fullPath: string, meta: { auth?: unknown; admin?: unknown } = {}) {
   return { fullPath, meta }
 }
 

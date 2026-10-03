@@ -11,6 +11,7 @@ import {
 const SCohortCreateRecord = v.strictObject(
   v.entriesFromObjects([SCohortSiteFields, SCohortDefinitionFields]),
 )
+
 export const SCohortCreateInput = v.pipe(
   SCohortCreateRecord,
   v.check(
@@ -18,8 +19,11 @@ export const SCohortCreateInput = v.pipe(
     VALIDATION_KEYS.contract.cohort.actionsDistinct,
   ),
 )
+
 export type SCohortCreateInput = v.InferOutput<typeof SCohortCreateInput>
+
 export const SCohortCreateOutput = SCohort
+
 export type SCohortCreateOutput = v.InferOutput<typeof SCohortCreateOutput>
 
 export const createCohort = oc

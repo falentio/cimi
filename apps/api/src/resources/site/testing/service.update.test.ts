@@ -79,6 +79,7 @@ describe('SiteService.update', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
+
     repository.updateActive.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus())

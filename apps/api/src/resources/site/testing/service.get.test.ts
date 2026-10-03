@@ -37,6 +37,7 @@ describe('SiteService.get', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
+
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
 
     await expect(

@@ -4,12 +4,18 @@ import { createMigratedTestDb } from '@cimi/db/testing'
 const createdAt = new Date('2026-08-31T00:00:00.000Z')
 
 export type UserRow = typeof schema.TUser.$inferSelect
+
 export type OrganizationRow = typeof schema.TOrganization.$inferSelect
+
 export type MembershipRow = typeof schema.TMembership.$inferSelect
+
 export type SiteRow = typeof schema.TSite.$inferSelect
+
 export type OrganizationGovernanceOperationRow =
   typeof schema.TOrganizationGovernanceOperation.$inferSelect
+
 export type OrganizationRepairOperationRow = typeof schema.TOrganizationRepairOperation.$inferSelect
+
 export type SiteTombstoneRow = typeof schema.TSiteTombstone.$inferSelect
 
 export function createSiteUserRow(overrides: Partial<UserRow> = {}): UserRow {
@@ -150,11 +156,13 @@ export interface SiteDrizzleFixture extends Disposable {
 
 export function createSiteDrizzleFixture(): SiteDrizzleFixture {
   const db = createMigratedTestDb()
+
   try {
     db.insert(schema.TUser).values(createSiteUserRow()).run()
     db.insert(schema.TOrganization).values(createSiteOrganizationRow()).run()
     db.insert(schema.TMembership).values(createSiteMembershipRow()).run()
     db.insert(schema.TSite).values(createSiteRow()).run()
+
     return {
       db,
       [Symbol.dispose]() {

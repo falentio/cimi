@@ -2,10 +2,12 @@ import { schema } from '@cimi/db'
 import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 
 export const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 export const updatedAt = new Date('2026-09-02T00:00:00.000Z')
 
 export function createPublicDashboardFixture() {
   const site = createSiteDrizzleFixture()
+
   return {
     ...site,
     [Symbol.dispose]() {

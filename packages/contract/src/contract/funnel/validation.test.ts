@@ -15,6 +15,7 @@ describe('funnel report contract', () => {
       rateFromEntry: 0.5,
       rateFromPrevious: 0.5,
     })
+
     expect([step(0), step(1)]).toEqual(expect.schemaMatching(SFunnelReportSteps))
     expect([step(1), step(2)]).not.toEqual(expect.schemaMatching(SFunnelReportSteps))
     expect([step(0)]).not.toEqual(expect.schemaMatching(SFunnelReportSteps))

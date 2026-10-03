@@ -34,10 +34,14 @@ export {
   coverageForDefinitions,
   historicalDefinitionFor,
 } from './query.ts'
+
 export type { ReportEvaluationInput } from './evaluation.ts'
+
 export { toOrpcReportingError } from './errors.ts'
+
 export {
   ReportingDataDrizzleDuckDb,
   type ReportingDataDrizzleDuckDbDependencies,
 } from './data.drizzle-duckdb.ts'
+
 export { readActiveProfiles, readActiveProfileTraits, readProfileTrait } from './profiles.ts'

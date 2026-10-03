@@ -33,6 +33,7 @@ describe('in-memory kernel ports', () => {
     expect(lock.acquire('restore')).toBeUndefined()
     expect(lock.isLocked()).toBe(true)
     expect(lock.kind).toBe('backup')
+
     if (lease === undefined) throw new Error('expected a lifecycle lease')
     lease.release()
     expect(lock.isLocked()).toBe(false)
@@ -154,9 +155,11 @@ describe('in-memory kernel ports', () => {
   it('does not let a stale lease release a newer owner', () => {
     const lock = new InMemoryLifecycleLock()
     const first = lock.acquire('backup')
+
     if (first === undefined) throw new Error('expected the first lease')
     first.release()
     const second = lock.acquire('restore')
+
     if (second === undefined) throw new Error('expected the second lease')
 
     first.release()
@@ -182,6 +185,7 @@ describe('in-memory kernel ports', () => {
 
   it('drains the acceptance journal through its injected boundary', async () => {
     let drained = false
+
     const journal = new InMemoryAcceptanceJournalPort(async () => {
       drained = true
     })

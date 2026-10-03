@@ -10,6 +10,7 @@ defineOptions({
 })
 
 const props = defineProps<ContextMenuContentProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<ContextMenuContentEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

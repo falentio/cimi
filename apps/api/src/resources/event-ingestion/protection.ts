@@ -2,8 +2,11 @@ import { ORPCError } from '@orpc/server'
 import type { IngestionProtection } from './service.ts'
 
 const SITE_RATE_PER_SECOND = 100
+
 const SITE_BURST = 500
+
 const SOURCE_IP_RATE_PER_SECOND = 25
+
 const SOURCE_IP_BURST = 100
 
 interface Bucket {
@@ -39,6 +42,7 @@ export class InMemoryIngestionProtection implements IngestionProtection {
     ] as const) {
       if (!Number.isFinite(value) || value <= 0) throw new RangeError(`${name} must be positive`)
     }
+
     this.siteRatePerSecond = siteRatePerSecond
     this.siteBurst = siteBurst
     this.sourceIpRatePerSecond = sourceIpRatePerSecond
@@ -62,33 +66,43 @@ export class InMemoryIngestionProtection implements IngestionProtection {
             },
           ]),
     ]
+
     const now = input.now.getTime()
+
     const updated = requests.map((request) => ({
       request,
       bucket: this.refill(request.key, request.ratePerSecond, request.burst, now),
     }))
+
     if (updated.some(({ bucket }) => bucket.tokens < input.units)) {
       throw new ORPCError('TOO_MANY_REQUESTS', { status: 429 })
     }
+
     for (const { bucket } of updated) bucket.tokens -= input.units
   }
 
   private refill(key: string, ratePerSecond: number, burst: number, now: number): Bucket {
     const current = this.buckets.get(key)
+
     if (current === undefined) {
       const bucket = { tokens: burst, updatedAt: now }
       this.buckets.set(key, bucket)
+
       return bucket
     }
+
     if (now - current.updatedAt > 60_000) {
       this.buckets.delete(key)
       const bucket = { tokens: burst, updatedAt: now }
       this.buckets.set(key, bucket)
+
       return bucket
     }
+
     const elapsedSeconds = Math.max(0, now - current.updatedAt) / 1_000
     current.tokens = Math.min(burst, current.tokens + elapsedSeconds * ratePerSecond)
     current.updatedAt = now
+
     return current
   }
 }

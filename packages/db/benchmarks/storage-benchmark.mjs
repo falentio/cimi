@@ -17,6 +17,7 @@ import Database from 'better-sqlite3'
 import { DuckDBInstance, timestampValue } from '@duckdb/node-api'
 
 const argv = process.argv.slice(2)
+
 const config = {
   // Synthetic benchmark scale; this is not a product capacity target.
   rows: numberOption('--rows', 20_000),
@@ -42,6 +43,7 @@ const config = {
 }
 
 const events = Array.from({ length: config.rows }, (_, index) => createEvent(index))
+
 const mixedEvents = Array.from({ length: config.mixedRows }, (_, index) =>
   createEvent(config.rows + index),
 )
@@ -50,6 +52,7 @@ await main()
 
 async function main() {
   mkdirSync(config.dbDir, { recursive: true })
+
   const result = {
     formatVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -77,6 +80,7 @@ async function runCandidate(engine, batchSize, repeat) {
 
   const store = await openCandidate(engine, runDir)
   let storeClosed = false
+
   try {
     const acceptance = await runAcceptance(store, batchSize)
     const materialization = store.materialize ? await measureMaterialization(store) : null
@@ -91,13 +95,18 @@ async function runCandidate(engine, batchSize, repeat) {
     storeClosed = true
 
     const recoveryStarted = performance.now()
+
     if (store.rebuild) rmSync(join(runDir, 'analytics.duckdb'), { force: true })
     const recoveredStore = await openCandidate(engine, runDir, false)
+
     if (recoveredStore.rebuild) await recoveredStore.rebuild()
+
     const recoveredRows = Number(
       (await recoveredStore.query('SELECT count(*) AS count FROM events'))[0].count,
     )
+
     await recoveredStore.close()
+
     if (recoveredRows !== retention.remainingRows) {
       throw new Error(
         `${engine} recovery row count ${recoveredRows} did not match retained row count ${retention.remainingRows}`,
@@ -132,21 +141,26 @@ async function runCandidate(engine, batchSize, repeat) {
 async function openCandidate(engine, runDir, initialize = true) {
   if (engine === 'sqlite-direct') {
     const db = openSqlite(join(runDir, 'control.sqlite'))
+
     if (initialize) {
       createSqliteSchema(db)
     }
+
     return sqliteStore(db, join(runDir, 'control.sqlite'))
   }
 
   if (engine === 'duckdb-direct') {
     const duck = await openDuck(join(runDir, 'analytics.duckdb'), join(runDir, 'tmp'))
+
     if (initialize) await createDuckSchema(duck.connection)
+
     return duckStore(duck, join(runDir, 'analytics.duckdb'))
   }
 
   if (engine === 'sqlite-outbox-duckdb') {
     const sqlitePath = join(runDir, 'control.sqlite')
     const db = openSqlite(sqlitePath)
+
     if (initialize) {
       db.exec(`
         CREATE TABLE dedup (
@@ -185,25 +199,31 @@ async function openCandidate(engine, runDir, initialize = true) {
         CREATE INDEX outbox_sequence ON outbox(sequence);
       `)
     }
+
     const analyticsPath = join(runDir, 'analytics.duckdb')
     const needsAnalyticsSchema = initialize || !exists(analyticsPath)
     const duck = await openDuck(analyticsPath, join(runDir, 'tmp'))
+
     if (needsAnalyticsSchema) {
       await createDuckSchema(duck.connection)
     }
+
     return outboxStore(db, sqlitePath, duck, analyticsPath)
   }
 
   if (engine === 'sqlite-sync-duckdb') {
     const sqlitePath = join(runDir, 'control.sqlite')
     const db = openSqlite(sqlitePath)
+
     if (initialize) createSqliteSchema(db)
     const analyticsPath = join(runDir, 'analytics.duckdb')
     const needsAnalyticsSchema = initialize || !exists(analyticsPath)
     const duck = await openDuck(analyticsPath, join(runDir, 'tmp'))
+
     if (needsAnalyticsSchema) {
       await createDuckSchema(duck.connection)
     }
+
     return synchronousStore(db, sqlitePath, duck, analyticsPath)
   }
 
@@ -217,6 +237,7 @@ function openSqlite(path) {
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
   db.pragma('wal_autocheckpoint = 1000')
+
   return db
 }
 
@@ -240,13 +261,16 @@ function createSqliteSchema(db) {
 
 async function openDuck(path, tempDirectory) {
   mkdirSync(tempDirectory, { recursive: true })
+
   const instance = await DuckDBInstance.create(path, {
     threads: String(config.threads),
     memory_limit: config.memoryLimit,
     temp_directory: tempDirectory,
     max_temp_directory_size: config.maxTempDirectorySize,
   })
+
   const connection = await instance.connect()
+
   return { instance, connection }
 }
 
@@ -268,9 +292,11 @@ async function createDuckSchema(connection) {
 
 function sqliteStore(db, path, table = 'events') {
   const insert = db.prepare(`INSERT INTO ${table} VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+
   const insertBatch = db.transaction((batch) => {
     for (const event of batch) insert.run(...eventValues(event))
   })
+
   return {
     name: 'sqlite',
     db,
@@ -313,6 +339,7 @@ function duckStore(duck, path) {
     async query(sql) {
       const reader = await duck.connection.runAndReadAll(sql)
       await reader.readAll()
+
       return reader.getRowObjects()
     },
     async createReader() {
@@ -324,6 +351,7 @@ function duckStore(duck, path) {
     async versions() {
       const reader = await duck.connection.runAndReadAll('SELECT version() AS version')
       await reader.readAll()
+
       return { duckdb: String(reader.getRowObjects()[0].version) }
     },
     async close() {
@@ -335,18 +363,22 @@ function duckStore(duck, path) {
 function outboxStore(db, sqlitePath, duck, duckPath) {
   const accept = db.transaction((batch) => {
     const dedup = db.prepare('INSERT INTO dedup VALUES (?, ?, ?, ?)')
+
     const accepted = db.prepare(
       'INSERT INTO accepted_events (event_id, site_id, occurred_at, kind, page_path, visitor_id, identified_user_id, properties_json, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
+
     const outbox = db.prepare(
       'INSERT INTO outbox (event_id, site_id, occurred_at, kind, page_path, visitor_id, identified_user_id, properties_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
+
     for (const event of batch) {
       dedup.run(event.siteId, event.eventId, hashEvent(event), event.receivedAt)
       accepted.run(...eventValues(event), event.receivedAt)
       outbox.run(...eventValues(event))
     }
   })
+
   return {
     name: 'sqlite-outbox-duckdb',
     db,
@@ -365,16 +397,21 @@ function outboxStore(db, sqlitePath, duck, duckPath) {
           'SELECT event_id, site_id, occurred_at, kind, page_path, visitor_id, identified_user_id, properties_json FROM outbox ORDER BY sequence',
         )
         .all()
+
       const existingReader = await duck.connection.runAndReadAll(
         'SELECT site_id, event_id FROM events',
       )
+
       await existingReader.readAll()
+
       const existing = new Set(
         existingReader.getRowObjects().map((event) => `${event.site_id}:${event.event_id}`),
       )
+
       const toAppend = pending.filter(
         (event) => !existing.has(`${event.site_id}:${event.event_id}`),
       )
+
       if (toAppend.length > 0) {
         await appendDuckRows(duck.connection, toAppend, (event) => [
           event.event_id,
@@ -387,10 +424,12 @@ function outboxStore(db, sqlitePath, duck, duckPath) {
           event.properties_json,
         ])
       }
+
       const deletePending = db.prepare('DELETE FROM outbox WHERE site_id = ? AND event_id = ?')
       db.transaction(() => {
         for (const event of pending) deletePending.run(event.site_id, event.event_id)
       })()
+
       return { pendingRows: pending.length, appendedRows: toAppend.length }
     },
     async rebuild() {
@@ -399,6 +438,7 @@ function outboxStore(db, sqlitePath, duck, duckPath) {
           'SELECT event_id, site_id, occurred_at, kind, page_path, visitor_id, identified_user_id, properties_json FROM accepted_events ORDER BY sequence',
         )
         .all()
+
       await duck.connection.run('DELETE FROM events')
       await appendDuckRows(duck.connection, accepted, (event) => [
         event.event_id,
@@ -410,11 +450,13 @@ function outboxStore(db, sqlitePath, duck, duckPath) {
         event.identified_user_id,
         event.properties_json,
       ])
+
       return { rows: accepted.length }
     },
     async query(sql) {
       const reader = await duck.connection.runAndReadAll(sql)
       await reader.readAll()
+
       return reader.getRowObjects()
     },
     async createReader() {
@@ -426,6 +468,7 @@ function outboxStore(db, sqlitePath, duck, duckPath) {
     async versions() {
       const duckVersion = await duck.connection.runAndReadAll('SELECT version() AS version')
       await duckVersion.readAll()
+
       return {
         sqlite: db.prepare('SELECT sqlite_version() AS version').get().version,
         duckdb: String(duckVersion.getRowObjects()[0].version),
@@ -443,9 +486,11 @@ function outboxStore(db, sqlitePath, duck, duckPath) {
 
 function synchronousStore(db, sqlitePath, duck, duckPath) {
   const insert = db.prepare('INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+
   const insertBatch = db.transaction((batch) => {
     for (const event of batch) insert.run(...eventValues(event))
   })
+
   return {
     name: 'sqlite-sync-duckdb',
     db,
@@ -458,6 +503,7 @@ function synchronousStore(db, sqlitePath, duck, duckPath) {
     backupTable: 'events',
     async accept(batch) {
       insertBatch(batch)
+
       try {
         await insertDuckBatch(duck.connection, batch)
       } catch (error) {
@@ -471,6 +517,7 @@ function synchronousStore(db, sqlitePath, duck, duckPath) {
     async query(sql) {
       const reader = await duck.connection.runAndReadAll(sql)
       await reader.readAll()
+
       return reader.getRowObjects()
     },
     async createReader() {
@@ -482,6 +529,7 @@ function synchronousStore(db, sqlitePath, duck, duckPath) {
           'SELECT event_id, site_id, occurred_at, kind, page_path, visitor_id, identified_user_id, properties_json FROM events ORDER BY rowid',
         )
         .all()
+
       await duck.connection.run('DELETE FROM events')
       await appendDuckRows(duck.connection, rows, (event) => [
         event.event_id,
@@ -493,6 +541,7 @@ function synchronousStore(db, sqlitePath, duck, duckPath) {
         event.identified_user_id,
         event.properties_json,
       ])
+
       return { rows: rows.length }
     },
     async execute(sql) {
@@ -501,6 +550,7 @@ function synchronousStore(db, sqlitePath, duck, duckPath) {
     async versions() {
       const duckVersion = await duck.connection.runAndReadAll('SELECT version() AS version')
       await duckVersion.readAll()
+
       return {
         sqlite: db.prepare('SELECT sqlite_version() AS version').get().version,
         duckdb: String(duckVersion.getRowObjects()[0].version),
@@ -527,6 +577,7 @@ async function closeDuck(duck) {
     try {
       duck.connection.closeSync()
     } catch {}
+
     try {
       duck.instance.closeSync()
     } catch {}
@@ -535,6 +586,7 @@ async function closeDuck(duck) {
 
 function createSqliteReader(path) {
   const db = new Database(path, { readonly: true, fileMustExist: true })
+
   return {
     query(sql) {
       return db.prepare(sql).all()
@@ -547,10 +599,12 @@ function createSqliteReader(path) {
 
 async function createDuckReader(instance) {
   const connection = await instance.connect()
+
   return {
     async query(sql) {
       const reader = await connection.runAndReadAll(sql)
       await reader.readAll()
+
       return reader.getRowObjects()
     },
     async close() {
@@ -561,10 +615,12 @@ async function createDuckReader(instance) {
 
 async function appendDuckRows(connection, rows, valuesForRow) {
   const appender = await connection.createAppender('events')
+
   try {
     for (const row of rows) {
       appendDuckValues(appender, valuesForRow(row))
     }
+
     appender.flushSync()
   } finally {
     appender.closeSync()
@@ -581,17 +637,20 @@ function appendDuckValues(appender, values) {
       appender.appendVarchar(String(value))
     }
   }
+
   appender.endRow()
 }
 
 async function runAcceptance(store, batchSize) {
   const samples = []
+
   for (let start = 0; start < events.length; start += batchSize) {
     const batch = events.slice(start, start + batchSize)
     const started = performance.now()
     await store.accept(batch)
     samples.push(performance.now() - started)
   }
+
   return {
     batches: samples.length,
     rows: events.length,
@@ -603,6 +662,7 @@ async function runAcceptance(store, batchSize) {
 async function measureMaterialization(store) {
   const started = performance.now()
   const result = await store.materialize()
+
   return { ...result, durationMs: performance.now() - started }
 }
 
@@ -610,6 +670,7 @@ async function runMaterializationReplay(store) {
   if (store.name !== 'sqlite-outbox-duckdb') return null
 
   const event = events[0]
+
   if (!event) throw new Error('Materialization replay requires at least one event.')
   store.db
     .prepare(
@@ -618,17 +679,21 @@ async function runMaterializationReplay(store) {
     .run(...eventValues(event))
 
   const result = await store.materialize()
+
   if (result.pendingRows !== 1 || result.appendedRows !== 0) {
     throw new Error(`Outbox replay was not idempotent: ${JSON.stringify(result)}`)
   }
+
   return result
 }
 
 async function runDeduplication(store) {
   const samples = events.slice(0, Math.min(1000, events.length))
   const latencies = []
+
   for (const event of samples) {
     const started = performance.now()
+
     if (store.name === 'sqlite-outbox-duckdb') {
       store.db
         .prepare('SELECT payload_hash FROM dedup WHERE site_id = ? AND event_id = ?')
@@ -642,18 +707,22 @@ async function runDeduplication(store) {
         `SELECT event_id FROM events WHERE site_id = '${sqlString(event.siteId)}' AND event_id = '${sqlString(event.eventId)}'`,
       )
     }
+
     latencies.push(performance.now() - started)
   }
 
   const firstEvent = samples[0]
+
   if (!firstEvent) throw new Error('Deduplication requires at least one event.')
   const changedEvent = { ...firstEvent, pagePath: `${firstEvent.pagePath}/changed` }
   let changedPayloadRejected = false
+
   try {
     await store.accept([changedEvent])
   } catch {
     changedPayloadRejected = true
   }
+
   if (!changedPayloadRejected) {
     throw new Error(`${store.name} accepted a changed payload for an existing Event ID`)
   }
@@ -668,23 +737,28 @@ async function runDeduplication(store) {
 async function runQueries(store) {
   const queries = store.name === 'sqlite' ? sqliteQueries() : duckQueries()
   const results = {}
+
   for (const query of queries) {
     await store.query(query.sql)
     const samples = []
     let checksum
+
     for (let index = 0; index < config.queryRepeats; index += 1) {
       const started = performance.now()
       const rows = await store.query(query.sql)
       samples.push(performance.now() - started)
       checksum = checksumRows(rows)
     }
+
     results[query.name] = { latencyMs: summarize(samples), checksum }
   }
+
   return results
 }
 
 async function runMixedLoad(store) {
   const batches = []
+
   for (let start = 0; start < mixedEvents.length; start += config.mixedBatchSize) {
     batches.push(mixedEvents.slice(start, start + config.mixedBatchSize))
   }
@@ -719,8 +793,10 @@ async function runMixedLoad(store) {
             const started = performance.now()
             const result = await store.materialize()
             projectedRows += result.pendingRows
+
             if (writerDone && result.pendingRows === 0) break
             await nextTick()
+
             if (performance.now() - started > 0) continue
           } catch (error) {
             errors.push(errorRecord('projector', error))
@@ -733,6 +809,7 @@ async function runMixedLoad(store) {
   const readers = Array.from({ length: config.readers }, (_, reader) =>
     (async () => {
       const queryStore = store.createReader ? await store.createReader() : store
+
       try {
         for (let query = 0; query < config.mixedQueries; query += 1) {
           try {
@@ -746,6 +823,7 @@ async function runMixedLoad(store) {
           } catch (error) {
             errors.push(errorRecord(`reader-${reader}`, error))
           }
+
           await nextTick()
         }
       } finally {
@@ -758,9 +836,11 @@ async function runMixedLoad(store) {
   const finalRows = Number((await store.query('SELECT count(*) AS count FROM events'))[0].count)
   const readerLatencies = readerSamples.map(({ durationMs }) => durationMs)
   const readerChecksums = [...new Set(readerSamples.map(({ checksum }) => checksum))]
+
   if (errors.length > 0) {
     throw new Error(`Mixed-load errors: ${JSON.stringify(errors)}`)
   }
+
   if (finalRows !== events.length + mixedEvents.length) {
     throw new Error(
       `Mixed-load row count ${finalRows} did not match expected ${events.length + mixedEvents.length}`,
@@ -789,6 +869,7 @@ function mixedReaderQuery(store) {
   if (store.name === 'sqlite') {
     return "SELECT kind, count(*) AS events FROM events WHERE site_id = 'site_0' GROUP BY kind ORDER BY kind"
   }
+
   return "SELECT kind, count(*) AS events FROM events WHERE site_id = 'site_0' GROUP BY kind ORDER BY kind"
 }
 
@@ -883,6 +964,7 @@ function duckQueries() {
 async function runRetention(store) {
   const cutoff = '2025-01-03 00:00:00'
   const started = performance.now()
+
   if (store.name === 'sqlite-outbox-duckdb') {
     await store.execute(`DELETE FROM events WHERE occurred_at < '${cutoff}'`)
     store.db.exec(`
@@ -897,18 +979,23 @@ async function runRetention(store) {
   } else {
     await store.execute(`DELETE FROM events WHERE occurred_at < '${cutoff}'`)
   }
+
   if (store.name === 'sqlite-sync-duckdb') {
     store.db.exec(`DELETE FROM events WHERE occurred_at < '${cutoff}'`)
   }
+
   const deleteMs = performance.now() - started
   const maintenanceStarted = performance.now()
+
   if (store.name === 'sqlite' || store.name === 'sqlite-sync-duckdb') {
     store.db.pragma('wal_checkpoint(TRUNCATE)')
     store.db.exec('VACUUM')
   }
+
   if (store.name !== 'sqlite') {
     await store.execute('CHECKPOINT')
   }
+
   return {
     deleteMs,
     maintenanceMs: performance.now() - maintenanceStarted,
@@ -922,6 +1009,7 @@ function createEvent(index) {
   const day = String(1 + Math.floor(hourIndex / 24)).padStart(2, '0')
   const site = `site_${index % 8}`
   const kind = index % 5 === 0 ? 'custom_event' : 'page_view'
+
   return {
     eventId: `event_${String(index).padStart(10, '0')}`,
     siteId: site,
@@ -950,6 +1038,7 @@ function eventValues(event) {
 
 function summarize(values) {
   const sorted = [...values].sort((left, right) => left - right)
+
   return {
     count: values.length,
     min: sorted[0] ?? 0,
@@ -976,6 +1065,7 @@ function nextTick() {
 
 function percentile(sorted, fraction) {
   if (sorted.length === 0) return 0
+
   return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1)]
 }
 
@@ -987,9 +1077,12 @@ function checksumRows(rows) {
         .map(([key, value]) => [key, value === null ? null : String(value)]),
     ),
   )
+
   const text = JSON.stringify(normalized)
   let hash = 2_166_136_261
+
   for (const character of text) hash = Math.imul(hash ^ character.charCodeAt(0), 16_777_619)
+
   return (hash >>> 0).toString(16)
 }
 
@@ -999,22 +1092,30 @@ function hashEvent(event) {
 
 function fileSizes(directory) {
   const sizes = {}
+
   for (const path of [join(directory, 'control.sqlite'), join(directory, 'analytics.duckdb')]) {
     if (exists(path)) sizes[path] = statSync(path).size
   }
+
   for (const suffix of ['-wal', '-shm']) {
     const path = join(directory, `control.sqlite${suffix}`)
+
     if (exists(path)) sizes[path] = statSync(path).size
   }
+
   const tempDirectory = join(directory, 'tmp')
+
   if (exists(tempDirectory)) sizes[tempDirectory] = directoryBytes(tempDirectory)
+
   return sizes
 }
 
 function directoryBytes(directory) {
   if (!exists(directory)) return 0
+
   return readdirSafe(directory).reduce((sum, name) => {
     const path = join(directory, name)
+
     return sum + (statSync(path).isDirectory() ? directoryBytes(path) : statSync(path).size)
   }, 0)
 }
@@ -1052,6 +1153,7 @@ function safeCommand(command, args) {
 function fileExists(path) {
   try {
     statSync(path)
+
     return true
   } catch {
     return false
@@ -1077,6 +1179,7 @@ function sqlString(value) {
 function numberOption(name, fallback) {
   const index = argv.indexOf(name)
   const value = index === -1 ? undefined : argv[index + 1]
+
   return value === undefined ? fallback : positiveInteger(name, Number(value))
 }
 
@@ -1084,10 +1187,12 @@ function positiveInteger(name, value) {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer`)
   }
+
   return value
 }
 
 function stringOption(name, fallback) {
   const index = argv.indexOf(name)
+
   return index === -1 ? fallback : (argv[index + 1] ?? fallback)
 }

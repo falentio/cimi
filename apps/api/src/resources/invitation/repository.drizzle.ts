@@ -23,7 +23,9 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
       .from(schema.TInvitation)
       .where(eq(schema.TInvitation.id, id))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toRecord(row)
   }
 
@@ -35,7 +37,9 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
       .from(schema.TInvitation)
       .where(eq(schema.TInvitation.tokenHash, tokenHash))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toRecord(row)
   }
 
@@ -44,10 +48,12 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
     options: InvitationRepository.FindManyOptions,
   ): Promise<InvitationRepository.FindManyResult> {
     const where = eq(schema.TInvitation.organizationId, organizationId)
+
     const [countRow] = await this.db
       .select({ count: count() })
       .from(schema.TInvitation)
       .where(where)
+
     const rows = await this.db
       .select()
       .from(schema.TInvitation)
@@ -55,7 +61,9 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
       .orderBy(asc(schema.TInvitation.createdAt), asc(schema.TInvitation.id))
       .limit(options.limit + 1)
       .offset(options.offset)
+
     const hasMore = rows.length > options.limit
+
     return {
       items: rows.slice(0, options.limit).map((row) => toPublic(row, this.clock())),
       nextOffset: hasMore ? options.offset + options.limit : null,
@@ -70,6 +78,7 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, organizationId))
       .limit(1)
+
     return rows[0]?.authorityOrganizationId ?? undefined
   }
 
@@ -91,8 +100,11 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
         updatedAt: input.updatedAt,
       })
       .returning()
+
     const row = rows[0]
+
     if (row === undefined) throw new Error('Invitation insert returned no row')
+
     return toRecord(row)
   }
 
@@ -106,14 +118,19 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
         .where(eq(schema.TInvitation.tokenHash, input.tokenHash))
         .limit(1)
         .all()[0]
+
       if (row === undefined) return { status: 'not-found' }
+
       if (row.status === 'expired') return { status: 'expired' }
+
       if (row.status !== 'pending') return { status: 'not-found' }
+
       if (row.expiresAt <= input.now) {
         tx.update(schema.TInvitation)
           .set({ status: 'expired', updatedAt: input.now })
           .where(and(eq(schema.TInvitation.id, row.id), eq(schema.TInvitation.status, 'pending')))
           .run()
+
         return { status: 'expired' }
       }
 
@@ -128,6 +145,7 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
         )
         .limit(1)
         .all()[0]
+
       if (existing !== undefined && existing.role !== row.role) {
         return { status: 'conflict', currentRole: existing.role }
       }
@@ -137,6 +155,7 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
         .set({ status: 'accepted', acceptedAt: input.now, updatedAt: input.now })
         .where(and(eq(schema.TInvitation.id, row.id), eq(schema.TInvitation.status, 'pending')))
         .run()
+
       if (updated.changes !== 1) return { status: 'not-found' }
 
       if (existing !== undefined) {
@@ -162,6 +181,7 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
         })
         .onConflictDoNothing()
         .run()
+
       const inserted = tx
         .select()
         .from(schema.TMembership)
@@ -173,14 +193,18 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
         )
         .limit(1)
         .all()[0]
+
       if (inserted === undefined) throw new Error('Invitation membership insert returned no row')
+
       if (inserted.role !== row.role) {
         tx.update(schema.TInvitation)
           .set({ status: 'pending', acceptedAt: null, updatedAt: input.now })
           .where(and(eq(schema.TInvitation.id, row.id), eq(schema.TInvitation.status, 'accepted')))
           .run()
+
         return { status: 'conflict', currentRole: inserted.role }
       }
+
       return {
         status: 'consumed',
         invitation: toRecord({
@@ -204,21 +228,28 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
         .where(eq(schema.TInvitation.id, input.invitationId))
         .limit(1)
         .all()[0]
+
       if (row === undefined) return { status: 'not-found' }
+
       if (row.status === 'accepted') return { status: 'consumed' }
+
       if (row.status === 'revoked' || row.status === 'expired') return { status: 'idempotent' }
+
       if (row.expiresAt <= input.now) {
         tx.update(schema.TInvitation)
           .set({ status: 'expired', updatedAt: input.now })
           .where(and(eq(schema.TInvitation.id, row.id), eq(schema.TInvitation.status, 'pending')))
           .run()
+
         return { status: 'idempotent' }
       }
+
       const updated = tx
         .update(schema.TInvitation)
         .set({ status: 'revoked', revokedAt: input.now, updatedAt: input.now })
         .where(and(eq(schema.TInvitation.id, row.id), eq(schema.TInvitation.status, 'pending')))
         .run()
+
       if (updated.changes !== 1) {
         const current = tx
           .select()
@@ -226,11 +257,15 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
           .where(eq(schema.TInvitation.id, row.id))
           .limit(1)
           .all()[0]
+
         if (current?.status === 'accepted') return { status: 'consumed' }
+
         if (current?.status === 'revoked' || current?.status === 'expired')
           return { status: 'idempotent' }
+
         return { status: 'not-found' }
       }
+
       return { status: 'revoked' }
     })
   }
@@ -239,6 +274,7 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
 function toRecord(
   row: typeof schema.TInvitation.$inferSelect,
 ): InvitationRepository.InvitationRecord {
+  // SAFETY: tokenHash column is written only via hashInvitationToken, which establishes the brand.
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -258,6 +294,7 @@ function toPublic(
   now: Date,
 ): InvitationRepository.FindManyResult['items'][number] {
   const status = row.status === 'pending' && row.expiresAt <= now ? 'expired' : row.status
+
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -273,6 +310,7 @@ function toMembership(
   row: typeof schema.TMembership.$inferSelect,
 ): InvitationRepository.MembershipRecord {
   if (row.role === 'owner') throw new Error('Invitation membership must not be an owner')
+
   return {
     organizationId: row.organizationId,
     userId: row.userId,

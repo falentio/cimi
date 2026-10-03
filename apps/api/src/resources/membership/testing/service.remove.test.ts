@@ -7,22 +7,33 @@ import {
 } from '../fixture.ts'
 
 const organizationId = 'org_1'
+
 const authorityOrganizationId = 'authority_1'
+
 const ownerUserId = 'user_owner'
+
 const adminUserId = 'user_admin'
+
 const memberUserId = 'user_member'
+
 const targetUserId = 'user_target'
 
 const owner = createMembershipRecord({ userId: ownerUserId, role: 'owner' })
+
 const admin = createMembershipRecord({ userId: adminUserId, role: 'admin' })
+
 const currentMember = createMembershipRecord({ userId: memberUserId, role: 'member' })
+
 const targetMember = createMembershipRecord({ userId: targetUserId, role: 'member' })
+
 const ownerAuthorityMember = createAuthorityMember({ id: 'member_owner', userId: ownerUserId })
+
 const adminAuthorityMember = createAuthorityMember({
   id: 'member_admin',
   userId: adminUserId,
   role: 'admin',
 })
+
 const targetAuthorityMember = createAuthorityMember({
   id: 'member_target',
   userId: targetUserId,
@@ -64,6 +75,7 @@ describe('MembershipService.remove', () => {
       [owner, admin, targetMember],
       [ownerAuthorityMember, adminAuthorityMember, targetAuthorityMember],
     )
+
     const operation = createMembershipOperation({
       id: 'gop_remove',
       organizationId,
@@ -72,16 +84,19 @@ describe('MembershipService.remove', () => {
       targetRole: null,
       attemptCount: 0,
     })
+
     const events: string[] = []
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
     fixture.repository.incrementMembershipAttempt.mockResolvedValue()
     fixture.repository.delete.mockImplementation(async () => {
       events.push('delete')
+
       return true
     })
     fixture.repository.completeMembershipOperation.mockResolvedValue()
     fixture.authority.removeMember.mockImplementation(async () => {
       events.push('remove-member')
+
       return createAuthorityMember({ userId: targetUserId, role: 'member' })
     })
 
@@ -100,6 +115,7 @@ describe('MembershipService.remove', () => {
       [owner, admin, targetMember],
       [ownerAuthorityMember, adminAuthorityMember, targetAuthorityMember],
     )
+
     const operation = createMembershipOperation({
       id: 'gop_remove_failure',
       organizationId,
@@ -108,6 +124,7 @@ describe('MembershipService.remove', () => {
       targetRole: null,
       attemptCount: 0,
     })
+
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
     fixture.repository.incrementMembershipAttempt.mockResolvedValue()
     fixture.repository.delete.mockResolvedValue(true)
@@ -132,6 +149,7 @@ describe('MembershipService.remove', () => {
       [owner, admin],
       [ownerAuthorityMember, adminAuthorityMember, targetAuthorityMember],
     )
+
     repository.findPendingMembershipOperation.mockResolvedValue(pendingRemoval)
     repository.incrementMembershipAttempt.mockResolvedValue()
     repository.completeMembershipOperation.mockResolvedValue()
@@ -154,6 +172,7 @@ describe('MembershipService.remove', () => {
       [owner, admin],
       [ownerAuthorityMember, adminAuthorityMember, targetAuthorityMember],
     )
+
     repository.findPendingMembershipOperation.mockResolvedValue(pendingRemoval)
     repository.incrementMembershipAttempt.mockResolvedValue()
     repository.completeMembershipOperation.mockResolvedValue()

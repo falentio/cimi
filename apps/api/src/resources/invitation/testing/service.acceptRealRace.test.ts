@@ -77,6 +77,7 @@ function seed() {
       updatedAt: createdAt,
     })
     .run()
+
   return db
 }
 
@@ -89,24 +90,29 @@ function buildService(repository: InvitationRepositoryDrizzle) {
   authority.removeMember.mockImplementation(async ({ organizationId, userId }) =>
     createAuthorityMember({ organizationId, userId, role: 'member' }),
   )
+
   const scope = new InMemorySiteScopePort(
     [],
     [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
   )
+
   const membership = mock<OrganizationMembershipReconciler>()
   membership.reconcile.mockResolvedValue(undefined)
+
   const service = new InvitationService({
     repository,
     scope: { membership: scope },
     authority,
     membership,
   })
+
   return { authority, service }
 }
 
 describe('InvitationService.accept real race', () => {
   it('lets exactly one of two concurrent accepts win with real persistence', async () => {
     const db = seed()
+
     try {
       const firstRepository = new InvitationRepositoryDrizzle({ db })
       const secondRepository = new InvitationRepositoryDrizzle({ db })
@@ -132,10 +138,13 @@ describe('InvitationService.accept real race', () => {
       const fulfilled = [firstResult, secondResult].filter(
         (result) => result.status === 'fulfilled',
       )
+
       const rejected = [firstResult, secondResult].filter((result) => result.status === 'rejected')
       expect(fulfilled).toHaveLength(1)
       expect(rejected).toHaveLength(1)
+      // SAFETY: toHaveLength(1) above proves exactly one settled result.
       expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'NOT_FOUND' })
+      // SAFETY: toHaveLength(1) above proves exactly one settled result.
       const winner = (fulfilled[0] as PromiseFulfilledResult<{ userId: string }>).value
       expect(winner).toMatchObject({ organizationId: 'org_1', role: 'member' })
       expect(['user_2', 'user_3']).toContain(winner.userId)
@@ -145,10 +154,12 @@ describe('InvitationService.accept real race', () => {
       expect(champion.authority.removeMember).not.toHaveBeenCalled()
       expect(loser.authority.admitMember).toHaveBeenCalledOnce()
       expect(loser.authority.removeMember).toHaveBeenCalledOnce()
+
       const members = await db
         .select()
         .from(schema.TMembership)
         .where(eq(schema.TMembership.organizationId, 'org_1'))
+
       expect(members).toHaveLength(2)
       expect(members.filter((member) => member.userId !== 'user_1')).toHaveLength(1)
       expect(members.find((member) => member.userId === winner.userId)).toMatchObject({

@@ -97,6 +97,7 @@ export interface OperationFailureLogEvent extends LogOperationContext {
 }
 
 export type HealthOperation = 'admission' | 'store-probe' | 'lifecycle' | 'backup-snapshot'
+
 export type HealthStage =
   | 'fallback'
   | 'control-store'
@@ -140,12 +141,14 @@ export function createLoggingConfiguration(
 
 export function configureBrowserLogging(logging?: LoggingConfig): void {
   const lowestLevel = logging?.lowestLevel ?? DEFAULT_LOG_LEVEL
+
   if (configuredBrowserLevel !== undefined && getConfig() !== null) {
     if (configuredBrowserLevel !== lowestLevel) {
       throw new Error(
         `Browser logging is already configured at ${configuredBrowserLevel}, cannot change it to ${lowestLevel}`,
       )
     }
+
     return
   }
 
@@ -159,27 +162,42 @@ export function withLogContext<T>(context: LogContext, callback: () => T): T {
 
 export function normalizeRequestId(value: string): string | null {
   const normalized = safeField(value).trim()
+
   return normalized === '' ? null : normalized
 }
 
 export function reportLogEvent(event: LogEvent): void {
   try {
     const logger = getEventLogger(event)
-    const properties = toLogProperties(event)
 
     switch (event.kind) {
-      case 'api.http':
+      case 'api.http': {
+        const properties = toLogProperties(event)
         logger.info('API request', properties)
+
         return
-      case 'api.error':
+      }
+
+      case 'api.error': {
+        const properties = toLogProperties(event)
         logAt(logger, apiErrorSeverity(event.status), 'API request failed', properties)
+
         return
-      case 'operation.failure':
+      }
+
+      case 'operation.failure': {
+        const properties = toLogProperties(event)
         logger.error('Operation failed', properties)
+
         return
-      case 'health.failure':
+      }
+
+      case 'health.failure': {
+        const properties = toLogProperties(event)
         logger.error('Health fallback failed', properties)
+
         return
+      }
     }
   } catch {
     return
@@ -188,51 +206,97 @@ export function reportLogEvent(event: LogEvent): void {
 
 export function apiErrorSeverity(status: number): ApiErrorSeverity {
   if (status === 401 || status === 404 || status === 409) return 'info'
+
   if (status >= 400 && status < 500) return 'warning'
+
   return 'error'
 }
 
-export function toLogProperties(event: LogEvent): Record<string, unknown> {
+export interface ApiHttpLogProperties {
+  readonly schemaVersion: 1
+  readonly requestId?: string
+  readonly method: string
+  readonly path: string
+  readonly status: number
+  readonly responseTime: number
+  readonly contentLength?: string
+  readonly userAgent?: string
+  readonly referrer?: string
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export interface ApiErrorLogProperties {
+  readonly schemaVersion: 1
+  readonly requestId?: string
+  readonly method?: string
+  readonly path?: string
+  readonly procedure?: string
+  readonly code: string
+  readonly status: number
+  readonly error?: LogError
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export interface OperationFailureLogProperties {
+  readonly schemaVersion: 1
+  readonly operation: string
+  readonly stage: string
+  readonly operationId?: string
+  readonly runId?: string
+  readonly siteId?: string
+  readonly batchSize?: number
+  readonly error: LogError
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export interface HealthFailureLogProperties {
+  readonly schemaVersion: 1
+  readonly operation: string
+  readonly stage: string
+  readonly error: LogError
+  readonly [key: string]: string | number | LogError | undefined
+}
+
+export function toLogProperties(event: ApiHttpLogEvent): ApiHttpLogProperties
+export function toLogProperties(event: ApiErrorLogEvent): ApiErrorLogProperties
+export function toLogProperties(event: OperationFailureLogEvent): OperationFailureLogProperties
+export function toLogProperties(event: HealthFailureLogEvent): HealthFailureLogProperties
+export function toLogProperties(event: LogEvent) {
   switch (event.kind) {
     case 'api.http':
       return {
         schemaVersion: 1,
-        ...(event.requestId === undefined ? {} : { requestId: safeField(event.requestId) }),
+        ...(event.requestId !== undefined && { requestId: safeField(event.requestId) }),
         method: safeMethod(event.method),
         path: safePath(event.path),
         status: safeStatus(event.status),
         responseTime: safeDuration(event.responseTimeMs),
-        ...(event.contentLength === undefined
-          ? {}
-          : { contentLength: safeContentLength(event.contentLength) }),
-        ...(event.userAgent === undefined ? {} : { userAgent: safeField(event.userAgent) }),
-        ...(event.referrer === undefined
-          ? {}
-          : (() => {
-              const referrer = safeUrl(event.referrer)
-              return referrer === undefined ? {} : { referrer }
-            })()),
+        ...(event.contentLength !== undefined && {
+          contentLength: safeContentLength(event.contentLength),
+        }),
+        ...(event.userAgent !== undefined && { userAgent: safeField(event.userAgent) }),
+        ...toReferrerEntry(event.referrer),
       }
     case 'api.error':
       return {
         schemaVersion: 1,
-        ...(event.requestId === undefined ? {} : { requestId: safeField(event.requestId) }),
-        ...(event.method === undefined ? {} : { method: safeMethod(event.method) }),
-        ...(event.path === undefined ? {} : { path: safePath(event.path) }),
-        ...(event.procedure === undefined ? {} : { procedure: safeField(event.procedure) }),
+        ...(event.requestId !== undefined && { requestId: safeField(event.requestId) }),
+        ...(event.method !== undefined && { method: safeMethod(event.method) }),
+        ...(event.path !== undefined && { path: safePath(event.path) }),
+        ...(event.procedure !== undefined && { procedure: safeField(event.procedure) }),
         code: safeField(event.code),
         status: safeStatus(event.status),
-        ...(event.error === undefined ? {} : { error: toLogError(event.error) }),
+        ...(event.error !== undefined && { error: toLogError(event.error) }),
       }
     case 'operation.failure':
       return {
         schemaVersion: 1,
         operation: safeField(event.operation),
         stage: safeField(event.stage),
-        ...(event.operationId === undefined ? {} : { operationId: safeField(event.operationId) }),
-        ...(event.runId === undefined ? {} : { runId: safeField(event.runId) }),
-        ...(event.siteId === undefined ? {} : { siteId: safeField(event.siteId) }),
-        ...(event.batchSize === undefined ? {} : { batchSize: safeBatchSize(event.batchSize) }),
+        ...(event.operationId !== undefined && { operationId: safeField(event.operationId) }),
+        ...(event.runId !== undefined && { runId: safeField(event.runId) }),
+        ...(event.siteId !== undefined && { siteId: safeField(event.siteId) }),
+        ...(event.batchSize !== undefined && { batchSize: safeBatchSize(event.batchSize) }),
         error: toLogError(event.error),
       }
     case 'health.failure':
@@ -245,21 +309,21 @@ export function toLogProperties(event: LogEvent): Record<string, unknown> {
   }
 }
 
-export function toLogError(error: unknown): LogError {
-  if (error instanceof Error) {
+export function toLogError(cause: unknown): LogError {
+  if (cause instanceof Error) {
     return {
-      name: safeField(error.name),
-      message: safeErrorField(error.message),
-      ...(error.stack === undefined ? {} : { stack: safeStack(error.stack) }),
+      name: safeField(cause.name),
+      message: safeErrorField(cause.message),
+      ...(cause.stack !== undefined && { stack: safeStack(cause.stack) }),
     }
   }
 
-  return { name: 'UnknownError', message: safeErrorField(safeString(error)) }
+  return { name: 'UnknownError', message: safeErrorField(safeString(cause)) }
 }
 
-function safeString(value: unknown): string {
+function safeString(cause: unknown): string {
   try {
-    return String(value).slice(0, 4096)
+    return String(cause).slice(0, 4096)
   } catch {
     return 'Unknown error'
   }
@@ -302,27 +366,30 @@ function logAt(
   logger: Logger,
   severity: ApiErrorSeverity,
   message: string,
-  properties: Record<string, unknown>,
+  properties: Record<string, string | number | LogError | undefined>,
 ): void {
   switch (severity) {
     case 'info':
       logger.info(message, properties)
+
       return
     case 'warning':
       logger.warning(message, properties)
+
       return
     case 'error':
       logger.error(message, properties)
+
       return
   }
 }
 
-function toLogContext(context: LogContext): Record<string, string> {
+function toLogContext(context: LogContext) {
   return {
-    ...(context.requestId === undefined ? {} : { requestId: safeField(context.requestId) }),
-    ...(context.method === undefined ? {} : { method: safeMethod(context.method) }),
-    ...(context.path === undefined ? {} : { path: safePath(context.path) }),
-    ...(context.procedure === undefined ? {} : { procedure: safeField(context.procedure) }),
+    ...(context.requestId !== undefined && { requestId: safeField(context.requestId) }),
+    ...(context.method !== undefined && { method: safeMethod(context.method) }),
+    ...(context.path !== undefined && { path: safePath(context.path) }),
+    ...(context.procedure !== undefined && { procedure: safeField(context.procedure) }),
   }
 }
 
@@ -340,6 +407,7 @@ function safeStack(value: string): string {
 
 function safeMethod(value: string): string {
   const method = normalizeControlCharacters(value.slice(0, 32)).trim().toUpperCase()
+
   return ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'].includes(method)
     ? method
     : 'UNKNOWN'
@@ -347,6 +415,7 @@ function safeMethod(value: string): string {
 
 function safePath(value: string): string {
   const normalized = normalizeControlCharacters(value.slice(0, 1024)).slice(0, 1024)
+
   try {
     return new URL(normalized, 'http://localhost').pathname.slice(0, 256) || '/'
   } catch {
@@ -354,11 +423,20 @@ function safePath(value: string): string {
   }
 }
 
+function toReferrerEntry(value: string | undefined): { referrer: string } | undefined {
+  if (value === undefined) return undefined
+  const referrer = safeUrl(value)
+
+  return referrer === undefined ? undefined : { referrer }
+}
+
 function safeUrl(value: string): string | undefined {
   if (value.length > 1024 && value.slice(1024).includes('@')) return undefined
   const normalized = normalizeControlCharacters(value.slice(0, 1024)).slice(0, 1024)
+
   try {
     const url = new URL(normalized)
+
     return `${url.origin}${url.pathname}`.slice(0, 256)
   } catch {
     return undefined
@@ -375,6 +453,7 @@ function safeDuration(value: number): number {
 
 function safeContentLength(value: string): string | undefined {
   const normalized = normalizeControlCharacters(value.slice(0, 32)).trim()
+
   return /^\d+$/.test(normalized) ? normalized.slice(0, 20) : undefined
 }
 
@@ -388,6 +467,7 @@ function safeBatchSize(value: number): number {
 
 function normalizeControlCharacters(value: string): string {
   let normalized = ''
+
   for (let index = 0; index < value.length; index += 1) {
     const character = value[index]
     const code = character?.charCodeAt(0) ?? 0
@@ -396,6 +476,7 @@ function normalizeControlCharacters(value: string): string {
         ? ' '
         : character
   }
+
   return normalized
 }
 

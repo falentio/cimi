@@ -31,8 +31,11 @@ export const SEventBreakdownsInput = v.pipe(
   ),
   v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
+
 export type SEventBreakdownsInput = v.InferOutput<typeof SEventBreakdownsInput>
+
 export const SEventBreakdownsOutput = SEventBreakdowns
+
 export type SEventBreakdownsOutput = v.InferOutput<typeof SEventBreakdownsOutput>
 
 export const getEventBreakdowns = oc

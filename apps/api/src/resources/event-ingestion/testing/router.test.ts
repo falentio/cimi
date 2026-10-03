@@ -14,7 +14,9 @@ async function createIngestionSite(app: ApiApp) {
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
@@ -23,14 +25,18 @@ async function createIngestionSite(app: ApiApp) {
       name: 'Event Org',
     },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname: 'events.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
+
   return parse(schema.SSiteCreateOutput, await siteResponse.json())
 }
 
@@ -45,6 +51,7 @@ test('collectEvent durably accepts and deduplicates a Site event', async () => {
     kind: 'custom_event',
     name: 'checkout_completed',
   }
+
   const accepted = await apiTestRequest(app, '/event-ingestion/collectEvent', '', event)
   expect(accepted.status, await accepted.clone().text()).toBe(200)
   const acceptedBody = parse(schema.SAcceptedEvent, await accepted.json())
@@ -66,6 +73,7 @@ test('collectEvent durably accepts and deduplicates a Site event', async () => {
       { eventId: 'bad', kind: 'unknown' },
     ],
   })
+
   expect(batch.status, await batch.clone().text()).toBe(200)
   await expect(batch.json()).resolves.toEqual({
     results: [
@@ -128,6 +136,7 @@ test('collectEvent maps a changed payload for a committed Event ID to conflict',
     kind: 'custom_event',
     name: 'checkout_completed',
   }
+
   const accepted = await apiTestRequest(app, '/event-ingestion/collectEvent', '', event)
   expect(accepted.status, await accepted.clone().text()).toBe(200)
 
@@ -135,18 +144,22 @@ test('collectEvent maps a changed payload for a committed Event ID to conflict',
     ...event,
     name: 'different_meaning',
   })
+
   expect(conflicting.status, await conflicting.clone().text()).toBe(409)
 })
 
 test('collectEvent maps ingestion protection exhaustion to too many requests', async () => {
   const bucket = new InMemoryIngestionProtection({ siteBurst: 1, sourceIpBurst: 1 })
   const calls: string[] = []
+
   const protection = {
     async consume(input: Parameters<InMemoryIngestionProtection['consume']>[0]) {
       calls.push(input.siteId)
+
       return bucket.consume(input)
     },
   }
+
   await using fixture = await createApiTestFixture({ eventIngestionProtection: protection })
   const site = await createIngestionSite(fixture.app)
   await bucket.consume({
@@ -173,13 +186,17 @@ test('collect routes forward the transport source IP to protection', async () =>
     sourceIpRatePerSecond: 0.001,
     sourceIpBurst: 1,
   })
+
   const calls: Array<{ readonly sourceIp: string | undefined; readonly units: number }> = []
+
   const protection = {
     async consume(input: Parameters<InMemoryIngestionProtection['consume']>[0]) {
       calls.push({ sourceIp: input.sourceIp, units: input.units })
+
       return bucket.consume(input)
     },
   }
+
   await using fixture = await createApiTestFixture({ eventIngestionProtection: protection })
   const site = await createIngestionSite(fixture.app)
   const headers = { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.7' }
@@ -197,6 +214,7 @@ test('collect routes forward the transport source IP to protection', async () =>
     }),
     { transportPeerIp: '203.0.113.10' },
   )
+
   expect(single.status, await single.clone().text()).toBe(200)
 
   const limited = await fixture.app.fetch(
@@ -212,6 +230,7 @@ test('collect routes forward the transport source IP to protection', async () =>
     }),
     { transportPeerIp: '203.0.113.10' },
   )
+
   expect(limited.status, await limited.clone().text()).toBe(429)
 
   const batch = await fixture.app.fetch(
@@ -225,6 +244,7 @@ test('collect routes forward the transport source IP to protection', async () =>
     }),
     { transportPeerIp: '203.0.113.11' },
   )
+
   expect(batch.status, await batch.clone().text()).toBe(200)
 
   expect(calls).toEqual([

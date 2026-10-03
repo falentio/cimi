@@ -3,6 +3,7 @@ import { schema } from '@cimi/contract'
 import { createCollectionPolicyFixture, createTestAuthUser } from '../fixture.ts'
 
 const admin = createTestAuthUser({ role: 'admin', installationGrant: true })
+
 const policy = schema.DEFAULT_COLLECTION_POLICY
 
 describe('CollectionPolicyService.lifecycleGate', () => {
@@ -16,6 +17,7 @@ describe('CollectionPolicyService.lifecycleGate', () => {
       lastSafeSequence: null,
       errorCode: null,
     }
+
     const { lifecycle, repository, service } = createCollectionPolicyFixture({ activeOperation })
 
     await expect(service.update({ scope: 'installation', policy }, admin)).rejects.toMatchObject({

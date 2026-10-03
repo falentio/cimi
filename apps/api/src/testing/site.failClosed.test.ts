@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import { parse } from 'valibot'
+import type { JsonValue } from '@cimi/utils'
 import { SOrganizationCreateOutput, schema } from '@cimi/contract'
 import { InMemoryLifecycleLock } from '@cimi/kernel'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.ts'
@@ -7,31 +8,39 @@ import { createOwnerSite, readyLifecycle, seedAcceptedEvents } from './reporting
 import type { ApiApp } from '../index.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 async function createOwnedSite(app: ApiApp, email: string, hostname: string) {
   const owner = await signUpTestUser(app, email, 'Fail Closed Owner')
+
   const initialized = await apiTestRequest(
     app,
     '/installation/initializeInstallation',
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: 'Fail Closed Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname,
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
+
   return { owner, site: parse(schema.SSiteCreateOutput, await siteResponse.json()) }
 }
 
@@ -53,6 +62,7 @@ function publicDashboardQueryPath(identifier: string): string {
     metric: 'pageviews',
     dimension: 'page',
   }).toString()
+
   return url.toString()
 }
 
@@ -60,10 +70,11 @@ async function enablePublicDashboard(app: ApiApp, cookie: string, siteId: string
   const enabled = await apiTestRequest(app, '/public-dashboard/enablePublicDashboard', cookie, {
     siteId,
   })
+
   expect(enabled.status, await enabled.clone().text()).toBe(200)
-  const { publicDashboardIdentifier } = (await enabled.json()) as {
-    publicDashboardIdentifier: string
-  }
+
+  const { publicDashboardIdentifier } = await enabled.json()
+
   return publicDashboardIdentifier
 }
 
@@ -74,11 +85,13 @@ async function textOf(response: Response): Promise<string> {
 test('deleting a site drains a pre-admitted candidate then fails closed across every path', async () => {
   await using fixture = await createApiTestFixture()
   const { app, db } = fixture
+
   const { owner, site } = await createOwnedSite(
     app,
     'delete-drain@example.com',
     'drain.example.com',
   )
+
   const publicDashboardIdentifier = await enablePublicDashboard(app, owner.cookie, site.id)
 
   const inFlight = apiTestRequest(
@@ -94,6 +107,7 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
   const contended = await apiTestRequest(app, '/site/deleteSite', owner.cookie, {
     siteId: site.id,
   })
+
   expect(contended.status, await contended.clone().text()).toBe(409)
   await expect(contended.json()).resolves.toMatchObject({ code: 'CONFLICT', status: 409 })
 
@@ -104,9 +118,11 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
     eventId: 'event_pre_admitted',
   })
 
+  // SAFETY: better-sqlite3 returns any; single event_id column selected below.
   const rows = db.$client.prepare('SELECT event_id FROM accepted_event').all() as Array<{
     event_id: string
   }>
+
   expect(rows.map((row) => row.event_id)).toContain('event_pre_admitted')
 
   const names = [site.name, site.hostname, site.ingestionIdentifier]
@@ -124,18 +140,22 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
     '',
     eventFor(site.ingestionIdentifier, 'event_after_delete'),
   )
+
   expect(collect.status, await textOf(collect)).toBe(404)
   const collectText = await textOf(collect)
   await expect(collect.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(collectText, collectText).not.toContain(leaked)
 
   const identify = await apiTestRequest(app, '/identity-profile/identify', '', {
     ingestionIdentifier: site.ingestionIdentifier,
     identifiedUserId: 'app-user-delete',
   })
+
   expect(identify.status, await textOf(identify)).toBe(404)
   const identifyText = await textOf(identify)
   await expect(identify.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(identifyText, identifyText).not.toContain(leaked)
 
   const list = await apiTestRequest(
@@ -143,9 +163,11 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
     `/identity-profile/listProfiles?siteId=${encodeURIComponent(site.id)}&limit=10&offset=0`,
     owner.cookie,
   )
+
   expect(list.status, await textOf(list)).toBe(404)
   const listText = await textOf(list)
   await expect(list.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(listText, listText).not.toContain(leaked)
 
   // A report read fails closed on site scope resolution: the deleting Site is no longer active, so
@@ -155,15 +177,18 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
   const reportText = await textOf(report)
   expect(report.status, reportText).toBe(404)
   await expect(report.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(reportText, reportText).not.toContain(leaked)
 
   const publicRead = await app.fetch(
     new Request(publicDashboardQueryPath(publicDashboardIdentifier)),
     { transportPeerIp: '203.0.113.10' },
   )
+
   const publicText = await textOf(publicRead)
   expect(publicRead.status, publicText).toBe(404)
   await expect(publicRead.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(publicText, publicText).not.toContain(leaked)
 
   const get = await apiTestRequest(
@@ -171,9 +196,11 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
     `/site/getSite?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(get.status, await textOf(get)).toBe(404)
   const getText = await textOf(get)
   await expect(get.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(getText, getText).not.toContain(leaked)
 
   const deletionStatus = await apiTestRequest(
@@ -181,8 +208,10 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
     `/site/getSiteDeletionStatus?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(deletionStatus.status, await deletionStatus.clone().text()).toBe(200)
-  const deletionStatusBody = (await deletionStatus.json()) as Record<string, unknown>
+  // SAFETY: route returns a JSON object; field assertions below verify the shape.
+  const deletionStatusBody = (await deletionStatus.json()) as Record<string, JsonValue>
   expect(deletionStatusBody['siteId']).toBe(site.id)
   expect(['deleting', 'deleted']).toContain(deletionStatusBody['status'])
   expect(Object.keys(deletionStatusBody)).not.toContain('hostname')
@@ -192,16 +221,19 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
 test('rotation fails closed for the retired ingestion identifier across collection and identity', async () => {
   await using fixture = await createApiTestFixture()
   const { app, db } = fixture
+
   const { owner, site } = await createOwnedSite(
     app,
     'rotate-failclosed@example.com',
     'rotate.example.com',
   )
+
   const oldIdentifier = site.ingestionIdentifier
 
   const rotated = await apiTestRequest(app, '/site/rotateIngestionIdentifier', owner.cookie, {
     siteId: site.id,
   })
+
   expect(rotated.status, await rotated.clone().text()).toBe(200)
   const rotatedSite = parse(schema.SSiteRotateIngestionOutput, await rotated.json())
   expect(rotatedSite.ingestionIdentifier).not.toBe(oldIdentifier)
@@ -212,6 +244,7 @@ test('rotation fails closed for the retired ingestion identifier across collecti
     '',
     eventFor(oldIdentifier, 'event_old_identifier'),
   )
+
   expect(oldCollect.status, await oldCollect.clone().text()).toBe(404)
   await expect(oldCollect.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 
@@ -219,6 +252,7 @@ test('rotation fails closed for the retired ingestion identifier across collecti
     ingestionIdentifier: oldIdentifier,
     identifiedUserId: 'app-user-old',
   })
+
   expect(oldIdentify.status, await oldIdentify.clone().text()).toBe(404)
   await expect(oldIdentify.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 
@@ -228,6 +262,7 @@ test('rotation fails closed for the retired ingestion identifier across collecti
     '',
     eventFor(rotatedSite.ingestionIdentifier, 'event_new_identifier'),
   )
+
   expect(newCollect.status, await newCollect.clone().text()).toBe(200)
   await expect(newCollect.json()).resolves.toMatchObject({
     status: 'accepted',
@@ -237,6 +272,7 @@ test('rotation fails closed for the retired ingestion identifier across collecti
   const staleRows = db.$client
     .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
     .all('event_old_identifier')
+
   expect(staleRows).toHaveLength(0)
 })
 
@@ -279,11 +315,13 @@ test('a held site-deletion lease refuses an analytics read before execution', as
 test('purging a deleted site fails closed and keeps operation status observable without leaking', async () => {
   await using fixture = await createApiTestFixture()
   const { app, db } = fixture
+
   const { owner, site } = await createOwnedSite(
     app,
     'purge-failclosed@example.com',
     'purge.example.com',
   )
+
   const publicDashboardIdentifier = await enablePublicDashboard(app, owner.cookie, site.id)
 
   const collected = await apiTestRequest(
@@ -292,6 +330,7 @@ test('purging a deleted site fails closed and keeps operation status observable 
     '',
     eventFor(site.ingestionIdentifier, 'event_before_purge'),
   )
+
   expect(collected.status, await collected.clone().text()).toBe(200)
 
   const deletion = await apiTestRequest(app, '/site/deleteSite', owner.cookie, { siteId: site.id })
@@ -299,17 +338,21 @@ test('purging a deleted site fails closed and keeps operation status observable 
 
   // The worker transitions deleting -> deleted (setting purge_at one recovery window out).
   let deletedStatus: string | undefined
+
   for (let attempt = 0; attempt < 400; attempt += 1) {
     const status = await apiTestRequest(
       app,
       `/site/getSiteDeletionStatus?siteId=${encodeURIComponent(site.id)}`,
       owner.cookie,
     )
+
     expect(status.status, await status.clone().text()).toBe(200)
-    deletedStatus = ((await status.json()) as { status: string }).status
+    deletedStatus = (await status.json()).status
+
     if (deletedStatus === 'deleted') break
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
+
   expect(deletedStatus, 'worker must complete the delete').toBe('deleted')
 
   // Force the recovery deadline into the past so the same worker picks the site up as a due purge.
@@ -318,17 +361,21 @@ test('purging a deleted site fails closed and keeps operation status observable 
     .run(Date.now() - 60_000, Date.now() - 60_000, site.id)
 
   let purgedStatus: string | undefined
+
   for (let attempt = 0; attempt < 400; attempt += 1) {
     const status = await apiTestRequest(
       app,
       `/site/getSiteDeletionStatus?siteId=${encodeURIComponent(site.id)}`,
       owner.cookie,
     )
+
     expect(status.status, await status.clone().text()).toBe(200)
-    purgedStatus = ((await status.json()) as { status: string }).status
+    purgedStatus = (await status.json()).status
+
     if (purgedStatus === 'purged') break
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
+
   expect(purgedStatus, 'worker must purge a due site').toBe('purged')
 
   const names = [site.name, site.hostname, site.ingestionIdentifier]
@@ -339,15 +386,18 @@ test('purging a deleted site fails closed and keeps operation status observable 
     '',
     eventFor(site.ingestionIdentifier, 'event_after_purge'),
   )
+
   expect(collect.status, await textOf(collect)).toBe(404)
   const collectText = await textOf(collect)
   await expect(collect.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(collectText, collectText).not.toContain(leaked)
 
   const identify = await apiTestRequest(app, '/identity-profile/identify', '', {
     ingestionIdentifier: site.ingestionIdentifier,
     identifiedUserId: 'app-user-purge',
   })
+
   expect(identify.status, await textOf(identify)).toBe(404)
   await expect(identify.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 
@@ -356,6 +406,7 @@ test('purging a deleted site fails closed and keeps operation status observable 
     `/identity-profile/listProfiles?siteId=${encodeURIComponent(site.id)}&limit=10&offset=0`,
     owner.cookie,
   )
+
   expect(list.status, await textOf(list)).toBe(404)
   await expect(list.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 
@@ -364,33 +415,42 @@ test('purging a deleted site fails closed and keeps operation status observable 
   // settled state and assert the read was never served in between.
   let reportStatus: number | undefined
   let reportText = ''
+
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const report = await apiTestRequest(app, overviewPath(site.id), owner.cookie)
     reportText = await textOf(report)
     reportStatus = report.status
     expect(report.status, 'a purged Site must never serve a report').not.toBe(200)
+
     if (report.status === 404) break
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
+
   expect(reportStatus, reportText).toBe(404)
   expect(JSON.parse(reportText), reportText).toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(reportText, reportText).not.toContain(leaked)
 
   let publicStatus: number | undefined
   let publicText = ''
+
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const publicRead = await app.fetch(
       new Request(publicDashboardQueryPath(publicDashboardIdentifier)),
       { transportPeerIp: '203.0.113.10' },
     )
+
     publicText = await textOf(publicRead)
     publicStatus = publicRead.status
     expect(publicRead.status, 'a purged Site must never serve a public dashboard').not.toBe(200)
+
     if (publicRead.status === 404) break
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
+
   expect(publicStatus, publicText).toBe(404)
   expect(JSON.parse(publicText), publicText).toMatchObject({ code: 'NOT_FOUND', status: 404 })
+
   for (const leaked of names) expect(publicText, publicText).not.toContain(leaked)
 
   const deletionStatus = await apiTestRequest(
@@ -398,8 +458,10 @@ test('purging a deleted site fails closed and keeps operation status observable 
     `/site/getSiteDeletionStatus?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(deletionStatus.status, await deletionStatus.clone().text()).toBe(200)
-  const deletionStatusBody = (await deletionStatus.json()) as Record<string, unknown>
+  // SAFETY: route returns a JSON object; field assertions below verify the shape.
+  const deletionStatusBody = (await deletionStatus.json()) as Record<string, JsonValue>
   expect(deletionStatusBody).toMatchObject({ siteId: site.id, status: 'purged' })
   expect(Object.keys(deletionStatusBody)).not.toContain('hostname')
   expect(Object.keys(deletionStatusBody)).not.toContain('ingestionIdentifier')

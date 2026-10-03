@@ -13,6 +13,7 @@ export function createOrganizationFixture({ membership }: OrganizationFixtureOpt
   const repository = mock<OrganizationRepository>()
   const authority = mock<OrganizationAuthority>()
   const service = new OrganizationService({ repository, authority, membership })
+
   return { repository, authority, service }
 }
 

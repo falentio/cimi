@@ -4,8 +4,11 @@ import { SInvitationTokenFields } from '../schema.ts'
 import { SMembershipNonOwner } from '../../membership/schema.ts'
 
 export const SInvitationAcceptInput = SInvitationTokenFields
+
 export type SInvitationAcceptInput = v.InferOutput<typeof SInvitationAcceptInput>
+
 export const SInvitationAcceptOutput = SMembershipNonOwner
+
 export type SInvitationAcceptOutput = v.InferOutput<typeof SInvitationAcceptOutput>
 
 export const acceptInvitation = oc

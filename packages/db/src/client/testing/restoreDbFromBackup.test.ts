@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { closeDb, createDb, restoreDbFromBackup, type Db } from '../../client.ts'
+import { closeDb, createDb, restoreDbFromBackup } from '../../client.ts'
 
 describe('restoreDbFromBackup', () => {
   let dir: string
@@ -17,12 +17,13 @@ describe('restoreDbFromBackup', () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  function seedDestination(): { db: Db; destinationPath: string; backupPath: string } {
+  function seedDestination() {
     const destinationPath = join(dir, 'control.sqlite')
     const backupPath = join(dir, 'backup.sqlite')
     const db = createDb({ path: destinationPath })
     db.$client.exec('CREATE TABLE marker (id INTEGER PRIMARY KEY, v TEXT)')
     db.$client.prepare('INSERT INTO marker (id, v) VALUES (?, ?)').run(1, 'live')
+
     return { db, destinationPath, backupPath }
   }
 
@@ -32,6 +33,7 @@ describe('restoreDbFromBackup', () => {
 
   it('removes tmp sidecars after restore into an open database', async () => {
     const { db, destinationPath, backupPath } = seedDestination()
+
     try {
       await db.$client.backup(backupPath)
 
@@ -56,6 +58,7 @@ describe('restoreDbFromBackup', () => {
 
     expect(restoreLeftovers()).toEqual([])
     const reopened = createDb({ path: destinationPath })
+
     try {
       expect(reopened.$client.pragma('integrity_check', { simple: true })).toBe('ok')
     } finally {
@@ -65,6 +68,7 @@ describe('restoreDbFromBackup', () => {
 
   it('removes tmp sidecars after restore with prepare opening the staged database', async () => {
     const { db, destinationPath, backupPath } = seedDestination()
+
     try {
       await db.$client.backup(backupPath)
 
@@ -90,6 +94,7 @@ describe('restoreDbFromBackup', () => {
 
   it('removes tmp sidecars when prepare fails with a db handle', async () => {
     const { db, destinationPath, backupPath } = seedDestination()
+
     try {
       await db.$client.backup(backupPath)
 
@@ -137,9 +142,11 @@ describe('restoreDbFromBackup', () => {
 
     const bytes = readFileSync(backupPath)
     const mid = Math.floor(bytes.length / 2)
+
     for (let index = mid; index < Math.min(mid + 4096, bytes.length); index += 1) {
       bytes[index] = 0x41
     }
+
     writeFileSync(backupPath, bytes)
 
     await expect(restoreDbFromBackup({ backupPath, destinationPath })).rejects.toThrow(
@@ -157,6 +164,7 @@ describe('restoreDbFromBackup', () => {
     const snapshotMain = join(dir, 'crashed.sqlite')
     const snapshotWal = join(dir, 'crashed.sqlite-wal')
     const stale = new Database(destinationPath)
+
     try {
       stale.pragma('wal_autocheckpoint = 0')
       stale.prepare('INSERT INTO marker (id, v) VALUES (?, ?)').run(2, 'stale')
@@ -165,6 +173,7 @@ describe('restoreDbFromBackup', () => {
     } finally {
       stale.close()
     }
+
     closeDb(db)
     copyFileSync(snapshotMain, destinationPath)
     copyFileSync(snapshotWal, `${destinationPath}-wal`)
@@ -172,6 +181,7 @@ describe('restoreDbFromBackup', () => {
     await restoreDbFromBackup({ backupPath, destinationPath })
 
     const reopened = createDb({ path: destinationPath })
+
     try {
       expect(reopened.$client.prepare('SELECT id FROM marker ORDER BY id').all()).toEqual([
         { id: 1 },

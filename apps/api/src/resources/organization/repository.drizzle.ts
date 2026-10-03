@@ -22,11 +22,13 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
     const membership = schema.TMembership
     const organization = schema.TOrganization
     const where = eq(membership.userId, options.userId)
+
     const [countRow] = await this.db
       .select({ count: count() })
       .from(organization)
       .innerJoin(membership, eq(membership.organizationId, organization.id))
       .where(where)
+
     const rows = await this.db
       .select({ organization })
       .from(organization)
@@ -35,7 +37,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       .orderBy(desc(organization.createdAt), desc(organization.id))
       .limit(options.limit + 1)
       .offset(options.offset)
+
     const hasMore = rows.length > options.limit
+
     return {
       items: rows.slice(0, options.limit).map((row) => toOrganization(row.organization)),
       nextOffset: hasMore ? options.offset + options.limit : null,
@@ -50,7 +54,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, id))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toOrganization(row)
   }
 
@@ -62,7 +68,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.authorityOrganizationId, authorityOrganizationId))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toOrganization(row)
   }
 
@@ -79,7 +87,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       )
       .where(eq(schema.TOrganization.id, id))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toOrganization(row.organization)
   }
 
@@ -94,7 +104,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toOrganization(row)
   }
 
@@ -109,6 +121,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
+
     return rows[0]?.role
   }
 
@@ -119,7 +132,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
   async insert(input: OrganizationRepository.InsertInput): Promise<OrganizationRecord> {
     const rows = await this.db.insert(schema.TOrganization).values(input).returning()
     const row = rows[0]
+
     if (row === undefined) throw new Error('Organization insert returned no row')
+
     return toOrganization(row)
   }
 
@@ -130,6 +145,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
     return this.db.transaction((tx) => {
       const organizations = tx.insert(schema.TOrganization).values(input).returning().all()
       const organization = organizations[0]
+
       if (organization === undefined) throw new Error('Organization insert returned no row')
       tx.insert(schema.TMembership)
         .values({
@@ -140,6 +156,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
           updatedAt: membership.now,
         })
         .run()
+
       return toOrganization(organization)
     })
   }
@@ -150,7 +167,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       .set({ name, updatedAt: new Date() })
       .where(eq(schema.TOrganization.id, id))
       .returning()
+
     const row = rows[0]
+
     return row === undefined ? undefined : toOrganization(row)
   }
 
@@ -168,7 +187,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toRepairOperation(row)
   }
 
@@ -186,7 +207,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toRepairOperation(row)
   }
 
@@ -205,8 +228,11 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         failureMessage: null,
       })
       .returning()
+
     const row = rows[0]
+
     if (row === undefined) throw new Error('Organization repair insert returned no row')
+
     return toRepairOperation(row)
   }
 
@@ -283,6 +309,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .returning({ id: schema.TOrganizationRepairOperation.id })
+
     return rows.length > 0
   }
 
@@ -294,6 +321,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
     return this.db.transaction((tx) => {
       const organizations = tx.insert(schema.TOrganization).values(input).returning().all()
       const organization = organizations[0]
+
       if (organization === undefined) throw new Error('Organization insert returned no row')
       tx.insert(schema.TMembership)
         .values({
@@ -304,6 +332,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
           updatedAt: membership.now,
         })
         .run()
+
       const repairs = tx
         .update(schema.TOrganizationRepairOperation)
         .set({
@@ -322,7 +351,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         )
         .returning({ id: schema.TOrganizationRepairOperation.id })
         .all()
+
       if (repairs.length === 0) throw new Error('Organization repair completion failed')
+
       return toOrganization(organization)
     })
   }
@@ -339,8 +370,11 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TOrganization.id, id))
         .returning()
         .all()
+
       const organization = rows[0]
+
       if (organization === undefined) return undefined
+
       const repairs = tx
         .update(schema.TOrganizationRepairOperation)
         .set({
@@ -358,7 +392,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         )
         .returning({ id: schema.TOrganizationRepairOperation.id })
         .all()
+
       if (repairs.length === 0) throw new Error('Organization repair completion failed')
+
       return toOrganization(organization)
     })
   }
@@ -369,7 +405,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, id))
       .limit(1)
+
     const organization = organizations[0]
+
     if (organization === undefined) return { kind: 'missing' }
 
     const sites = await this.db
@@ -377,7 +415,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       .from(schema.TSite)
       .where(eq(schema.TSite.organizationId, id))
       .limit(1)
+
     if (sites.length > 0) return { kind: 'not-empty', isPersonal: organization.isPersonal }
+
     return { kind: 'deletable', isPersonal: organization.isPersonal }
   }
 
@@ -386,6 +426,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       .delete(schema.TOrganization)
       .where(eq(schema.TOrganization.id, id))
       .returning({ id: schema.TOrganization.id })
+
     return rows.length > 0
   }
 
@@ -397,7 +438,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TOrganization.id, id))
         .limit(1)
         .all()
+
       const organization = organizations[0]
+
       if (organization === undefined) return { kind: 'missing' }
 
       const sites = tx
@@ -406,9 +449,11 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TSite.organizationId, id))
         .limit(1)
         .all()
+
       if (sites.length > 0) return { kind: 'not-empty', isPersonal: organization.isPersonal }
 
       tx.delete(schema.TOrganization).where(eq(schema.TOrganization.id, id)).run()
+
       return { kind: 'deleted' }
     })
   }
@@ -423,6 +468,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TOrganization.id, input.organizationId))
         .limit(1)
         .all()[0]
+
       if (organization === undefined) throw new Error('NOT_FOUND')
 
       const sites = tx
@@ -431,6 +477,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TSite.organizationId, input.organizationId))
         .limit(1)
         .all()
+
       if (sites.length > 0) {
         throw new Error(organization.isPersonal ? 'PERSONAL_PROTECTED' : 'ORGANIZATION_NOT_EMPTY')
       }
@@ -446,7 +493,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         )
         .limit(1)
         .all()
+
       if (pending.length > 0) throw new Error('FENCED_PENDING')
+
       if (organization.ownerUserId !== input.previousOwnerUserId) {
         throw new Error('FORBIDDEN_OWNER')
       }
@@ -461,6 +510,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
           ),
         )
         .all()
+
       if (owners.length !== 1 || owners[0]?.userId !== organization.ownerUserId) {
         throw new Error('CONFLICT_OWNER')
       }
@@ -486,8 +536,11 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         })
         .returning()
         .all()
+
       const row = rows[0]
+
       if (row === undefined) throw new Error('DELETE_OPERATION_INSERT_FAILED')
+
       return toDeleteOperation(row)
     })
   }
@@ -506,7 +559,9 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toDeleteOperation(row)
   }
 
@@ -554,6 +609,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         )
         .limit(1)
         .all()[0]
+
       if (operation === undefined) throw new Error('PENDING_NOT_FOUND')
 
       const organization = tx
@@ -562,6 +618,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TOrganization.id, operation.organizationId))
         .limit(1)
         .all()[0]
+
       if (organization === undefined) throw new Error('ORG_NOT_FOUND')
 
       const sites = tx
@@ -570,6 +627,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TSite.organizationId, operation.organizationId))
         .limit(1)
         .all()
+
       if (sites.length > 0) {
         throw new Error(organization.isPersonal ? 'PERSONAL_PROTECTED' : 'ORGANIZATION_NOT_EMPTY')
       }
@@ -584,6 +642,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
           ),
         )
         .all()
+
       if (
         operation.previousOwnerUserId !== organization.ownerUserId ||
         owners.length !== 1 ||
@@ -597,6 +656,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         .where(eq(schema.TOrganization.id, operation.organizationId))
         .returning({ id: schema.TOrganization.id })
         .all()
+
       return result.length > 0
     })
   }
@@ -612,6 +672,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
+
     if (governanceRows.length > 0) return true
 
     const repairRows = await this.db
@@ -624,6 +685,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
         ),
       )
       .limit(1)
+
     return repairRows.length > 0
   }
 }
@@ -652,6 +714,7 @@ function toDeleteOperation(
   if (row.operationType !== 'delete-organization') {
     throw new Error(`Unsupported organization operation type: ${row.operationType}`)
   }
+
   return {
     id: row.id,
     organizationId: row.organizationId,

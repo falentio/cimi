@@ -10,9 +10,11 @@ const props = defineProps<
     class?: HTMLAttributes['class']
   }
 >()
+
 const emits = defineEmits<PaginationRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')
+
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 

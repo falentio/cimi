@@ -6,10 +6,12 @@ import { CollectionPolicyRepositoryDrizzle } from '../repository.drizzle.ts'
 import { schema as contractSchema } from '@cimi/contract'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const now = new Date('2026-09-05T00:00:00.000Z')
 
 function createFixture() {
   const siteFixture = createSiteDrizzleFixture()
+
   return {
     db: siteFixture.db,
     installation: new InstallationRepositoryDrizzle({ db: siteFixture.db }),

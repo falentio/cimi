@@ -8,7 +8,9 @@ export const SHealthStatus = v.picklist([
   'maintenance',
   'unavailable',
 ])
+
 export const SStoreHealth = v.picklist(['ready', 'degraded', 'rebuilding', 'unavailable'])
+
 export const SIngestionDiagnostics = v.strictObject({
   queueDepth: v.pipe(v.number(), v.integer(), v.minValue(0)),
   activeBatchSize: v.pipe(v.number(), v.integer(), v.minValue(0)),
@@ -24,6 +26,7 @@ export const SIngestionDiagnostics = v.strictObject({
   lastSafeSequence: v.pipe(v.number(), v.integer(), v.minValue(0)),
   walBytes: v.nullable(v.pipe(v.number(), v.minValue(0))),
 })
+
 const SSystemHealthFields = v.strictObject({
   status: SHealthStatus,
   controlStore: SStoreHealth,
@@ -33,6 +36,7 @@ const SSystemHealthFields = v.strictObject({
   version: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
   checkedAt: SDateTime,
 })
+
 const isAllowedHealthState = ({
   status,
   controlStore,
@@ -42,12 +46,15 @@ const isAllowedHealthState = ({
   if (status === 'healthy') {
     return controlStore === 'ready' && analyticsStore === 'ready' && !cleanupPending
   }
+
   if (status === 'degraded') {
     return controlStore === 'ready' && (analyticsStore !== 'ready' || cleanupPending)
   }
+
   if (status === 'recovering' || status === 'maintenance') {
     return controlStore === 'ready'
   }
+
   return controlStore !== 'ready'
 }
 

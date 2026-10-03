@@ -25,6 +25,7 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { isStringValue } from '../utils/type-guards'
 
 interface AuthPanelProps {
   readonly mode: AuthMode
@@ -52,9 +53,13 @@ type AuthSubmission =
 type AuthFormField = keyof AuthFormValues
 
 const props = defineProps<AuthPanelProps>()
+
 const { pending, signIn, signUp } = useAuth()
+
 const { locale, t } = useI18n()
+
 const route = useRoute()
+
 const feedback = shallowRef<AuthFeedback>(null)
 
 const copyByMode = {
@@ -90,38 +95,50 @@ const fieldOrderByMode = {
 } satisfies Record<AuthMode, readonly (keyof AuthFormValues)[]>
 
 const copy = computed(() => copyByMode[props.mode])
+
 const feedbackMessage = computed(() => {
   const currentFeedback = feedback.value
+
   if (currentFeedback === null) return ''
+
   if ('message' in currentFeedback) {
     return isLocalizableError(currentFeedback)
       ? localizeErrorMessage(currentFeedback, t)
       : t('auth.feedback.requestFailed')
   }
+
   return currentFeedback.values === undefined
     ? t(currentFeedback.messageKey)
     : t(currentFeedback.messageKey, currentFeedback.values)
 })
+
 const alternateLocation = computed(() => ({
   name: copy.value.alternateRoute,
-  query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : undefined,
+  query: isStringValue(route.query.redirect) ? { redirect: route.query.redirect } : undefined,
 }))
+
 const validationSchema = useLocalizedValibotSchema(() =>
   props.mode === 'signup' ? signupSchema : loginSchema,
 )
+
 const { defineField, errors, handleSubmit, resetForm, validate } = useForm<AuthFormValues>({
   initialValues: { name: '', email: '', password: '', passwordConfirmation: '' },
   validationSchema,
 })
+
 const fieldOptions = {
   validateOnBlur: false,
   validateOnChange: false,
   validateOnInput: false,
   validateOnModelUpdate: false,
 }
+
 const [name, nameAttrs] = defineField('name', fieldOptions)
+
 const [email, emailAttrs] = defineField('email', fieldOptions)
+
 const [password, passwordAttrs] = defineField('password', fieldOptions)
+
 const [passwordConfirmation, passwordConfirmationAttrs] = defineField(
   'passwordConfirmation',
   fieldOptions,
@@ -145,6 +162,7 @@ const submit = handleSubmit(
 
     feedback.value = null
     const submission = createSubmission(values)
+
     const result =
       submission.mode === 'signup' ? await signUp(submission.input) : await signIn(submission.input)
 
@@ -155,6 +173,7 @@ const submit = handleSubmit(
     const firstInvalidField = fieldOrderByMode[props.mode].find(
       (field) => invalidErrors[field] !== undefined,
     )
+
     if (firstInvalidField !== undefined) focusFirstInvalidField(firstInvalidField)
   },
 )
@@ -213,7 +232,8 @@ async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
   if (!result.ok || result.session === null) return
 
   const redirect = route.query.redirect
-  if (typeof redirect !== 'string' || !redirect.startsWith('/') || redirect.startsWith('//')) return
+
+  if (!isStringValue(redirect) || !redirect.startsWith('/') || redirect.startsWith('//')) return
 
   await navigateTo(redirect)
 }

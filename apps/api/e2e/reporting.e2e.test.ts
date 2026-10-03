@@ -3,7 +3,9 @@ import { expect, test } from 'vitest'
 import { createApiE2eFixture } from './fixture.ts'
 
 const REPORT_DATE = new Date().toISOString().slice(0, 10)
+
 const PAGE_VIEW_TIME = `${REPORT_DATE}T00:00:00.000Z`
+
 const CUSTOM_EVENT_TIME = `${REPORT_DATE}T00:00:30.000Z`
 
 test('projects public ingestion into traffic and event reports through the file-backed stores', async () => {
@@ -14,16 +16,19 @@ test('projects public ingestion into traffic and event reports through the file-
     {},
     { context: await owner.context() },
   )
+
   const organization = await call(
     fixture.router.organization.createOrganization,
     { name: 'Reporting Organization' },
     { context: await owner.context() },
   )
+
   const site = await call(
     fixture.router.site.createSite,
     { organizationId: organization.id, name: 'Production', hostname: 'reporting.example.com' },
     { context: await owner.context() },
   )
+
   await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     {
@@ -45,6 +50,7 @@ test('projects public ingestion into traffic and event reports through the file-
     },
     { context: fixture.unauthenticatedContext() },
   )
+
   expect(accepted.status).toBe('accepted')
   await expect(
     call(
@@ -72,6 +78,7 @@ test('projects public ingestion into traffic and event reports through the file-
     },
     { context: await owner.context() },
   )
+
   const funnel = await call(
     fixture.router.funnel.createFunnel,
     {
@@ -82,6 +89,7 @@ test('projects public ingestion into traffic and event reports through the file-
     },
     { context: await owner.context() },
   )
+
   const cohort = await call(
     fixture.router.cohortRetention.createCohort,
     {

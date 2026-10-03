@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cimi/utils": "workspace:*",
     "@maxmind/geoip2-node": "catalog:"
   },
   "devDependencies": {

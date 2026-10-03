@@ -9,6 +9,7 @@ import { MenubarCheckboxItem, MenubarItemIndicator, useForwardPropsEmits } from 
 import { cn } from '@/lib/utils'
 
 const props = defineProps<MenubarCheckboxItemProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<MenubarCheckboxItemEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

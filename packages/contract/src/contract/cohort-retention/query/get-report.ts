@@ -12,8 +12,11 @@ export const SCohortReportInput = v.pipe(
   v.strictObject(v.entriesFromObjects([v.strictObject({ cohortId: SId }), SReportFieldsSchema])),
   v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
+
 export const SCohortReportOutput = SCohortReport
+
 export type SCohortReportInput = v.InferOutput<typeof SCohortReportInput>
+
 export type SCohortReportOutput = v.InferOutput<typeof SCohortReportOutput>
 
 export const getRetentionReport = oc

@@ -7,6 +7,7 @@ const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
 describe('IdentityProfileRepositoryDrizzle.identifyEpoch', () => {
   it('creates an active Profile Epoch and links the current Alias', async () => {
     using fixture = createSiteDrizzleFixture()
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {

@@ -8,10 +8,12 @@ import { RetentionPolicyRepositoryDrizzle } from '../repository.drizzle.ts'
 import { defaultCleanup } from '../fixture.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const now = new Date('2026-09-02T00:00:00.000Z')
 
 function createFixture() {
   const siteFixture = createSiteDrizzleFixture()
+
   return {
     db: siteFixture.db,
     installation: new InstallationRepositoryDrizzle({ db: siteFixture.db }),
@@ -43,6 +45,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       },
       updatedAt: now.toISOString(),
     })
+
     const versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,
@@ -59,12 +62,14 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(versions).toEqual(
       expect.arrayContaining([
         { id: 'rtn_1', version: 1, status: 'superseded', effectiveTo: now, updatedAt: now },
         { id: 'rtn_2', version: 2, status: 'active', effectiveTo: null, updatedAt: now },
       ]),
     )
+
     const installation = fixture.db
       .select({
         eventRetentionMonths: schema.TInstallation.eventRetentionMonths,
@@ -74,6 +79,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.singletonKey, 'default'))
       .all()[0]
+
     expect(installation).toEqual({
       eventRetentionMonths: 24,
       profileRetentionMonths: 18,
@@ -118,6 +124,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       },
       updatedAt: now.toISOString(),
     })
+
     const versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,
@@ -132,7 +139,9 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(versions).toEqual([{ id: 'rtn_1', version: 1, status: 'active' }])
+
     const installation = fixture.db
       .select({
         eventRetentionMonths: schema.TInstallation.eventRetentionMonths,
@@ -142,6 +151,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.singletonKey, 'default'))
       .all()[0]
+
     expect(installation).toEqual({
       eventRetentionMonths: 24,
       profileRetentionMonths: 18,
@@ -189,6 +199,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(rows).toEqual([
       {
         id: 'rtn_1',

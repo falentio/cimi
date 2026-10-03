@@ -6,10 +6,13 @@ import { SSite, SSiteOrganizationScopeFields } from '../schema.ts'
 export const SSiteListInput = v.strictObject(
   v.entriesFromObjects([SSiteOrganizationScopeFields, SOffsetPaginationInput]),
 )
+
 export type SSiteListInput = v.InferOutput<typeof SSiteListInput>
+
 export const SSiteListOutput = v.strictObject(
   v.entriesFromObjects([v.strictObject({ items: SPageItems(SSite) }), SOffsetPage]),
 )
+
 export type SSiteListOutput = v.InferOutput<typeof SSiteListOutput>
 
 export const listSites = oc

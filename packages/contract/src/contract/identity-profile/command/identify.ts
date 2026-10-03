@@ -4,12 +4,15 @@ import { SDateTime, SId } from '../../../schema/index.ts'
 import { SIdentifyFields } from '../schema.ts'
 
 export const SIdentifyInput = SIdentifyFields
+
 export type SIdentifyInput = v.InferOutput<typeof SIdentifyInput>
+
 export const SIdentifyOutput = v.strictObject({
   identifiedUserId: SId,
   status: v.literal('active'),
   updatedAt: SDateTime,
 })
+
 export type SIdentifyOutput = v.InferOutput<typeof SIdentifyOutput>
 
 export const identify = oc

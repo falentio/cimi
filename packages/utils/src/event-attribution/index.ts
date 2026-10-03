@@ -1,4 +1,5 @@
-import { isRecord } from '../canonical-json/index.ts'
+import { isRecord, type JsonValue } from '../canonical-json/index.ts'
+import { isStringValue } from '../predicates.ts'
 
 export interface EventAttribution {
   readonly utmSource: string | null
@@ -12,9 +13,12 @@ export interface EventAttribution {
 
 export function parseEventAttribution(payload: string | null | undefined): EventAttribution {
   if (payload === null || payload === undefined) return emptyEventAttribution()
+
   try {
-    const parsed: unknown = JSON.parse(payload)
+    const parsed: JsonValue = JSON.parse(payload)
+
     if (!isRecord(parsed)) return emptyEventAttribution()
+
     return {
       utmSource: stringValue(parsed['utmSource']),
       utmMedium: stringValue(parsed['utmMedium']),
@@ -56,6 +60,6 @@ function emptyEventAttribution(): EventAttribution {
   }
 }
 
-function stringValue(value: unknown): string | null {
-  return typeof value === 'string' ? value : null
+function stringValue(value: JsonValue): string | null {
+  return isStringValue(value) ? value : null
 }

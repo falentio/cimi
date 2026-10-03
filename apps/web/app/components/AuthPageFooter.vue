@@ -31,6 +31,7 @@ async function switchLocale(nextLocale: SupportedLocale): Promise<void> {
 }
 
 function selectLocale(value: AcceptableValue): void {
+  // SAFETY: radio items only emit the SupportedLocale codes listed in localeOptions above.
   void switchLocale(value as SupportedLocale)
 }
 </script>

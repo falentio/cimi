@@ -12,7 +12,9 @@ describe('BackupRestoreRepositoryDrizzle.artifactRoundTrip', () => {
     using fixture = createBackupDrizzleFixture()
     await fixture.insertInstallation()
     const operation = await fixture.repository.beginBackup(createBackupInsertInput())
+
     if (operation === undefined) throw new Error('expected backup operation')
+
     const retentionManifest: RetentionManifest = {
       version: 1,
       boundaries: [
@@ -31,6 +33,7 @@ describe('BackupRestoreRepositoryDrizzle.artifactRoundTrip', () => {
         },
       ],
     }
+
     await fixture.repository.recordBackupArtifact({
       operationId: operation.id,
       ownerToken: 'owner_1',
@@ -42,6 +45,7 @@ describe('BackupRestoreRepositoryDrizzle.artifactRoundTrip', () => {
       .select({ metadata: schema.TBackupArtifact.metadata })
       .from(schema.TBackupArtifact)
       .all()
+
     expect(storedMetadata).toEqual([
       {
         metadata: {

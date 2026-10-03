@@ -8,7 +8,9 @@ import {
 } from '../fixture.ts'
 
 const organization = createOrganizationRecord()
+
 const updatedOrganization = createOrganizationRecord({ name: 'Renamed Analytics' })
+
 const repair = createRepairOperation({
   organizationId: organization.id,
   localOrganizationId: organization.id,
@@ -17,6 +19,7 @@ const repair = createRepairOperation({
   previousName: organization.name,
   desiredName: updatedOrganization.name,
 })
+
 describe('OrganizationService.update', () => {
   it('keeps the repair pending when rollback returns an invalid response', async () => {
     const { repository, authority, service } = createOrganizationFixture()

@@ -1,10 +1,19 @@
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 import { describe, expect, it } from 'vitest'
 import { createInstallationFixture, createInstallationRecord } from '../fixture.ts'
 
-const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
-const member = { id: 'user_2', role: 'member' } as unknown as AuthUser
+const admin = createTestUser()
+
+const member = createTestUser({
+  id: 'user_2',
+  email: 'member@example.com',
+  name: 'Member',
+  role: 'member',
+  installationGrant: false,
+})
+
 const retention = { eventMonths: 12, profileMonths: 12, replayMonths: null }
+
 const input = { defaultRetention: retention }
 
 describe('InstallationService.initialize', () => {
@@ -79,6 +88,7 @@ describe('InstallationService.initialize', () => {
     const { repository, lock, service } = createInstallationFixture()
     const lease = lock.acquire('upgrade')
     expect(lease).toBeDefined()
+
     try {
       await expect(service.initialize(input, admin)).rejects.toMatchObject({
         code: 'CONFLICT',
@@ -319,9 +329,9 @@ describe('InstallationService.initialize', () => {
   it('rejects an unauthenticated caller without touching the repository', async () => {
     const { repository, service } = createInstallationFixture()
 
-    await expect(service.initialize(input, undefined as unknown as AuthUser)).rejects.toMatchObject(
-      { code: 'UNAUTHORIZED' },
-    )
+    await expect(service.initialize(input, undefined)).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    })
     expect(repository.find).not.toHaveBeenCalled()
     expect(repository.insert).not.toHaveBeenCalled()
   })

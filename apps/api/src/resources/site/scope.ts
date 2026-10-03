@@ -18,12 +18,15 @@ export function createSiteScopeDependencies({
           .from(schema.TSite)
           .where(eq(schema.TSite.id, siteId))
           .limit(1)
+
         if (rows.length > 0) return true
+
         const tombstones = await db
           .select({ siteId: schema.TSiteTombstone.siteId })
           .from(schema.TSiteTombstone)
           .where(eq(schema.TSiteTombstone.siteId, siteId))
           .limit(1)
+
         return tombstones.length > 0
       },
       async isActive(siteId) {
@@ -43,6 +46,7 @@ export function createSiteScopeDependencies({
             ),
           )
           .limit(1)
+
         return rows.length > 0
       },
       async getOrganizationId(siteId) {
@@ -51,12 +55,15 @@ export function createSiteScopeDependencies({
           .from(schema.TSite)
           .where(eq(schema.TSite.id, siteId))
           .limit(1)
+
         if (rows[0] !== undefined) return rows[0].organizationId
+
         const tombstones = await db
           .select({ organizationId: schema.TSiteTombstone.organizationId })
           .from(schema.TSiteTombstone)
           .where(eq(schema.TSiteTombstone.siteId, siteId))
           .limit(1)
+
         return tombstones[0]?.organizationId
       },
     },
@@ -72,6 +79,7 @@ export function createSiteScopeDependencies({
             ),
           )
           .limit(1)
+
         if (governanceRows.length > 0) return true
 
         const repairRows = await db
@@ -84,10 +92,12 @@ export function createSiteScopeDependencies({
             ),
           )
           .limit(1)
+
         return repairRows.length > 0
       },
       async getRole(organizationId, userId) {
         if (!(await isOwnerInvariantValid(db, organizationId))) return undefined
+
         const rows = await db
           .select({ role: schema.TMembership.role })
           .from(schema.TMembership)
@@ -98,6 +108,7 @@ export function createSiteScopeDependencies({
             ),
           )
           .limit(1)
+
         return rows[0]?.role
       },
     },

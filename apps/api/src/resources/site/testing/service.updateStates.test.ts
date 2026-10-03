@@ -27,6 +27,7 @@ describe('SiteService.update states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleting' }],
     })
+
     repository.updateActive.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleting' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('deleting'))
@@ -41,6 +42,7 @@ describe('SiteService.update states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'recovering' }],
     })
+
     repository.updateActive.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'recovering' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('recovering'))
@@ -55,6 +57,7 @@ describe('SiteService.update states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
+
     repository.updateActive.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('deleted'))
@@ -69,6 +72,7 @@ describe('SiteService.update states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'purged' }],
     })
+
     repository.updateActive.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'purged' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('purged'))

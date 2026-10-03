@@ -25,13 +25,21 @@ import type { SiteRepository } from '../site/repository.ts'
 import type { IdentityProfileRepository } from './repository.ts'
 
 export type IdentifyInput = InferOutput<typeof SIdentifyInput>
+
 export type IdentifyOutput = InferOutput<typeof SIdentifyOutput>
+
 export type ProfileListInput = InferOutput<typeof SProfileListInput>
+
 export type ProfileListOutput = InferOutput<typeof SProfileListOutput>
+
 export type ProfileGetInput = InferOutput<typeof SProfileGetInput>
+
 export type ProfileGetOutput = InferOutput<typeof SProfileGetOutput>
+
 export type DeletionStatusInput = InferOutput<typeof SDeletionStatusInput>
+
 export type RequestProfileDeletionInput = InferOutput<typeof SRequestProfileDeletionInput>
+
 export type RequestProfileDeletionOutput = InferOutput<typeof SRequestProfileDeletionOutput>
 
 export interface IdentityProfileProtection {
@@ -119,12 +127,15 @@ export class IdentityProfileService {
   ): Promise<IdentifyOutput> {
     const site = await this.resolveSite(input.ingestionIdentifier)
     const now = this.clock()
+
     if (!hasAllowedProfileTraitKeys(input.traits)) {
       throw new ORPCError('BAD_REQUEST', { status: 400 })
     }
+
     if (this.protection !== undefined) {
       await this.protection.consume({ siteId: site.id, sourceIp: request.sourceIp, units: 1, now })
     }
+
     const decision = await this.collectionPolicy.admit({
       siteId: site.id,
       hostname: site.hostname,
@@ -136,8 +147,10 @@ export class IdentityProfileService {
       operation: 'identify',
       collectionContext: input.collectionContext,
     })
+
     if (decision.outcome.kind === 'rejected' || decision.outcome.bot === 'recorded_excluded')
       throw new ORPCError('FORBIDDEN', { status: 403 })
+
     const result = await this.repository.identify({
       siteId: site.id,
       identifiedUserId: input.identifiedUserId,
@@ -146,11 +159,15 @@ export class IdentityProfileService {
       now,
       profileActivityCutoffAt: await this.profileActivityCutoff(site.id),
     })
+
     if (result.kind === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
+
     if (result.kind === 'invalid') throw new ORPCError('BAD_REQUEST', { status: 400 })
+
     if (result.kind === 'payload-too-large')
       throw new ORPCError('PAYLOAD_TOO_LARGE', { status: 413 })
     this.projectionDebt?.mark({ siteId: site.id, now })
+
     return result.output
   }
 
@@ -161,6 +178,7 @@ export class IdentityProfileService {
   ): Promise<ProfileListOutput> {
     await this.reconcileSiteOrganization(input.siteId, user.id, headers)
     await assertSiteScope(user, input.siteId, this.scope)
+
     return this.repository.list({
       siteId: input.siteId,
       offset: input.offset ?? 0,
@@ -176,11 +194,14 @@ export class IdentityProfileService {
   ): Promise<ProfileGetOutput> {
     await this.reconcileSiteOrganization(input.siteId, user.id, headers)
     await assertSiteScope(user, input.siteId, this.scope)
+
     const profile = await this.repository.find({
       ...input,
       profileActivityCutoffAt: await this.profileActivityCutoff(input.siteId),
     })
+
     if (profile === undefined) throw new ORPCError('NOT_FOUND')
+
     return profile
   }
 
@@ -192,7 +213,9 @@ export class IdentityProfileService {
     await this.reconcileSiteOrganization(input.siteId, user.id, headers)
     await assertSiteScope(user, input.siteId, this.scope)
     const status = await this.repository.getDeletionStatus(input)
+
     if (status === undefined) throw new ORPCError('NOT_FOUND')
+
     return status
   }
 
@@ -203,18 +226,24 @@ export class IdentityProfileService {
   ): Promise<RequestProfileDeletionOutput> {
     await this.reconcileSiteOrganization(input.siteId, user.id, headers)
     await assertSiteManagementScope(user, input.siteId, this.scope)
+
     const result = await this.withDeletionLease(() =>
       this.repository.requestDeletion({ ...input, now: this.clock() }),
     )
+
     if (result.kind === 'not-found') throw new ORPCError('NOT_FOUND')
+
     if (result.kind === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
     this.projectionDebt?.mark({ siteId: input.siteId, now: this.clock() })
+
     return result.output
   }
 
   private async resolveSite(ingestionIdentifier: string): Promise<SiteRepository.SiteRecord> {
     const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
+
     if (site === undefined || site.status !== 'active') throw new ORPCError('NOT_FOUND')
+
     return site
   }
 
@@ -225,6 +254,7 @@ export class IdentityProfileService {
   ): Promise<void> {
     if (this.membership === undefined) return
     const organizationId = await this.scope.siteScope.getOrganizationId(siteId)
+
     if (organizationId !== undefined)
       await this.membership.reconcile(organizationId, headers, userId)
   }
@@ -235,11 +265,14 @@ export class IdentityProfileService {
   ): Promise<T> {
     if (this.lifecycleLock === undefined) return operation()
     const lease = await this.lifecycleLock.acquire('ingestion')
+
     if (lease === undefined) {
       const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
+
       if (site === undefined) throw new ORPCError('NOT_FOUND')
       throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
     }
+
     try {
       return await operation()
     } finally {
@@ -250,7 +283,9 @@ export class IdentityProfileService {
   private async withDeletionLease<T>(operation: () => Promise<T>): Promise<T> {
     if (this.lifecycleLock === undefined) return operation()
     const lease = await this.lifecycleLock.acquire('ingestion')
+
     if (lease === undefined) throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
+
     try {
       return await operation()
     } finally {

@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { isRecord } from '@cimi/utils'
 import { oc } from '../../../orpc/index.ts'
 import { SId, VALIDATION_KEYS } from '../../../schema/index.ts'
 import { SCollectionContext } from '../../collection-policy/transport.ts'
@@ -10,17 +11,20 @@ import {
 import { SBatchEventResponse } from '../schema.ts'
 
 export const COLLECT_EVENTS_MAX_RAW_REQUEST_BYTES = 256 * 1024
+
 const SCollectEventsEnvelope = v.strictObject({
   ingestionIdentifier: SId,
   collectionContext: v.optional(SCollectionContext),
   events: v.pipe(v.array(v.unknown()), v.minLength(1), v.maxLength(100)),
 })
+
 export const SCollectEventsInput = v.pipe(
   SCollectEventsEnvelope,
   v.check(
     ({ ingestionIdentifier, events }) =>
       events.every((event) => {
-        if (typeof event !== 'object' || event === null || Array.isArray(event)) return true
+        if (!isRecord(event)) return true
+
         return (
           !('ingestionIdentifier' in event) || event['ingestionIdentifier'] === ingestionIdentifier
         )
@@ -28,19 +32,15 @@ export const SCollectEventsInput = v.pipe(
     VALIDATION_KEYS.contract.batch.ingestionIdentifierMatches,
   ),
   v.check(
-    ({ events }) =>
-      events.every(
-        (event) =>
-          typeof event !== 'object' ||
-          event === null ||
-          Array.isArray(event) ||
-          !('collectionContext' in event),
-      ),
+    ({ events }) => events.every((event) => !isRecord(event) || !('collectionContext' in event)),
     VALIDATION_KEYS.contract.batch.collectionContextScoped,
   ),
 )
+
 export type SCollectEventsInput = v.InferOutput<typeof SCollectEventsInput>
+
 export const SCollectEventsOutput = SBatchEventResponse
+
 export type SCollectEventsOutput = v.InferOutput<typeof SCollectEventsOutput>
 
 export const collectEvents = oc

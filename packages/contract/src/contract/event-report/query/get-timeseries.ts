@@ -19,8 +19,11 @@ export const SEventTimeseriesInput = v.pipe(
     VALIDATION_KEYS.contract.report.granularRangeInvalid,
   ),
 )
+
 export type SEventTimeseriesInput = v.InferOutput<typeof SEventTimeseriesInput>
+
 export const SEventTimeseriesOutput = SEventTimeseries
+
 export type SEventTimeseriesOutput = v.InferOutput<typeof SEventTimeseriesOutput>
 
 export const getEventTimeseries = oc

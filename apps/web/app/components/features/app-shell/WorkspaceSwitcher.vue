@@ -40,15 +40,19 @@ const emit = defineEmits<{
 }>()
 
 const { isMobile } = useSidebar()
+
 const searchOpen = shallowRef(false)
+
 const createOrganizationOpen = shallowRef(false)
 
 const activeTeam = computed(() => props.teams.find((team) => team.id === props.activeTeamId))
+
 const activeSite = computed(() => props.sites.find((site) => site.id === props.activeSiteId))
 
 const triggerLabel = computed(() => {
   const teamName = activeTeam.value?.name ?? 'No organization selected'
   const siteName = activeSite.value?.name ?? 'No site selected'
+
   return `Switch organization and site. Selected organization: ${teamName}. Selected site: ${siteName}`
 })
 

@@ -6,10 +6,13 @@ import { SCohort, SCohortSiteFields } from '../schema.ts'
 export const SCohortListInput = v.strictObject(
   v.entriesFromObjects([SCohortSiteFields, SOffsetPaginationInput]),
 )
+
 export type SCohortListInput = v.InferOutput<typeof SCohortListInput>
+
 export const SCohortListOutput = v.strictObject(
   v.entriesFromObjects([v.strictObject({ items: SPageItems(SCohort) }), SOffsetPage]),
 )
+
 export type SCohortListOutput = v.InferOutput<typeof SCohortListOutput>
 
 export const listCohorts = oc

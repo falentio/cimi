@@ -31,7 +31,9 @@ function createFixture() {
       .from(schema.TCollectionPolicyRevision)
       .limit(1)
       .all()[0]
+
     if (revision === undefined) throw new Error('Expected a seeded collection policy revision')
+
     const layers: PolicyLayers = {
       installation: {
         id: revision.id,
@@ -41,8 +43,10 @@ function createFixture() {
       },
       site: null,
     }
+
     return layers
   })
+
   const service = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -53,6 +57,7 @@ function createFixture() {
     lifecycle: new InMemoryLifecycleOperationStatusReader(),
     clock: () => now,
   })
+
   const retention = mock<RetentionPolicyRepository>()
   retention.findResolved.mockResolvedValue({
     installationId: 'ins_1',
@@ -66,12 +71,14 @@ function createFixture() {
     },
     updatedAt: now.toISOString(),
   })
+
   const ingestion = createEventIngestion({
     db,
     siteRepository: new SiteRepositoryDrizzle({ db }),
     collectionPolicy: service,
     retention,
   })
+
   return {
     siteFixture,
     ingestion,
@@ -93,6 +100,7 @@ describe('createEventIngestion anonymous identity derivation', () => {
       kind: 'page_view',
       pagePath: '/home',
     })
+
     await fixture.ingestion.service.flush()
     await expect(first).resolves.toMatchObject({ status: 'accepted' })
 
@@ -104,6 +112,7 @@ describe('createEventIngestion anonymous identity derivation', () => {
       })
       .from(schema.TAcceptedEvent)
       .all()
+
     expect(stored).toHaveLength(1)
     expect(stored[0]?.anonymousIdentityId).not.toBeNull()
     expect(stored[0]?.visitorId).not.toBeNull()
@@ -115,11 +124,14 @@ describe('createEventIngestion anonymous identity derivation', () => {
       kind: 'page_view',
       pagePath: '/home',
     })
+
     await expect(retry).resolves.toMatchObject({ status: 'duplicate' })
+
     const afterRetry = db
       .select({ anonymousIdentityId: schema.TAcceptedEvent.anonymousIdentityId })
       .from(schema.TAcceptedEvent)
       .all()
+
     expect(afterRetry).toHaveLength(1)
     expect(afterRetry[0]?.anonymousIdentityId).toBe(stored[0]?.anonymousIdentityId)
     await fixture.ingestion.service.stop()

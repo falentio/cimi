@@ -37,6 +37,8 @@ export const NAV_REGISTRY: NavRegistry = {
 
 export function isNavItemActive(currentPath: string, item: Pick<NavItem, 'to' | 'exact'>): boolean {
   if (item.exact === true) return currentPath === item.to
+
   if (item.to === '/') return currentPath === '/'
+
   return currentPath === item.to || currentPath.startsWith(`${item.to}/`)
 }

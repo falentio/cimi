@@ -40,15 +40,19 @@ describe('createDb + migrateControlDb', () => {
     migrateControlDb(db)
     validateBaseSchema(db)
 
+    // SAFETY: better-sqlite3 returns any; hash and created_at columns selected below.
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
+
     expect(migrationRows).toHaveLength(16)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
+    // SAFETY: better-sqlite3 returns any; single name column selected below.
     const tableRows = db.$client
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all() as Array<{ name: string }>
+
     expect(tableRows.map((row) => row.name)).toEqual(
       expect.arrayContaining([
         'accepted_event',
@@ -103,6 +107,7 @@ describe('createDb + migrateControlDb', () => {
     )
 
     const now = new Date()
+
     const user = {
       id: 'user-1',
       name: 'Kevin',
@@ -139,7 +144,9 @@ describe('createDb + migrateControlDb', () => {
     let attempts = 0
     db.$client.close = () => {
       attempts += 1
+
       if (attempts === 1) throw new Error('native close failed')
+
       return nativeClose()
     }
 
@@ -152,6 +159,7 @@ describe('createDb + migrateControlDb', () => {
   it('normalizes disabled legacy public dashboard identifiers', () => {
     const db = createMigratedTestDb()
     db.$client.pragma('foreign_keys = OFF')
+
     try {
       db.$client
         .prepare(
@@ -201,8 +209,10 @@ describe('createDb + migrateControlDb', () => {
     const path = join(dir, 'legacy.sqlite')
     const sqlite = new Database(path)
     const migrationsDirectory = new URL('../../migrations/', import.meta.url)
+
     try {
       sqlite.pragma('foreign_keys = OFF')
+
       for (const file of readdirSync(migrationsDirectory).filter(
         (name) => name.endsWith('.sql') && Number(name.slice(0, 4)) <= 8,
       )) {
@@ -273,9 +283,11 @@ describe('createDb + migrateControlDb', () => {
         new URL('0009_retention_cleanup_shape.sql', migrationsDirectory),
         'utf8',
       )
+
       for (const statement of migration.split('--> statement-breakpoint')) {
         if (statement.trim()) sqlite.exec(statement)
       }
+
       sqlite.pragma('foreign_keys = ON')
 
       expect(
@@ -334,6 +346,7 @@ describe('createDb + migrateControlDb', () => {
         (id, installation_id, scope, site_id, version, policy_json, effective_from, committed_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
+
     expect(() =>
       insertCollectionPolicy.run(
         'collection-policy-invalid',
@@ -393,6 +406,7 @@ describe('createDb + migrateControlDb', () => {
         (id, installation_id, scope, event_months, profile_months, version, status, effective_from, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
+
     insertRetentionPolicy.run(
       'retention-policy-1',
       'installation-1',
@@ -434,11 +448,13 @@ describe('createDb + migrateControlDb', () => {
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run('profile-1', 'ste-1', 'identified-1', 1, 'active', now)
+
     const insertIdentityLink = db.$client.prepare(
       `INSERT INTO identity_link
         (id, site_id, profile_id, profile_epoch, anonymous_identity_id, effective_from, linked_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
+
     expect(() =>
       insertIdentityLink.run(
         'identity-link-invalid',
@@ -457,6 +473,7 @@ describe('createDb + migrateControlDb', () => {
          structural_readiness, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
+
     insertBackupOperation.run(
       'backup-operation-1',
       'restore',
@@ -500,11 +517,13 @@ describe('createDb + migrateControlDb', () => {
         now,
         now,
       )
+
     const insertCleanupCheckpoint = db.$client.prepare(
       `INSERT INTO retention_cleanup_checkpoint
         (id, cleanup_run_id, data_class, stage, status, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     )
+
     expect(() =>
       insertCleanupCheckpoint.run(
         'cleanup-checkpoint-invalid',
@@ -526,10 +545,12 @@ describe('createDb + migrateControlDb', () => {
       expect(db.$client.pragma('foreign_keys', { simple: true })).toBe(1)
 
       const now = Date.now()
+
       const insertUser = db.$client.prepare(
         `INSERT INTO user (id, name, email, email_verified, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
+
       insertUser.run('user-1', 'User 1', 'user-1@example.com', 1, now, now)
       insertUser.run('user-2', 'User 2', 'user-2@example.com', 1, now, now)
       insertUser.run('user-3', 'User 3', 'user-3@example.com', 1, now, now)
@@ -539,6 +560,7 @@ describe('createDb + migrateControlDb', () => {
           (id, name, authority_organization_id, owner_user_id, is_personal, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
+
       insertOrganization.run('personal-1', 'Personal 1', null, 'user-1', 1, now, now)
       expect(() =>
         insertOrganization.run('personal-2', 'Personal 2', null, 'user-1', 1, now, now),
@@ -571,6 +593,7 @@ describe('createDb + migrateControlDb', () => {
         `INSERT INTO membership (organization_id, user_id, role, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?)`,
       )
+
       insertMembership.run('org-1', 'user-1', 'owner', now, now)
       insertMembership.run('org-1', 'user-2', 'admin', now, now)
       expect(() => insertMembership.run('org-1', 'user-2', 'admin', now, now)).toThrow()
@@ -589,6 +612,7 @@ describe('createDb + migrateControlDb', () => {
            failure_code, failure_message, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
+
       insertGovernanceOperation.run(
         'governance-1',
         'org-1',
@@ -818,6 +842,7 @@ describe('createDb + migrateControlDb', () => {
            failure_code, failure_message, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
+
       insertRepairOperation.run(
         'repair-1',
         null,

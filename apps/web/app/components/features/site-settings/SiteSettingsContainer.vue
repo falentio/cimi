@@ -16,16 +16,20 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+
 const retrying = shallowRef(false)
+
 const localizeError = useLocalizedErrorMessage()
 
 type SettingsSection = 'general' | 'danger'
 
 const sectionLinks = computed(() => {
   const siteId = props.snapshot.siteId
+
   if (siteId === undefined) return []
 
   const basePath = siteSettingsPath(siteId)
+
   return [
     { label: 'General', section: 'general' as const, to: `${basePath}/general` },
     { label: 'Danger zone', section: 'danger' as const, to: `${basePath}/danger` },
@@ -38,6 +42,7 @@ const activeSection = computed<SettingsSection>(
 
 async function handleRetry(): Promise<void> {
   retrying.value = true
+
   try {
     await props.retry()
   } catch {

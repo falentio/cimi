@@ -39,6 +39,7 @@ describe('RetentionPolicyRepositoryDrizzle.commitPolicyChange', () => {
       changedBy: 'user_1',
       now,
     })
+
     const committed = await repository.commitPolicyChange({
       target: { scope: 'installation' },
       policy: { eventMonths: 6, profileMonths: 3, replayMonths: 1 },
@@ -52,11 +53,13 @@ describe('RetentionPolicyRepositoryDrizzle.commitPolicyChange', () => {
       profileMonths: 3,
       replayMonths: 1,
     })
+
     const boundaries = fixture.db
       .select()
       .from(schema.TRetentionEffectiveCutoff)
       .orderBy(schema.TRetentionEffectiveCutoff.siteId)
       .all()
+
     expect(boundaries).toHaveLength(2)
     expect(boundaries[0]).toMatchObject({
       siteId: 'ste_1',
@@ -98,6 +101,7 @@ describe('RetentionPolicyRepositoryDrizzle.commitPolicyChange', () => {
         ),
       )
       .all()[0]
+
     expect(sitePolicy).toEqual({ id: 'rtn_site_1', changedBy: 'user_1', status: 'active' })
   })
 
@@ -206,6 +210,7 @@ describe('RetentionPolicyRepositoryDrizzle.commitPolicyChange', () => {
       })
       .from(schema.TRetentionCleanupRun)
       .all()
+
     expect(runs).toHaveLength(4)
     expect(runs.filter((run) => run.status === 'queued')).toHaveLength(2)
   })

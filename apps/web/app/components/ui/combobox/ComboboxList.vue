@@ -17,9 +17,11 @@ const props = withDefaults(
     sideOffset: 4,
   },
 )
+
 const emits = defineEmits<ComboboxContentEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')
+
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 

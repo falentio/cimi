@@ -51,26 +51,33 @@ const ticket: ReportAdmissionTicket = {
 }
 
 const filterPlan = compileTrafficFilterPlan({ filters: [], profileFilterKeys: [] })
+
 if (!filterPlan.ok) throw new Error('Expected an empty public filter plan')
 
 describe('PublicDashboardAggregatePlanner.preflight', () => {
   it('rejects a dimension result above the independent row budget', async () => {
     const admissionRequests: Parameters<PublicDashboardAdmission['admit']>[0][] = []
+
     const admission: PublicDashboardAdmission = {
       admit: async (input) => {
         admissionRequests.push(input)
+
         return ticket
       },
     }
+
     let aggregateCalls = 0
+
     const query: PublicDashboardQueryPort = {
       countDimensionValues: async () => 101,
       countDistinctVisitors: async () => 5,
       aggregate: async () => {
         aggregateCalls += 1
+
         return []
       },
     }
+
     const planner = new PublicDashboardAggregatePlanner({ admission, query })
 
     await expect(
@@ -94,17 +101,21 @@ describe('PublicDashboardAggregatePlanner.preflight', () => {
 
   it('charges suppression and metric distinct work separately for time queries', async () => {
     const admissionRequests: Parameters<PublicDashboardAdmission['admit']>[0][] = []
+
     const admission: PublicDashboardAdmission = {
       admit: async (input) => {
         admissionRequests.push(input)
+
         return ticket
       },
     }
+
     const query: PublicDashboardQueryPort = {
       countDimensionValues: async () => 0,
       countDistinctVisitors: async () => 5,
       aggregate: async () => [],
     }
+
     const planner = new PublicDashboardAggregatePlanner({ admission, query })
 
     await planner.preflight({

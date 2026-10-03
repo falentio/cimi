@@ -27,6 +27,7 @@ const now = new Date('2026-09-05T14:30:00.000Z')
 
 async function createAnalyticsFixture() {
   const analytics = await createTestAnalyticsDb()
+
   return {
     analytics,
     async [Symbol.asyncDispose]() {
@@ -104,6 +105,7 @@ describe('AcceptanceRetentionCleanup', () => {
       .run()
 
     await using analyticsFixture = await createAnalyticsFixture()
+
     const cleanup = new AcceptanceRetentionCleanup({
       acceptance: mock<AcceptanceRepository>(),
       analytics: analyticsFixture.analytics,
@@ -223,8 +225,10 @@ describe('AcceptanceRetentionCleanup', () => {
           .from(schema.TIdentityRedaction)
           .all(),
       ).toEqual([{ status: 'applied', derivedCleanupStatus: 'complete' }])
+
       return 0
     })
+
     const cleanup = new AcceptanceRetentionCleanup({
       acceptance,
       analytics,
@@ -349,6 +353,7 @@ describe('AcceptanceRetentionCleanup', () => {
     await using analyticsFixture = await createAnalyticsFixture()
     const { analytics } = analyticsFixture
     await analytics.close()
+
     const cleanup = new AcceptanceRetentionCleanup({
       acceptance: mock<AcceptanceRepository>(),
       analytics,
@@ -452,6 +457,7 @@ describe('AcceptanceRetentionCleanup', () => {
       .run()
 
     await using analyticsFixture = await createAnalyticsFixture()
+
     const cleanup = new AcceptanceRetentionCleanup({
       acceptance: mock<AcceptanceRepository>(),
       analytics: analyticsFixture.analytics,
@@ -546,6 +552,7 @@ describe('AcceptanceRetentionCleanup', () => {
     expect(hasPendingIdentityRedactions(fixture.db)).toBe(true)
 
     await using analyticsFixture = await createAnalyticsFixture()
+
     const cleanup = new AcceptanceRetentionCleanup({
       acceptance: mock<AcceptanceRepository>(),
       analytics: analyticsFixture.analytics,
@@ -573,6 +580,7 @@ describe('AcceptanceRetentionCleanup', () => {
 
     await using analyticsFixture = await createAnalyticsFixture()
     const rebuild = vi.spyOn(analyticsFixture.analytics, 'rebuild')
+
     const cleanup = new AcceptanceRetentionCleanup({
       acceptance: mock<AcceptanceRepository>(),
       analytics: analyticsFixture.analytics,
@@ -612,6 +620,7 @@ describe('AcceptanceRetentionCleanup', () => {
     const debt = createIdentityProjectionDebt({ db: fixture.db })
 
     await using analyticsFixture = await createAnalyticsFixture()
+
     const cleanup = new AcceptanceRetentionCleanup({
       acceptance: mock<AcceptanceRepository>(),
       analytics: analyticsFixture.analytics,
@@ -681,6 +690,7 @@ describe('AcceptanceRetentionCleanup', () => {
       .run()
     const acceptance = mock<AcceptanceRepository>()
     await using analyticsFixture = await createAnalyticsFixture()
+
     const cleanup = new AcceptanceBackupRestoreCleanup({
       acceptance,
       analytics: analyticsFixture.analytics,
@@ -782,6 +792,7 @@ describe('AcceptanceRetentionCleanup', () => {
     const backupPath = join(directory, 'backups', 'backup-operation-1.sqlite')
     await mkdir(join(directory, 'backups'), { recursive: true })
     const backupDb = createDb({ path: backupPath })
+
     try {
       migrateControlDb(backupDb)
       await new InstallationRepositoryDrizzle({ db: backupDb }).insert(
@@ -791,9 +802,12 @@ describe('AcceptanceRetentionCleanup', () => {
       backupDb.insert(schema.TOrganization).values(createSiteOrganizationRow()).run()
       backupDb.insert(schema.TMembership).values(createSiteMembershipRow()).run()
       backupDb.insert(schema.TSite).values(createSiteRow()).run()
+
+      // SAFETY: better-sqlite3 returns any; single id column selected below.
       const backupRevision = backupDb.$client
         .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
         .get() as { id: string }
+
       backupDb
         .insert(schema.TIdentityProfile)
         .values({
@@ -850,6 +864,7 @@ describe('AcceptanceRetentionCleanup', () => {
           redactedAt: null,
         })
         .run()
+
       const acceptedEvent = backupDb
         .insert(schema.TAcceptedEvent)
         .values({
@@ -874,6 +889,7 @@ describe('AcceptanceRetentionCleanup', () => {
         })
         .returning({ eventPk: schema.TAcceptedEvent.eventPk })
         .all()[0]
+
       if (acceptedEvent === undefined) throw new Error('Accepted Event insert returned no row')
       backupDb
         .insert(schema.TEventPayload)
@@ -886,6 +902,7 @@ describe('AcceptanceRetentionCleanup', () => {
           }),
         })
         .run()
+
       const currentEvent = backupDb
         .insert(schema.TAcceptedEvent)
         .values({
@@ -910,6 +927,7 @@ describe('AcceptanceRetentionCleanup', () => {
         })
         .returning({ eventPk: schema.TAcceptedEvent.eventPk })
         .all()[0]
+
       if (currentEvent === undefined) throw new Error('Accepted Event insert returned no row')
       backupDb
         .insert(schema.TEventPayload)
@@ -950,6 +968,7 @@ describe('AcceptanceRetentionCleanup', () => {
       db: fixture.db,
       dataDirectoryPath: directory,
     })
+
     try {
       await cleanup.runBackup({
         runId: 'run_1',
@@ -959,15 +978,19 @@ describe('AcceptanceRetentionCleanup', () => {
         checkpoints: [],
       })
       const cleanedBackup = createDb({ path: backupPath })
+
       try {
         expect(
           cleanedBackup.$client
             .prepare('SELECT identified_user_id AS identifiedUserId FROM accepted_event')
             .all(),
         ).toEqual([{ identifiedUserId: null }, { identifiedUserId: 'user_2' }])
+
+        // SAFETY: better-sqlite3 returns any; single payload column selected below.
         const payloads = cleanedBackup.$client
           .prepare('SELECT canonical_payload_json AS payload FROM event_payload ORDER BY event_pk')
           .all() as Array<{ readonly payload: string }>
+
         expect(payloads.map(({ payload }) => JSON.parse(payload))).toEqual([
           { eventId: 'event_1', kind: 'custom_event', identifiedUserId: null },
           { eventId: 'event_2', kind: 'custom_event', identifiedUserId: 'user_2' },
@@ -980,6 +1003,7 @@ describe('AcceptanceRetentionCleanup', () => {
       } finally {
         closeDb(cleanedBackup)
       }
+
       expect(
         fixture.db
           .select({ backupCleanupStatus: schema.TIdentityRedaction.backupCleanupStatus })

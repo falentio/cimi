@@ -17,6 +17,7 @@ describe('HelloService.create', () => {
         message: 'Hello, Ada!',
       }),
     )
+    // SAFETY: toHaveBeenCalledTimes(1) above proves exactly one insert call.
     const record = repo.insert.mock.calls[0]?.[0] as HelloRepository.HelloRecord | undefined
     expect(record?.id).toMatch(/^hel_[a-z2-7]+$/)
     expect(record?.createdAt).toBeInstanceOf(Date)

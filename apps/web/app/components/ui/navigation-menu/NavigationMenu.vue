@@ -17,9 +17,11 @@ const props = withDefaults(
     viewport: true,
   },
 )
+
 const emits = defineEmits<NavigationMenuRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class', 'viewport')
+
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 

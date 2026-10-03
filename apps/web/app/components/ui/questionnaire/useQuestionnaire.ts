@@ -2,6 +2,7 @@ import type { ComputedRef, Ref } from 'vue'
 import { createContext } from 'reka-ui'
 
 export type QuestionnaireItemStatus = 'unanswered' | 'answered' | 'skipped'
+
 export type QuestionnaireShortcutMode = 'letters' | 'numbers'
 
 export type QuestionnaireInputType =
@@ -114,7 +115,7 @@ export const [injectQuestionnaireRootContext, provideQuestionnaireRootContext] =
 export const [injectQuestionnaireItemContext, provideQuestionnaireItemContext] =
   createContext<QuestionnaireItemContext>('QuestionnaireItem')
 
-export function hasInputValue(value: unknown) {
+export function hasInputValue(value: string | number | readonly string[] | null | undefined) {
   if (Array.isArray(value)) {
     return value.some((item) => String(item).trim().length > 0)
   }

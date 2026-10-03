@@ -33,7 +33,9 @@ const emit = defineEmits<{
 }>()
 
 const confirmation = shallowRef<MembershipConfirmation | undefined>()
+
 const localizeError = useLocalizedErrorMessage()
+
 const confirmationOpen = computed({
   get: () => confirmation.value !== undefined,
   set: (open: boolean) => {
@@ -43,6 +45,7 @@ const confirmationOpen = computed({
 
 const canManage = computed(() => {
   const role = props.snapshot.currentMembership?.role
+
   return role === 'owner' || role === 'admin'
 })
 
@@ -64,11 +67,15 @@ function askLeave(): void {
 function confirmAction(): void {
   const action = confirmation.value
   confirmation.value = undefined
+
   if (action === undefined) return
+
   if (action.kind === 'leave') {
     emit('leave')
+
     return
   }
+
   if (action.kind === 'remove') emit('removeMember', action.userId)
   else emit('transferOwnership', action.userId)
 }

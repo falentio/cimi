@@ -27,8 +27,11 @@ const confirmationOpen = computed({
     if (!open && props.deletionState.status === 'confirming') emit('cancelDelete')
   },
 })
+
 const isSubmitting = computed(() => props.deletionState.status === 'submitting')
+
 const isAccepted = computed(() => props.deletionState.status === 'accepted')
+
 const localizeError = useLocalizedErrorMessage()
 </script>
 

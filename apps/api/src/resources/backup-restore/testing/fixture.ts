@@ -111,6 +111,7 @@ export function createSafetyManifest(overrides: Partial<SafetyManifest> = {}): S
 export function createBackupDrizzleFixture() {
   const db = createMigratedTestDb()
   const repository = new BackupRestoreRepositoryDrizzle({ db })
+
   return {
     db,
     repository,
@@ -166,6 +167,7 @@ export function createServiceFixture(
 ) {
   const repository = mock<BackupRestoreRepository>()
   const executor = options.executor ?? mock<BackupRestoreExecutor>()
+
   const service = new BackupRestoreService({
     repository,
     executor,
@@ -174,6 +176,8 @@ export function createServiceFixture(
     reads: new InMemoryReadQuiescencePort(),
     dataDirectoryReady: true,
   })
+
   if (options.operation !== undefined) repository.find.mockResolvedValue(options.operation)
+
   return { repository, executor, service }
 }

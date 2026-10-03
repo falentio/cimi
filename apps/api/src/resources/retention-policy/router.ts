@@ -2,6 +2,7 @@ import { api, authenticatedApi } from '../../orpc.ts'
 import type { RetentionPolicyService } from './service.ts'
 
 const retentionPolicyApi = api.retentionPolicy
+
 const authenticatedRetentionPolicyApi = authenticatedApi.retentionPolicy
 
 export function retentionPolicyRouter(service: RetentionPolicyService) {

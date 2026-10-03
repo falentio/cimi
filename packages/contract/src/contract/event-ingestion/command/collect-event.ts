@@ -8,9 +8,13 @@ import {
 import { SAcceptedEvent, SEvent } from '../schema.ts'
 
 export const COLLECT_EVENT_MAX_RAW_REQUEST_BYTES = 64 * 1024
+
 export const SCollectEventInput = SEvent
+
 export type SCollectEventInput = v.InferOutput<typeof SCollectEventInput>
+
 export const SCollectEventOutput = SAcceptedEvent
+
 export type SCollectEventOutput = v.InferOutput<typeof SCollectEventOutput>
 
 export const collectEvent = oc

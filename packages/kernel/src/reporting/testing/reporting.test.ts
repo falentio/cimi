@@ -32,11 +32,13 @@ import {
 } from '../../index.ts'
 
 const siteId = createSiteId('ste-1')
+
 const metadata = {
   siteId,
   reportingTimezone: 'UTC',
   weekStartsOn: 'monday' as const,
 }
+
 const currentInput = {
   fromDate: createCalendarDate('2026-09-05'),
   toDate: createCalendarDate('2026-09-06'),
@@ -61,6 +63,7 @@ function periodsFor(input: {
     fromDate: createCalendarDate(input.fromDate),
     toDate: createCalendarDate(input.toDate),
   }
+
   const comparison =
     input.comparison === undefined
       ? undefined
@@ -68,16 +71,18 @@ function periodsFor(input: {
           fromDate: createCalendarDate(input.comparison.fromDate),
           toDate: createCalendarDate(input.comparison.toDate),
         }
+
   const siteMetadata = {
     ...metadata,
     reportingTimezone: input.timeZone ?? metadata.reportingTimezone,
     weekStartsOn: input.weekStartsOn ?? metadata.weekStartsOn,
   }
+
   return resolveReportPeriods({
     metadata: siteMetadata,
     current,
-    ...(comparison === undefined ? {} : { comparison }),
-    ...(input.bucket === undefined ? {} : { bucket: input.bucket }),
+    ...(comparison !== undefined && { comparison }),
+    ...(input.bucket !== undefined && { bucket: input.bucket }),
   })
 }
 
@@ -107,15 +112,7 @@ function projectionEvidence(
   }
 }
 
-function createPorts(): {
-  readonly dependencies: ReportingAdmissionDependencies
-  readonly metadata: ReturnType<typeof mock<ReportingMetadataPort>>
-  readonly projection: ReturnType<typeof mock<ReportingProjectionPort>>
-  readonly statistics: ReturnType<typeof mock<ReportingStatisticsPort>>
-  readonly retention: ReturnType<typeof mock<ReportingRetentionPort>>
-  readonly readiness: ReturnType<typeof mock<AnalyticsReadinessPort>>
-  readonly factWork: ReturnType<typeof mock<FactWorkPort>>
-} {
+function createPorts() {
   const metadataPort = mock<ReportingMetadataPort>()
   const projectionPort = mock<ReportingProjectionPort>()
   const statisticsPort = mock<ReportingStatisticsPort>()
@@ -178,11 +175,12 @@ function admissionInput(
           fromDate: createCalendarDate(overrides.comparison.fromDate),
           toDate: createCalendarDate(overrides.comparison.toDate),
         }
+
   return {
     siteId,
     current: currentInput,
-    ...(comparison === undefined ? {} : { comparison }),
-    ...(overrides.periodization === undefined ? {} : { periodization: overrides.periodization }),
+    ...(comparison !== undefined && { comparison }),
+    ...(overrides.periodization !== undefined && { periodization: overrides.periodization }),
     coverage: overrides.coverage ?? ['event-occurrence'],
     work: {
       extraMetricCount: 0,
@@ -194,8 +192,8 @@ function admissionInput(
   } as const
 }
 
-async function expectAdmissionError(
-  operation: () => Promise<unknown>,
+async function expectAdmissionError<T>(
+  operation: () => Promise<T>,
   code: ReportingAdmissionError['code'],
 ): Promise<ReportingAdmissionError> {
   try {
@@ -203,14 +201,17 @@ async function expectAdmissionError(
   } catch (error) {
     if (!(error instanceof ReportingAdmissionError)) throw error
     expect(error.code).toBe(code)
+
     return error
   }
+
   throw new Error(`Expected ${code}`)
 }
 
 describe('reporting period resolution', () => {
   it('resolves current and comparison periodization independently', async () => {
     const ports = createPorts()
+
     const preparation = await new ReportingAdmissionService(ports.dependencies).prepare({
       siteId,
       current: currentInput,
@@ -234,6 +235,7 @@ describe('reporting period resolution', () => {
 
   it('does not inherit current periodization for an unconfigured comparison', async () => {
     const ports = createPorts()
+
     const preparation = await new ReportingAdmissionService(ports.dependencies).prepare({
       siteId,
       current: currentInput,
@@ -282,6 +284,7 @@ describe('reporting period resolution', () => {
       timeZone: 'America/New_York',
       bucket: { granularity: 'hour', maxStarts: 25 },
     })
+
     const repeated = periods.current.bucketStarts?.filter((bucket) =>
       bucket.localLabel.endsWith('T01:00:00'),
     )
@@ -300,6 +303,7 @@ describe('reporting period resolution', () => {
       weekStartsOn: 'monday',
       bucket: { granularity: 'week', maxStarts: 1 },
     })
+
     const sunday = periodsFor({
       fromDate: '2026-09-06',
       toDate: '2026-09-12',
@@ -350,6 +354,7 @@ describe('reporting period resolution', () => {
         }),
       'QUERY_LIMIT_EXCEEDED',
     )
+
     expect(error.reason).toBe('bucket-bound')
   })
 
@@ -496,18 +501,21 @@ describe('traffic metric catalog', () => {
 describe('reporting gap and retention policy', () => {
   it('uses half-open overlap semantics at both gap endpoints', () => {
     const periods = periodsFor({ fromDate: '2026-09-05', toDate: '2026-09-06' })
+
     const before = {
       id: 'before',
       unbounded: false,
       occurrenceFrom: instant('2026-09-01T00:00:00.000Z'),
       occurrenceTo: periods.current.interval.start,
     }
+
     const after = {
       id: 'after',
       unbounded: false,
       occurrenceFrom: periods.current.interval.endExclusive,
       occurrenceTo: instant('2026-09-10T00:00:00.000Z'),
     }
+
     const inside = {
       id: 'inside',
       unbounded: false,
@@ -899,12 +907,14 @@ describe('ReportingAdmissionService with one evidence read', () => {
         distinctCounts: 0,
       },
     })
+
     const dependencies: ReportingAdmissionDependencies = {
       metadata: metadataPort,
       analyticsReadiness: readinessPort,
       evidence: evidencePort,
       factWork: factWorkPort,
     }
+
     return { dependencies, evidencePort, factWorkPort }
   }
 

@@ -17,7 +17,7 @@ export interface BackupRestoreCleanupWorkerDependencies {
   readonly intervalMs?: number
   readonly clock?: (() => Date) | undefined
   readonly ownerToken?: (() => string) | undefined
-  readonly onError?: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
+  readonly onError?: ((cause: unknown, context?: LogOperationContext) => void) | undefined
 }
 
 export class BackupRestoreCleanupWorker {
@@ -27,7 +27,7 @@ export class BackupRestoreCleanupWorker {
   private readonly intervalMs: number
   private readonly clock: () => Date
   private readonly ownerToken: () => string
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
+  private readonly onError: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private timerGeneration = 0
   private runPromise: Promise<void> | undefined
@@ -53,12 +53,13 @@ export class BackupRestoreCleanupWorker {
   runOnce(): Promise<void> {
     if (this.runPromise !== undefined) return this.runPromise
     this.runPromise = this.process()
-      .catch((error: unknown) =>
-        this.reportError(error, { operation: 'backup.cleanup', stage: 'cleanup' }),
+      .catch((cause: unknown) =>
+        this.reportError(cause, { operation: 'backup.cleanup', stage: 'cleanup' }),
       )
       .finally(() => {
         this.runPromise = undefined
       })
+
     return this.runPromise
   }
 
@@ -79,34 +80,46 @@ export class BackupRestoreCleanupWorker {
       this.timer = undefined
       this.timerGeneration += 1
     }
+
     await this.runPromise
   }
 
   private async process(): Promise<void> {
     if (this.cleanup === undefined) return
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>> | undefined
+
     try {
       lease = await this.lock.acquire('cleanup')
     } catch (error) {
       this.reportError(error, { operation: 'backup.cleanup', stage: 'acquire' })
+
       return
     }
+
     if (lease === undefined) return
     let operationId: string | undefined
+
     try {
       const operation = await this.repository.findCleanupPending()
+
       if (operation === undefined) return
       operationId = operation.id
+
       const stage =
         operation.derivedCleanup.status === 'completed' ? 'backup_cleanup' : 'derived_cleanup'
+
       let ownerToken: string
+
       try {
         ownerToken = this.ownerToken()
       } catch (error) {
         this.reportError(error, { operation: 'backup.cleanup', stage: 'claim', operationId })
+
         return
       }
+
       let work
+
       try {
         work = await this.repository.claimCleanupStage({
           operationId: operation.id,
@@ -116,15 +129,19 @@ export class BackupRestoreCleanupWorker {
         })
       } catch (error) {
         this.reportError(error, { operation: 'backup.cleanup', stage: 'claim', operationId })
+
         return
       }
+
       if (work === undefined) return
+
       try {
         if (work.stage === 'derived_cleanup') {
           await this.cleanup.runDerived({ operationId: work.operationId })
         } else {
           await this.cleanup.runBackup({ operationId: work.operationId })
         }
+
         await this.repository.completeCleanupStage({
           operationId: work.operationId,
           stage: work.stage,
@@ -137,7 +154,9 @@ export class BackupRestoreCleanupWorker {
           stage: work.stage === 'derived_cleanup' ? 'derived-cleanup' : 'backup-cleanup',
           operationId: work.operationId,
         }
+
         this.reportError(error, context)
+
         try {
           await this.repository.failCleanupStage({
             operationId: work.operationId,
@@ -161,19 +180,21 @@ export class BackupRestoreCleanupWorker {
         this.reportError(error, {
           operation: 'backup.cleanup',
           stage: 'release',
-          ...(operationId === undefined ? {} : { operationId }),
+          ...(operationId !== undefined && { operationId }),
         })
       }
     }
   }
 
-  private reportError(error: unknown, context: LogOperationContext): void {
+  private reportError(cause: unknown, context: LogOperationContext): void {
     if (this.onError === undefined) {
-      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      reportLogEvent({ kind: 'operation.failure', ...context, error: cause })
+
       return
     }
+
     try {
-      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+      void Promise.resolve(this.onError(cause, context)).catch(() => undefined)
     } catch {}
   }
 }

@@ -2,6 +2,7 @@ import * as v from 'valibot'
 import { SDateTime, SId, VALIDATION_KEYS } from '../../schema/index.ts'
 
 export const SBackupStatus = v.picklist(['creating', 'available', 'restoring', 'failed'])
+
 export const SBackupPhase = v.picklist([
   'capturing_sqlite',
   'restoring_sqlite',
@@ -10,6 +11,7 @@ export const SBackupPhase = v.picklist([
   'ready',
   'failed',
 ])
+
 export const SBackupErrorCode = v.picklist([
   'BACKUP_FAILED',
   'INCOMPATIBLE_BACKUP',
@@ -17,6 +19,7 @@ export const SBackupErrorCode = v.picklist([
   'CONFLICT',
   'INTERNAL_SERVER_ERROR',
 ])
+
 export const SBackupCleanupStageStatus = v.picklist([
   'not_applicable',
   'not_started',
@@ -25,6 +28,7 @@ export const SBackupCleanupStageStatus = v.picklist([
   'completed',
   'failed',
 ])
+
 export const SBackupCleanupStage = v.pipe(
   v.strictObject({
     status: SBackupCleanupStageStatus,
@@ -36,18 +40,23 @@ export const SBackupCleanupStage = v.pipe(
     if (status === 'not_applicable' || status === 'not_started' || status === 'pending') {
       return startedAt === null && completedAt === null && errorCode === null
     }
+
     if (status === 'running')
       return startedAt !== null && completedAt === null && errorCode === null
+
     if (status === 'completed')
       return startedAt !== null && completedAt !== null && errorCode === null
+
     return startedAt !== null && completedAt !== null && errorCode !== null
   }, VALIDATION_KEYS.contract.lifecycle.cleanupStageCoherent),
 )
+
 export const SBackupReadiness = v.strictObject({
   controlStore: v.picklist(['not_ready', 'ready']),
   analyticsStore: v.picklist(['not_ready', 'ready', 'rebuilding']),
   structural: v.picklist(['not_ready', 'ready']),
 })
+
 export const SBackupCheckpoint = v.picklist([
   'none',
   'sqlite_captured',
@@ -55,6 +64,7 @@ export const SBackupCheckpoint = v.picklist([
   'duckdb_rebuilt',
   'structurally_ready',
 ])
+
 export const SPreRestoreSafetyArtifact = v.pipe(
   v.strictObject({
     id: SId,
@@ -65,11 +75,14 @@ export const SPreRestoreSafetyArtifact = v.pipe(
   }),
   v.check(({ status, errorCode }) => {
     if (status === 'failed') return errorCode !== null
+
     return errorCode === null
   }, VALIDATION_KEYS.contract.backup.safetyArtifactCoherent),
 )
+
 const isCleanupPending = (status: v.InferOutput<typeof SBackupCleanupStageStatus>) =>
   status !== 'not_applicable' && status !== 'completed'
+
 export const SBackup = v.pipe(
   v.strictObject({
     id: SId,
@@ -107,26 +120,37 @@ export const SBackup = v.pipe(
     }) => {
       const cleanupIsPending =
         isCleanupPending(derivedCleanup.status) || isCleanupPending(backupCleanup.status)
+
       if (cleanupPending !== cleanupIsPending) return false
+
       if (
         ['running', 'completed', 'failed'].includes(backupCleanup.status) &&
         derivedCleanup.status !== 'completed'
       ) {
         return false
       }
+
       const terminal = status === 'available' || status === 'failed'
+
       if ((terminal && completedAt === null) || (!terminal && completedAt !== null)) return false
+
       if (completedAt !== null && new Date(String(completedAt)) < new Date(String(createdAt))) {
         return false
       }
+
       if (status === 'failed') return phase === 'failed' && errorCode !== null
+
       if (errorCode !== null) return false
+
       if (status === 'creating') {
         return phase === 'capturing_sqlite' && progress < 1 && checkpoint !== 'structurally_ready'
       }
+
       if (status === 'restoring') {
         if (restoreSourceBackupId === null || preRestoreSafetyArtifact === null) return false
+
         if (preRestoreSafetyArtifact.status === 'failed') return false
+
         if (phase === 'rebuilding_duckdb') {
           return (
             progress < 1 &&
@@ -134,12 +158,15 @@ export const SBackup = v.pipe(
             readiness.analyticsStore === 'rebuilding'
           )
         }
+
         if (phase === 'cleanup_pending') {
           return progress === 1 && cleanupPending && readiness.structural === 'ready'
         }
+
         if (phase === 'ready') {
           return progress === 1 && !cleanupPending && readiness.structural === 'ready'
         }
+
         return (
           phase === 'restoring_sqlite' &&
           progress < 1 &&
@@ -147,6 +174,7 @@ export const SBackup = v.pipe(
           readiness.structural === 'not_ready'
         )
       }
+
       if (status === 'available') {
         return (
           progress === 1 &&
@@ -157,12 +185,15 @@ export const SBackup = v.pipe(
           (phase === 'ready' || (phase === 'cleanup_pending' && cleanupPending))
         )
       }
+
       return false
     },
     VALIDATION_KEYS.contract.backup.stateCoherent,
   ),
 )
+
 export const SBackupIdFields = v.strictObject({ backupId: SId })
+
 export const SBackupRestoreFields = v.strictObject(
   v.entriesFromObjects([SBackupIdFields, v.strictObject({ confirmation: v.literal('RESTORE') })]),
 )

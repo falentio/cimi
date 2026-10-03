@@ -5,6 +5,7 @@ import { InvitationRepositoryDrizzle } from '../repository.drizzle.ts'
 import { hashInvitationToken } from '../token.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const future = new Date('2026-09-10T00:00:00.000Z')
 
 function seed() {
@@ -72,15 +73,18 @@ function seed() {
       updatedAt: createdAt,
     })
     .run()
+
   return db
 }
 
 describe('InvitationRepositoryDrizzle.insert', () => {
   it('inserts with a hash and round-trips by token hash', async () => {
     const db = seed()
+
     try {
       const repo = new InvitationRepositoryDrizzle({ db })
       const tokenHash = hashInvitationToken('token-1')
+
       const record = await repo.insert({
         id: 'inv_1',
         organizationId: 'org_1',

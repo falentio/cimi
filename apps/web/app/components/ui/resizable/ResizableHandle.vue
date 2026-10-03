@@ -8,9 +8,11 @@ import { cn } from '@/lib/utils'
 const props = defineProps<
   SplitterResizeHandleProps & { class?: HTMLAttributes['class']; withHandle?: boolean }
 >()
+
 const emits = defineEmits<SplitterResizeHandleEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class', 'withHandle')
+
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 

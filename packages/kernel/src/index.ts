@@ -38,6 +38,7 @@ export {
   type RetentionResolver,
   type StoreHealth,
 } from './ports.ts'
+
 export {
   FACT_WORK_WEIGHTS,
   ReportingAdmissionError,

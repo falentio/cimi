@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 const props = defineProps<ContextMenuTriggerProps & { class?: HTMLAttributes['class'] }>()
 
 const delegatedProps = reactiveOmit(props, 'class')
+
 const forwardedProps = useForwardProps(delegatedProps)
 </script>
 
