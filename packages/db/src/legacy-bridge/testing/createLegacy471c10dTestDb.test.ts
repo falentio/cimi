@@ -44,12 +44,12 @@ describe('createLegacy471c10dTestDb', () => {
   })
 
   it('vendors a journal whose when values equal the pinned ledger createdAt values', () => {
-    const parsed: unknown = JSON.parse(
+    const parsed: { entries: Array<{ tag: string; when: number }> } = JSON.parse(
       readFileSync(join(FIXTURE_FOLDER, 'meta/_journal.json'), 'utf8'),
     )
 
     expect(Array.isArray(parsed)).toBe(false)
-    const journal = parsed as { entries: Array<{ tag: string; when: number }> }
+    const journal = parsed
     expect(journal.entries.map((entry) => entry.when)).toEqual(
       LEGACY_471C10D_LEDGER.map((entry) => entry.createdAt),
     )
@@ -62,6 +62,7 @@ describe('createLegacy471c10dTestDb', () => {
     try {
       expect(computeLegacySchemaFingerprint(fixture.client)).toBe(LEGACY_SCHEMA_FINGERPRINT)
 
+      // SAFETY: better-sqlite3 returns any; id, hash and created_at columns selected below.
       const rows = fixture.client
         .prepare('SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY id')
         .all() as Array<{ id: number; hash: string; created_at: number }>
@@ -110,9 +111,7 @@ describe('createLegacy471c10dTestDb', () => {
         fixture.client.prepare('SELECT COUNT(*) AS count FROM collection_policy_revision').get(),
       ).toEqual({ count: 1 })
       expect(
-        fixture.client.prepare('SELECT public_identifier FROM public_dashboard').get() as {
-          public_identifier: string
-        },
+        fixture.client.prepare('SELECT public_identifier FROM public_dashboard').get(),
       ).toMatchObject({ public_identifier: expect.stringMatching(/^legacy-[0-9a-f]+$/) })
       expect(
         fixture.client

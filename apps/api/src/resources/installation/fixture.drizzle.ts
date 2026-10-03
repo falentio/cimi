@@ -55,9 +55,9 @@ export function beginUpgradeInput(
     activeOperation: {
       phase: 'pre_upgrade_safety',
       checkpoint: 'none',
-      progress: 0 as number | null,
-      lastSafeSequence: null as number | null,
-      errorCode: null as null,
+      progress: 0,
+      lastSafeSequence: null,
+      errorCode: null,
     },
     now,
   }

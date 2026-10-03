@@ -803,6 +803,7 @@ describe('AcceptanceRetentionCleanup', () => {
       backupDb.insert(schema.TMembership).values(createSiteMembershipRow()).run()
       backupDb.insert(schema.TSite).values(createSiteRow()).run()
 
+      // SAFETY: better-sqlite3 returns any; single id column selected below.
       const backupRevision = backupDb.$client
         .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
         .get() as { id: string }
@@ -985,6 +986,7 @@ describe('AcceptanceRetentionCleanup', () => {
             .all(),
         ).toEqual([{ identifiedUserId: null }, { identifiedUserId: 'user_2' }])
 
+        // SAFETY: better-sqlite3 returns any; single payload column selected below.
         const payloads = cleanedBackup.$client
           .prepare('SELECT canonical_payload_json AS payload FROM event_payload ORDER BY event_pk')
           .all() as Array<{ readonly payload: string }>

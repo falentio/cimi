@@ -257,6 +257,7 @@ describe('ConfiguredSqliteExecutor', () => {
         ).toEqual({
           identified_user_id: null,
         })
+        // SAFETY: better-sqlite3 returns any; single canonical_payload_json column selected below.
         expect(
           JSON.parse(
             (
@@ -302,6 +303,7 @@ describe('ConfiguredSqliteExecutor', () => {
           .prepare('SELECT epoch, status FROM identity_profile_epoch WHERE profile_id = ?')
           .get('profile_1'),
       ).toEqual({ epoch: 1, status: 'redacted' })
+      // SAFETY: better-sqlite3 returns any; single canonical_payload_json column selected below.
       expect(
         JSON.parse(
           (

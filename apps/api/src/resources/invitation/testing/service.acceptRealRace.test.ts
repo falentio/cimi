@@ -142,7 +142,9 @@ describe('InvitationService.accept real race', () => {
       const rejected = [firstResult, secondResult].filter((result) => result.status === 'rejected')
       expect(fulfilled).toHaveLength(1)
       expect(rejected).toHaveLength(1)
+      // SAFETY: toHaveLength(1) above proves exactly one settled result.
       expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'NOT_FOUND' })
+      // SAFETY: toHaveLength(1) above proves exactly one settled result.
       const winner = (fulfilled[0] as PromiseFulfilledResult<{ userId: string }>).value
       expect(winner).toMatchObject({ organizationId: 'org_1', role: 'member' })
       expect(['user_2', 'user_3']).toContain(winner.userId)

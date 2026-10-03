@@ -1,3 +1,4 @@
+import { strict as assert } from 'node:assert'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,7 +40,8 @@ describe('bridgeLegacyControlDb.rejection', () => {
         throw new Error('expected migrateControlDb to throw')
       } catch (error) {
         expect(error).toBeInstanceOf(ControlMigrationIncompatibilityError)
-        const message = (error as Error).message
+        assert(error instanceof Error)
+        const message = error.message
         expect(message).toMatch(/account/)
         expect(message).toMatch(/issuer/)
         expect(message).toContain('1')
@@ -97,7 +99,8 @@ describe('bridgeLegacyControlDb.rejection', () => {
         migrateControlDb(db)
         throw new Error('expected migrateControlDb to throw')
       } catch (error) {
-        const message = (error as Error).message
+        assert(error instanceof Error)
+        const message = error.message
         expect(message).toMatch(/duplicate/)
         expect(message).toMatch(/issuer/)
         expect(message).toMatch(/account_id/)
@@ -188,6 +191,7 @@ describe('bridgeLegacyControlDb.rejection', () => {
       expect(() => migrateControlDb(db)).toThrow(ControlMigrationIncompatibilityError)
 
       expect(readLedger(db)).toHaveLength(4)
+      // SAFETY: better-sqlite3 returns any; single name column selected below.
       expect(
         (db.$client.prepare("PRAGMA table_info('user')").all() as Array<{ name: string }>).some(
           (column) => column.name === 'role',

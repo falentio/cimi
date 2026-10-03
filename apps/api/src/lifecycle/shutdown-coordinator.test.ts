@@ -1,3 +1,4 @@
+import { strict as assert } from 'node:assert'
 import { describe, expect, test } from 'vitest'
 import { createShutdownCoordinator } from './shutdown-coordinator.ts'
 
@@ -32,7 +33,14 @@ describe('createShutdownCoordinator', () => {
 
     expect(events).toEqual(['first worker', 'second worker', 'third worker'])
     expect(failure).toBeInstanceOf(AggregateError)
-    expect((failure as AggregateError).errors.map((error) => (error as Error).message)).toEqual([
+    assert(failure instanceof AggregateError)
+
+    expect(
+      failure.errors.map((error) => {
+        assert(error instanceof Error)
+        return error.message
+      }),
+    ).toEqual([
       'first worker: first failed',
       'third worker: third failed',
     ])

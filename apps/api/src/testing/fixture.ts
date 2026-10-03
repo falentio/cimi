@@ -23,6 +23,7 @@ function withAnalyticsReady(analytics: AnalyticsDb, ready: () => boolean): Analy
   return new Proxy(analytics, {
     get(target, property, receiver) {
       if (property === 'ready') return async () => ready()
+      // SAFETY: Proxy trap scopes dynamic keys to the wrapped database's own keys.
       const value: unknown = target[property as keyof AnalyticsDb]
 
       return isFunctionValue(value) ? value.bind(target) : value
@@ -121,7 +122,7 @@ export async function signUpTestUser(
   )
 
   expect(response.status).toBe(200)
-  const body = (await response.json()) as { user: { id: string } }
+  const body = await response.json()
   const setCookie = response.headers.get('set-cookie')
   expect(setCookie).toBeTruthy()
 

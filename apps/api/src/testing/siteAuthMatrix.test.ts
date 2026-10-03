@@ -131,8 +131,8 @@ test('retention over HTTP preserves identifiers across delete and recover', asyn
 
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
-  const hostname = site.hostname as string
-  const ingestionIdentifier = site.ingestionIdentifier as string
+  const hostname = site.hostname
+  const ingestionIdentifier = site.ingestionIdentifier
 
   const deleteResponse = await apiTestRequest(app, '/site/deleteSite', owner.cookie, {
     siteId: site.id,

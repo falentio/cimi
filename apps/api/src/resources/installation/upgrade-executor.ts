@@ -21,7 +21,7 @@ export class SafetyArtifactUnavailableError extends Error {}
 export class SafetyArtifactChecksumMismatchError extends Error {}
 
 export function classifyStorageExhausted(cause: unknown): boolean {
-  const code = (cause as NodeJS.ErrnoException)?.code
+  const code = cause instanceof Error && 'code' in cause ? cause.code : undefined
 
   if (code === 'ENOSPC' || code === 'SQLITE_FULL') return true
 
@@ -150,7 +150,7 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     try {
       artifactStats = await stat(artifactPath)
     } catch (error) {
-      if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         throw new SafetyArtifactUnavailableError(
           `SQLite safety artifact is unavailable for ${input.operationId}`,
           { cause: error },

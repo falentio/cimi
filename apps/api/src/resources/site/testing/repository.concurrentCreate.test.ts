@@ -69,6 +69,7 @@ describe('SiteRepositoryDrizzle.concurrentCreate', () => {
       const rejected = results.filter((result) => result.status === 'rejected')
       expect(fulfilled).toHaveLength(1)
       expect(rejected).toHaveLength(1)
+      // SAFETY: toHaveLength(1) above proves exactly one settled result.
       const reason = (rejected[0] as PromiseRejectedResult).reason
       expect(String((reason as Error)?.message ?? reason)).toMatch(/constraint|unique|reserved/i)
 

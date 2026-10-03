@@ -52,12 +52,14 @@ describe('InvitationService.accept concurrent', () => {
     const rejected = [firstResult, secondResult].filter((result) => result.status === 'rejected')
     expect(fulfilled).toHaveLength(1)
     expect(rejected).toHaveLength(1)
+    // SAFETY: toHaveLength(1) above proves exactly one settled result.
     expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'NOT_FOUND' })
     const loser = firstResult.status === 'fulfilled' ? second : first
     expect(loser.authority.admitMember).toHaveBeenCalledOnce()
     expect(loser.authority.removeMember).toHaveBeenCalledWith(
       expect.objectContaining({ organizationId: 'authority_1' }),
     )
+    // SAFETY: toHaveLength(1) above proves exactly one settled result.
     expect((fulfilled[0] as PromiseFulfilledResult<{ userId: string }>).value.userId).toBe(winner)
     expect([
       createAuthorityMember({ userId: 'user_2' }),

@@ -89,6 +89,7 @@ test('health reports degraded and collection durably accepts while DuckDB is una
     eventId: event.eventId,
   })
 
+  // SAFETY: better-sqlite3 returns any; single event_id column selected below.
   const rows = db.$client.prepare('SELECT event_id FROM accepted_event').all() as Array<{
     event_id: string
   }>
@@ -148,9 +149,7 @@ test('the public dashboard read fails closed on the same admission gate', async 
 
   expect(enabled.status, await enabled.clone().text()).toBe(200)
 
-  const { publicDashboardIdentifier } = (await enabled.json()) as {
-    publicDashboardIdentifier: string
-  }
+  const { publicDashboardIdentifier } = await enabled.json()
 
   const response = await app.fetch(
     new Request(publicDashboardQueryPath(publicDashboardIdentifier)),

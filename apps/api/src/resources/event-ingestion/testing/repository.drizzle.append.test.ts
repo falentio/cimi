@@ -77,6 +77,7 @@ describe('AcceptanceRepositoryDrizzle.append', () => {
     expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
     const site = parse(schema.SSiteCreateOutput, await siteResponse.json())
 
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const revision = db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as {
@@ -102,6 +103,7 @@ describe('AcceptanceRepositoryDrizzle.append', () => {
       ]),
     ).toEqual([{ status: 'conflict' }])
 
+    // SAFETY: better-sqlite3 returns any; flush_id and replay_sequence columns selected below.
     const journal = db.$client
       .prepare('SELECT flush_id, replay_sequence FROM event_acceptance_journal ORDER BY rowid')
       .all() as Array<{ flush_id: string | null; replay_sequence: number }>

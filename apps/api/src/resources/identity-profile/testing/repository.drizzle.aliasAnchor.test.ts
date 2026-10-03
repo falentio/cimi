@@ -12,6 +12,7 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
       createInstallationInsertInput(),
     )
 
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const policyRevision = fixture.db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { readonly id: string }
@@ -91,6 +92,7 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
       createInstallationInsertInput(),
     )
 
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const policyRevision = fixture.db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { readonly id: string }
@@ -162,6 +164,7 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
       createInstallationInsertInput(),
     )
 
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const policyRevision = fixture.db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { readonly id: string }

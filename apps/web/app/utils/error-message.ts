@@ -160,6 +160,7 @@ function errorMessageKey(error: LocalizableError): string | undefined {
     error.code !== undefined &&
     Object.hasOwn(errorMessageKeys, error.code)
   ) {
+    // SAFETY: hasOwn above proves the code is a known key.
     return errorMessageKeys[error.code as keyof typeof errorMessageKeys]
   }
 
@@ -167,6 +168,7 @@ function errorMessageKey(error: LocalizableError): string | undefined {
 
   if (!Object.hasOwn(statusFallbackCodes, error.status)) return undefined
 
+  // SAFETY: hasOwn above proves the status is a known key.
   const fallbackCode = statusFallbackCodes[error.status as keyof typeof statusFallbackCodes]
 
   return contractErrorMessageKeys[fallbackCode]
