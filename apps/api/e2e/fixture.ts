@@ -393,14 +393,12 @@ export async function createApiE2eFixture(
         }
       }
 
-      throw (
-        cleanupError === undefined
-          ? error
-          : new AggregateError(
-              [error, cleanupError],
-              'E2E fixture construction and cleanup both failed',
-            )
-      )
+      throw cleanupError === undefined
+        ? error
+        : new AggregateError(
+            [error, cleanupError],
+            'E2E fixture construction and cleanup both failed',
+          )
     }
   }
 

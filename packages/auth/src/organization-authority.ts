@@ -496,11 +496,11 @@ function isOrganizationNotFound(cause: unknown): boolean {
 }
 
 function isRequesterNotOrganizationMember(cause: unknown): boolean {
-  return (
-    isErrorWithCode(cause) && cause.body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
-  )
+  return isErrorWithCode(cause) && cause.body.code === 'YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION'
 }
 
 function isAlreadyMember(cause: unknown): boolean {
-  return isErrorWithCode(cause) && cause.body.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION'
+  return (
+    isErrorWithCode(cause) && cause.body.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION'
+  )
 }

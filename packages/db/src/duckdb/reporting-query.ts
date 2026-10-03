@@ -30,7 +30,13 @@ import {
   type TrafficTrendBucket,
   type HalfOpenInterval,
 } from '@cimi/kernel'
-import { isBigintValue, isBooleanValue, isNumberValue, isStringValue, isEventKind } from '@cimi/utils'
+import {
+  isBigintValue,
+  isBooleanValue,
+  isNumberValue,
+  isStringValue,
+  isEventKind,
+} from '@cimi/utils'
 import type { AnalyticsDb, AnalyticsWindowReader } from './index.ts'
 import type { DuckDBValue } from '@duckdb/node-api'
 

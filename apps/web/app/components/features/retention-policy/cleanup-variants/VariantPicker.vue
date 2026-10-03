@@ -12,9 +12,7 @@ const active = computed(() => {
   const id = Array.isArray(raw) ? String(raw[0]) : raw === undefined ? undefined : String(raw)
 
   // SAFETY: some() above proves the query id matches a known variant id.
-  return props.variants.some((v) => v.id === id)
-    ? (id as string)
-    : props.variants[0]!.id
+  return props.variants.some((v) => v.id === id) ? (id as string) : props.variants[0]!.id
 })
 
 function select(id: string): void {

@@ -72,8 +72,9 @@ export function getTimezoneOptions(currentTimezone?: Site['reportingTimezone']):
   readonly value: Site['reportingTimezone']
   readonly label: string
 }[] {
-  const supportedTimezones =
-    isFunctionValue(Intl.supportedValuesOf) ? Intl.supportedValuesOf('timeZone') : []
+  const supportedTimezones = isFunctionValue(Intl.supportedValuesOf)
+    ? Intl.supportedValuesOf('timeZone')
+    : []
 
   const values = new Set([...(supportedTimezones ?? []), 'UTC'])
 

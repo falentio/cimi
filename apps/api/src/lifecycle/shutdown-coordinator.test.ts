@@ -41,10 +41,7 @@ describe('createShutdownCoordinator', () => {
 
         return error.message
       }),
-    ).toEqual([
-      'first worker: first failed',
-      'third worker: third failed',
-    ])
+    ).toEqual(['first worker: first failed', 'third worker: third failed'])
   })
 
   test('retries failed phases and caches only a successful close', async () => {

@@ -423,8 +423,7 @@ function readErrorDetails(cause: unknown) {
 
     if (status === undefined && isNumberValue(candidate.status)) status = candidate.status
 
-    if (status === undefined && isNumberValue(candidate.statusCode))
-      status = candidate.statusCode
+    if (status === undefined && isNumberValue(candidate.statusCode)) status = candidate.statusCode
   }
 
   return { code, status }

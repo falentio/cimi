@@ -80,7 +80,9 @@ export function encodeRetentionManifest(manifest: RetentionManifest): RetentionM
   return { retentionManifest: { version: 1, boundaries } }
 }
 
-export function decodeRetentionManifest(metadata: JsonObject | null | undefined): RetentionManifest | null {
+export function decodeRetentionManifest(
+  metadata: JsonObject | null | undefined,
+): RetentionManifest | null {
   if (metadata === null || metadata === undefined) return null
 
   if (!isRecord(metadata)) throw incompatible('Retention metadata is malformed')

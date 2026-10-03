@@ -39,9 +39,7 @@ function wrapBuilder<T extends object>(builder: T): T {
   })
 }
 
-function withCentralErrorMessages(
-  errors: Record<string, JsonValue>,
-): Record<string, JsonValue> {
+function withCentralErrorMessages(errors: Record<string, JsonValue>): Record<string, JsonValue> {
   return Object.fromEntries(
     Object.entries(errors).map(([code, definition]) => {
       // SAFETY: unknown codes fall through to the explicit undefined check below.

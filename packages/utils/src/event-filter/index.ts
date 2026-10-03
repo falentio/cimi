@@ -144,10 +144,7 @@ export function isCompatiblePropertyFilter(input: PropertyFilterCompatibilityInp
   if (
     !input.values.every(
       (value) =>
-        value === null ||
-        isStringValue(value) ||
-        isBooleanValue(value) ||
-        isFiniteNumber(value),
+        value === null || isStringValue(value) || isBooleanValue(value) || isFiniteNumber(value),
     )
   ) {
     return false

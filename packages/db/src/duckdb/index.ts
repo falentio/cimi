@@ -1,7 +1,11 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DuckDBInstance, type DuckDBConnection, type DuckDBValue } from '@duckdb/node-api'
-import { isBigintValue, isBooleanValue, isNumberValue, isStringValue,
+import {
+  isBigintValue,
+  isBooleanValue,
+  isNumberValue,
+  isStringValue,
   getNestedMapValue,
   mergeEventAttribution,
   nestedMapValues,

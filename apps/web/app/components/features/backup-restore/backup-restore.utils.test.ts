@@ -271,8 +271,6 @@ describe('backup restore utilities', () => {
     const failure = normalizeBackupRestoreError(new Error('storage key /tmp/secret'), 'status')
     expect(failure.kind).toBe('retryable')
     expect(failure).not.toHaveProperty('message', expect.stringContaining('/tmp/secret'))
-    expect(failure.message).toBe(
-      'Backup status could not be loaded. Refresh and try again.',
-    )
+    expect(failure.message).toBe('Backup status could not be loaded. Refresh and try again.')
   })
 })

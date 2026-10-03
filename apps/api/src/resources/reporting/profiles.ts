@@ -55,12 +55,7 @@ export function readProfileTrait(
 }
 
 function isAnalyticsReportScalar(value: unknown): value is AnalyticsReportScalar {
-  return (
-    value === null ||
-    isStringValue(value) ||
-    isNumberValue(value) ||
-    isBooleanValue(value)
-  )
+  return value === null || isStringValue(value) || isNumberValue(value) || isBooleanValue(value)
 }
 
 function readJsonObject(value: JsonObject): JsonObject {

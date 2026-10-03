@@ -7,38 +7,40 @@ import { COMPLEX_RULES, LITERAL_RULES, type LiteralRule } from '../matching.ts'
 import { classifyUA as classifyUAPublic } from '../../index.ts'
 import { NON_BOT, type BotClassification } from '../types.ts'
 
-const COMPLEX_PATTERN_PROBES = new Map<string, string>(Object.entries({
-  ' daum[ /]': 'Mozilla daum/1',
-  '(?:^|[^g])news(?!sapphire)': 'news!',
-  '(?<! (?:channel/|google/))google(?!(app|/google| pixel))': 'googlebot',
-  '(?<! cu)bots?(?:\\b|_)': 'bots',
-  '(?<!(?:lib))http': 'http',
-  '(?<!cam)scan': 'scan',
-  '@[a-z][\\w-]+\\.': 'contact@example.com',
-  '\\(\\)': '()',
-  '\\.com\\b': 'example.com',
-  '\\b\\w+\\.ai': 'example.ai',
-  '\\|': '|',
-  '^[\\w \\.\\-\\(?:\\):%]+(?:/v?\\d+(?:\\.\\d+)?(?:\\.\\d{1,10})*?)?(?:,|$)': 'Client/1.2',
-  '^[\\w\\-]+/[\\w]+$': 'Client/abc',
-  '^[^ ]{50,}$': '!'.repeat(50),
-  '^\\d+\\b': '123!',
-  '^\\W': '!',
-  '^\\w*search\\b': 'search!',
-  '^\\w+/[\\w\\(\\)]*$': 'client/a(b)',
-  '^\\w+/\\d\\.\\d\\s\\([\\w@]+\\)$': 'client/1.2 (user)',
-  '^clamav[ /]': 'clamav/1 extra',
-  '^ddg[_-]android': 'ddg-android!',
-  '^dispatch/\\d': 'dispatch/1 extra',
-  '^mozilla/\\d\\.\\d\\s[\\w\\.-]+$': 'mozilla/5.0 Firefox',
-  '^mozilla/\\d\\.\\d\\s\\((?:compatible;)?(?:\\s?[\\w\\d-.]+\\/\\d+\\.\\d+)?\\)$':
-    'mozilla/5.0 (compatible;)',
-  '^zdm/\\d': 'zdm/1 extra',
-  'bit\\.ly/': 'bit.ly/',
-  'java(?!;)': 'java!',
-  'mail\\.ru/': 'mail.ru/',
-  'ptst[ /]\\d': 'ptst/1 extra',
-}))
+const COMPLEX_PATTERN_PROBES = new Map<string, string>(
+  Object.entries({
+    ' daum[ /]': 'Mozilla daum/1',
+    '(?:^|[^g])news(?!sapphire)': 'news!',
+    '(?<! (?:channel/|google/))google(?!(app|/google| pixel))': 'googlebot',
+    '(?<! cu)bots?(?:\\b|_)': 'bots',
+    '(?<!(?:lib))http': 'http',
+    '(?<!cam)scan': 'scan',
+    '@[a-z][\\w-]+\\.': 'contact@example.com',
+    '\\(\\)': '()',
+    '\\.com\\b': 'example.com',
+    '\\b\\w+\\.ai': 'example.ai',
+    '\\|': '|',
+    '^[\\w \\.\\-\\(?:\\):%]+(?:/v?\\d+(?:\\.\\d+)?(?:\\.\\d{1,10})*?)?(?:,|$)': 'Client/1.2',
+    '^[\\w\\-]+/[\\w]+$': 'Client/abc',
+    '^[^ ]{50,}$': '!'.repeat(50),
+    '^\\d+\\b': '123!',
+    '^\\W': '!',
+    '^\\w*search\\b': 'search!',
+    '^\\w+/[\\w\\(\\)]*$': 'client/a(b)',
+    '^\\w+/\\d\\.\\d\\s\\([\\w@]+\\)$': 'client/1.2 (user)',
+    '^clamav[ /]': 'clamav/1 extra',
+    '^ddg[_-]android': 'ddg-android!',
+    '^dispatch/\\d': 'dispatch/1 extra',
+    '^mozilla/\\d\\.\\d\\s[\\w\\.-]+$': 'mozilla/5.0 Firefox',
+    '^mozilla/\\d\\.\\d\\s\\((?:compatible;)?(?:\\s?[\\w\\d-.]+\\/\\d+\\.\\d+)?\\)$':
+      'mozilla/5.0 (compatible;)',
+    '^zdm/\\d': 'zdm/1 extra',
+    'bit\\.ly/': 'bit.ly/',
+    'java(?!;)': 'java!',
+    'mail\\.ru/': 'mail.ru/',
+    'ptst[ /]\\d': 'ptst/1 extra',
+  }),
+)
 
 describe('dense Aho-Corasick compatibility', () => {
   it('covers every literal-safe pattern', () => {

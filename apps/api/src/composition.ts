@@ -370,7 +370,12 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
   const siteLifecycleStartup = siteLifecycleWorker.runOnce()
 
   const installationStartup = installation.service.resumeOnStartup().catch((cause: unknown) => {
-    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error: cause })
+    reportLogEvent({
+      kind: 'operation.failure',
+      operation: 'api.startup',
+      stage: 'startup',
+      error: cause,
+    })
 
     return undefined
   })

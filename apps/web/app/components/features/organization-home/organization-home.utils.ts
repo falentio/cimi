@@ -14,7 +14,9 @@ export interface DeriveOrganizationHomeStateInput {
   readonly error: SettingsError | undefined
 }
 
-export function parseOrganizationId(value: string | readonly string[] | undefined): OrganizationId | undefined {
+export function parseOrganizationId(
+  value: string | readonly string[] | undefined,
+): OrganizationId | undefined {
   return isStringValue(value) && value.trim().length > 0 ? value : undefined
 }
 

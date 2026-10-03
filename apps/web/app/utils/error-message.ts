@@ -156,10 +156,7 @@ const statusFallbackCodes = {
 } satisfies Record<number, ContractErrorCode>
 
 function errorMessageKey(error: LocalizableError): string | undefined {
-  if (
-    error.code !== undefined &&
-    Object.hasOwn(errorMessageKeys, error.code)
-  ) {
+  if (error.code !== undefined && Object.hasOwn(errorMessageKeys, error.code)) {
     // SAFETY: hasOwn above proves the code is a known key.
     return errorMessageKeys[error.code as keyof typeof errorMessageKeys]
   }

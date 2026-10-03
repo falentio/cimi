@@ -1180,10 +1180,7 @@ function selectArtifact(
     .all()[0]
 }
 
-function selectCleanupStages(
-  tx: SqliteTransaction,
-  operationId: string,
-): CleanupStages {
+function selectCleanupStages(tx: SqliteTransaction, operationId: string): CleanupStages {
   const stages = tx
     .select()
     .from(schema.TBackupCleanupStage)
@@ -1204,7 +1201,9 @@ interface CleanupStages {
   readonly backup: CleanupStage
 }
 
-function cleanupStagesFromRows(rows: readonly (typeof schema.TBackupCleanupStage.$inferSelect)[]): CleanupStages {
+function cleanupStagesFromRows(
+  rows: readonly (typeof schema.TBackupCleanupStage.$inferSelect)[],
+): CleanupStages {
   const derived = rows.find((stage) => stage.stage === 'derived_cleanup')
   const backup = rows.find((stage) => stage.stage === 'backup_cleanup')
 

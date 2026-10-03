@@ -21,9 +21,7 @@ test('system health reports live control and analytics stores', async () => {
   expect(body.analyticsStore).toBe('ready')
   expect(body.cleanupPending).toBe(false)
   expect(body.version).toBe('0.0.1')
-  expect(() =>
-    v.parse(contractSchema.SDateTime, body.checkedAt),
-  ).not.toThrow()
+  expect(() => v.parse(contractSchema.SDateTime, body.checkedAt)).not.toThrow()
 
   const owner = await signUpTestUser(app, 'health-owner@example.com', 'Health Owner')
 

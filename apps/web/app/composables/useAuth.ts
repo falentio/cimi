@@ -228,9 +228,7 @@ function normalizeAuthError(cause: unknown): AuthError {
   }
 
   const message =
-    'message' in cause && isStringValue(cause.message)
-      ? cause.message
-      : DEFAULT_ERROR_MESSAGE
+    'message' in cause && isStringValue(cause.message) ? cause.message : DEFAULT_ERROR_MESSAGE
 
   const code = 'code' in cause && isStringValue(cause.code) ? cause.code : undefined
   const status = 'status' in cause && isNumberValue(cause.status) ? cause.status : undefined

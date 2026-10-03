@@ -32,11 +32,7 @@ export const SCollectEventsInput = v.pipe(
     VALIDATION_KEYS.contract.batch.ingestionIdentifierMatches,
   ),
   v.check(
-    ({ events }) =>
-      events.every(
-        (event) =>
-          !isRecord(event) || !('collectionContext' in event),
-      ),
+    ({ events }) => events.every((event) => !isRecord(event) || !('collectionContext' in event)),
     VALIDATION_KEYS.contract.batch.collectionContextScoped,
   ),
 )

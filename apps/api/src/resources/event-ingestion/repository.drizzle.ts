@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { and, eq, lt, max } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
-import { isNumberValue, isStringValue, mergeEventAttribution, parseEventAttribution, type EventAttribution } from '@cimi/utils'
+import {
+  isNumberValue,
+  isStringValue,
+  mergeEventAttribution,
+  parseEventAttribution,
+  type EventAttribution,
+} from '@cimi/utils'
 import type { AcceptanceCandidate, AcceptanceRepository, AppendOutcome } from './repository.ts'
 import type { DerivedAttribution } from './attribution.ts'
 
