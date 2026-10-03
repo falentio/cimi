@@ -63,12 +63,14 @@ beforeEach(() => {
   opened.length = 0
   cityOpenFailures = []
   asnOpenFailures = []
+  // SAFETY: test fixtures provide only the fields the lookup readers below read.
   cityResponses.set(IP, {
     city: { names: { en: 'New York' } },
     country: { names: { en: 'United States' }, isoCode: 'US' },
     location: { latitude: 40.7128, longitude: -74.006, timeZone: 'America/New_York' },
     subdivisions: [{ isoCode: 'NY' }],
   } as City)
+  // SAFETY: test fixtures provide only the fields the lookup readers below read.
   asnResponses.set(IP, {
     autonomousSystemNumber: 13335,
     autonomousSystemOrganization: 'Cloudflare',

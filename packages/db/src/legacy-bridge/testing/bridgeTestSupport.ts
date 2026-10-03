@@ -57,12 +57,14 @@ export function createCorruptedMigrationsFolder(dir: string): string {
 }
 
 export function readLedger(db: Db): readonly { hash: string; created_at: number }[] {
+  // SAFETY: better-sqlite3 returns any; hash and created_at columns selected below.
   return db.$client
     .prepare('SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at, id')
     .all() as Array<{ hash: string; created_at: number }>
 }
 
 export function countRows(db: Db, table: string): number {
+  // SAFETY: better-sqlite3 returns any; single COUNT(*) column selected below.
   const row = db.$client.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get() as {
     count: number
   }

@@ -86,11 +86,11 @@ export function createAsnLookup(lookup: AsnLookup): AsnLookup {
 }
 
 async function loadCityReader(path: string, cacheSize: number): Promise<CityReader> {
-  return (await Reader.open(path, { cache: { max: cacheSize } })) as CityReader
+  return Reader.open(path, { cache: { max: cacheSize } })
 }
 
 async function loadAsnReaderOrThrow(path: string, cacheSize: number): Promise<AsnReader> {
-  return (await Reader.open(path, { cache: { max: cacheSize } })) as AsnReader
+  return Reader.open(path, { cache: { max: cacheSize } })
 }
 
 async function loadAsnReader(

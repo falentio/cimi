@@ -40,6 +40,7 @@ describe('createDb + migrateControlDb', () => {
     migrateControlDb(db)
     validateBaseSchema(db)
 
+    // SAFETY: better-sqlite3 returns any; hash and created_at columns selected below.
     const migrationRows = db.$client
       .prepare('SELECT hash, created_at FROM __drizzle_migrations')
       .all() as Array<{ hash: string; created_at: number }>
@@ -47,6 +48,7 @@ describe('createDb + migrateControlDb', () => {
     expect(migrationRows).toHaveLength(16)
     expect(migrationRows.every((row) => /^[a-f0-9]{64}$/.test(row.hash))).toBe(true)
 
+    // SAFETY: better-sqlite3 returns any; single name column selected below.
     const tableRows = db.$client
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all() as Array<{ name: string }>
