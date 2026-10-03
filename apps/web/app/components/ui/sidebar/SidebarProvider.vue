@@ -33,10 +33,12 @@ const isMobile = useMediaQuery('(max-width: 768px)')
 
 const openMobile = ref(false)
 
+// SAFETY: defaultValue above guarantees a defined boolean at runtime; passive mirrors the
+// uncontrolled case exactly as the original shadcn wiring does.
 const open = useVModel(props, 'open', emits, {
   defaultValue: props.defaultOpen ?? false,
-  passive: props.open === undefined,
-})
+  passive: (props.open === undefined) as false,
+}) as Ref<boolean>
 
 function setOpen(value: boolean) {
   open.value = value // emits('update:open', value)
