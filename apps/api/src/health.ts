@@ -38,12 +38,16 @@ export interface InstallationHealthInput {
   cleanupPending: boolean
 }
 
-const LEGACY_INSTALLATION_STATUS_MAP: Record<HealthStatus, InstallationStatus> = {
+type LegacyInstallationStatus = HealthStatus | 'ready' | 'uninitialized'
+
+const LEGACY_INSTALLATION_STATUS_MAP: Record<LegacyInstallationStatus, InstallationStatus> = {
   healthy: 'ready',
   unavailable: 'recovering',
   degraded: 'degraded',
   maintenance: 'maintenance',
   recovering: 'recovering',
+  ready: 'ready',
+  uninitialized: 'uninitialized',
 }
 
 export function resolveInstallationHealth(input: InstallationHealthInput): HealthStatus {
