@@ -3,6 +3,7 @@ import type { HTMLAttributes } from 'vue'
 import type { ChartConfig } from '.'
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
+import { isStringValue } from '../../../utils/type-guards'
 
 const props = withDefaults(
   defineProps<{
@@ -33,7 +34,8 @@ const payload = computed(() => {
     .map(([key, value]) => {
       // const key = `${props.nameKey || item.name || item.dataKey || "value"}`
       const itemConfig = props.config[key]
-      const indicatorColor = props.config[key]?.color ?? props.payload.fill
+      const fill = props.payload.fill
+      const indicatorColor = props.config[key]?.color ?? (isStringValue(fill) ? fill : undefined)
 
       return { key, value, itemConfig, indicatorColor }
     })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
 import { computed } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,9 +46,8 @@ function roleLabel(role: OrganizationMember['role']): string {
   return role === 'admin' ? 'Administrator' : 'Member'
 }
 
-function changeRole(userId: string, value: string): void {
-  if (value !== 'admin' && value !== 'member') return
-  emit('changeRole', { userId, role: value })
+function changeRole(userId: string, value: AcceptableValue): void {
+  if (value === 'admin' || value === 'member') emit('changeRole', { userId, role: value })
 }
 </script>
 

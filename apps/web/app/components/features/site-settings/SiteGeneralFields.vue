@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
 import { WEEK_START_OPTIONS } from './site-settings.utils'
 import type { SiteSettingsDraft } from './site-settings.types'
 import { isNumberValue, isStringValue } from '../../../utils/type-guards'
@@ -28,7 +29,7 @@ function updateHostname(value: string | number): void {
   if (isStringValue(value) || isNumberValue(value)) emit('updateHostname', String(value))
 }
 
-function updateTimezone(value: string): void {
+function updateTimezone(value: AcceptableValue): void {
   if (isStringValue(value)) emit('updateTimezone', value)
 }
 
@@ -36,7 +37,7 @@ function isWeekStart(value: string): value is SiteSettingsDraft['weekStartsOn'] 
   return WEEK_START_OPTIONS.some((option) => option.value === value)
 }
 
-function updateWeekStart(value: string): void {
+function updateWeekStart(value: AcceptableValue): void {
   if (isStringValue(value) && isWeekStart(value)) emit('updateWeekStart', value)
 }
 </script>
