@@ -1,3 +1,4 @@
+import { strict as assert } from 'node:assert'
 import { ORPCError } from '@orpc/server'
 import { expect, vi } from 'vitest'
 import { isStringValue } from '@cimi/utils'
@@ -37,7 +38,8 @@ export const expectORPCError = vi.defineHelper(
 
     expect(rejected).toBe(true)
     expect(error).toBeInstanceOf(ORPCError)
-    const orpcError = error as ORPCError<string, unknown>
+    assert(error instanceof ORPCError)
+    const orpcError = error
     expect(orpcError.code).toBe(code)
     expect(orpcError.status).toBe(status)
 
@@ -61,11 +63,12 @@ interface ORPCErrorResponseBody {
 export const expectORPCErrorResponse = vi.defineHelper(
   async (response: Response, status: number, code: string, message?: MessageExpectation) => {
     expect(response.status).toBe(status)
-    const body = (await response.json()) as ORPCErrorResponseBody
+    const body: ORPCErrorResponseBody = await response.json()
     expect(body.code).toBe(code)
     expect(body.status).toBe(status)
 
     if (message !== undefined) {
+      // SAFETY: a message expectation implies the body carries one; undefined fails the match below.
       assertMessageMatches(body.message as string, message)
     }
   },

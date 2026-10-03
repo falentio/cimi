@@ -47,6 +47,7 @@ async function buildOwner(email: string) {
     }),
   })
 
+  // SAFETY: better-sqlite3 returns any; single userId column selected below.
   const owner = fixture.db.$client
     .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')
     .get() as { userId: string } | undefined
@@ -100,6 +101,7 @@ describe('TrafficReportService.lifecycle', () => {
           }
         }
 
+        // SAFETY: Proxy trap scopes dynamic keys to the wrapped query port's own keys.
         const value: unknown = target[property as keyof typeof target]
 
         return isFunctionValue(value) ? value.bind(target) : value
@@ -134,6 +136,7 @@ describe('TrafficReportService.lifecycle', () => {
             }
           }
 
+          // SAFETY: Proxy trap scopes dynamic keys to the wrapped query port's own keys.
           const value: unknown = target[property as keyof typeof target]
 
           return isFunctionValue(value) ? value.bind(target) : value

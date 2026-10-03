@@ -44,6 +44,7 @@ export function validateControlMigrationHistory(
   db: Db,
   options: ControlMigrationOptions = {},
 ): void {
+  // SAFETY: better-sqlite3 returns any; single name column selected below.
   const table = db.$client
     .prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'",
@@ -52,6 +53,7 @@ export function validateControlMigrationHistory(
 
   if (table === undefined) return
 
+  // SAFETY: better-sqlite3 returns any; hash and created_at columns selected below.
   const rows = db.$client
     .prepare('SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at, id')
     .all() as Array<{ hash: string; created_at: number }>
@@ -81,6 +83,7 @@ export function validateControlMigrationHistory(
 }
 
 export function validateBaseSchema(db: Db): void {
+  // SAFETY: better-sqlite3 returns any; single name column selected below.
   const rows = db.$client
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
     .all() as Array<{ name: string }>

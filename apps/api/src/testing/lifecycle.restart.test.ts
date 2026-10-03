@@ -77,10 +77,7 @@ test('a restart recovers a durable interrupted upgrade and resumes collection', 
 
   expect(upgrade.status, await upgrade.clone().text()).toBe(202)
 
-  const started = (await upgrade.clone().json()) as {
-    status: string
-    activeOperation: { operationId: string }
-  }
+  const started = await upgrade.clone().json()
 
   const operationId = started.activeOperation.operationId
   expect(started.status).toBe('maintenance')
@@ -253,12 +250,14 @@ test('quiesce drains a pre-admitted candidate and rejects a new write in the sam
 
   expect(duringQuiesce.status, await duringQuiesce.clone().text()).toBe(503)
 
+  // SAFETY: better-sqlite3 returns any; single event_id column selected below.
   const committed = db.$client
     .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
     .all('event_drained') as Array<{ event_id: string }>
 
   expect(committed, 'the drained candidate stays durable across quiescence').toHaveLength(1)
 
+  // SAFETY: better-sqlite3 returns any; single event_id column selected below.
   const rejected = db.$client
     .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
     .all('event_during_quiesce') as Array<{ event_id: string }>

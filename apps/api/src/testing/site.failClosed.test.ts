@@ -73,9 +73,7 @@ async function enablePublicDashboard(app: ApiApp, cookie: string, siteId: string
 
   expect(enabled.status, await enabled.clone().text()).toBe(200)
 
-  const { publicDashboardIdentifier } = (await enabled.json()) as {
-    publicDashboardIdentifier: string
-  }
+  const { publicDashboardIdentifier } = await enabled.json()
 
   return publicDashboardIdentifier
 }
@@ -120,6 +118,7 @@ test('deleting a site drains a pre-admitted candidate then fails closed across e
     eventId: 'event_pre_admitted',
   })
 
+  // SAFETY: better-sqlite3 returns any; single event_id column selected below.
   const rows = db.$client.prepare('SELECT event_id FROM accepted_event').all() as Array<{
     event_id: string
   }>
@@ -348,7 +347,7 @@ test('purging a deleted site fails closed and keeps operation status observable 
     )
 
     expect(status.status, await status.clone().text()).toBe(200)
-    deletedStatus = ((await status.json()) as { status: string }).status
+    deletedStatus = (await status.json()).status
 
     if (deletedStatus === 'deleted') break
     await new Promise((resolve) => setTimeout(resolve, 10))
@@ -371,7 +370,7 @@ test('purging a deleted site fails closed and keeps operation status observable 
     )
 
     expect(status.status, await status.clone().text()).toBe(200)
-    purgedStatus = ((await status.json()) as { status: string }).status
+    purgedStatus = (await status.json()).status
 
     if (purgedStatus === 'purged') break
     await new Promise((resolve) => setTimeout(resolve, 10))

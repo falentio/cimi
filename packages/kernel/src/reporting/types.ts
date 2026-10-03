@@ -200,12 +200,14 @@ export interface ReportAdmissionTicket {
 export function createSiteId(value: string): SiteId {
   if (value.trim() === '') throw new RangeError('Site ID must not be empty')
 
+  // SAFETY: brand established by the non-empty check above.
   return value as SiteId
 }
 
 export function createCalendarDate(value: string): CalendarDate {
   parseLocalCalendarDate(value)
 
+  // SAFETY: brand established by parseLocalCalendarDate throwing on malformed input.
   return value as CalendarDate
 }
 
@@ -214,6 +216,7 @@ export function createInstantMs(value: number): InstantMs {
     throw new RangeError('Instant must be a finite integer')
   }
 
+  // SAFETY: brand established by the finite-integer check above.
   return value as InstantMs
 }
 

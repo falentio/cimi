@@ -73,6 +73,7 @@ describe('AcceptanceCoalescer', () => {
   it('reports queue, flush, failure, and saturation diagnostics', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
     )
@@ -101,6 +102,7 @@ describe('AcceptanceCoalescer', () => {
   it('flushes a multi-event active queue when its window expires', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
     )
@@ -127,6 +129,7 @@ describe('AcceptanceCoalescer', () => {
     acceptance.lastReplaySequence
       .mockRejectedValueOnce(new Error('sqlite unavailable'))
       .mockResolvedValueOnce(4)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
     )
@@ -255,6 +258,7 @@ describe('AcceptanceCoalescer', () => {
   it('releases pageview reservations by pageview ID after a failed flush', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append
       .mockRejectedValueOnce(new Error('sqlite unavailable'))
       .mockImplementation(async (candidates) =>

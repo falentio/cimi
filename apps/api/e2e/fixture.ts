@@ -675,6 +675,7 @@ export async function createApiE2eFixture(
 
       if (closed || closing) throw new Error('The E2E fixture is closed')
       await withStateDb(async (db) => {
+        // SAFETY: better-sqlite3 returns any; single id column selected below.
         const run = db.$client
           .prepare(
             `SELECT id FROM retention_cleanup_run
@@ -706,6 +707,7 @@ export async function createApiE2eFixture(
     backdateAcceptedEvent({ eventId, at }) {
       const db = requireOpenForMutation().db
 
+      // SAFETY: better-sqlite3 returns any; single eventPk column selected below.
       const event = db.$client
         .prepare('SELECT event_pk AS eventPk FROM accepted_event WHERE event_id = ?')
         .get(eventId) as { readonly eventPk: number } | undefined
@@ -727,6 +729,7 @@ export async function createApiE2eFixture(
     appendFutureMigrationHistory() {
       const db = requireOpenForMutation().db
 
+      // SAFETY: better-sqlite3 returns any; single coalesced createdAt column selected below.
       const row = db.$client
         .prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations')
         .get() as { readonly createdAt: number | null } | undefined
@@ -873,6 +876,7 @@ export async function createApiE2eFixture(
     const db = createDb({ path })
 
     try {
+      // SAFETY: better-sqlite3 returns any; single coalesced createdAt column selected below.
       const row = db.$client
         .prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations')
         .get() as { readonly createdAt: number | null } | undefined

@@ -64,6 +64,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
 
     const identityValue = input.anonymousIdentityId ?? input.identifiedUserId
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
     const latest = this.db.$client
       .prepare(
         `SELECT
@@ -83,6 +84,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
 
     if (latest === undefined) return undefined
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
     const first = this.db.$client
       .prepare(
         `SELECT ae.receipt_time AS receiptTime, ep.canonical_payload_json AS payload,
@@ -112,6 +114,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
     siteId: string,
     pageViewId: string,
   ): Promise<{ readonly receiptTime: string; readonly payloadFingerprint: string } | undefined> {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
     const row = this.db.$client
       .prepare(
         `SELECT receipt_time AS receiptTime, payload_fingerprint AS payloadFingerprint
@@ -135,7 +138,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
     try {
       return statSync(`${this.db.$client.name}-wal`).size
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
 
       return 0
     }

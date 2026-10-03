@@ -172,6 +172,7 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
       repo.beginRecover({
         siteId: 'ste_1',
         operationId: 'sop_2',
+        // SAFETY: completeDelete above sets the deadline; null would fail the Date below.
         requestedAt: new Date(deleted?.recoveryDeadline as string),
       }),
     ).resolves.toEqual({ status: 'conflict', currentStatus: 'deleted' })
@@ -183,6 +184,7 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
     await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
     const deleted = await repo.findById('ste_1')
+    // SAFETY: completeDelete above sets the deadline; null would fail the Date below.
     const purgeAt = new Date(deleted?.purgeAt as string)
     await repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt })
 
@@ -197,6 +199,7 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
     await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
     const deleted = await repo.findById('ste_1')
+    // SAFETY: completeDelete above sets the deadline; null would fail the Date below.
     const purgeAt = new Date(deleted?.purgeAt as string)
     await repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt: purgeAt })
 
@@ -317,6 +320,7 @@ describe.concurrent('SiteRepositoryDrizzle.lifecycle', () => {
     await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
     await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
     const deleted = await repo.findById('ste_1')
+    // SAFETY: completeDelete above sets the deadline; null would fail the Date below.
     const purgeAt = new Date(deleted?.purgeAt as string)
 
     await expect(
