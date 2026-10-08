@@ -3,6 +3,7 @@ export {
   closeDb,
   createDb,
   restoreDbFromBackup,
+  sweepRestoreStagingFiles,
   type CreateDbOptions,
   type Db,
 } from './client.ts'

@@ -5,9 +5,11 @@ import {
   fsyncSync,
   linkSync,
   openSync,
+  readdirSync,
   renameSync,
   unlinkSync,
 } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema/index.ts'
@@ -333,5 +335,29 @@ function discardSqliteFile(path: string): void {
     try {
       unlinkSync(candidate)
     } catch {}
+  }
+}
+
+const RESTORE_STAGING_FILE_NAME = /^(.+)\.(?:tmp|previous)\.[0-9a-f]{16}(?:-wal|-shm)?$/
+
+/**
+ * Removes restore staging files left by a crash between the staging write and the install rename.
+ * Only names this module creates are matched; a partial file the sweep cannot attribute is kept.
+ */
+export function sweepRestoreStagingFiles(input: { controlDatabasePath: string }): void {
+  const directory = dirname(input.controlDatabasePath)
+  const controlDatabaseName = basename(input.controlDatabasePath)
+  let entries: string[]
+
+  try {
+    entries = readdirSync(directory)
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
+    throw error
+  }
+
+  for (const name of entries) {
+    if (RESTORE_STAGING_FILE_NAME.exec(name)?.[1] !== controlDatabaseName) continue
+    discardSqliteFile(join(directory, name))
   }
 }
