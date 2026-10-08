@@ -1,27 +1,21 @@
 import { effectScope, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { RetentionPolicy } from './retention-policy.types'
+import type { RetentionPolicy, SiteRetentionClient } from './retention-policy.types'
 import type { SiteRetentionResult } from './site-retention.types'
-
-const mocks = vi.hoisted(() => {
-  const getRetentionPolicy = vi.fn()
-  const updateRetentionPolicy = vi.fn()
-
-  return {
-    getRetentionPolicy,
-    updateRetentionPolicy,
-    client: {
-      retentionPolicy: {
-        getRetentionPolicy: { call: getRetentionPolicy },
-        updateRetentionPolicy: { call: updateRetentionPolicy },
-      },
-    },
-  }
-})
-
-vi.mock('@/composables/useOrpc', () => ({ useOrpc: () => mocks.client }))
-
 import { useSiteRetention } from './useSiteRetention'
+
+const getRetentionPolicy = vi.fn()
+
+const updateRetentionPolicy = vi.fn()
+
+const client: SiteRetentionClient = {
+  retentionPolicy: {
+    getRetentionPolicy: { call: getRetentionPolicy },
+    updateRetentionPolicy: { call: updateRetentionPolicy },
+  },
+}
+
+const mocks = { getRetentionPolicy, updateRetentionPolicy, client }
 
 const none = {
   status: 'not_applicable',
@@ -55,7 +49,7 @@ function createController(siteId: string | undefined = 'site-1') {
   const id = ref(siteId)
   let controller: ReturnType<typeof useSiteRetention> | undefined
   scope.run(() => {
-    controller = useSiteRetention({ siteId: id })
+    controller = useSiteRetention({ siteId: id, client: mocks.client })
   })
 
   if (controller === undefined) throw new Error('Controller was not created.')
@@ -67,7 +61,7 @@ function createControllerWithoutSite() {
   const scope = effectScope()
   let controller: ReturnType<typeof useSiteRetention> | undefined
   scope.run(() => {
-    controller = useSiteRetention({ siteId: undefined })
+    controller = useSiteRetention({ siteId: undefined, client: mocks.client })
   })
 
   if (controller === undefined) throw new Error('Controller was not created.')

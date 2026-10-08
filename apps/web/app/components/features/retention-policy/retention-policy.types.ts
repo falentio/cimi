@@ -7,6 +7,13 @@ type UpdateRetentionPolicyCall = CimiOrpc['retentionPolicy']['updateRetentionPol
 
 type GetInstallationStatusCall = CimiOrpc['installation']['getInstallationStatus']['call']
 
+export interface SiteRetentionClient {
+  readonly retentionPolicy: {
+    readonly getRetentionPolicy: { readonly call: GetRetentionPolicyCall }
+    readonly updateRetentionPolicy: { readonly call: UpdateRetentionPolicyCall }
+  }
+}
+
 export interface RetentionAdminClient {
   readonly retentionPolicy: {
     readonly getRetentionPolicy: { readonly call: GetRetentionPolicyCall }

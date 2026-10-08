@@ -7,13 +7,14 @@ import {
   toValue,
   watch,
 } from 'vue'
-import { useOrpc } from '@/composables/useOrpc'
+import { useOrpc } from '../../../composables/useOrpc'
 import type { CimiOrpc } from '~/plugins/orpc'
 import type {
   RetentionFailure,
   RetentionField,
   RetentionPolicy,
   RetentionProposal,
+  SiteRetentionClient,
 } from './retention-policy.types'
 import {
   isRetentionShortening,
@@ -55,7 +56,7 @@ const STALE_CONFIRMATION_FAILURE: RetentionFailure = {
 }
 
 export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionController {
-  const orpc = useOrpc()
+  const orpc: SiteRetentionClient = options.client ?? useOrpc()
   const siteId = computed(() => toValue(options.siteId))
   const state = shallowRef<SiteRetentionState>(createInitialSiteRetentionState())
   const view = computed(() => toSiteRetentionView(state.value))
@@ -240,9 +241,9 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
   function discardStaleRead(
     version: number,
     source: 'read' | 'update',
-    error: unknown,
+    cause: unknown,
   ): SiteRetentionRead {
-    const failure = normalizeRetentionError(error, source, 'site')
+    const failure = normalizeRetentionError(cause, source, 'site')
 
     if (disposed || version !== requestVersion) return { result: null, error: failure }
     state.value = reduceSiteRetention(state.value, { kind: 'retention-failed', error: failure })

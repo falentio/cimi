@@ -1,26 +1,20 @@
 import { effectScope, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CollectionPolicyResult } from './collection-policy.types'
-
-const mocks = vi.hoisted(() => {
-  const getCollectionPolicy = vi.fn()
-  const updateCollectionPolicy = vi.fn()
-
-  return {
-    getCollectionPolicy,
-    updateCollectionPolicy,
-    client: {
-      collectionPolicy: {
-        getCollectionPolicy: { call: getCollectionPolicy },
-        updateCollectionPolicy: { call: updateCollectionPolicy },
-      },
-    },
-  }
-})
-
-vi.mock('@/composables/useOrpc', () => ({ useOrpc: () => mocks.client }))
-
+import type { CollectionPolicyClient, CollectionPolicyResult } from './collection-policy.types'
 import { useSiteCollectionPolicy } from './useSiteCollectionPolicy'
+
+const getCollectionPolicy = vi.fn()
+
+const updateCollectionPolicy = vi.fn()
+
+const client: CollectionPolicyClient = {
+  collectionPolicy: {
+    getCollectionPolicy: { call: getCollectionPolicy },
+    updateCollectionPolicy: { call: updateCollectionPolicy },
+  },
+}
+
+const mocks = { getCollectionPolicy, updateCollectionPolicy, client }
 
 const INSTALLATION_VALUES = {
   anonymousCollection: 'enabled',
@@ -98,7 +92,7 @@ function createController(siteId: ReturnType<typeof ref<string | undefined>> = r
   const scope = effectScope()
   let controller: ReturnType<typeof useSiteCollectionPolicy> | undefined
   scope.run(() => {
-    controller = useSiteCollectionPolicy({ siteId })
+    controller = useSiteCollectionPolicy({ siteId, client: mocks.client })
   })
 
   if (controller === undefined) throw new Error('Controller was not created.')

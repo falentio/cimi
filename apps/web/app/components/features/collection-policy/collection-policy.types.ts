@@ -6,6 +6,13 @@ type GetCollectionPolicyCall = CimiOrpc['collectionPolicy']['getCollectionPolicy
 
 type UpdateCollectionPolicyCall = CimiOrpc['collectionPolicy']['updateCollectionPolicy']['call']
 
+export interface CollectionPolicyClient {
+  readonly collectionPolicy: {
+    readonly getCollectionPolicy: { readonly call: GetCollectionPolicyCall }
+    readonly updateCollectionPolicy: { readonly call: UpdateCollectionPolicyCall }
+  }
+}
+
 export type CollectionPolicyResult = Awaited<ReturnType<GetCollectionPolicyCall>>
 
 export type CollectionPolicyUpdateInput = Parameters<UpdateCollectionPolicyCall>[0]
@@ -35,6 +42,26 @@ export type EditableValue<K extends PolicyField> = K extends 'propertyPolicy'
   : PolicyValues[K]
 
 export type CollectionDraft = { readonly [K in PolicyField]: EditableValue<K> }
+
+export type CollectionSubfieldValue = boolean | number | string | readonly string[] | null
+
+export type CollectionSubfields = Readonly<Record<string, CollectionSubfieldValue>>
+
+export type CollectionFieldValue = CollectionSubfieldValue | CollectionSubfields | undefined
+
+export type CollectionSubfieldKey =
+  | 'capturePath'
+  | 'captureReferrer'
+  | 'stripQueryStrings'
+  | 'stripSensitiveValues'
+  | 'allowScalarProperties'
+  | 'maxProperties'
+  | 'maxValueLength'
+  | 'reservedNames'
+  | 'hostnames'
+  | 'paths'
+  | 'countries'
+  | 'ipRanges'
 
 export type CollectionFieldPatch = {
   readonly [K in PolicyField]: { readonly field: K; readonly value: EditableValue<K> }
@@ -233,6 +260,7 @@ export type CollectionPolicyViewModel =
 
 export interface SiteCollectionPolicyOptions {
   readonly siteId: MaybeRefOrGetter<SiteId | undefined>
+  readonly client?: CollectionPolicyClient | undefined
 }
 
 export interface SiteCollectionPolicyController {

@@ -7,13 +7,15 @@ import {
   toValue,
   watch,
 } from 'vue'
-import { useOrpc } from '@/composables/useOrpc'
+import { useOrpc } from '../../../composables/useOrpc'
+import { isStringValue } from '../../../utils/type-guards'
 import {
   createInitialCollectionPolicyState,
   reduceCollectionPolicy,
 } from './collection-policy.reducer'
 import type {
   CollectionFieldPatch,
+  CollectionPolicyClient,
   CollectionPolicyFailure,
   CollectionPolicyResult,
   CollectionPolicyState,
@@ -44,7 +46,7 @@ const INVALID_SITE_ID_FAILURE: CollectionPolicyFailure = {
 export function useSiteCollectionPolicy(
   options: SiteCollectionPolicyOptions,
 ): SiteCollectionPolicyController {
-  const orpc = useOrpc()
+  const orpc: CollectionPolicyClient = options.client ?? useOrpc()
   const state = shallowRef<CollectionPolicyState>(createInitialCollectionPolicyState())
   const view = computed(() => toCollectionPolicyView(state.value))
   let requestVersion = 0
@@ -196,7 +198,7 @@ export function useSiteCollectionPolicy(
   function requireSiteId(): string | null {
     const siteId = toValue(options.siteId)
 
-    return typeof siteId === 'string' && siteId.trim() !== '' ? siteId : null
+    return isStringValue(siteId) && siteId.trim() !== '' ? siteId : null
   }
 
   watch(

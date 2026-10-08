@@ -13,6 +13,7 @@ import type {
   SiteRetentionResult,
 } from './retention-policy.types'
 import type { SiteId } from '../site-settings/site-settings.types'
+import type { SiteRetentionClient } from './retention-policy.types'
 
 export type { SiteRetentionResult } from './retention-policy.types'
 
@@ -135,6 +136,7 @@ export type SiteRetentionViewModel =
 
 export interface SiteRetentionOptions {
   readonly siteId: MaybeRefOrGetter<SiteId | undefined>
+  readonly client?: SiteRetentionClient | undefined
 }
 
 export type SiteRetentionController = {
