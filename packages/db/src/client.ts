@@ -1,5 +1,13 @@
 import { randomBytes } from 'node:crypto'
-import { closeSync, fsyncSync, linkSync, openSync, renameSync, unlinkSync } from 'node:fs'
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  linkSync,
+  openSync,
+  renameSync,
+  unlinkSync,
+} from 'node:fs'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema/index.ts'
@@ -170,6 +178,7 @@ export async function restoreDbFromBackup(input: {
   prepare?: ((db: Db) => void | Promise<void>) | undefined
 }): Promise<void> {
   const tmpPath = `${input.destinationPath}.tmp.${randomBytes(8).toString('hex')}`
+  const backupSidecars = sidecarPresence(input.backupPath)
 
   try {
     const backup = new Database(input.backupPath, { fileMustExist: true, readonly: true })
@@ -224,6 +233,7 @@ export async function restoreDbFromBackup(input: {
     }
   } finally {
     discardSqliteFile(tmpPath)
+    discardCreatedSidecars(backupSidecars)
   }
 }
 
@@ -297,6 +307,25 @@ function removeSidecars(path: string): void {
 function removeSqliteFile(path: string): void {
   unlinkIfPresent(path)
   removeSidecars(path)
+}
+
+/** A readonly open of a WAL-mode artifact creates -wal and -shm next to it. */
+function sidecarPresence(path: string): ReadonlyArray<{ path: string; existed: boolean }> {
+  return [`${path}-wal`, `${path}-shm`].map((sidecarPath) => ({
+    path: sidecarPath,
+    existed: existsSync(sidecarPath),
+  }))
+}
+
+/** A pre-existing WAL can hold uncommitted frames, so this leaves it in place. */
+function discardCreatedSidecars(sidecars: ReadonlyArray<{ path: string; existed: boolean }>): void {
+  for (const sidecar of sidecars) {
+    if (sidecar.existed) continue
+
+    try {
+      unlinkSync(sidecar.path)
+    } catch {}
+  }
 }
 
 function discardSqliteFile(path: string): void {
