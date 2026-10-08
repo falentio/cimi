@@ -125,6 +125,28 @@ export class BackupRestoreRepositoryDrizzle implements BackupRestoreRepository {
     return toSafetyManifest(artifact, artifact.acceptanceSequence ?? 0)
   }
 
+  async findLiveSafetyOperationIds(operationIds: readonly string[]): Promise<ReadonlySet<string>> {
+    if (operationIds.length === 0) return new Set()
+
+    // Keyed on the operation row, not the artifact row: the operation is inserted before the
+    // safety file is written, so this cannot race a just-written file. The active-operation arm
+    // keeps the recovery-required last resort after the operation has already failed.
+    const rows = await this.db
+      .select({ id: schema.TBackupOperation.id })
+      .from(schema.TBackupOperation)
+      .where(
+        and(
+          inArray(schema.TBackupOperation.id, [...operationIds]),
+          or(
+            inArray(schema.TBackupOperation.status, ['creating', 'restoring']),
+            sql`${schema.TBackupOperation.id} = (SELECT ${schema.TInstallation.activeOperationId} FROM ${schema.TInstallation} WHERE ${schema.TInstallation.singletonKey} = 'default')`,
+          ),
+        ),
+      )
+
+    return new Set(rows.map((row) => row.id))
+  }
+
   async findCleanupPending(): Promise<BackupOperation | undefined> {
     const rows = await this.db
       .select({ id: schema.TBackupOperation.id })

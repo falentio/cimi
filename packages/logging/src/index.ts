@@ -47,6 +47,7 @@ export type LogStage =
   | 'startup'
   | 'flush'
   | 'rollback'
+  | 'reclaim'
   | 'record-failure'
   | 'site-delete'
   | 'site-recover'

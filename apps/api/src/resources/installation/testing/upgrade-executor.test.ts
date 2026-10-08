@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { closeDb, createDb, migrateControlDb } from '@cimi/db'
@@ -260,6 +260,49 @@ describe('SqliteUpgradeExecutor', () => {
       await expect(
         executor.rollback({ operationId: '../../evil', artifact }),
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    } finally {
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('reclaims the safety artifact file with its sidecars and is idempotent', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+
+    try {
+      migrateControlDb(db)
+
+      const executor = new SqliteUpgradeExecutor({
+        db,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      })
+
+      const artifact = await executor.createSafetyArtifact({
+        operationId: 'bop_1',
+        artifactId: 'bar_1',
+      })
+
+      await writeFile(join(directory, `${artifact.storageKey}-wal`), 'wal')
+      await writeFile(join(directory, `${artifact.storageKey}-shm`), 'shm')
+
+      await executor.reclaimSafety({ storageKey: artifact.storageKey })
+
+      await expect(stat(join(directory, artifact.storageKey))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      await expect(stat(join(directory, `${artifact.storageKey}-wal`))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      await expect(stat(join(directory, `${artifact.storageKey}-shm`))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+
+      await expect(
+        executor.reclaimSafety({ storageKey: artifact.storageKey }),
+      ).resolves.toBeUndefined()
     } finally {
       closeDb(db)
       await rm(directory, { recursive: true, force: true })

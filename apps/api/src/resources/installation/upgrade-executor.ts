@@ -10,6 +10,10 @@ import {
 import { ORPCError } from '@orpc/server'
 import type { InstallationRepository } from './repository.ts'
 import type { UpgradeExecutor } from './service.ts'
+import {
+  reclaimSafetyArtifact,
+  safetyArtifactStorageKey,
+} from '../backup-restore/safety-artifacts.ts'
 import { isStringValue } from '@cimi/utils'
 
 export class UpgradeIncompatibilityError extends Error {}
@@ -69,7 +73,7 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
     artifactId: string
   }): Promise<InstallationRepository.SafetyArtifactInput> {
     assertSafeOperationId(input.operationId)
-    const storageKey = `safety/${input.operationId}.sqlite`
+    const storageKey = safetyArtifactStorageKey(input.operationId)
     const artifactPath = join(this.dataDirectoryPath, storageKey)
 
     try {
@@ -109,6 +113,13 @@ export class SqliteUpgradeExecutor implements UpgradeExecutor {
 
       throw error
     }
+  }
+
+  async reclaimSafety(input: { storageKey: string }): Promise<void> {
+    await reclaimSafetyArtifact({
+      dataDirectoryPath: this.dataDirectoryPath,
+      storageKey: input.storageKey,
+    })
   }
 
   async migrate(input: { operationId: string }): Promise<void> {

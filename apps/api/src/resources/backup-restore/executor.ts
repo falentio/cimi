@@ -21,6 +21,11 @@ import {
   type RetentionManifestBoundary,
 } from './retention-manifest.ts'
 import { scrubAcceptedEventIdentity, scrubCanonicalEventPayloads } from './identity-redaction.ts'
+import {
+  listSafetyArtifactOperationIds,
+  reclaimSafetyArtifact,
+  safetyArtifactStorageKey,
+} from './safety-artifacts.ts'
 import { isStringValue } from '@cimi/utils'
 
 export { BackupIncompatibilityError } from './errors.ts'
@@ -54,6 +59,8 @@ export interface BackupRestoreExecutor {
   rebuildAnalytics(input: { readonly operationId: string }): Promise<void>
   verifyStructuralReadiness(input: { readonly operationId: string }): Promise<void>
   rollback(input: { readonly operationId: string; readonly safety: SafetyManifest }): Promise<void>
+  reclaimSafety(input: { readonly storageKey: string }): Promise<void>
+  listSafetyArtifactOperationIds(): Promise<readonly string[]>
 }
 
 export interface ConfiguredSqliteExecutorDependencies {
@@ -117,7 +124,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     readonly lastSafeSequence: number
   }): Promise<SafetyManifest> {
     assertSafeOperationId(input.operationId)
-    const storageKey = `safety/${input.operationId}.sqlite`
+    const storageKey = safetyArtifactStorageKey(input.operationId)
 
     const captured = await this.capture({
       operationId: input.operationId,
@@ -264,6 +271,17 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       db: this.db,
     })
     await this.analyticsRebuild({ operationId: input.operationId })
+  }
+
+  async reclaimSafety(input: { readonly storageKey: string }): Promise<void> {
+    await reclaimSafetyArtifact({
+      dataDirectoryPath: this.dataDirectoryPath,
+      storageKey: input.storageKey,
+    })
+  }
+
+  async listSafetyArtifactOperationIds(): Promise<readonly string[]> {
+    return listSafetyArtifactOperationIds({ dataDirectoryPath: this.dataDirectoryPath })
   }
 
   private restoreSafetyMetadata(db: Db, operationId: string, safety: SafetyManifest): void {

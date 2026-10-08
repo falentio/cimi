@@ -75,6 +75,10 @@ function createFakeBackupRestoreExecutor(overrides: Partial<BackupRestoreExecuto
     async rebuildAnalytics() {},
     async verifyStructuralReadiness() {},
     async rollback() {},
+    async reclaimSafety() {},
+    async listSafetyArtifactOperationIds() {
+      return []
+    },
     ...overrides,
   }
 

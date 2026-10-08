@@ -1121,6 +1121,10 @@ class FaultingUpgradeExecutor implements UpgradeExecutor {
 
     return this.real.rollback(input)
   }
+
+  async reclaimSafety(input: Parameters<UpgradeExecutor['reclaimSafety']>[0]) {
+    return this.real.reclaimSafety(input)
+  }
 }
 
 class FaultingBackupRestoreExecutor implements BackupRestoreExecutor {
@@ -1186,6 +1190,14 @@ class FaultingBackupRestoreExecutor implements BackupRestoreExecutor {
     await this.faults.before({ domain: 'restore', stage: 'rollback' }, this.generation)
 
     return this.real.rollback(input)
+  }
+
+  async reclaimSafety(input: Parameters<BackupRestoreExecutor['reclaimSafety']>[0]) {
+    return this.real.reclaimSafety(input)
+  }
+
+  async listSafetyArtifactOperationIds() {
+    return this.real.listSafetyArtifactOperationIds()
   }
 }
 
