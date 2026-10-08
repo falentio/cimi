@@ -1,9 +1,9 @@
-import { readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, writeFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { sweepRestoreStagingFiles } from '../../client.ts'
+import { closeDb, createDb, sweepRestoreStagingFiles } from '../../client.ts'
 
 describe('sweepRestoreStagingFiles', () => {
   let dir: string
@@ -22,14 +22,11 @@ describe('sweepRestoreStagingFiles', () => {
     writeFileSync(join(dir, name), 'x')
   }
 
-  it('removes tmp and previous staging files with their sidecars', () => {
+  it('removes tmp staging files with their sidecars', () => {
     const staging = [
       'control.sqlite.tmp.0123456789abcdef',
       'control.sqlite.tmp.0123456789abcdef-wal',
       'control.sqlite.tmp.0123456789abcdef-shm',
-      'control.sqlite.previous.fedcba9876543210',
-      'control.sqlite.previous.fedcba9876543210-wal',
-      'control.sqlite.previous.fedcba9876543210-shm',
     ]
 
     for (const name of [...staging, 'control.sqlite', 'backup.sqlite']) write(name)
@@ -39,11 +36,27 @@ describe('sweepRestoreStagingFiles', () => {
     expect(readdirSync(dir).sort()).toEqual(['backup.sqlite', 'control.sqlite'])
   })
 
-  it('leaves every file this code never creates', () => {
+  it('removes tmp staging files when the control database is absent', () => {
+    const staging = [
+      'control.sqlite.tmp.0123456789abcdef',
+      'control.sqlite.tmp.0123456789abcdef-wal',
+      'control.sqlite.tmp.0123456789abcdef-shm',
+    ]
+
+    for (const name of staging) write(name)
+
+    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
+
+    expect(readdirSync(dir)).toEqual([])
+  })
+
+  it('keeps the crash-recovery copies and unrelated files', () => {
     const kept = [
       'control.sqlite',
       'control.sqlite-wal',
       'control.sqlite-shm',
+      'control.sqlite.previous.0123456789abcdef',
+      'control.sqlite.previous.0123456789abcdef-wal',
       'control.sqlite.recovery.0123456789abcdef',
       'control.sqlite.tmp.not-hex',
       'control.sqlite.tmp.0123456789abcdef0',
@@ -58,7 +71,7 @@ describe('sweepRestoreStagingFiles', () => {
     expect(readdirSync(dir).sort()).toEqual([...kept].sort())
   })
 
-  it('keeps a previous copy when the control database is absent', () => {
+  it('keeps a previous copy whether or not the control database exists', () => {
     const previous = [
       'control.sqlite.previous.fedcba9876543210',
       'control.sqlite.previous.fedcba9876543210-wal',
@@ -70,34 +83,25 @@ describe('sweepRestoreStagingFiles', () => {
     sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
 
     expect(readdirSync(dir).sort()).toEqual([...previous].sort())
+
+    write('control.sqlite')
+    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
+
+    expect(readdirSync(dir).sort()).toEqual(['control.sqlite', ...previous].sort())
   })
 
-  it('removes tmp staging files even when the control database is absent', () => {
-    const staging = [
-      'control.sqlite.tmp.0123456789abcdef',
-      'control.sqlite.tmp.0123456789abcdef-wal',
-      'control.sqlite.tmp.0123456789abcdef-shm',
-    ]
+  it('keeps a previous copy across two boots that recreate an empty control database', () => {
+    const previous = 'control.sqlite.previous.fedcba9876543210'
+    writeFileSync(join(dir, previous), 'the only copy of the database')
 
-    for (const name of staging) write(name)
+    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
+    const firstBoot = createDb({ path: controlPath })
+    firstBoot.$client.exec('CREATE TABLE marker (id INTEGER PRIMARY KEY)')
+    closeDb(firstBoot)
 
     sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
 
-    expect(readdirSync(dir)).toEqual([])
-  })
-
-  it('removes a previous copy once the control database is back', () => {
-    const previous = [
-      'control.sqlite.previous.fedcba9876543210',
-      'control.sqlite.previous.fedcba9876543210-wal',
-      'control.sqlite.previous.fedcba9876543210-shm',
-    ]
-
-    for (const name of [...previous, 'control.sqlite']) write(name)
-
-    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
-
-    expect(readdirSync(dir)).toEqual(['control.sqlite'])
+    expect(existsSync(join(dir, previous))).toBe(true)
   })
 
   it('is a no-op when no staging file exists', () => {
