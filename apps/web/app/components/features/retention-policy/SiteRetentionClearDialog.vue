@@ -45,13 +45,15 @@ const rows = computed(() => retentionPolicyRows(props.installationDefault))
         </AlertDialogDescription>
       </AlertDialogHeader>
 
-      <dl class="grid gap-3 rounded-md border p-4 text-sm">
+      <div class="grid gap-3 rounded-md border p-4 text-sm">
         <div class="font-medium">Inherited installation default</div>
-        <div v-for="row in rows" :key="row.label" class="flex flex-wrap justify-between gap-2">
-          <dt class="text-muted-foreground">{{ row.label }}</dt>
-          <dd>{{ row.value }}</dd>
-        </div>
-      </dl>
+        <dl class="grid gap-3">
+          <div v-for="row in rows" :key="row.label" class="flex flex-wrap justify-between gap-2">
+            <dt class="text-muted-foreground">{{ row.label }}</dt>
+            <dd class="tabular-nums">{{ row.value }}</dd>
+          </div>
+        </dl>
+      </div>
 
       <AlertDialogFooter>
         <AlertDialogCancel type="button" @click="emit('cancel')">Keep override</AlertDialogCancel>

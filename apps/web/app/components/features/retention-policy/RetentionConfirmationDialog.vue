@@ -110,20 +110,22 @@ function proposalKey(proposal: ShorteningConfirmationCommand['proposal']): strin
         </AlertDialogDescription>
       </AlertDialogHeader>
 
-      <dl class="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2">
+      <div class="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2">
         <div class="font-medium sm:col-span-2">Current versus proposed</div>
-        <div
-          v-for="(row, index) in currentRows"
-          :key="row.label"
-          class="flex flex-wrap justify-between gap-2 sm:col-span-2"
-        >
-          <dt class="text-muted-foreground">{{ row.label }}</dt>
-          <dd>{{ row.value }} → {{ proposedRows[index]?.value }}</dd>
-        </div>
+        <dl class="grid gap-3 sm:col-span-2">
+          <div
+            v-for="(row, index) in currentRows"
+            :key="row.label"
+            class="flex flex-wrap justify-between gap-2"
+          >
+            <dt class="text-muted-foreground">{{ row.label }}</dt>
+            <dd class="tabular-nums">{{ row.value }} → {{ proposedRows[index]?.value }}</dd>
+          </div>
+        </dl>
         <p v-if="inherits" class="text-muted-foreground sm:col-span-2">
           Inherited installation default
         </p>
-      </dl>
+      </div>
 
       <form class="grid gap-4" @submit.prevent="submit">
         <Field

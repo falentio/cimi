@@ -83,7 +83,7 @@ function submit(): void {
         />
         <div class="mt-5 flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" @click="editing = false">Cancel</Button>
-          <Button type="submit" :disabled="!policy.canAttemptSubmit"> Save Site override </Button>
+          <Button type="submit" :disabled="policy.saving"> Save Site override </Button>
         </div>
       </form>
     </CardContent>

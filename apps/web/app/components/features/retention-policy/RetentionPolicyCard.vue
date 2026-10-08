@@ -25,7 +25,7 @@ const rows = computed(() => retentionPolicyRows(props.policy))
     <dl class="mt-4 grid gap-3 text-sm">
       <div v-for="row in rows" :key="row.label" class="flex flex-wrap justify-between gap-2">
         <dt class="text-muted-foreground">{{ row.label }}</dt>
-        <dd class="text-end font-medium">{{ row.value }}</dd>
+        <dd class="text-end font-medium tabular-nums">{{ row.value }}</dd>
       </div>
       <div v-if="footer" class="flex flex-wrap justify-between gap-2 border-t pt-3">
         <dt class="text-muted-foreground">{{ footer.label }}</dt>

@@ -92,9 +92,7 @@ function submit(): void {
         />
         <div class="mt-5 flex justify-end gap-2">
           <Button type="button" variant="outline" @click="editing = false">Cancel</Button>
-          <Button type="submit" :disabled="!section.canAttemptSubmit">
-            Save retention settings
-          </Button>
+          <Button type="submit" :disabled="section.saving"> Save retention settings </Button>
         </div>
       </form>
     </CardContent>
