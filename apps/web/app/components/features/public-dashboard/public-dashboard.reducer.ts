@@ -1,6 +1,7 @@
 import type {
   PublicDashboardAction,
-  PublicDashboardConfig,
+  PublicDashboardConfiguration,
+  PublicDashboardOperation,
   PublicDashboardResource,
   PublicDashboardState,
 } from './public-dashboard.types'
@@ -22,9 +23,9 @@ export function reducePublicDashboard(
     case 'refresh-started':
       return { ...state, config: beginRefresh(state.config), notice: null }
     case 'config-received':
-      return adoptConfig(state, action.config)
+      return adoptConfiguration(state, { kind: 'configured', config: action.config })
     case 'config-absent':
-      return adoptConfig(state, null)
+      return adoptConfiguration(state, { kind: 'unconfigured' })
     case 'config-failed':
       return {
         ...state,
@@ -32,7 +33,7 @@ export function reducePublicDashboard(
           state.config.kind === 'ready' || state.config.kind === 'stale'
             ? {
                 kind: 'stale',
-                config: state.config.config,
+                configuration: state.config.configuration,
                 error: action.error,
                 refreshing: false,
               }
@@ -50,17 +51,14 @@ export function reducePublicDashboard(
         command: { kind: 'submitting', operation: action.operation },
         notice: null,
       }
-    case 'operation-succeeded':
-      return {
-        ...state,
-        config: {
-          kind: 'ready',
-          config: resolveCommittedConfig(state.config, action.config),
-          refreshing: false,
-        },
-        command: { kind: 'idle' },
-        notice: publicDashboardNotice(action.operation, null),
-      }
+    case 'identifier-issued':
+      return commit(state, { kind: 'configured', config: action.config }, action.operation)
+    case 'access-revoked': {
+      const configuration = loadedConfiguration(state.config)
+
+      return configuration === null ? state : commit(state, revoke(configuration), 'disable')
+    }
+
     case 'operation-failed':
       return {
         ...state,
@@ -83,30 +81,38 @@ export function reducePublicDashboard(
   }
 }
 
-function adoptConfig(
+function commit(
   state: PublicDashboardState,
-  config: PublicDashboardConfig | null,
+  configuration: PublicDashboardConfiguration,
+  operation: PublicDashboardOperation,
 ): PublicDashboardState {
   return {
     ...state,
-    config: { kind: 'ready', config, refreshing: false },
+    config: { kind: 'ready', configuration, refreshing: false },
+    command: { kind: 'idle' },
+    notice: publicDashboardNotice(operation, null),
+  }
+}
+
+function adoptConfiguration(
+  state: PublicDashboardState,
+  configuration: PublicDashboardConfiguration,
+): PublicDashboardState {
+  return {
+    ...state,
+    config: { kind: 'ready', configuration, refreshing: false },
     command: state.command.kind === 'failed' ? { kind: 'idle' } : state.command,
   }
 }
 
-/**
- * Disable returns no body, so the committed state is the previous config with
- * the enabled flag cleared. Enable and rotate return the new config directly.
- */
-function resolveCommittedConfig(
-  current: PublicDashboardResource,
-  committed: PublicDashboardConfig | null,
-): PublicDashboardConfig | null {
-  if (committed !== null) return committed
+function loadedConfiguration(config: PublicDashboardResource): PublicDashboardConfiguration | null {
+  return config.kind === 'ready' || config.kind === 'stale' ? config.configuration : null
+}
 
-  const previous = current.kind === 'ready' || current.kind === 'stale' ? current.config : null
+function revoke(configuration: PublicDashboardConfiguration): PublicDashboardConfiguration {
+  if (configuration.kind === 'unconfigured') return configuration
 
-  return previous === null ? null : { ...previous, enabled: false }
+  return { kind: 'configured', config: { ...configuration.config, enabled: false } }
 }
 
 function beginRefresh(config: PublicDashboardResource): PublicDashboardResource {

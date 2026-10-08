@@ -15,7 +15,6 @@ import {
 } from './public-dashboard.reducer'
 import type {
   PublicDashboardClient,
-  PublicDashboardConfig,
   PublicDashboardFailure,
   PublicDashboardOperation,
   SitePublicDashboardController,
@@ -23,9 +22,10 @@ import type {
 } from './public-dashboard.types'
 import { normalizePublicDashboardError, toPublicDashboardView } from './public-dashboard.utils'
 
+type ReadIntent = 'refresh' | 'reconcile'
+
 type ReadOutcome =
-  | { readonly kind: 'config'; readonly config: PublicDashboardConfig }
-  | { readonly kind: 'absent' }
+  | { readonly kind: 'settled' }
   | { readonly kind: 'failed'; readonly error: PublicDashboardFailure }
 
 const INVALID_SITE_ID_FAILURE: PublicDashboardFailure = {
@@ -46,7 +46,7 @@ export function useSitePublicDashboard(
   let disposed = false
 
   async function refresh(): Promise<void> {
-    await readConfig()
+    await readConfig('refresh')
   }
 
   function request(operation: PublicDashboardOperation): void {
@@ -78,10 +78,25 @@ export function useSitePublicDashboard(
       operation: command.operation,
     })
 
-    let config: PublicDashboardConfig | null
-
     try {
-      config = await callOperation(siteId, command.operation)
+      if (command.operation === 'disable') {
+        await orpc.publicDashboard.disablePublicDashboard.call({ siteId })
+
+        if (disposed) return
+        state.value = reducePublicDashboard(state.value, { kind: 'access-revoked' })
+      } else {
+        const config =
+          command.operation === 'enable'
+            ? await orpc.publicDashboard.enablePublicDashboard.call({ siteId })
+            : await orpc.publicDashboard.rotatePublicDashboardIdentifier.call({ siteId })
+
+        if (disposed) return
+        state.value = reducePublicDashboard(state.value, {
+          kind: 'identifier-issued',
+          operation: command.operation,
+          config,
+        })
+      }
     } catch (error: unknown) {
       if (disposed) return
       state.value = reducePublicDashboard(state.value, {
@@ -93,45 +108,19 @@ export function useSitePublicDashboard(
       return
     }
 
-    if (disposed) return
-    state.value = reducePublicDashboard(state.value, {
-      kind: 'operation-succeeded',
-      operation: command.operation,
-      config,
-    })
-
-    // A silent read so the page shows server state, not the response the
-    // command happened to return.
-    const confirmed = await readConfig({ silent: true })
+    const reconciled = await readConfig('reconcile')
 
     if (disposed) return
 
-    if (confirmed.kind === 'failed') {
+    if (reconciled.kind === 'failed') {
       state.value = reducePublicDashboard(state.value, {
         kind: 'notice-warning',
-        error: confirmed.error,
+        error: reconciled.error,
       })
     }
   }
 
-  async function callOperation(
-    siteId: string,
-    operation: PublicDashboardOperation,
-  ): Promise<PublicDashboardConfig | null> {
-    if (operation === 'enable') {
-      return await orpc.publicDashboard.enablePublicDashboard.call({ siteId })
-    }
-
-    if (operation === 'rotate') {
-      return await orpc.publicDashboard.rotatePublicDashboardIdentifier.call({ siteId })
-    }
-
-    await orpc.publicDashboard.disablePublicDashboard.call({ siteId })
-
-    return null
-  }
-
-  async function readConfig(readOptions: { silent?: boolean } = {}): Promise<ReadOutcome> {
+  async function readConfig(intent: ReadIntent): Promise<ReadOutcome> {
     const version = ++requestVersion
     const siteId = requireSiteId()
 
@@ -144,7 +133,7 @@ export function useSitePublicDashboard(
       return { kind: 'failed', error: INVALID_SITE_ID_FAILURE }
     }
 
-    if (readOptions.silent !== true) {
+    if (intent === 'refresh') {
       state.value = reducePublicDashboard(state.value, { kind: 'refresh-started' })
     }
 
@@ -157,18 +146,18 @@ export function useSitePublicDashboard(
 
       state.value = reducePublicDashboard(state.value, { kind: 'config-received', config })
 
-      return { kind: 'config', config }
+      return { kind: 'settled' }
     } catch (error: unknown) {
       const failure = normalizePublicDashboardError(error, 'read')
 
       if (disposed || version !== requestVersion) return { kind: 'failed', error: failure }
 
-      // The settings shell only renders this page for an active Site, so a
-      // missing row here is a Site that has never been configured.
+      // NOT_FOUND means either "no stored dashboard" or "Site not served".
+      // A first enable is only reachable through this branch, so it wins.
       if (failure.kind === 'not-found') {
         state.value = reducePublicDashboard(state.value, { kind: 'config-absent' })
 
-        return { kind: 'absent' }
+        return { kind: 'settled' }
       }
 
       state.value = reducePublicDashboard(state.value, { kind: 'config-failed', error: failure })
@@ -185,10 +174,10 @@ export function useSitePublicDashboard(
 
   watch(
     () => toValue(options.siteId),
-    () => void readConfig(),
+    () => void readConfig('refresh'),
   )
 
-  if (getCurrentInstance() !== null) onMounted(() => void readConfig())
+  if (getCurrentInstance() !== null) onMounted(() => void readConfig('refresh'))
 
   onScopeDispose(() => {
     disposed = true

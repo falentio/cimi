@@ -23,6 +23,8 @@ export type PublicDashboardConfig = Awaited<ReturnType<GetConfigCall>>
 
 export type PublicDashboardOperation = 'enable' | 'disable' | 'rotate'
 
+export type PublicDashboardIssuingOperation = Exclude<PublicDashboardOperation, 'disable'>
+
 export type PublicDashboardStatus = 'unconfigured' | 'disabled' | 'enabled'
 
 export type PublicDashboardFailure =
@@ -69,21 +71,20 @@ export type PublicDashboardFailure =
       readonly action: 'refresh' | 'retry'
     }
 
-/**
- * A null config is a Site with no stored public dashboard, which the server
- * reports as NOT_FOUND on read. The page treats that as "not configured yet"
- * rather than an error, because it is the only path to a first enable.
- */
+export type PublicDashboardConfiguration =
+  | { readonly kind: 'unconfigured' }
+  | { readonly kind: 'configured'; readonly config: PublicDashboardConfig }
+
 export type PublicDashboardResource =
   | { readonly kind: 'loading' }
   | {
       readonly kind: 'ready'
-      readonly config: PublicDashboardConfig | null
+      readonly configuration: PublicDashboardConfiguration
       readonly refreshing: boolean
     }
   | {
       readonly kind: 'stale'
-      readonly config: PublicDashboardConfig | null
+      readonly configuration: PublicDashboardConfiguration
       readonly error: PublicDashboardFailure
       readonly refreshing: boolean
     }
@@ -120,10 +121,11 @@ export type PublicDashboardAction =
   | { readonly kind: 'operation-cancelled' }
   | { readonly kind: 'operation-started'; readonly operation: PublicDashboardOperation }
   | {
-      readonly kind: 'operation-succeeded'
-      readonly operation: PublicDashboardOperation
-      readonly config: PublicDashboardConfig | null
+      readonly kind: 'identifier-issued'
+      readonly operation: PublicDashboardIssuingOperation
+      readonly config: PublicDashboardConfig
     }
+  | { readonly kind: 'access-revoked' }
   | {
       readonly kind: 'operation-failed'
       readonly operation: PublicDashboardOperation

@@ -1,6 +1,7 @@
 import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 import type {
   PublicDashboardConfig,
+  PublicDashboardConfiguration,
   PublicDashboardFailure,
   PublicDashboardOperation,
   PublicDashboardOperationCopy,
@@ -83,12 +84,22 @@ export function publicDashboardStatusLabel(status: PublicDashboardStatus): strin
   return STATUS_LABELS[status]
 }
 
-export function publicDashboardStatus(config: PublicDashboardConfig | null): PublicDashboardStatus {
-  if (config === null) return 'unconfigured'
+export function publicDashboardStatus(
+  configuration: PublicDashboardConfiguration,
+): PublicDashboardStatus {
+  if (configuration.kind === 'unconfigured') return 'unconfigured'
 
-  if (!config.enabled || config.publicDashboardIdentifier === null) return 'disabled'
+  if (!configuration.config.enabled || configuration.config.publicDashboardIdentifier === null) {
+    return 'disabled'
+  }
 
   return 'enabled'
+}
+
+export function publicDashboardConfig(
+  configuration: PublicDashboardConfiguration,
+): PublicDashboardConfig | null {
+  return configuration.kind === 'configured' ? configuration.config : null
 }
 
 export function publicDashboardPath(identifier: string): string {
@@ -212,13 +223,13 @@ export function toPublicDashboardView(state: PublicDashboardState): SitePublicDa
     return { kind: 'error', error: state.config.error }
   }
 
-  const config = state.config.config
-  const status = publicDashboardStatus(config)
+  const configuration = state.config.configuration
+  const status = publicDashboardStatus(configuration)
 
   return {
     kind: 'ready',
     status,
-    config,
+    config: publicDashboardConfig(configuration),
     operations: publicDashboardOperations(status),
     command: state.command,
     notice: state.notice,

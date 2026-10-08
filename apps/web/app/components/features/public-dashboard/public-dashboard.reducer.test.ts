@@ -20,27 +20,35 @@ function ready(config: PublicDashboardConfig = enabled) {
 }
 
 describe('public-dashboard.reducer', () => {
-  it('starts loading and adopts a config', () => {
+  it('starts loading and adopts a configured Site', () => {
     const initial = createInitialPublicDashboardState()
 
     expect(initial.config).toEqual({ kind: 'loading' })
 
     const next = ready()
 
-    expect(next.config).toEqual({ kind: 'ready', config: enabled, refreshing: false })
+    expect(next.config).toEqual({
+      kind: 'ready',
+      configuration: { kind: 'configured', config: enabled },
+      refreshing: false,
+    })
     expect(next.command).toEqual({ kind: 'idle' })
     expect(next.notice).toBeNull()
   })
 
-  it('treats an absent row as a ready, unconfigured Site', () => {
+  it('records a Site with no stored dashboard as unconfigured, not as an error', () => {
     const next = reducePublicDashboard(createInitialPublicDashboardState(), {
       kind: 'config-absent',
     })
 
-    expect(next.config).toEqual({ kind: 'ready', config: null, refreshing: false })
+    expect(next.config).toEqual({
+      kind: 'ready',
+      configuration: { kind: 'unconfigured' },
+      refreshing: false,
+    })
   })
 
-  it('keeps the last config and marks it stale when a refresh fails', () => {
+  it('keeps the last configuration and marks it stale when a refresh fails', () => {
     const error = {
       kind: 'server' as const,
       code: 'INTERNAL_SERVER_ERROR' as const,
@@ -51,7 +59,12 @@ describe('public-dashboard.reducer', () => {
 
     const next = reducePublicDashboard(ready(), { kind: 'config-failed', error })
 
-    expect(next.config).toEqual({ kind: 'stale', config: enabled, error, refreshing: false })
+    expect(next.config).toEqual({
+      kind: 'stale',
+      configuration: { kind: 'configured', config: enabled },
+      error,
+      refreshing: false,
+    })
   })
 
   it('clears a failed command on the next accepted read', () => {
@@ -74,7 +87,7 @@ describe('public-dashboard.reducer', () => {
     expect(recovered.command).toEqual({ kind: 'idle' })
   })
 
-  it('records the committed config and the operation notice on success', () => {
+  it('adopts the issued identifier and the operation notice', () => {
     const rotated: PublicDashboardConfig = {
       ...enabled,
       publicDashboardIdentifier: 'identifier-two',
@@ -82,29 +95,46 @@ describe('public-dashboard.reducer', () => {
     }
 
     const next = reducePublicDashboard(ready(), {
-      kind: 'operation-succeeded',
+      kind: 'identifier-issued',
       operation: 'rotate',
       config: rotated,
     })
 
-    expect(next.config).toEqual({ kind: 'ready', config: rotated, refreshing: false })
+    expect(next.config).toEqual({
+      kind: 'ready',
+      configuration: { kind: 'configured', config: rotated },
+      refreshing: false,
+    })
     expect(next.notice).toMatchObject({ operation: 'rotate', warning: null })
     expect(next.notice?.message).toContain('previous public URL no longer resolves')
   })
 
-  it('clears the enabled flag locally when disable returns no config', () => {
-    const next = reducePublicDashboard(ready(), {
-      kind: 'operation-succeeded',
-      operation: 'disable',
-      config: null,
-    })
+  it('clears the enabled flag on revoke because disable returns no body', () => {
+    const next = reducePublicDashboard(ready(), { kind: 'access-revoked' })
 
     expect(next.config).toEqual({
       kind: 'ready',
-      config: { ...enabled, enabled: false },
+      configuration: {
+        kind: 'configured',
+        config: { ...enabled, enabled: false },
+      },
       refreshing: false,
     })
     expect(next.notice?.message).toContain('authorizes no new public request')
+  })
+
+  it('keeps a revoke on an unconfigured Site unconfigured', () => {
+    const unconfigured = reducePublicDashboard(createInitialPublicDashboardState(), {
+      kind: 'config-absent',
+    })
+
+    const next = reducePublicDashboard(unconfigured, { kind: 'access-revoked' })
+
+    expect(next.config).toEqual({
+      kind: 'ready',
+      configuration: { kind: 'unconfigured' },
+      refreshing: false,
+    })
   })
 
   it('refuses to open a confirmation while an operation is submitting', () => {
@@ -144,7 +174,7 @@ describe('public-dashboard.reducer', () => {
 
   it('attaches a refresh warning to the existing notice', () => {
     const committed = reducePublicDashboard(ready(), {
-      kind: 'operation-succeeded',
+      kind: 'identifier-issued',
       operation: 'enable',
       config: enabled,
     })

@@ -5,6 +5,7 @@ import {
   PUBLIC_DASHBOARD_OPERATION_COPY,
   PUBLIC_DASHBOARD_SCOPE_FACTS,
   normalizePublicDashboardError,
+  publicDashboardConfig,
   publicDashboardOperations,
   publicDashboardPath,
   publicDashboardStatus,
@@ -20,12 +21,24 @@ const enabled: PublicDashboardConfig = {
 }
 
 describe('public-dashboard.utils', () => {
-  it('derives the status from the config', () => {
-    expect(publicDashboardStatus(null)).toBe('unconfigured')
-    expect(publicDashboardStatus({ ...enabled, enabled: false })).toBe('disabled')
-    expect(publicDashboardStatus({ ...enabled, publicDashboardIdentifier: null })).toBe('disabled')
-    expect(publicDashboardStatus(enabled)).toBe('enabled')
+  it('derives the status from the configuration', () => {
+    expect(publicDashboardStatus({ kind: 'unconfigured' })).toBe('unconfigured')
+    expect(
+      publicDashboardStatus({ kind: 'configured', config: { ...enabled, enabled: false } }),
+    ).toBe('disabled')
+    expect(
+      publicDashboardStatus({
+        kind: 'configured',
+        config: { ...enabled, publicDashboardIdentifier: null },
+      }),
+    ).toBe('disabled')
+    expect(publicDashboardStatus({ kind: 'configured', config: enabled })).toBe('enabled')
     expect(publicDashboardStatusLabel('enabled')).toBe('Enabled')
+  })
+
+  it('exposes the raw config only for a configured Site', () => {
+    expect(publicDashboardConfig({ kind: 'unconfigured' })).toBeNull()
+    expect(publicDashboardConfig({ kind: 'configured', config: enabled })).toEqual(enabled)
   })
 
   it('offers enable only when no live identifier exists', () => {
