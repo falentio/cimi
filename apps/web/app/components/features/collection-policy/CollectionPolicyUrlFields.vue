@@ -26,7 +26,7 @@ function urlError(field: keyof UrlPolicyValues): string | null {
   return fieldErrorFor(props.editor.validation, `urlPolicy.${field}`)
 }
 
-function handleUrlSwitch(field: keyof UrlPolicyValues, value: unknown): void {
+function handleUrlSwitch(field: keyof UrlPolicyValues, value: boolean): void {
   emit('patch', {
     field: 'urlPolicy',
     value: { ...props.editor.draft.urlPolicy, [field]: value === true },

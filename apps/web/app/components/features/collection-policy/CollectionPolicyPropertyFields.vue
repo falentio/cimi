@@ -32,7 +32,7 @@ function propertyError(field: PropertyKey): string | null {
   return fieldErrorFor(props.editor.validation, `propertyPolicy.${field}`)
 }
 
-function handleAllowProperties(value: unknown): void {
+function handleAllowProperties(value: boolean): void {
   emit('patch', {
     field: 'propertyPolicy',
     value: { ...propertyValue(), allowScalarProperties: value === true },

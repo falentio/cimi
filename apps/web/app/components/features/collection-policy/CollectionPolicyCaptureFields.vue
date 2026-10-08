@@ -16,6 +16,8 @@ import {
   policyFieldDescription,
   switchStateLabel,
 } from './collection-policy.utils'
+import type { AcceptableValue } from 'reka-ui'
+import { isStringValue } from '../../../utils/type-guards'
 import type {
   CollectionFieldPatch,
   CollectionPolicyEditorView,
@@ -39,8 +41,8 @@ function selectError(field: SelectSpec['field']): string | null {
   return fieldErrorFor(props.editor.validation, field)
 }
 
-function handleSelect(field: SelectSpec['field'], value: unknown): void {
-  if (typeof value !== 'string') return
+function handleSelect(field: SelectSpec['field'], value: AcceptableValue): void {
+  if (!isStringValue(value)) return
   const spec = CAPTURE_SELECT_SPECS.find((candidate) => candidate.field === field)
 
   if (spec === undefined || !spec.options.some((option) => option.value === value)) return
@@ -67,7 +69,7 @@ function switchError(field: SwitchSpec['field']): string | null {
   return fieldErrorFor(props.editor.validation, field)
 }
 
-function handleSwitch(field: SwitchSpec['field'], value: unknown): void {
+function handleSwitch(field: SwitchSpec['field'], value: boolean): void {
   emit('patch', { field, value: value === true })
 }
 </script>

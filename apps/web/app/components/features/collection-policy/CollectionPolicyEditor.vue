@@ -16,7 +16,11 @@ import CollectionPolicyExclusionFields from './CollectionPolicyExclusionFields.v
 import CollectionPolicyPrivacySummary from './CollectionPolicyPrivacySummary.vue'
 import CollectionPolicyPropertyFields from './CollectionPolicyPropertyFields.vue'
 import CollectionPolicySummary from './CollectionPolicySummary.vue'
-import type { CollectionFieldPatch, CollectionPolicyEditorView } from './collection-policy.types'
+import type {
+  CollectionFieldKey,
+  CollectionFieldPatch,
+  CollectionPolicyEditorView,
+} from './collection-policy.types'
 import { focusTargetId } from './collection-policy.utils'
 
 const props = defineProps<{ editor: CollectionPolicyEditorView }>()
@@ -64,7 +68,10 @@ function submit(): void {
     return
   }
 
-  const firstInvalid = Object.keys(props.editor.validation.validation.fieldErrors)[0]
+  // SAFETY: the keys of fieldErrors are always CollectionFieldKey values.
+  const firstInvalid = Object.keys(props.editor.validation.validation.fieldErrors)[0] as
+    | CollectionFieldKey
+    | undefined
 
   if (firstInvalid === undefined) return
   void nextTick(() => document.getElementById(focusTargetId(firstInvalid))?.focus())

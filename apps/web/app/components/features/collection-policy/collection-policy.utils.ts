@@ -1,5 +1,6 @@
 import { parseIpPattern, SHostname } from '@cimi/utils'
 import { safeParse } from 'valibot'
+import { isBooleanValue, isNumberValue, isStringValue } from '../../../utils/type-guards'
 import type {
   CollectionDraft,
   CollectionExclusionSummary,
@@ -14,7 +15,8 @@ import type {
   CollectionPolicyViewModel,
   CollectionValidation,
   ParsedCollectionDraft,
-  CollectionSubfieldValue,
+  CollectionFieldValue,
+  CollectionSubfields,
   PolicyField,
   PolicyValues,
   UrlPolicyValues,
@@ -246,7 +248,7 @@ export function optionDescription(
   return options.find((option) => option.value === value)?.description ?? ''
 }
 
-const SUBFIELD_IDS: Partial<Record<string, string>> = {
+const SUBFIELD_IDS: Partial<Record<CollectionFieldKey, string>> = {
   'urlPolicy.capturePath': 'collection-url-path',
   'urlPolicy.captureReferrer': 'collection-url-referrer',
   'urlPolicy.stripQueryStrings': 'collection-url-strip-query',
@@ -261,8 +263,8 @@ const SUBFIELD_IDS: Partial<Record<string, string>> = {
   'exclusions.ipRanges': 'collection-exclusion-ip-ranges',
 }
 
-export function focusTargetId(key: string): string {
-  // SAFETY: callers pass a CollectionFieldKey; every non-subfield key is a real PolicyField member.
+export function focusTargetId(key: CollectionFieldKey): string {
+  // SAFETY: every CollectionFieldKey that is not a subfield key is a real PolicyField member.
   return SUBFIELD_IDS[key] ?? collectionFieldId(key as PolicyField)
 }
 
@@ -565,10 +567,10 @@ export function summarizeCollectionPolicy(draft: CollectionDraft): CollectionPol
 }
 
 export function normalizeCollectionPolicyError(
-  error: unknown,
+  cause: unknown,
   source: 'read' | 'update',
 ): CollectionPolicyFailure {
-  const details = readErrorDetails(error)
+  const details = readErrorDetails(cause)
 
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return {
@@ -904,7 +906,11 @@ function normalizeIpRanges(
   return normalized
 }
 
-function describeChange(field: PolicyField, from: unknown, to: unknown): string | null {
+function describeChange(
+  field: PolicyField,
+  from: CollectionFieldValue,
+  to: CollectionFieldValue,
+): string | null {
   if (field === 'urlPolicy' || field === 'propertyPolicy' || field === 'exclusions') {
     return describeObjectChange(field, from, to)
   }
@@ -916,8 +922,8 @@ function describeChange(field: PolicyField, from: unknown, to: unknown): string 
 
 function describeObjectChange(
   field: 'urlPolicy' | 'propertyPolicy' | 'exclusions',
-  from: unknown,
-  to: unknown,
+  from: CollectionFieldValue,
+  to: CollectionFieldValue,
 ): string | null {
   if (!isSubfields(from) || !isSubfields(to)) return null
   const labels = SUBFIELD_LABELS[field]
@@ -934,14 +940,14 @@ function describeObjectChange(
   return parts.length === 0 ? null : parts.join('; ')
 }
 
-function describeValue(field: PolicyField, value: unknown): string {
-  if (typeof value === 'boolean') return value ? 'On' : 'Off'
+function describeValue(field: PolicyField, value: CollectionFieldValue): string {
+  if (isBooleanValue(value)) return value ? 'On' : 'Off'
 
-  if (typeof value === 'number') return String(value)
+  if (isNumberValue(value)) return String(value)
 
   if (Array.isArray(value)) return `${value.length} entries`
 
-  if (typeof value === 'string') return optionLabel(field, value) ?? value
+  if (isStringValue(value)) return optionLabel(field, value) ?? value
 
   return 'Unknown'
 }
@@ -962,7 +968,7 @@ function optionLabel(field: PolicyField, value: string): string | null {
   return null
 }
 
-function sameValue(left: unknown, right: unknown): boolean {
+function sameValue(left: CollectionFieldValue, right: CollectionFieldValue): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
@@ -997,29 +1003,43 @@ function buildAnnouncement(state: CollectionPolicyState): string {
   return ''
 }
 
-function readErrorDetails(error: unknown): {
-  readonly code: string | undefined
-  readonly status: number | undefined
-} {
-  if (!isErrorDetails(error)) return { code: undefined, status: undefined }
+function readErrorDetails(cause: unknown) {
+  const candidates: unknown[] = [cause]
 
-  return {
-    code: typeof error.code === 'string' ? error.code : undefined,
-    status: typeof error.status === 'number' ? error.status : undefined,
+  if (isRecord(cause)) candidates.push(cause.data, cause.error, cause.cause, cause.response)
+
+  let code: string | undefined
+  let status: number | undefined
+
+  for (const candidate of candidates) {
+    if (!isRecord(candidate)) continue
+
+    if (code === undefined && isStringValue(candidate.code)) code = candidate.code
+
+    if (status === undefined && isNumberValue(candidate.status)) status = candidate.status
+
+    if (status === undefined && isNumberValue(candidate.statusCode)) status = candidate.statusCode
   }
+
+  return { code, status }
 }
 
-type CollectionSubfields = Readonly<Record<string, CollectionSubfieldValue>>
-
-function isSubfields(value: unknown): value is CollectionSubfields {
-  return typeof value === 'object' && value !== null
+// A type-predicate subject: the rule permits `unknown` here because the
+// predicate establishes the contract before any caller reads the value.
+function isSubfields(value: CollectionFieldValue): value is CollectionSubfields {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-interface ErrorDetails {
+interface CollectionErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
   readonly code?: unknown
   readonly status?: unknown
+  readonly statusCode?: unknown
 }
 
-function isErrorDetails(value: unknown): value is ErrorDetails {
+function isRecord(value: unknown): value is CollectionErrorDetails {
   return typeof value === 'object' && value !== null
 }
