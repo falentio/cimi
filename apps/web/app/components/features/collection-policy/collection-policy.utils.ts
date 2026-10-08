@@ -14,6 +14,7 @@ import type {
   CollectionPolicyViewModel,
   CollectionValidation,
   ParsedCollectionDraft,
+  CollectionSubfieldValue,
   PolicyField,
   PolicyValues,
   UrlPolicyValues,
@@ -261,6 +262,7 @@ const SUBFIELD_IDS: Partial<Record<string, string>> = {
 }
 
 export function focusTargetId(key: string): string {
+  // SAFETY: callers pass a CollectionFieldKey; every non-subfield key is a real PolicyField member.
   return SUBFIELD_IDS[key] ?? collectionFieldId(key as PolicyField)
 }
 
@@ -917,7 +919,7 @@ function describeObjectChange(
   from: unknown,
   to: unknown,
 ): string | null {
-  if (!isRecord(from) || !isRecord(to)) return null
+  if (!isSubfields(from) || !isSubfields(to)) return null
   const labels = SUBFIELD_LABELS[field]
   const parts: string[] = []
 
@@ -999,7 +1001,7 @@ function readErrorDetails(error: unknown): {
   readonly code: string | undefined
   readonly status: number | undefined
 } {
-  if (!isRecord(error)) return { code: undefined, status: undefined }
+  if (!isErrorDetails(error)) return { code: undefined, status: undefined }
 
   return {
     code: typeof error.code === 'string' ? error.code : undefined,
@@ -1007,6 +1009,17 @@ function readErrorDetails(error: unknown): {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+type CollectionSubfields = Readonly<Record<string, CollectionSubfieldValue>>
+
+function isSubfields(value: unknown): value is CollectionSubfields {
+  return typeof value === 'object' && value !== null
+}
+
+interface ErrorDetails {
+  readonly code?: unknown
+  readonly status?: unknown
+}
+
+function isErrorDetails(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }

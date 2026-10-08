@@ -166,6 +166,7 @@ function adoptCommittedLayer(
 function provenanceFor(source: 'installation' | 'site'): CollectionPolicyResult['source'] {
   const entries = POLICY_FIELD_ORDER.map((field) => [field, source] as const)
 
+  // SAFETY: POLICY_FIELD_ORDER lists every key of the source map, so the object is complete.
   return Object.fromEntries(entries) as CollectionPolicyResult['source']
 }
 

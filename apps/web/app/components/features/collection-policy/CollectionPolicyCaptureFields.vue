@@ -46,17 +46,20 @@ function handleSelect(field: SelectSpec['field'], value: unknown): void {
   if (spec === undefined || !spec.options.some((option) => option.value === value)) return
 
   if (field === 'anonymousCollection') {
+    // SAFETY: the option check above matched the value against this field's literal options.
     emit('patch', { field, value: value as PolicyValues['anonymousCollection'] })
 
     return
   }
 
   if (field === 'consentMode') {
+    // SAFETY: the option check above matched the value against this field's literal options.
     emit('patch', { field, value: value as PolicyValues['consentMode'] })
 
     return
   }
 
+  // SAFETY: the option check above matched the value against this field's literal options.
   emit('patch', { field, value: value as PolicyValues['botPolicy'] })
 }
 
