@@ -61,7 +61,7 @@ export class InvitationService {
     const { token, tokenHash } = mintInvitationToken()
 
     try {
-      const record = await this.repository.insert({
+      const result = await this.repository.insert({
         id: generateId('inv'),
         organizationId: input.organizationId,
         role: input.role,
@@ -71,7 +71,9 @@ export class InvitationService {
         updatedAt: now,
       })
 
-      return { invitation: toPublicInvitation(record), token }
+      if (result.status === 'limit-reached') throw new ORPCError('INVITATION_LIMIT_REACHED')
+
+      return { invitation: toPublicInvitation(result.invitation), token }
     } catch (error) {
       if (isConstraintError(error)) throw new ORPCError('CONFLICT', { status: 409 })
       throw error

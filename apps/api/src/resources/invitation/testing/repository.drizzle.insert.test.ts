@@ -85,7 +85,7 @@ describe('InvitationRepositoryDrizzle.insert', () => {
       const repo = new InvitationRepositoryDrizzle({ db })
       const tokenHash = hashInvitationToken('token-1')
 
-      const record = await repo.insert({
+      const result = await repo.insert({
         id: 'inv_1',
         organizationId: 'org_1',
         role: 'member',
@@ -95,7 +95,11 @@ describe('InvitationRepositoryDrizzle.insert', () => {
         updatedAt: createdAt,
       })
 
-      expect(record.tokenHash).toBe(tokenHash)
+      expect(result.status).toBe('inserted')
+
+      if (result.status !== 'inserted') throw new Error('Expected inserted')
+
+      expect(result.invitation.tokenHash).toBe(tokenHash)
       await expect(repo.findByTokenHash(tokenHash)).resolves.toMatchObject({
         id: 'inv_1',
         status: 'pending',
