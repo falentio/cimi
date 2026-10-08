@@ -6,6 +6,7 @@ import {
   organizationSettingsPath,
   siteCollectionSettingsPath,
   siteOverviewPath,
+  sitePublicDashboardSettingsPath,
   siteRetentionSettingsPath,
   siteSettingsPath,
 } from './organization-nav-config'
@@ -18,6 +19,9 @@ describe('organization navigation', () => {
     expect(siteSettingsPath('site_1')).toBe('/sites/site_1/settings')
     expect(siteCollectionSettingsPath('site_1')).toBe('/sites/site_1/settings/collection')
     expect(siteRetentionSettingsPath('site_1')).toBe('/sites/site_1/settings/retention')
+    expect(sitePublicDashboardSettingsPath('site_1')).toBe(
+      '/sites/site_1/settings/public-dashboard',
+    )
   })
 
   it('creates Home and Settings entries with precise active matching', () => {

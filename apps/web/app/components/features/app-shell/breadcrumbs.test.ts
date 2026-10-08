@@ -53,6 +53,15 @@ describe('resolveBreadcrumbs', () => {
     expect(resolveBreadcrumbs('/setup/child')).toEqual([])
   })
 
+  it('interpolates the Public Dashboard settings trail', () => {
+    expect(resolveBreadcrumbs('/sites/ste_1/settings/public-dashboard')).toEqual([
+      { label: 'Sites', to: '/' },
+      { label: 'ste_1', to: '/sites/ste_1' },
+      { label: 'Settings', to: '/sites/ste_1/settings' },
+      { label: 'Public Dashboard' },
+    ])
+  })
+
   it('returns nothing for public routes', () => {
     expect(resolveBreadcrumbs('/public/abc123')).toEqual([])
   })

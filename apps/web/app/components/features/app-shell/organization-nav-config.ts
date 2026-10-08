@@ -32,6 +32,10 @@ export function siteRetentionSettingsPath(siteId: WorkspaceSite['id']): string {
   return `${siteSettingsPath(siteId)}/retention`
 }
 
+export function sitePublicDashboardSettingsPath(siteId: WorkspaceSite['id']): string {
+  return `${siteSettingsPath(siteId)}/public-dashboard`
+}
+
 export function createOrganizationNav(input: CreateOrganizationNavInput): NavGroup {
   return {
     label: input.label,
