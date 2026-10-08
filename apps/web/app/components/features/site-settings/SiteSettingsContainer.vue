@@ -69,16 +69,19 @@ async function handleRetry(): Promise<void> {
       </p>
     </header>
 
-    <nav v-if="sectionLinks.length > 0" aria-label="Site settings" class="overflow-x-auto">
+    <nav v-if="sectionLinks.length > 0" aria-label="Site settings">
       <UITabs :model-value="activeSection" activation-mode="manual" class="w-full">
-        <UITabsList aria-label="Site settings sections" class="min-w-max justify-start">
+        <UITabsList
+          aria-label="Site settings sections"
+          class="group-data-horizontal/tabs:h-auto w-full flex-wrap justify-start"
+        >
           <UITabsTrigger
             v-for="link in sectionLinks"
             :key="link.section"
             :value="link.section"
             as-child
           >
-            <NuxtLink :to="link.to" class="shrink-0 px-3 py-2">
+            <NuxtLink :to="link.to" class="grow-0 shrink-0 px-3 py-2">
               <HugeiconsIcon
                 :icon="link.section === 'danger' ? AlertCircleIcon : Settings01Icon"
                 :size="16"
