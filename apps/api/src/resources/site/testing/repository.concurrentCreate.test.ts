@@ -9,6 +9,7 @@ const createdAt = new Date('2026-09-01T00:00:00.000Z')
 describe('SiteRepositoryDrizzle.concurrentCreate', () => {
   it('allows exactly one insert for the same organization hostname', async () => {
     const db = createMigratedTestDb()
+
     try {
       db.insert(schema.TUser)
         .values({
@@ -38,6 +39,7 @@ describe('SiteRepositoryDrizzle.concurrentCreate', () => {
         .run()
 
       const repo = new SiteRepositoryDrizzle({ db })
+
       const results = await Promise.allSettled([
         repo.insert({
           id: 'ste_race_1',
@@ -67,14 +69,18 @@ describe('SiteRepositoryDrizzle.concurrentCreate', () => {
       const rejected = results.filter((result) => result.status === 'rejected')
       expect(fulfilled).toHaveLength(1)
       expect(rejected).toHaveLength(1)
+      // SAFETY: toHaveLength(1) above proves exactly one settled result.
       const reason = (rejected[0] as PromiseRejectedResult).reason
-      expect(String((reason as Error)?.message ?? reason)).toMatch(/constraint|unique|reserved/i)
+      expect(String(reason instanceof Error ? reason.message : reason)).toMatch(
+        /constraint|unique|reserved/i,
+      )
 
       const rows = db
         .select()
         .from(schema.TSite)
         .where(eq(schema.TSite.hostname, 'race.example.com'))
         .all()
+
       expect(rows).toHaveLength(1)
     } finally {
       closeDb(db)

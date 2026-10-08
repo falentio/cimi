@@ -105,6 +105,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
       targetUserId: 'user_2',
       now,
     })
+
     expect(admitted.kind).toBe('admitted')
 
     await expect(
@@ -147,6 +148,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
     using fixture = createMembershipDrizzleFixture()
     seedMembershipOrganization(fixture.db)
     const repo = new MembershipRepositoryDrizzle({ db: fixture.db })
+
     const admitted = await repo.createTransfer({
       id: 'gop_1',
       organizationId: 'org_1',
@@ -154,6 +156,7 @@ describe.concurrent('MembershipRepositoryDrizzle.governance', () => {
       targetUserId: 'user_2',
       now,
     })
+
     if (admitted.kind !== 'admitted') throw new Error('Transfer was not admitted')
 
     await expect(

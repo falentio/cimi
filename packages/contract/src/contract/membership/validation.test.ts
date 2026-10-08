@@ -35,6 +35,7 @@ const member = {
 }
 
 const listedOwner = { ...owner, email: 'owner@example.com' }
+
 const listedMember = { ...member, email: 'member@example.com' }
 
 const page = {

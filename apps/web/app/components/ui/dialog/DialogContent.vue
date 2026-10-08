@@ -22,6 +22,7 @@ const props = withDefaults(
     showCloseButton: true,
   },
 )
+
 const emits = defineEmits<DialogContentEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

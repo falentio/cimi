@@ -18,13 +18,13 @@ const timestamps = {
   updatedAt: '2026-08-23T01:00:00Z',
 }
 
-const serializedBytes = (value: unknown) =>
+const serializedBytes = (value: Record<string, string>) =>
   new TextEncoder().encode(JSON.stringify(value)).byteLength
 
 const exactLimitTraits = () => {
-  const traits = Object.fromEntries(
-    Array.from({ length: 64 }, (_, index) => [`trait-${index}`, '']),
-  ) as Record<string, string>
+  const traits: Record<string, string> = Object.fromEntries(
+    Array.from({ length: 64 }, (_, index): [string, string] => [`trait-${index}`, '']),
+  )
 
   for (const key of Object.keys(traits)) {
     while (
@@ -96,6 +96,7 @@ describe('identity profile schemas', () => {
     const result = safeParse(SProfileTraits, { ...traits, 'trait-63': `${traits['trait-63']}x` })
 
     expect(result.success).toBe(false)
+
     if (result.success) return
 
     expect(result.issues[0]?.message).toBe(VALIDATION_KEYS.contract.profile.traitsSize)
@@ -116,6 +117,7 @@ describe('identity profile schemas', () => {
       expect(safeParse(SProfileTraits, { [key]: 'value' }).success, key).toBe(false)
       expect(safeParse(SProfileTraits, { [key]: null }).success, key).toBe(true)
     }
+
     expect(safeParse(SProfileTraits, { email: 'person@example.com', name: 'Person' }).success).toBe(
       true,
     )

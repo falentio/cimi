@@ -15,10 +15,12 @@ import { createApiE2eFixture } from './fixture.ts'
 
 function expectProbeTable(controlDatabasePath: string, present: boolean): void {
   const db = createDb({ path: controlDatabasePath })
+
   try {
     const row = db.$client
       .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
       .get(PROBE_MIGRATION_TABLE)
+
     expect(row !== undefined).toBe(present)
   } finally {
     closeDb(db)
@@ -27,12 +29,15 @@ function expectProbeTable(controlDatabasePath: string, present: boolean): void {
 
 test('upgrade and restore migrate through a materialized migrations folder', async () => {
   const migrationsFolder = await createProbeMigrationsFolder()
+
   try {
     await using fixture = await createApiE2eFixture({ migrationsFolder })
+
     const admin = await fixture.createUser(
       'migrations-folder-admin@example.com',
       'Migrations Folder Admin',
     )
+
     await call(
       fixture.router.installation.initializeInstallation,
       {},
@@ -44,6 +49,7 @@ test('upgrade and restore migrate through a materialized migrations folder', asy
       { confirmation: 'UPGRADE' },
       { context: await admin.context() },
     )
+
     expect(upgradeStarted.status).toBe('maintenance')
     await expect(waitForInstallationTerminal(fixture, admin, 'ready')).resolves.toMatchObject({
       status: 'ready',
@@ -56,6 +62,7 @@ test('upgrade and restore migrate through a materialized migrations folder', asy
       {},
       { context: await admin.context() },
     )
+
     const backup = await waitForBackupTrace(fixture, admin, backupStarted.id)
     assertCheckpointMonotonic(backup)
     assertAvailableBackup(backup.terminal)
@@ -66,6 +73,7 @@ test('upgrade and restore migrate through a materialized migrations folder', asy
       { backupId: backup.terminal.id, confirmation: 'RESTORE' },
       { context: await admin.context() },
     )
+
     expect(restoreStarted.status).toBe('creating')
     const restored = await waitForBackupTrace(fixture, admin, restoreStarted.id)
     assertAvailableBackup(restored.terminal)

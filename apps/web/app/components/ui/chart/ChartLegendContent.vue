@@ -29,6 +29,7 @@ const payload = computed(() =>
 )
 
 const containerSelector = ref('')
+
 onMounted(() => {
   containerSelector.value = `[data-chart="chart-${id}"]>[data-vis-xy-container]`
 })

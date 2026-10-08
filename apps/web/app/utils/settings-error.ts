@@ -1,19 +1,22 @@
 import { isLocalizableError, type LocalizableError } from './error-message'
+import { isNumberValue, isStringValue } from './type-guards'
 
 export interface SettingsError extends LocalizableError {}
 
 export function normalizeSettingsError(
-  value: unknown,
+  cause: unknown,
   fallbackMessage = 'Settings request failed',
 ): SettingsError {
-  if (value instanceof Error) {
-    const message = value.message || fallbackMessage
-    return withDetails(value, message)
+  if (cause instanceof Error) {
+    const message = cause.message || fallbackMessage
+
+    return withDetails(cause, message)
   }
 
-  if (isRecord(value)) {
-    const message = typeof value.message === 'string' ? value.message : undefined
-    if (message !== undefined) return withDetails(value, message)
+  if (isRecord(cause)) {
+    const message = isStringValue(cause.message) ? cause.message : undefined
+
+    if (message !== undefined) return withDetails(cause, message)
   }
 
   return { message: fallbackMessage }
@@ -28,9 +31,11 @@ export function isLocalizableSettingsError(error: SettingsError): boolean {
   return isLocalizableError(error)
 }
 
-function withDetails(value: object, message: string): SettingsError {
-  const code = 'code' in value && typeof value.code === 'string' ? value.code : undefined
-  const status = 'status' in value && typeof value.status === 'number' ? value.status : undefined
+function withDetails(cause: unknown, message: string): SettingsError {
+  if (!isRecord(cause)) return { message }
+
+  const code = 'code' in cause && isStringValue(cause.code) ? cause.code : undefined
+  const status = 'status' in cause && isNumberValue(cause.status) ? cause.status : undefined
 
   return {
     message,
@@ -39,6 +44,12 @@ function withDetails(value: object, message: string): SettingsError {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface ErrorDetails {
+  readonly message?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
+}
+
+function isRecord(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }

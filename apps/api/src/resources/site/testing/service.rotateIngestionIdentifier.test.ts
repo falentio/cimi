@@ -41,6 +41,7 @@ describe('SiteService.rotateIngestionIdentifier', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
+
     repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
     repository.getDeletionStatus.mockResolvedValue({

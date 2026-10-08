@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SFunnelIdentityFields } from '../schema.ts'
 
 export const SFunnelArchiveInput = SFunnelIdentityFields
+
 export type SFunnelArchiveInput = v.InferOutput<typeof SFunnelArchiveInput>
+
 export const SFunnelArchiveOutput = v.void()
+
 export type SFunnelArchiveOutput = v.InferOutput<typeof SFunnelArchiveOutput>
 
 export const archiveFunnel = oc

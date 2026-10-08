@@ -4,7 +4,9 @@ import { SDateTime, SId, VALIDATION_KEYS } from '../../../schema/index.ts'
 import { SSiteDeletionCleanupStatus, SSiteIdFields, SSiteLifecycleStatus } from '../schema.ts'
 
 export const SSiteDeletionStatusInput = SSiteIdFields
+
 export type SSiteDeletionStatusInput = v.InferOutput<typeof SSiteDeletionStatusInput>
+
 export const SSiteDeletionStatusOutput = v.pipe(
   v.strictObject({
     siteId: SId,
@@ -26,9 +28,11 @@ export const SSiteDeletionStatusOutput = v.pipe(
         purgeAt === null
       )
     }
+
     if (status === 'deleting' || status === 'recovering') {
       return operationId !== null && requestedAt !== null
     }
+
     return (
       operationId !== null &&
       requestedAt !== null &&
@@ -38,6 +42,7 @@ export const SSiteDeletionStatusOutput = v.pipe(
     )
   }, VALIDATION_KEYS.contract.site.lifecycleTimestampsMatchStatus),
 )
+
 export type SSiteDeletionStatusOutput = v.InferOutput<typeof SSiteDeletionStatusOutput>
 
 export const getSiteDeletionStatus = oc

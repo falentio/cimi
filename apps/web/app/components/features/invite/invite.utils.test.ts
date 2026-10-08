@@ -14,6 +14,7 @@ const sessionStatuses: readonly AuthState['status'][] = [
   'unauthenticated',
   'error',
 ]
+
 const invitationStatuses: readonly InvitationStatus[] = ['idle', 'loading', 'error', 'accepted']
 
 function everyCombination(hydrated: boolean): InvitationViewInput[] {

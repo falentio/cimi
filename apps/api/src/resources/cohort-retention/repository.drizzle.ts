@@ -36,7 +36,9 @@ export class CohortRepositoryDrizzle implements CohortRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toCohort(row.cohort, row.version)
   }
 
@@ -46,6 +48,7 @@ export class CohortRepositoryDrizzle implements CohortRepository {
     if ((await this.findById({ siteId: input.siteId, cohortId: input.cohortId })) === undefined) {
       return undefined
     }
+
     const rows = await this.deps.db
       .select({ cohort: schema.TCohort, version: schema.TCohortVersion })
       .from(schema.TCohort)
@@ -65,12 +68,15 @@ export class CohortRepositoryDrizzle implements CohortRepository {
       )
       .orderBy(desc(schema.TCohortVersion.effectiveAt), desc(schema.TCohortVersion.version))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toCohort(row.cohort, row.version)
   }
 
   async findMany(input: CohortRepository.ListInput): Promise<CohortRepository.ListResult> {
     const where = and(eq(schema.TCohort.siteId, input.siteId), liveSite(this.deps.db))
+
     const [countRow] = await this.deps.db
       .select({ count: count() })
       .from(schema.TCohort)
@@ -82,6 +88,7 @@ export class CohortRepositoryDrizzle implements CohortRepository {
         ),
       )
       .where(where)
+
     const rows = await this.deps.db
       .select({ cohort: schema.TCohort, version: schema.TCohortVersion })
       .from(schema.TCohort)
@@ -96,7 +103,9 @@ export class CohortRepositoryDrizzle implements CohortRepository {
       .orderBy(asc(schema.TCohort.createdAt), asc(schema.TCohort.id))
       .limit(input.limit + 1)
       .offset(input.offset)
+
     const hasMore = rows.length > input.limit
+
     return {
       items: rows.slice(0, input.limit).map((row) => toCohort(row.cohort, row.version)),
       nextOffset: hasMore ? input.offset + input.limit : null,
@@ -136,7 +145,9 @@ export class CohortRepositoryDrizzle implements CohortRepository {
         })
         .run()
       const row = selectCurrent(tx, input.siteId, input.id)
+
       if (row === undefined) throw new Error('Cohort insert returned no row')
+
       return toCohort(row.cohort, row.version)
     })
   }
@@ -145,11 +156,13 @@ export class CohortRepositoryDrizzle implements CohortRepository {
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectCurrent(tx, input.siteId, input.cohortId)
+
       if (current === undefined) {
         return rawExists(tx, input.siteId, input.cohortId)
           ? { status: 'conflict' }
           : { status: 'not-found' }
       }
+
       if (current.cohort.status !== 'active') return { status: 'conflict' }
       const version = current.cohort.currentVersion + 1
       tx.insert(schema.TCohortVersion)
@@ -177,7 +190,9 @@ export class CohortRepositoryDrizzle implements CohortRepository {
         .where(and(eq(schema.TCohort.id, input.cohortId), eq(schema.TCohort.siteId, input.siteId)))
         .run()
       const row = selectCurrent(tx, input.siteId, input.cohortId)
+
       if (row === undefined) throw new Error('Cohort update returned no row')
+
       return { status: 'updated', cohort: toCohort(row.cohort, row.version) }
     })
   }
@@ -186,18 +201,22 @@ export class CohortRepositoryDrizzle implements CohortRepository {
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectCurrent(tx, input.siteId, input.cohortId)
+
       if (current === undefined) {
         return rawExists(tx, input.siteId, input.cohortId)
           ? { status: 'conflict' }
           : { status: 'not-found' }
       }
+
       if (current.cohort.status !== 'active') return { status: 'conflict' }
       tx.update(schema.TCohort)
         .set({ status: 'archived', updatedAt: input.now })
         .where(and(eq(schema.TCohort.id, input.cohortId), eq(schema.TCohort.siteId, input.siteId)))
         .run()
       const row = selectCurrent(tx, input.siteId, input.cohortId)
+
       if (row === undefined) throw new Error('Cohort archive returned no row')
+
       return { status: 'updated', cohort: toCohort(row.cohort, row.version) }
     })
   }
@@ -238,6 +257,7 @@ function assertActiveSite(tx: SqliteTransaction, siteId: string): void {
     )
     .limit(1)
     .all()
+
   if (rows.length === 0) throw new ORPCError('NOT_FOUND')
 }
 
@@ -279,6 +299,7 @@ function toCohort(
     identityKind: version.identityKind,
     period: version.period,
   })
+
   return {
     id: row.id,
     siteId: row.siteId,

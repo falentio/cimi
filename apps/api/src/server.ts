@@ -34,9 +34,11 @@ export async function createApiServerApp(
   let cfg!: ReturnType<typeof loadConfig>
   let controlDbPath!: string
   let db!: ReturnType<typeof createDb>
+
   try {
     cfg = loadConfig(env)
     configureNodeLogging(options.logging ?? cfg.logging)
+
     if (!isDirectory(cfg.dataDir)) {
       throw new Error('Configured data directory is not ready')
     }
@@ -46,12 +48,14 @@ export async function createApiServerApp(
     db = createDb({ path: controlDbPath })
   } catch (error) {
     reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
+
     if (db !== undefined) closeDb(db)
     throw error
   }
 
   try {
     migrateControlDb(db, { migrationsFolder: options.migrationsFolder })
+
     const analytics = await createAnalyticsDb({
       path: join(cfg.dataDir, ANALYTICS_DB_FILENAME),
     })
@@ -62,8 +66,9 @@ export async function createApiServerApp(
         schema: schema.betterAuthSchema,
         baseURL: cfg.baseUrl,
         secret: cfg.authSecret,
-        ...(cfg.isDev ? { trustedOrigins: ['http://localhost:*', 'http://*.localhost:*'] } : {}),
+        ...(cfg.isDev && { trustedOrigins: ['http://localhost:*', 'http://*.localhost:*'] }),
       })
+
       const app = createApiApp({
         db,
         auth,
@@ -76,21 +81,25 @@ export async function createApiServerApp(
         migrationsFolder: options.migrationsFolder,
         eventIngestionTrustProxyHeaders: cfg.eventIngestion.trustProxyHeaders,
       })
+
       const closeApiApp = app.close.bind(app)
+
       const shutdown = createApiServerShutdown({
         closeComposition: closeApiApp,
         closeAnalytics: () => analytics.close(),
         closeControlDb: () => closeDb(db),
       })
+
       let closePromise: Promise<void> | undefined
 
       return Object.assign(app, {
         close(): Promise<void> {
           if (closePromise !== undefined) return closePromise
-          closePromise = closeResources().catch((error: unknown) => {
+          closePromise = closeResources().catch((cause: unknown) => {
             closePromise = undefined
-            throw error
+            throw cause
           })
+
           return closePromise
         },
       })
@@ -109,6 +118,7 @@ export async function createApiServerApp(
           error: cleanupError,
         })
       }
+
       throw error
     }
   } catch (error) {
@@ -130,10 +140,12 @@ let apiAppPromise: Promise<ApiServerApp> | undefined
 
 export function getApiApp(): Promise<ApiServerApp> {
   apiAppPromise ??= createApiServerApp()
+
   return apiAppPromise
 }
 
 export function closeApiApp(): Promise<void> {
   if (apiAppPromise === undefined) return Promise.resolve()
+
   return apiAppPromise.then((app) => app.close())
 }

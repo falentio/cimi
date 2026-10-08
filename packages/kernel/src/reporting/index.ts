@@ -5,15 +5,21 @@ export {
   type ReportingAdmissionErrorCode,
   type ReportingAdmissionErrorReason,
 } from './errors.ts'
+
 export { ReportingAdmissionService } from './admission.ts'
+
 export * from './query/index.ts'
+
 export { defaultFactWorkEstimator, estimateFactWork, FACT_WORK_WEIGHTS } from './fact-work.ts'
+
 export { checkRetentionCoverage } from './retention.ts'
+
 export {
   findRelevantProjectionGap,
   resolvePeriodSequence,
   resolveReportPeriods,
 } from './interval.ts'
+
 export type {
   FactWorkPort,
   ReportingAdmissionDependencies,
@@ -26,6 +32,7 @@ export type {
   ReportingRetentionPort,
   ReportingStatisticsPort,
 } from './ports.ts'
+
 export {
   calendarDateParts,
   calendarDateValue,

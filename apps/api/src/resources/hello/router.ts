@@ -2,6 +2,7 @@ import { api, authenticatedApi } from '../../orpc.ts'
 import type { HelloService } from './service.ts'
 
 const helloApi = api.hello
+
 const authenticatedHelloApi = authenticatedApi.hello
 
 export function helloRouter(service: HelloService) {

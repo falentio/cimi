@@ -9,6 +9,7 @@ import type {
 } from '@/components/features/organization-settings/organization-settings.types'
 
 const { activeOrganizationId } = useWorkspaceSelection()
+
 const {
   snapshot,
   isMutating,
@@ -23,10 +24,12 @@ const {
   section: 'members',
   organizationId: activeOrganizationId,
 })
+
 const createdInvitation = shallowRef<CreatedInvitation | undefined>()
 
 async function handleCreateInvitation(role: EditableMemberRole): Promise<void> {
   createdInvitation.value = undefined
+
   try {
     createdInvitation.value = await createInvitation(role)
   } catch {

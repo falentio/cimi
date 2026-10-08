@@ -28,6 +28,7 @@ describe('bridgeLegacyControlDb.atomicity', () => {
   it('leaves the file-backed source untouched when the staged migration fails', () => {
     const path = createLegacyFileDb(dir)
     const db = createDb({ path })
+
     try {
       const corruptedFolder = createCorruptedMigrationsFolder(join(dir, 'workspace'))
       expect(() => migrateControlDb(db, { migrationsFolder: corruptedFolder })).toThrow()
@@ -59,6 +60,7 @@ describe('bridgeLegacyControlDb.atomicity', () => {
 
   it('keeps an in-memory handle serving old data when the staged migration fails', () => {
     const db = createLegacyMemoryDb()
+
     try {
       const corruptedFolder = createCorruptedMigrationsFolder(join(dir, 'workspace'))
       expect(() => migrateControlDb(db, { migrationsFolder: corruptedFolder })).toThrow()
@@ -81,6 +83,7 @@ describe('bridgeLegacyControlDb.atomicity', () => {
   it('leaves no staging or recovery artifacts beside the source after a failed retry', () => {
     const path = createLegacyFileDb(dir)
     const db = createDb({ path })
+
     try {
       const corruptedFolder = createCorruptedMigrationsFolder(join(dir, 'workspace'))
       expect(() => migrateControlDb(db, { migrationsFolder: corruptedFolder })).toThrow()

@@ -12,7 +12,9 @@ import {
 } from '../../schema/index.ts'
 
 export const STrafficSiteFields = v.strictObject({ siteId: SId })
+
 export const STrafficAbsoluteDateTime = v.pipe(v.string(), v.isoTimestamp())
+
 export const STrafficMetric = v.picklist([
   'visitors',
   'sessions',
@@ -27,6 +29,7 @@ const STrafficTrendPointCommon = {
   value: SNonNegativeNumber,
   complete: v.boolean(),
 }
+
 export const SMetricPoint = v.variant('metric', [
   v.strictObject({
     ...STrafficTrendPointCommon,
@@ -80,6 +83,7 @@ export const AUTHENTICATED_REPORT_BUCKET_LIMITS = {
   month: 36,
   year: 10,
 } as const
+
 export const MAX_AUTHENTICATED_REPORT_OUTPUT_BUCKETS = Math.max(
   ...Object.values(AUTHENTICATED_REPORT_BUCKET_LIMITS),
 )
@@ -98,6 +102,7 @@ export type TrafficReportFamily = Extract<ReportFactWorkFamily, 'aggregate' | 'b
 const getInclusiveDayCount = (fromDate: string, toDate: string) => {
   const from = Date.parse(`${fromDate}T00:00:00Z`)
   const to = Date.parse(`${toDate}T00:00:00Z`)
+
   return Number.isFinite(from) && Number.isFinite(to) && to >= from
     ? Math.floor((to - from) / (24 * 60 * 60 * 1000)) + 1
     : 0
@@ -146,6 +151,7 @@ const STrafficOverviewPeriod = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const STrafficOverview = v.pipe(
   v.strictObject(
     v.entriesFromObjects([
@@ -163,6 +169,7 @@ export const STrafficOverview = v.pipe(
     VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
+
 export const STrafficBreakdownFields = v.strictObject({
   siteId: SId,
   dimension: v.picklist([
@@ -179,6 +186,7 @@ export const STrafficBreakdownFields = v.strictObject({
     'city',
   ]),
 })
+
 const STrafficBreakdownPage = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -200,6 +208,7 @@ const STrafficBreakdownPage = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const STrafficBreakdown = v.strictObject(
   v.entriesFromObjects([
     STrafficBreakdownPage,

@@ -18,6 +18,7 @@ import {
 import { createApiE2eFixture, E2ePollingTimeoutError } from './fixture.ts'
 
 type InstallationInitializeInput = InferOutput<typeof schema.SInstallationInitializeFields>
+
 type BackupRestoreInput = InferOutput<typeof schema.SBackupRestoreInput>
 
 test('initializes convergently and rejects strict or divergent inputs without mutation', async () => {
@@ -28,7 +29,7 @@ test('initializes convergently and rejects strict or divergent inputs without mu
     call(fixture.router.installation.getInstallationStatus, {}, { context: await admin.context() }),
   ).rejects.toMatchObject({ code: 'NOT_FOUND' })
 
-  const invalidInput = { unexpected: true } as unknown as InstallationInitializeInput
+  const invalidInput = JSON.parse('{"unexpected":true}')
   await expect(
     call(fixture.router.installation.initializeInstallation, invalidInput, {
       context: await admin.context(),
@@ -40,6 +41,7 @@ test('initializes convergently and rejects strict or divergent inputs without mu
     {},
     { context: await admin.context() },
   )
+
   expect(created.status).toBe(201)
   expect(created.body).toMatchObject({
     status: 'ready',
@@ -52,12 +54,14 @@ test('initializes convergently and rejects strict or divergent inputs without mu
     {},
     { context: await admin.context() },
   )
+
   expect(reused.status).toBe(200)
   expect(reused.body).toEqual(created.body)
 
   const divergent: InstallationInitializeInput = {
     defaultRetention: { eventMonths: 24, profileMonths: 18, replayMonths: 6 },
   }
+
   await expect(
     call(fixture.router.installation.initializeInstallation, divergent, {
       context: await admin.context(),
@@ -69,12 +73,14 @@ test('initializes convergently and rejects strict or divergent inputs without mu
     {},
     { context: await admin.context() },
   )
+
   expect(afterRejectedInitialization).toEqual(created.body)
 })
 
 test('enforces admin authorization across lifecycle procedures without mutation', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('authorization-admin@example.com', 'Authorization Admin')
+
   const member = await fixture.createUser(
     'authorization-member@example.com',
     'Authorization Member',
@@ -85,6 +91,7 @@ test('enforces admin authorization across lifecycle procedures without mutation'
     {},
     { context: await admin.context() },
   )
+
   const before = await call(
     fixture.router.installation.getInstallationStatus,
     {},
@@ -128,6 +135,7 @@ test('enforces admin authorization across lifecycle procedures without mutation'
     {},
     { context: await admin.context() },
   )
+
   expect(after).toEqual(before)
   expect(created.body).toEqual(before)
 })
@@ -140,11 +148,13 @@ test('persists scoped retention and collection policy inheritance', async () => 
     {},
     { context: await admin.context() },
   )
+
   const organization = await call(
     fixture.router.organization.createOrganization,
     { name: 'Policy Organization' },
     { context: await admin.context() },
   )
+
   const site = await call(
     fixture.router.site.createSite,
     {
@@ -154,6 +164,7 @@ test('persists scoped retention and collection policy inheritance', async () => 
     },
     { context: await admin.context() },
   )
+
   const installationRetention = { eventMonths: 18, profileMonths: 12, replayMonths: 6 }
   const siteRetention = { eventMonths: 24, profileMonths: 18, replayMonths: 12 }
 
@@ -162,12 +173,15 @@ test('persists scoped retention and collection policy inheritance', async () => 
     { scope: 'installation', policy: installationRetention },
     { context: await admin.context() },
   )
+
   expect(savedInstallationRetention.effectivePolicy).toEqual(installationRetention)
+
   const savedSiteRetention = await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     { scope: 'site', siteId: site.id, policy: siteRetention },
     { context: await admin.context() },
   )
+
   expect(savedSiteRetention.effectivePolicy).toEqual(siteRetention)
   await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
@@ -203,11 +217,13 @@ test('persists scoped retention and collection policy inheritance', async () => 
     profileFilterKeys: [],
     exclusions: { hostnames: [], paths: [], countries: [], ipRanges: [] },
   }
+
   await call(
     fixture.router.collectionPolicy.updateCollectionPolicy,
     { scope: 'installation', policy: installationCollection },
     { context: await admin.context() },
   )
+
   const siteCollection = await call(
     fixture.router.collectionPolicy.updateCollectionPolicy,
     {
@@ -216,16 +232,19 @@ test('persists scoped retention and collection policy inheritance', async () => 
     },
     { context: await admin.context() },
   )
+
   expect(siteCollection).toMatchObject({
     scope: 'site',
     siteId: site.id,
     captureQueryStrings: false,
   })
+
   const effectiveCollection = await call(
     fixture.router.collectionPolicy.getCollectionPolicy,
     { siteId: site.id },
     { context: await admin.context() },
   )
+
   expect(effectiveCollection).toMatchObject({
     siteOverride: { scope: 'site', siteId: site.id, captureQueryStrings: false },
     effective: { scope: 'site', siteId: site.id, captureQueryStrings: false },
@@ -236,11 +255,13 @@ test('persists scoped retention and collection policy inheritance', async () => 
     { scope: 'site', policy: { siteId: site.id, clear: true } },
     { context: await admin.context() },
   )
+
   const clearedCollection = await call(
     fixture.router.collectionPolicy.getCollectionPolicy,
     { siteId: site.id },
     { context: await admin.context() },
   )
+
   expect(clearedCollection).toMatchObject({
     siteOverride: null,
     effective: { scope: 'site', siteId: site.id, captureQueryStrings: true },
@@ -253,20 +274,24 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
     startRetentionCleanupWorker: true,
     retentionCleanupIntervalMs: 50,
   })
+
   const admin = await fixture.createUser(
     'retention-worker-admin@example.com',
     'Retention Worker Admin',
   )
+
   await call(
     fixture.router.installation.initializeInstallation,
     {},
     { context: await admin.context() },
   )
+
   const organization = await call(
     fixture.router.organization.createOrganization,
     { name: 'Retention Worker Organization' },
     { context: await admin.context() },
   )
+
   const site = await call(
     fixture.router.site.createSite,
     {
@@ -276,6 +301,7 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
     },
     { context: await admin.context() },
   )
+
   const eventId = 'evt_retention_worker'
   const expiredAt = new Date(Date.now() - 62 * 24 * 60 * 60 * 1000)
   await call(
@@ -295,6 +321,7 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
 
   let started: { readonly id: string }
   const createBackupDeadline = Date.now() + 10_000
+
   for (;;) {
     try {
       started = await call(
@@ -304,16 +331,22 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
       )
       break
     } catch (error) {
-      if ((error as { code?: string }).code !== 'CONFLICT' || Date.now() > createBackupDeadline) {
+      if (
+        !(error instanceof Error && 'code' in error && error.code === 'CONFLICT') ||
+        Date.now() > createBackupDeadline
+      ) {
         throw error
       }
+
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
   }
+
   const backup = await waitForBackupTrace(fixture, admin, started.id)
   assertAvailableBackup(backup.terminal)
 
   const savePolicyDeadline = Date.now() + 10_000
+
   for (;;) {
     try {
       await call(
@@ -326,9 +359,13 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
       )
       break
     } catch (error) {
-      if ((error as { code?: string }).code !== 'CONFLICT' || Date.now() > savePolicyDeadline) {
+      if (
+        !(error instanceof Error && 'code' in error && error.code === 'CONFLICT') ||
+        Date.now() > savePolicyDeadline
+      ) {
         throw error
       }
+
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
   }
@@ -353,6 +390,7 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
     timeoutMs: 5_000,
     label: 'retention cleanup worker',
   })
+
   expect(cleanup.cleanup).toMatchObject({
     pending: false,
     derived: { status: 'completed' },
@@ -362,6 +400,7 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
   await fixture.stop()
 
   const controlDb = createDb({ path: fixture.controlDatabasePath })
+
   try {
     expect(
       controlDb.$client
@@ -375,6 +414,7 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
   const backupDb = createDb({
     path: join(fixture.dataDirectoryPath, 'backups', `${backup.terminal.id}.sqlite`),
   })
+
   try {
     expect(
       backupDb.$client
@@ -389,6 +429,7 @@ test('recovers retention cleanup across SQLite, DuckDB, and backup artifacts', a
     path: fixture.paths.analyticsDatabasePath,
     tempDirectory: fixture.paths.analyticsTempDirectoryPath,
   })
+
   try {
     await expect(
       analytics.readWindowed((reader) =>
@@ -408,16 +449,16 @@ test('rejects wrong lifecycle confirmation before creating an operation', async 
     {},
     { context: await admin.context() },
   )
+
   const before = await call(
     fixture.router.installation.getInstallationStatus,
     {},
     { context: await admin.context() },
   )
-  const wrongUpgrade = { confirmation: 'WRONG' } as unknown as { confirmation: 'UPGRADE' }
-  const wrongRestore = {
-    backupId: 'bop_missing',
-    confirmation: 'WRONG',
-  } as unknown as BackupRestoreInput
+
+  const wrongUpgrade = JSON.parse('{"confirmation":"WRONG"}')
+
+  const wrongRestore = JSON.parse('{"backupId":"bop_missing","confirmation":"WRONG"}')
 
   await expect(
     call(fixture.router.installation.upgradeInstallation, wrongUpgrade, {
@@ -435,6 +476,7 @@ test('rejects wrong lifecycle confirmation before creating an operation', async 
     {},
     { context: await admin.context() },
   )
+
   expect(after).toEqual(before)
 })
 
@@ -448,11 +490,13 @@ test('holds a real upgrade, exposes accepted state, and preserves operation owne
   )
 
   const gate = fixture.faults.hold({ domain: 'upgrade', stage: 'migrate' })
+
   const started = await call(
     fixture.router.installation.upgradeInstallation,
     { confirmation: 'UPGRADE' },
     { context: await admin.context() },
   )
+
   expect(started).toMatchObject({
     status: 'maintenance',
     activeOperation: {
@@ -477,6 +521,7 @@ test('holds a real upgrade, exposes accepted state, and preserves operation owne
       }),
     }),
   )
+
   expect(httpAdmission.status).toBe(503)
   await expect(httpAdmission.json()).resolves.toMatchObject({
     code: 'SERVICE_UNAVAILABLE',
@@ -488,6 +533,7 @@ test('holds a real upgrade, exposes accepted state, and preserves operation owne
     {},
     { context: await admin.context() },
   )
+
   expect(held).toMatchObject({ status: 'maintenance', activeOperation: { kind: 'upgrade' } })
   await expect(
     call(
@@ -549,6 +595,7 @@ test('reaches degraded upgrade state through real migration-history validation a
     { confirmation: 'UPGRADE' },
     { context: await admin.context() },
   )
+
   expect(started.status).toBe('maintenance')
   const degraded = await waitForInstallationTerminal(fixture, admin, 'degraded')
   expect(degraded).toMatchObject({
@@ -557,11 +604,13 @@ test('reaches degraded upgrade state through real migration-history validation a
   })
 
   fixture.state.repairMigrationHistory()
+
   const retry = await call(
     fixture.router.installation.upgradeInstallation,
     { confirmation: 'UPGRADE' },
     { context: await admin.context() },
   )
+
   expect(retry.status).toBe('maintenance')
   await expect(waitForInstallationTerminal(fixture, admin, 'ready')).resolves.toMatchObject({
     status: 'ready',
@@ -587,6 +636,7 @@ test('reports backup failure, retries, lists pages, and preserves the source acr
     {},
     { context: await admin.context() },
   )
+
   const failed = await waitForBackupTrace(fixture, admin, failedStarted.id)
   expect(failed.terminal).toMatchObject({ status: 'failed', errorCode: 'BACKUP_FAILED' })
   assertCheckpointMonotonic(failed)
@@ -597,6 +647,7 @@ test('reports backup failure, retries, lists pages, and preserves the source acr
     {},
     { context: await admin.context() },
   )
+
   const firstTrace = await waitForBackupTrace(fixture, admin, firstStarted.id)
   assertCheckpointMonotonic(firstTrace)
   assertProgressMonotonic(firstTrace)
@@ -608,6 +659,7 @@ test('reports backup failure, retries, lists pages, and preserves the source acr
     {},
     { context: await admin.context() },
   )
+
   const secondTrace = await waitForBackupTrace(fixture, admin, secondStarted.id)
   assertCheckpointMonotonic(secondTrace)
   assertProgressMonotonic(secondTrace)
@@ -618,14 +670,17 @@ test('reports backup failure, retries, lists pages, and preserves the source acr
     { offset: 0, limit: 1 },
     { context: await admin.context() },
   )
+
   expect(firstPage.items).toHaveLength(1)
   expect(firstPage.hasMore).toBe(true)
   expect(firstPage.nextOffset).toBe(1)
+
   const secondPage = await call(
     fixture.router.backupRestore.listBackups,
     { offset: firstPage.nextOffset ?? 1, limit: 1 },
     { context: await admin.context() },
   )
+
   expect(secondPage.items).toHaveLength(1)
   expect(secondPage.totalCount).toBe(3)
 
@@ -635,11 +690,13 @@ test('reports backup failure, retries, lists pages, and preserves the source acr
   expect(existsSync(root)).toBe(true)
   expect(existsSync(paths.controlDatabasePath)).toBe(true)
   await fixture.restart()
+
   const afterRestart = await call(
     fixture.router.backupRestore.getBackupStatus,
     { backupId: firstTrace.terminal.id },
     { context: await admin.context() },
   )
+
   expect(afterRestart).toMatchObject({ id: firstTrace.terminal.id, status: 'available' })
 })
 
@@ -651,11 +708,13 @@ test('detects a corrupted backup artifact after restart', async () => {
     {},
     { context: await admin.context() },
   )
+
   const started = await call(
     fixture.router.backupRestore.createBackup,
     {},
     { context: await admin.context() },
   )
+
   const backup = await waitForBackupTrace(fixture, admin, started.id)
   assertAvailableBackup(backup.terminal)
 
@@ -688,23 +747,28 @@ test('rejects an incompatible restore manifest before creating a restore operati
     {},
     { context: await admin.context() },
   )
+
   const backupStarted = await call(
     fixture.router.backupRestore.createBackup,
     {},
     { context: await admin.context() },
   )
+
   const backup = await waitForBackupTrace(fixture, admin, backupStarted.id)
   assertCheckpointMonotonic(backup)
   assertProgressMonotonic(backup)
   assertAvailableBackup(backup.terminal)
+
   const incompatible = await fixture.state.createIncompatibleManifestVariant({
     sourceBackupId: backup.terminal.id,
   })
+
   const before = await call(
     fixture.router.installation.getInstallationStatus,
     {},
     { context: await admin.context() },
   )
+
   const beforeCount = (
     await call(
       fixture.router.backupRestore.listBackups,
@@ -717,6 +781,7 @@ test('rejects an incompatible restore manifest before creating a restore operati
     backupId: incompatible.backupId,
     confirmation: 'RESTORE',
   } satisfies BackupRestoreInput
+
   await expect(
     call(fixture.router.backupRestore.restoreBackup, invalidRestore, {
       context: await admin.context(),
@@ -728,6 +793,7 @@ test('rejects an incompatible restore manifest before creating a restore operati
     {},
     { context: await admin.context() },
   )
+
   const afterCount = (
     await call(
       fixture.router.backupRestore.listBackups,
@@ -735,6 +801,7 @@ test('rejects an incompatible restore manifest before creating a restore operati
       { context: await admin.context() },
     )
   ).totalCount
+
   expect(after).toEqual(before)
   expect(afterCount).toBe(beforeCount)
 })
@@ -749,17 +816,21 @@ test('reports restore checkpoints, readiness, safety, cleanup, and policy rollba
   )
   const originalPolicy = { eventMonths: 18, profileMonths: 12, replayMonths: 6 }
   const changedPolicy = { eventMonths: 24, profileMonths: 18, replayMonths: 6 }
+
   const savedOriginal = await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     { scope: 'installation', policy: originalPolicy },
     { context: await admin.context() },
   )
+
   expect(savedOriginal.effectivePolicy).toEqual(originalPolicy)
+
   const backupStarted = await call(
     fixture.router.backupRestore.createBackup,
     {},
     { context: await admin.context() },
   )
+
   const backup = await waitForBackupTrace(fixture, admin, backupStarted.id)
   assertCheckpointMonotonic(backup)
   assertProgressMonotonic(backup)
@@ -770,13 +841,16 @@ test('reports restore checkpoints, readiness, safety, cleanup, and policy rollba
     { scope: 'installation', policy: changedPolicy },
     { context: await admin.context() },
   )
+
   expect(savedChanged.effectivePolicy).toEqual(changedPolicy)
   const gate = fixture.faults.hold({ domain: 'restore', stage: 'restoreSqlite' })
+
   const restoreStarted = await call(
     fixture.router.backupRestore.restoreBackup,
     { backupId: backup.terminal.id, confirmation: 'RESTORE' },
     { context: await admin.context() },
   )
+
   expect(restoreStarted).toMatchObject({
     id: expect.any(String),
     status: 'creating',
@@ -785,11 +859,13 @@ test('reports restore checkpoints, readiness, safety, cleanup, and policy rollba
     preRestoreSafetyArtifact: null,
   })
   await gate.entered
+
   const intermediate = await call(
     fixture.router.backupRestore.getBackupStatus,
     { backupId: restoreStarted.id },
     { context: await admin.context() },
   )
+
   expect(intermediate).toMatchObject({
     status: 'restoring',
     phase: 'restoring_sqlite',
@@ -805,17 +881,21 @@ test('reports restore checkpoints, readiness, safety, cleanup, and policy rollba
   assertAvailableBackup(restored.terminal)
   assertCleanupSettled(restored.terminal)
   assertRestoreSafety(restored.terminal, backup.terminal.id)
+
   const policyAfterRestore = await call(
     fixture.router.retentionPolicy.getRetentionPolicy,
     { scope: 'installation' },
     { context: await admin.context() },
   )
+
   expect(policyAfterRestore.effectivePolicy).toEqual(originalPolicy)
+
   const backupsAfterRestore = await call(
     fixture.router.backupRestore.listBackups,
     { offset: 0, limit: 20 },
     { context: await admin.context() },
   )
+
   expect(backupsAfterRestore.items).toContainEqual(
     expect.objectContaining({ id: backup.terminal.id, status: 'available' }),
   )
@@ -829,15 +909,18 @@ test('rolls back a staged incompatible restore and retries from a valid source',
     {},
     { context: await admin.context() },
   )
+
   const sourceStarted = await call(
     fixture.router.backupRestore.createBackup,
     {},
     { context: await admin.context() },
   )
+
   const source = await waitForBackupTrace(fixture, admin, sourceStarted.id)
   assertCheckpointMonotonic(source)
   assertProgressMonotonic(source)
   assertAvailableBackup(source.terminal)
+
   const incompatible = await fixture.state.createIncompatibleBackupVariant({
     sourceBackupId: source.terminal.id,
   })
@@ -847,6 +930,7 @@ test('rolls back a staged incompatible restore and retries from a valid source',
     { backupId: incompatible.backupId, confirmation: 'RESTORE' },
     { context: await admin.context() },
   )
+
   const failed = await waitForBackupTrace(fixture, admin, failedStarted.id)
   assertCheckpointMonotonic(failed)
   assertProgressMonotonic(failed)
@@ -860,6 +944,7 @@ test('rolls back a staged incompatible restore and retries from a valid source',
     { backupId: source.terminal.id, confirmation: 'RESTORE' },
     { context: await admin.context() },
   )
+
   const retry = await waitForBackupTrace(fixture, admin, retryStarted.id)
   assertCheckpointMonotonic(retry)
   assertProgressMonotonic(retry)
@@ -875,11 +960,13 @@ test('retries cleanup failures in order and clears cleanupPending', async () => 
     {},
     { context: await admin.context() },
   )
+
   const backupStarted = await call(
     fixture.router.backupRestore.createBackup,
     {},
     { context: await admin.context() },
   )
+
   const backup = await waitForBackupTrace(fixture, admin, backupStarted.id)
   assertCheckpointMonotonic(backup)
   assertProgressMonotonic(backup)
@@ -892,11 +979,13 @@ test('retries cleanup failures in order and clears cleanupPending', async () => 
     { domain: 'cleanup', stage: 'backupCleanup' },
     { kind: 'throw', error: 'internal' },
   )
+
   const restoreStarted = await call(
     fixture.router.backupRestore.restoreBackup,
     { backupId: backup.terminal.id, confirmation: 'RESTORE' },
     { context: await admin.context() },
   )
+
   const restored = await fixture.waitFor({
     read: async () =>
       call(
@@ -908,11 +997,13 @@ test('retries cleanup failures in order and clears cleanupPending', async () => 
     operationId: restoreStarted.id,
     label: 'restore completion before cleanup',
   })
+
   expect(restored).toMatchObject({
     status: 'available',
     phase: 'cleanup_pending',
     cleanupPending: true,
   })
+
   const failedDerived = await fixture.waitFor({
     read: async () =>
       call(
@@ -924,8 +1015,10 @@ test('retries cleanup failures in order and clears cleanupPending', async () => 
     operationId: restoreStarted.id,
     label: 'failed derived cleanup',
   })
+
   expect(failedDerived.cleanupPending).toBe(true)
   expect(failedDerived.backupCleanup.status).toBe('pending')
+
   const failedBackup = await fixture.waitFor({
     read: async () =>
       call(
@@ -937,7 +1030,9 @@ test('retries cleanup failures in order and clears cleanupPending', async () => 
     operationId: restoreStarted.id,
     label: 'failed backup cleanup',
   })
+
   expect(failedBackup.derivedCleanup.status).toBe('completed')
+
   const settled = await fixture.waitFor({
     read: async () =>
       call(
@@ -949,6 +1044,7 @@ test('retries cleanup failures in order and clears cleanupPending', async () => 
     operationId: restoreStarted.id,
     label: 'settled cleanup',
   })
+
   expect(settled.derivedCleanup.status).toBe('completed')
   expect(settled.backupCleanup.status).toBe('completed')
 })
@@ -982,11 +1078,13 @@ test('recovers interrupted backup and restore operations after reopening files',
     {},
     { context: await admin.context() },
   )
+
   const sourceStarted = await call(
     fixture.router.backupRestore.createBackup,
     {},
     { context: await admin.context() },
   )
+
   const source = await waitForBackupTrace(fixture, admin, sourceStarted.id)
   assertCheckpointMonotonic(source)
   assertProgressMonotonic(source)
@@ -1018,6 +1116,7 @@ test('recovers interrupted backup and restore operations after reopening files',
 
 test('closes resources before removing the root and makes disposal idempotent', async () => {
   const fixture = await createApiE2eFixture()
+
   try {
     const root = fixture.rootDirectory
     expect(existsSync(fixture.controlDatabasePath)).toBe(true)
@@ -1033,12 +1132,14 @@ test('closes resources before removing the root and makes disposal idempotent', 
 
 test('continues fixture cleanup after a composition close failure', async () => {
   let failed = false
+
   const fixture = await createApiE2eFixture({
     wrapCompositionClose(composition) {
       return {
         ...composition,
         async close() {
           await composition.close()
+
           if (failed) return
           failed = true
           throw new Error('composition close failed')
@@ -1046,6 +1147,7 @@ test('continues fixture cleanup after a composition close failure', async () => 
       }
     },
   })
+
   const root = fixture.rootDirectory
 
   await expect(fixture.close()).rejects.toBeInstanceOf(AggregateError)

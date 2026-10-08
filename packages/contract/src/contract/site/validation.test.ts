@@ -23,6 +23,7 @@ describe('site hostname contract', () => {
       reportingTimezone: 'UTC',
       weekStartsOn: 'monday',
     })
+
     const site = v.parse(SSite, {
       id: 'ste-1',
       organizationId: 'org-1',

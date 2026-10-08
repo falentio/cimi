@@ -19,6 +19,7 @@ import type {
 } from './site-settings.types'
 
 const SITE_SETTINGS_QUERY_KEY = ['site-settings'] as const
+
 const WORKSPACE_QUERY_KEY = ['workspace'] as const
 
 export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsController {
@@ -27,10 +28,13 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
   const queryCache = useQueryCache()
   const resolvedSiteId = computed(() => toValue(options.siteId))
   const authenticated = computed(() => session.value.status === 'authenticated')
+
   const currentUserId = computed(() => {
     const state = session.value
+
     return state.status === 'authenticated' ? state.session.user.id : undefined
   })
+
   const siteKey = computed(() => [
     ...SITE_SETTINGS_QUERY_KEY,
     currentUserId.value ?? null,
@@ -43,6 +47,7 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
     query: ({ signal }) =>
       orpc.site.getSite.call({ siteId: requireSiteId(resolvedSiteId.value) }, { signal }),
   })
+
   const saveMutation = useMutation(orpc.site.updateSiteV2.mutationOptions())
   const deleteMutation = useMutation(orpc.site.deleteSite.mutationOptions())
   const saveState = shallowRef<SiteSaveState>({ status: 'idle' })
@@ -59,12 +64,15 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
 
   const load = computed<SiteLoadState>(() => {
     const siteId = resolvedSiteId.value
+
     if (siteId === undefined) return { status: 'idle', siteId: undefined }
 
     const site = siteQuery.data.value
     const error = siteQuery.error.value
+
     if (site?.id === siteId) {
       if (siteQuery.isLoading.value) return { status: 'refreshing', site }
+
       if (error !== null) {
         return {
           status: 'stale-error',
@@ -72,10 +80,12 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
           error: normalizeSettingsError(error, 'Site settings could not be refreshed.'),
         }
       }
+
       return { status: 'ready', site }
     }
 
     if (siteQuery.isLoading.value || error === null) return { status: 'loading', siteId }
+
     return {
       status: 'error',
       siteId,
@@ -102,6 +112,7 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
     saveState.value = { status: 'saving', draft: normalizedDraft }
 
     let site: Site
+
     try {
       site = await saveMutation.mutateAsync({ siteId, ...normalizedDraft })
     } catch (error: unknown) {
@@ -112,6 +123,7 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
           error: normalizeSettingsError(error, 'Site settings could not be saved.'),
         }
       }
+
       throw error
     }
 
@@ -156,6 +168,7 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
     deletionState.value = { status: 'submitting' }
 
     let result: Awaited<ReturnType<CimiOrpc['site']['deleteSite']['call']>>
+
     try {
       result = await deleteMutation.mutateAsync({ siteId })
     } catch (error: unknown) {
@@ -165,6 +178,7 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
           error: normalizeSettingsError(error, 'Site deletion could not be started.'),
         }
       }
+
       throw error
     }
 
@@ -195,7 +209,9 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
 
 function requireSiteId(value: SiteId | undefined): SiteId {
   const siteId = parseSiteId(value)
+
   if (siteId === undefined) throw new Error('Choose a site before loading its settings.')
+
   return siteId
 }
 

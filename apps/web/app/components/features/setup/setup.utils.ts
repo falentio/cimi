@@ -18,6 +18,7 @@ import type {
   SetupViewModel,
   UpgradeView,
 } from './setup.types'
+import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 
 type SetupErrorSource = 'status' | 'health' | 'initialize' | 'upgrade'
 
@@ -32,6 +33,7 @@ export function toInstallationResource(
   snapshot: QuerySnapshot<Installation>,
 ): InstallationResource {
   const installation = snapshot.data === undefined ? undefined : pickInstallation(snapshot.data)
+
   if (installation !== undefined && snapshot.error !== null && snapshot.error !== undefined) {
     return {
       kind: 'stale-failure',
@@ -51,20 +53,25 @@ export function toInstallationResource(
   }
 
   const details = readErrorDetails(snapshot.error)
+
   if (details.code === 'NOT_FOUND' || details.status === 404) {
     return { kind: 'not-found', httpStatus: 404 }
   }
+
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return { kind: 'unauthorized', httpStatus: 401 }
   }
+
   if (details.code === 'FORBIDDEN' || details.status === 403) {
     return { kind: 'forbidden', httpStatus: 403 }
   }
+
   return { kind: 'failure', error: mapSetupError(snapshot.error, 'status') }
 }
 
 export function toHealthResource(snapshot: QuerySnapshot<Health>): HealthResource {
   const health = snapshot.data === undefined ? undefined : pickHealth(snapshot.data)
+
   if (health !== undefined && snapshot.error !== null && snapshot.error !== undefined) {
     return {
       kind: 'stale-failure',
@@ -80,6 +87,7 @@ export function toHealthResource(snapshot: QuerySnapshot<Health>): HealthResourc
   if (snapshot.isLoading || snapshot.error === null || snapshot.error === undefined) {
     return { kind: 'loading' }
   }
+
   return { kind: 'failure', error: mapSetupError(snapshot.error, 'health') }
 }
 
@@ -125,9 +133,11 @@ export function describeHealth(
 
 export function deriveHealthView(resource: HealthResource): HealthView {
   if (resource.kind === 'loading') return resource
+
   if (resource.kind === 'failure') return resource
 
   const description = describeHealth(resource.health)
+
   if (resource.kind === 'stale-failure') {
     return {
       kind: 'stale-report',
@@ -138,6 +148,7 @@ export function deriveHealthView(resource: HealthResource): HealthView {
       action: 'refresh',
     }
   }
+
   return { kind: 'report', report: resource.health, ...description }
 }
 
@@ -146,10 +157,13 @@ export function deriveLifecycleView(
   polling: PollingView,
 ): LifecycleView {
   const operation = installation.activeOperation
+
   if (operation === null) {
     return { kind: 'idle', installationStatus: installation.status }
   }
+
   if (operation.errorCode !== null) return { kind: 'failed', operation }
+
   return { kind: 'running', operation, polling }
 }
 
@@ -158,8 +172,11 @@ export function canStartUpgrade(
   lifecycle: LifecycleView,
 ): boolean {
   if (lifecycle.kind === 'running') return false
+
   if (lifecycle.kind === 'failed' && lifecycle.operation.kind !== 'upgrade') return false
+
   if (installation.status === 'ready') return true
+
   return (
     installation.status === 'degraded' &&
     lifecycle.kind === 'failed' &&
@@ -174,20 +191,25 @@ export function deriveSetupView(input: DeriveSetupViewInput): SetupViewModel {
   if (installation.kind === 'loading') {
     return { kind: 'loading', installation, health }
   }
+
   if (installation.kind === 'unauthorized') {
     return { kind: 'auth-required', installation, health }
   }
+
   if (installation.kind === 'forbidden') {
     return { kind: 'admin-required', installation, health }
   }
+
   if (installation.kind === 'not-found') {
     return { kind: 'not-initialized', installation, health, initialization: input.initialization }
   }
+
   if (installation.kind === 'failure') {
     return { kind: 'installation-failure', installation, health }
   }
 
   const currentInstallation = installation.installation
+
   if (!isInitializedInstallation(currentInstallation)) {
     return {
       kind: 'not-initialized',
@@ -202,6 +224,7 @@ export function deriveSetupView(input: DeriveSetupViewInput): SetupViewModel {
 
   const lifecycle = deriveLifecycleView(currentInstallation, input.polling)
   const upgrade = resolveUpgradeView(currentInstallation, lifecycle, input.upgrade)
+
   return {
     kind: 'operational',
     installation: toInitializedResource(installation),
@@ -212,8 +235,9 @@ export function deriveSetupView(input: DeriveSetupViewInput): SetupViewModel {
   }
 }
 
-export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFailure {
-  const details = readErrorDetails(error)
+export function mapSetupError(cause: unknown, source: SetupErrorSource): SetupFailure {
+  const details = readErrorDetails(cause)
+
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return {
       kind: 'authentication-required',
@@ -223,6 +247,7 @@ export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFa
       action: 'sign-in',
     }
   }
+
   if (details.code === 'FORBIDDEN' || details.status === 403) {
     return {
       kind: 'admin-required',
@@ -232,6 +257,7 @@ export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFa
       action: 'contact-admin',
     }
   }
+
   if (details.code === 'CONFLICT' || details.status === 409) {
     return {
       kind: 'conflict',
@@ -241,6 +267,7 @@ export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFa
       action: 'refresh',
     }
   }
+
   if (details.code === 'INCOMPATIBLE_BACKUP') {
     return {
       kind: 'upgrade-rejected',
@@ -251,6 +278,7 @@ export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFa
       action: 'resolve-and-retry',
     }
   }
+
   if (details.code === 'INSUFFICIENT_STORAGE') {
     return {
       kind: 'upgrade-rejected',
@@ -260,6 +288,7 @@ export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFa
       action: 'resolve-and-retry',
     }
   }
+
   return {
     kind: 'retryable',
     code: details.code,
@@ -271,6 +300,7 @@ export function mapSetupError(error: unknown, source: SetupErrorSource): SetupFa
 
 export function mapInitializeResponse(response: InitializeResponse): InitializationOutcome {
   const installation = pickInstallation(response.body)
+
   if (response.status === 201) {
     return {
       kind: 'created' as const,
@@ -278,6 +308,7 @@ export function mapInitializeResponse(response: InitializeResponse): Initializat
       installation,
     }
   }
+
   return {
     kind: 'reused' as const,
     httpStatus: 200 as const,
@@ -293,9 +324,11 @@ export function getOperationFailureMessage(operation: SetupOperation): string {
   if (operation.errorCode === 'INCOMPATIBLE_BACKUP') {
     return 'The installation upgrade needs a compatible safety backup before it can continue.'
   }
+
   if (operation.errorCode === 'INSUFFICIENT_STORAGE') {
     return 'The installation upgrade needs more server storage before it can continue.'
   }
+
   return 'The lifecycle operation stopped. Refresh status and retry the action when it is safe.'
 }
 
@@ -311,6 +344,7 @@ function resolveUpgradeView(
   requested: UpgradeView,
 ): UpgradeView {
   if (requested.kind !== 'available' && requested.kind !== 'blocked') return requested
+
   if (!canStartUpgrade(installation, lifecycle)) {
     return {
       kind: 'blocked',
@@ -320,6 +354,7 @@ function resolveUpgradeView(
           : 'installation-not-ready',
     }
   }
+
   return { kind: 'available' }
 }
 
@@ -333,6 +368,7 @@ function toInitializedResource(
       error: resource.error,
     }
   }
+
   return {
     kind: resource.kind,
     installation: requireInitialized(resource.installation),
@@ -343,6 +379,7 @@ function requireInitialized(installation: SetupInstallation): InitializedInstall
   if (!isInitializedInstallation(installation)) {
     throw new Error('An uninitialized installation cannot be operational.')
   }
+
   return installation
 }
 
@@ -369,27 +406,39 @@ function pickHealth(health: Health): SetupHealth {
   }
 }
 
-function readErrorDetails(error: unknown): {
-  readonly code: string | undefined
-  readonly status: number | undefined
-} {
-  const candidates: unknown[] = [error]
-  if (isRecord(error)) {
-    candidates.push(error.data, error.error, error.cause, error.response)
+function readErrorDetails(cause: unknown) {
+  const candidates: unknown[] = [cause]
+
+  if (isRecord(cause)) {
+    candidates.push(cause.data, cause.error, cause.cause, cause.response)
   }
 
   let code: string | undefined
   let status: number | undefined
+
   for (const candidate of candidates) {
     if (!isRecord(candidate)) continue
-    if (code === undefined && typeof candidate.code === 'string') code = candidate.code
-    if (status === undefined && typeof candidate.status === 'number') status = candidate.status
-    if (status === undefined && typeof candidate.statusCode === 'number')
-      status = candidate.statusCode
+
+    if (code === undefined && isStringValue(candidate.code)) code = candidate.code
+
+    if (status === undefined && isNumberValue(candidate.status)) status = candidate.status
+
+    if (status === undefined && isNumberValue(candidate.statusCode)) status = candidate.statusCode
   }
+
   return { code, status }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface ErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
+  readonly statusCode?: unknown
+}
+
+function isRecord(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }

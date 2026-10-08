@@ -3,7 +3,9 @@ import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 import type { SettingsError } from '../../../utils/settings-error'
 
 export type Site = Awaited<ReturnType<CimiOrpc['site']['getSite']['call']>>
+
 export type SiteId = Site['id']
+
 export type SiteSettingsDraft = Pick<
   Site,
   'name' | 'hostname' | 'reportingTimezone' | 'weekStartsOn'

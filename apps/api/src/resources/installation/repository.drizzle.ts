@@ -22,9 +22,12 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.singletonKey, 'default'))
       .limit(1)
+
     const row = rows[0]
+
     if (row === undefined) return undefined
     const policy = await this.findActiveRetention(row.id)
+
     return toRecord(row, policy)
   }
 
@@ -79,13 +82,16 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         })
         .run()
       insertDefaultCollectionPolicy(tx, input.id, input.createdAt)
+
       const row = tx
         .select()
         .from(schema.TInstallation)
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (row === undefined) throw new Error('Installation insert returned no row')
+
       return toRecord(row, {
         eventMonths: input.eventMonths,
         profileMonths: input.profileMonths,
@@ -104,6 +110,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (
         current === undefined ||
         current.status !== 'uninitialized' ||
@@ -125,9 +132,11 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         )
         .limit(1)
         .all()[0]
+
       if (activePolicy !== undefined && !sameRetention(activePolicy, input.retention)) {
         return undefined
       }
+
       if (activePolicy === undefined) {
         tx.insert(schema.TRetentionPolicy)
           .values({
@@ -148,6 +157,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           })
           .run()
       }
+
       if (selectActiveCollectionPolicy(tx, current.id) === undefined) {
         insertDefaultCollectionPolicy(tx, current.id, input.updatedAt)
       }
@@ -170,6 +180,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) return undefined
 
       const row = tx
@@ -178,7 +189,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (row === undefined) throw new Error('Installation activation returned no row')
+
       return toRecord(row, activePolicy ?? input.retention)
     })
   }
@@ -193,7 +206,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (current === undefined) throw new Error('Installation is not initialized')
+
       const updated = tx
         .update(schema.TInstallation)
         .set({
@@ -219,6 +234,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) throw new Error('Installation lifecycle operation is active')
       tx.insert(schema.TBackupOperation)
         .values({
@@ -243,13 +259,16 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ownerToken: input.ownerToken,
         })
         .run()
+
       const row = tx
         .select()
         .from(schema.TInstallation)
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (row === undefined) throw new Error('Installation upgrade returned no row')
+
       return toRecord(row, selectActiveRetention(tx, row.id))
     })
   }
@@ -267,7 +286,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         ),
       )
       .limit(1)
+
     const artifact = rows[0]
+
     if (
       artifact === undefined ||
       artifact.sizeBytes <= 0 ||
@@ -276,6 +297,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
     ) {
       return undefined
     }
+
     return toSafetyArtifact(artifact)
   }
 
@@ -284,6 +306,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
   ): Promise<InstallationRepository.Record | undefined> {
     return this.db.transaction((tx) => {
       const operation = selectUpgradeOperation(tx, input.operationId)
+
       if (operation === undefined || operation.ownerToken !== input.ownerToken) return undefined
 
       const existing = tx
@@ -297,6 +320,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         )
         .limit(1)
         .all()[0]
+
       if (existing === undefined) {
         tx.insert(schema.TBackupArtifact)
           .values({
@@ -356,6 +380,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (
         current === undefined ||
         current.activeOperationId !== input.operationId ||
@@ -364,7 +389,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
       ) {
         return undefined
       }
+
       const operation = selectUpgradeOperation(tx, input.operationId)
+
       if (operation === undefined || operation.ownerToken !== current.activeOperationOwnerToken) {
         return undefined
       }
@@ -384,6 +411,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) return undefined
 
       const operationUpdated = tx
@@ -397,6 +425,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (operationUpdated.changes !== 1) throw new Error('Upgrade claim was lost')
 
       const row = tx
@@ -405,7 +434,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (row === undefined) throw new Error('Upgrade claim returned no installation')
+
       return toRecord(row, selectActiveRetention(tx, row.id))
     })
   }
@@ -437,6 +468,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (updatedInstallation.changes !== 1) return undefined
 
       const updatedOperation = tx
@@ -460,6 +492,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (updatedOperation.changes !== 1) throw new Error('Upgrade completion was lost')
 
       const row = tx
@@ -468,7 +501,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (row === undefined) throw new Error('Upgrade completion returned no installation')
+
       return toRecord(row, selectActiveRetention(tx, row.id))
     })
   }
@@ -493,6 +528,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (updatedInstallation.changes !== 1) return undefined
 
       const updatedOperation = tx
@@ -512,6 +548,7 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
           ),
         )
         .run()
+
       if (updatedOperation.changes !== 1) throw new Error('Upgrade failure recording was lost')
 
       const row = tx
@@ -520,7 +557,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (row === undefined) throw new Error('Upgrade failure returned no installation')
+
       return toRecord(row, selectActiveRetention(tx, row.id))
     })
   }
@@ -538,8 +577,11 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         ),
       )
       .limit(1)
+
     const operation = rows[0]
+
     if (operation === undefined) return undefined
+
     return {
       controlStore: operation.controlReadiness === 'ready' ? 'ready' : 'unavailable',
       analyticsStore:
@@ -565,7 +607,9 @@ export class InstallationRepositoryDrizzle implements InstallationRepository {
         ),
       )
       .limit(1)
+
     const policy = rows[0]
+
     return policy === undefined ? undefined : toRetention(policy)
   }
 }
@@ -586,6 +630,7 @@ function selectActiveRetention(
     )
     .limit(1)
     .all()[0]
+
   return policy === undefined ? undefined : toRetention(policy)
 }
 
@@ -621,6 +666,7 @@ function insertDefaultCollectionPolicy(
     .orderBy(desc(schema.TCollectionPolicyRevision.version))
     .limit(1)
     .all()[0]
+
   tx.insert(schema.TCollectionPolicyRevision)
     .values({
       id: generateId('cpr'),
@@ -682,6 +728,7 @@ function updateUpgradeProgressTx(
       ),
     )
     .run()
+
   if (updatedOperation.changes !== 1) return undefined
 
   const updatedInstallation = tx
@@ -702,6 +749,7 @@ function updateUpgradeProgressTx(
       ),
     )
     .run()
+
   if (updatedInstallation.changes !== 1) throw new Error('Upgrade progress update was lost')
 
   const row = tx
@@ -710,7 +758,9 @@ function updateUpgradeProgressTx(
     .where(eq(schema.TInstallation.singletonKey, 'default'))
     .limit(1)
     .all()[0]
+
   if (row === undefined) throw new Error('Upgrade progress returned no installation')
+
   return toRecord(row, selectActiveRetention(tx, row.id))
 }
 
@@ -752,6 +802,7 @@ function toBackupErrorCode(
   ) {
     return errorCode
   }
+
   return 'INTERNAL_SERVER_ERROR'
 }
 
@@ -760,6 +811,7 @@ function toRecord(
   retention?: InstallationRepository.Retention,
 ): InstallationRepository.Record {
   const activeOperation = toActiveOperation(row)
+
   return {
     id: row.id,
     status: row.status,
@@ -834,11 +886,14 @@ function toActiveOperation(
     ) {
       throw new Error('Installation active operation is inconsistent')
     }
+
     return null
   }
+
   if (row.activeOperationKind === null || row.activeOperationPhase === null) {
     throw new Error('Installation active operation is inconsistent')
   }
+
   return {
     operationId: row.activeOperationId,
     kind: v.parse(contractSchema.SLifecycleOperationKind, row.activeOperationKind),

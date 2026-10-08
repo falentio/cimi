@@ -35,16 +35,19 @@ test('rebuilds analytics after reopening from a physical-store loss', async () =
     {},
     { context: await admin.context() },
   )
+
   const organization = await call(
     fixture.router.organization.createOrganization,
     { name: 'Physical Store Organization' },
     { context: await admin.context() },
   )
+
   const site = await call(
     fixture.router.site.createSite,
     { organizationId: organization.id, name: 'Production', hostname: 'physical.example.com' },
     { context: await admin.context() },
   )
+
   await call(
     fixture.router.retentionPolicy.updateRetentionPolicy,
     {

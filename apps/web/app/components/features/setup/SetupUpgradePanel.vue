@@ -17,10 +17,12 @@ const props = defineProps<{
 }>()
 
 const confirmation = shallowRef('')
+
 const retrying = shallowRef(false)
 
 async function refreshStatus(): Promise<void> {
   retrying.value = true
+
   try {
     await props.refresh()
   } catch {

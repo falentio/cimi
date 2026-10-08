@@ -38,6 +38,7 @@ function candidate(eventId: string) {
 
 function pageViewCandidate(eventId: string, pageViewId: string) {
   const base = candidate(eventId)
+
   return {
     ...base,
     event: {
@@ -72,9 +73,11 @@ describe('AcceptanceCoalescer', () => {
   it('reports queue, flush, failure, and saturation diagnostics', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
     )
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptance,
       flushMaxEvents: 1,
@@ -99,6 +102,7 @@ describe('AcceptanceCoalescer', () => {
   it('flushes a multi-event active queue when its window expires', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
     )
@@ -125,6 +129,7 @@ describe('AcceptanceCoalescer', () => {
     acceptance.lastReplaySequence
       .mockRejectedValueOnce(new Error('sqlite unavailable'))
       .mockResolvedValueOnce(4)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as AppendOutcome),
     )
@@ -136,6 +141,7 @@ describe('AcceptanceCoalescer', () => {
     const reservations = await coalescer.reserveMany([candidate('event-2')])
     await coalescer.flush()
     const reservation = reservations[0]
+
     if (reservation !== undefined && 'completion' in reservation) await reservation.completion
 
     expect(acceptance.lastReplaySequence).toHaveBeenCalledTimes(2)
@@ -147,6 +153,7 @@ describe('AcceptanceCoalescer', () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
     acceptance.append.mockRejectedValueOnce(new Error('sqlite unavailable'))
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptance,
       flushMaxEvents: 1,
@@ -178,6 +185,7 @@ describe('AcceptanceCoalescer', () => {
         }),
     )
     const schedules: Array<{ callback: () => void; delayMs: number }> = []
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptance,
       flushMaxEvents: 3,
@@ -186,6 +194,7 @@ describe('AcceptanceCoalescer', () => {
       schedule: (callback, delayMs) => {
         const token = setTimeout(() => undefined, 60_000)
         schedules.push({ callback, delayMs })
+
         return token
       },
       clock: () => now,
@@ -223,6 +232,7 @@ describe('AcceptanceCoalescer', () => {
     acceptance.append.mockImplementation(
       () => new Promise<readonly AppendOutcome[]>(() => undefined),
     )
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptance,
       flushMaxEvents: 500,
@@ -230,6 +240,7 @@ describe('AcceptanceCoalescer', () => {
       windowMs: 60_000,
       schedule: () => setTimeout(() => undefined, 3_600_000),
     })
+
     const batch = (offset: number, size: number) =>
       Array.from({ length: size }, (_, index) => candidate(`event-${offset + index}`))
 
@@ -247,6 +258,7 @@ describe('AcceptanceCoalescer', () => {
   it('releases pageview reservations by pageview ID after a failed flush', async () => {
     const acceptance = mock<AcceptanceRepository>()
     acceptance.lastReplaySequence.mockResolvedValue(0)
+    // SAFETY: mock append outcome; tests assert only the status field.
     acceptance.append
       .mockRejectedValueOnce(new Error('sqlite unavailable'))
       .mockImplementation(async (candidates) =>
@@ -256,6 +268,7 @@ describe('AcceptanceCoalescer', () => {
 
     const failed = await coalescer.reserveMany([pageViewCandidate('event-1', 'page-1')])
     const failedCompletion = failed[0]
+
     if (failedCompletion !== undefined && 'completion' in failedCompletion)
       failedCompletion.completion.catch(() => undefined)
     await expect(coalescer.flush()).rejects.toThrow('sqlite unavailable')
@@ -263,6 +276,7 @@ describe('AcceptanceCoalescer', () => {
     const retry = await coalescer.reserveMany([pageViewCandidate('event-2', 'page-1')])
     expect(retry[0]).toMatchObject({ status: 'accepted' })
     await coalescer.flush()
+
     if (retry[0] !== undefined && 'completion' in retry[0]) await retry[0].completion
     await coalescer.stop()
   })
@@ -272,6 +286,7 @@ describe('AcceptanceCoalescer', () => {
     acceptance.lastReplaySequence.mockResolvedValue(0)
     acceptance.append.mockRejectedValue(new Error('sqlite unavailable'))
     const errors: Array<{ error: unknown; context: unknown }> = []
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptance,
       flushMaxEvents: 1,
@@ -280,6 +295,7 @@ describe('AcceptanceCoalescer', () => {
 
     const reservations = await coalescer.reserveMany([candidate('event-1')])
     const completion = reservations[0]
+
     if (completion !== undefined && 'completion' in completion)
       completion.completion.catch(() => undefined)
     await new Promise((resolve) => setTimeout(resolve, 0))

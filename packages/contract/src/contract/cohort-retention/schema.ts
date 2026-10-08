@@ -19,11 +19,14 @@ export const SCohortAction = v.variant('kind', [
   v.strictObject({ kind: v.literal('performance'), name: SName }),
   v.strictObject({ kind: v.literal('error'), name: SName }),
 ])
+
 type SCohortActionOutput = v.InferOutput<typeof SCohortAction>
+
 export const areDistinctCohortActions = (input: {
   entryAction: SCohortActionOutput
   retentionAction: SCohortActionOutput
 }) => JSON.stringify(input.entryAction) !== JSON.stringify(input.retentionAction)
+
 const SCohortRecord = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -39,6 +42,7 @@ const SCohortRecord = v.strictObject(
     SCreated,
   ]),
 )
+
 export const SCohort = v.pipe(
   SCohortRecord,
   v.check(
@@ -46,6 +50,7 @@ export const SCohort = v.pipe(
     VALIDATION_KEYS.contract.cohort.actionsDistinct,
   ),
 )
+
 const SCohortReportPeriod = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -68,6 +73,7 @@ const SCohortReportPeriod = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const SCohortReport = v.pipe(
   v.strictObject(
     v.entriesFromObjects([
@@ -85,8 +91,11 @@ export const SCohortReport = v.pipe(
     VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
+
 export const SCohortSiteFields = v.strictObject({ siteId: SId })
+
 export const SCohortIdentityFields = v.strictObject({ siteId: SId, cohortId: SId })
+
 const SCohortDefinitionRecord = v.strictObject({
   name: SName,
   entryAction: SCohortAction,
@@ -94,4 +103,5 @@ const SCohortDefinitionRecord = v.strictObject({
   identityKind: SIdentityKind,
   period: v.picklist(['day', 'week', 'month']),
 })
+
 export const SCohortDefinitionFields = SCohortDefinitionRecord

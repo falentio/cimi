@@ -12,8 +12,11 @@ export const SGoalReportInput = v.pipe(
   v.strictObject(v.entriesFromObjects([v.strictObject({ goalId: SId }), SReportFieldsSchema])),
   v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
+
 export const SGoalReportOutput = SGoalReport
+
 export type SGoalReportInput = v.InferOutput<typeof SGoalReportInput>
+
 export type SGoalReportOutput = v.InferOutput<typeof SGoalReportOutput>
 
 export const getGoalReport = oc

@@ -18,6 +18,7 @@ import { DefaultIdentitySessionResolver } from '../identity-session.ts'
 import type { AcceptanceRepository } from '../repository.ts'
 import type { IdentitySessionResolver, IngestionProtection } from '../service.ts'
 import { AcceptanceCoalescer } from '../coalescer.ts'
+import type { JsonValue } from '@cimi/utils'
 
 const now = new Date('2026-09-05T00:00:00.000Z')
 
@@ -36,6 +37,7 @@ function createFixture(
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
+
   const policy = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -70,6 +72,7 @@ function createFixture(
       repository.append.mockImplementation(async (candidates) =>
         candidates.map(() => ({ status: 'accepted' }) as const),
       )
+
       return repository
     })()
 
@@ -79,21 +82,19 @@ function createFixture(
     retention: retentionRepository,
     acceptance: acceptanceRepository,
     clock: () => now,
-    ...(options.withoutResolver === true
-      ? {}
-      : {
-          identitySession:
-            options.identitySession ?? new DefaultIdentitySessionResolver({ clock: () => now }),
-        }),
-    ...(options.protection === undefined ? {} : { protection: options.protection }),
-    ...(options.coalescer === undefined ? {} : { coalescer: options.coalescer }),
-    ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
+    ...(options.withoutResolver !== true && {
+      identitySession:
+        options.identitySession ?? new DefaultIdentitySessionResolver({ clock: () => now }),
+    }),
+    ...(options.protection !== undefined && { protection: options.protection }),
+    ...(options.coalescer !== undefined && { coalescer: options.coalescer }),
+    ...(options.lifecycleLock !== undefined && { lifecycleLock: options.lifecycleLock }),
   })
 
   return { service, siteRepository, policyRepository, acceptanceRepository }
 }
 
-function event(overrides: Record<string, unknown> = {}) {
+function event(overrides: Record<string, JsonValue> = {}) {
   return {
     eventId: 'event-1',
     ingestionIdentifier: 'ing-1',
@@ -135,11 +136,13 @@ describe('EventIngestionService.ingestionLease', () => {
     acceptanceRepository.append.mockImplementation(async (candidates) =>
       candidates.map(() => ({ status: 'accepted' }) as const),
     )
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptanceRepository,
       windowMs: 1,
       clock: () => now,
     })
+
     const { service } = createFixture({ coalescer })
 
     const results = await Promise.all([
@@ -172,20 +175,25 @@ describe('EventIngestionService.ingestionLease', () => {
     acceptanceRepository.findByEventId.mockResolvedValue(undefined)
     acceptanceRepository.lastReplaySequence.mockResolvedValue(0)
     let releaseAppend!: () => void
+
     const appendReleased = new Promise<void>((resolve) => {
       releaseAppend = resolve
     })
+
     let appendStarted = false
     acceptanceRepository.append.mockImplementation(async (candidates) => {
       appendStarted = true
       await appendReleased
+
       return candidates.map(() => ({ status: 'accepted' }) as const)
     })
+
     const coalescer = new AcceptanceCoalescer({
       repository: acceptanceRepository,
       windowMs: 60_000,
       clock: () => now,
     })
+
     const { service } = createFixture({
       acceptance: acceptanceRepository,
       coalescer,

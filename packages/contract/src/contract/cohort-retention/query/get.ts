@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SCohort, SCohortIdentityFields } from '../schema.ts'
 
 export const SCohortGetInput = SCohortIdentityFields
+
 export type SCohortGetInput = v.InferOutput<typeof SCohortGetInput>
+
 export const SCohortGetOutput = SCohort
+
 export type SCohortGetOutput = v.InferOutput<typeof SCohortGetOutput>
 
 export const getCohort = oc

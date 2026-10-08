@@ -1,4 +1,5 @@
-import { isContractProcedure } from '@orpc/contract'
+import { isContractProcedure, type AnyContractProcedure } from '@orpc/contract'
+import type { JsonValue } from '@cimi/utils'
 import { describe, expect, it } from 'vitest'
 import { contract } from '../contract.ts'
 import { SPublicRateLimitAdapterResponse } from './public-dashboard/schema.ts'
@@ -25,6 +26,7 @@ const statuses = {
 } as const
 
 type ErrorCode = keyof typeof statuses
+
 type ErrorMap = Record<string, { status?: number; message?: string }>
 
 const catalog = (...codes: ErrorCode[]): ErrorMap =>
@@ -32,9 +34,21 @@ const catalog = (...codes: ErrorCode[]): ErrorMap =>
     codes.map((code) => [code, { status: statuses[code], message: ERROR_CATALOG[code].message }]),
   )
 
+type LooseErrorBuilder = {
+  errors(errors: Record<string, JsonValue>): {
+    '~orpc': { errorMap: Record<string, { status: number; message: string; data: JsonValue }> }
+  }
+}
+
+// SAFETY: tests feed intentionally invalid error maps to prove the runtime catalog rejects them.
+const looseOc = oc as LooseErrorBuilder
+
 const authenticatedRead = catalog('UNAUTHORIZED', 'NOT_FOUND')
+
 const administratorRead = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND')
+
 const definitionList = catalog('UNAUTHORIZED', 'NOT_FOUND', 'BAD_REQUEST')
+
 const definitionCreateOrUpdate = catalog(
   'UNAUTHORIZED',
   'FORBIDDEN',
@@ -42,7 +56,9 @@ const definitionCreateOrUpdate = catalog(
   'BAD_REQUEST',
   'CONFLICT',
 )
+
 const definitionArchive = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT')
+
 const analyticsReport = catalog(
   'UNAUTHORIZED',
   'NOT_FOUND',
@@ -50,8 +66,11 @@ const analyticsReport = catalog(
   'QUERY_LIMIT_EXCEEDED',
   'SERVICE_UNAVAILABLE',
 )
+
 const siteCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST', 'CONFLICT')
+
 const siteLifecycleCommand = catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT')
+
 const publicDashboardQuery = {
   ...catalog(
     'BAD_REQUEST',
@@ -65,7 +84,8 @@ const publicDashboardQuery = {
     data: SPublicRateLimitAdapterResponse,
   },
 }
-const expectedErrors: Record<string, ErrorMap> = {
+
+const expectedErrors = {
   'backupRestore.listBackups': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
@@ -318,23 +338,31 @@ const expectedErrors: Record<string, ErrorMap> = {
   'site.rotateIngestionIdentifier': siteLifecycleCommand,
   'trafficReport.getTrafficOverview': analyticsReport,
   'trafficReport.getTrafficBreakdowns': analyticsReport,
-}
+} satisfies Record<string, ErrorMap>
+
+type ContractNode = AnyContractProcedure | { readonly [key: string]: ContractNode }
 
 const getErrorMap = (path: string): ErrorMap => {
-  const procedure = path
-    .split('.')
-    .reduce<unknown>((node, segment) => (node as Record<string, unknown>)[segment], contract) as {
+  // SAFETY: errorMap presence is verified by the catalog assertions below.
+  const node = path.split('.').reduce<ContractNode>((node, segment) => {
+    if (isContractProcedure(node)) throw new Error(`Expected a router at ${segment}`)
+
+    const child = node[segment]
+
+    if (child === undefined) throw new Error(`Unknown contract path ${path}`)
+
+    return child
+  }, contract) as {
     '~orpc': { errorMap: ErrorMap }
   }
-  return procedure['~orpc'].errorMap
+
+  return node['~orpc'].errorMap
 }
 
-const getMissingSuccessStatuses = (node: unknown, path: string[] = []): string[] => {
+const getMissingSuccessStatuses = (node: ContractNode, path: string[] = []): string[] => {
   if (isContractProcedure(node)) {
     return node['~orpc'].route.successStatus === undefined ? [path.join('.')] : []
   }
-
-  if (node === null || typeof node !== 'object') return []
 
   return Object.entries(node).flatMap(([key, value]) =>
     getMissingSuccessStatuses(value, [...path, key]),
@@ -363,19 +391,18 @@ const resourcePaths = {
 } as const
 
 const getRoutes = (
-  node: unknown,
+  node: ContractNode,
   path: string[] = [],
 ): Array<{ contractPath: string; method: string; routePath: string }> => {
   if (isContractProcedure(node)) {
     const route = node['~orpc'].route
+
     if (route.method === undefined || route.path === undefined) {
       throw new Error(`Procedure at ${path.join('.')} is missing route metadata`)
     }
 
     return [{ contractPath: path.join('.'), method: route.method, routePath: route.path }]
   }
-
-  if (node === null || typeof node !== 'object') return []
 
   return Object.entries(node).flatMap(([key, value]) => getRoutes(value, [...path, key]))
 }
@@ -400,6 +427,7 @@ describe('procedure error declarations', () => {
     expect(routes).toHaveLength(76)
 
     for (const { contractPath, method, routePath } of routes) {
+      // SAFETY: contract paths are `resource.operation` pairs by construction; split yields two segments.
       const [resource, operation] = contractPath.split('.') as [keyof typeof resourcePaths, string]
       const expectedPath = `/${resourcePaths[resource]}/${operation}`
       const routeKey = `${method} ${routePath}`
@@ -412,7 +440,7 @@ describe('procedure error declarations', () => {
 
   it('rejects error codes outside the central catalog', () => {
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         UNKNOWN_ERROR: { status: 500 },
       }),
     ).toThrow(/unknown contract error code/i)
@@ -420,17 +448,17 @@ describe('procedure error declarations', () => {
 
   it('rejects caller-supplied status or message metadata that bypasses the catalog', () => {
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         BAD_REQUEST: { status: 400 },
       }),
     ).toThrow(/catalog status/i)
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         BAD_REQUEST: { status: 418 },
       }),
     ).toThrow(/catalog status/i)
     expect(() =>
-      (oc as never as { errors(errors: Record<string, unknown>): unknown }).errors({
+      looseOc.errors({
         BAD_REQUEST: { message: 'database details' },
       }),
     ).toThrow(/catalog message/i)
@@ -438,13 +466,8 @@ describe('procedure error declarations', () => {
 
   it('preserves valid error data while applying catalog metadata', () => {
     const data = { retryAfter: 30 }
-    const procedure = (
-      oc as never as {
-        errors(errors: Record<string, unknown>): {
-          '~orpc': { errorMap: Record<string, { status: number; message: string; data: unknown }> }
-        }
-      }
-    ).errors({ TOO_MANY_REQUESTS: { data } })
+
+    const procedure = looseOc.errors({ TOO_MANY_REQUESTS: { data } })
 
     expect(procedure['~orpc'].errorMap['TOO_MANY_REQUESTS']).toEqual({
       status: 429,

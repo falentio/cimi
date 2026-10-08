@@ -21,7 +21,9 @@ const SITE_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [
 const ORG_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [
   { label: 'Settings', to: '/org/:organizationId/settings' },
 ]
+
 const ORG_HOME_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Organization' }, { label: 'Home' }]
+
 const ACCOUNT_SETTINGS_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Settings' }]
 
 const ADMIN_TRAIL: readonly BreadcrumbSegment[] = [{ label: 'Admin', to: '/admin' }]
@@ -78,6 +80,7 @@ export function resolveBreadcrumbs(path: string): BreadcrumbSegment[] {
 
   for (const rule of RULES) {
     const params = matchRule(rule.pattern, pathSegments)
+
     if (params !== null) {
       return rule.segments.map((segment) => buildSegment(segment, params))
     }
@@ -91,18 +94,22 @@ function matchRule(
   pathSegments: readonly string[],
 ): Record<string, string> | null {
   const patternSegments = pattern.split('/').filter(Boolean)
+
   if (patternSegments.length !== pathSegments.length) return null
 
   const params: Record<string, string> = {}
+
   for (const [index, segment] of patternSegments.entries()) {
     if (segment.startsWith(':')) {
       const value = pathSegments[index]
+
       if (value === undefined) return null
       params[segment.slice(1)] = value
     } else if (segment !== pathSegments[index]) {
       return null
     }
   }
+
   return params
 }
 
@@ -111,7 +118,9 @@ function buildSegment(
   params: Record<string, string>,
 ): BreadcrumbSegment {
   const label = interpolate(segment.label, params)
+
   if (segment.to === undefined) return { label }
+
   return { label, to: interpolate(segment.to, params) }
 }
 

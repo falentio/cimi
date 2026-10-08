@@ -40,6 +40,7 @@ export class InvitationService {
       requiredRole: 'admin',
       missingCode: 'NOT_FOUND',
     })
+
     return this.repository.findMany(input.organizationId, {
       offset: input.offset ?? 0,
       limit: input.limit ?? 20,
@@ -58,6 +59,7 @@ export class InvitationService {
     })
     const now = new Date()
     const { token, tokenHash } = mintInvitationToken()
+
     try {
       const record = await this.repository.insert({
         id: generateId('inv'),
@@ -68,6 +70,7 @@ export class InvitationService {
         createdAt: now,
         updatedAt: now,
       })
+
       return { invitation: toPublicInvitation(record), token }
     } catch (error) {
       if (isConstraintError(error)) throw new ORPCError('CONFLICT', { status: 409 })
@@ -81,17 +84,21 @@ export class InvitationService {
     headers?: Headers,
   ): Promise<InferOutput<typeof schema.SInvitationRevokeOutput>> {
     const existing = await this.repository.findById(input.invitationId)
+
     if (existing === undefined) throw new ORPCError('NOT_FOUND')
     await this.reconcileOrganization(existing.organizationId, user.id, headers)
     await assertOrganizationRole(user, existing.organizationId, this.scope, {
       requiredRole: 'admin',
       missingCode: 'NOT_FOUND',
     })
+
     const result = await this.repository.revoke({
       invitationId: input.invitationId,
       now: new Date(),
     })
+
     if (result.status === 'consumed') throw new ORPCError('INVITATION_CONSUMED')
+
     if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
   }
 
@@ -103,30 +110,41 @@ export class InvitationService {
     const now = new Date()
     const tokenHash = hashInvitationToken(input.token)
     const precheck = await this.repository.findByTokenHash(tokenHash)
+
     if (precheck === undefined || precheck.status !== 'pending' || precheck.expiresAt <= now) {
       throw new ORPCError('NOT_FOUND')
     }
+
     const organizationId = precheck.organizationId
     await this.reconcileOrganization(organizationId, user.id, headers)
+
     if (await this.scope.membership.hasPendingGovernanceOperation(organizationId)) {
       throw new ORPCError('CONFLICT', { status: 409 })
     }
+
     const localRole = await this.scope.membership.getRole(organizationId, user.id)
+
     if (localRole !== undefined && localRole !== precheck.role) {
       throw new ORPCError('CONFLICT', { status: 409 })
     }
+
     const authorityOrganizationId =
       await this.repository.findAuthorityOrganizationId(organizationId)
+
     if (authorityOrganizationId === undefined) throw new ORPCError('NOT_FOUND')
+
     if (headers === undefined) throw new ORPCError('INTERNAL_SERVER_ERROR')
+
     const previousAuthority = await this.getAuthorityMember(
       authorityOrganizationId,
       user.id,
       headers,
     )
+
     if (previousAuthority?.role === 'owner') throw new ORPCError('CONFLICT', { status: 409 })
     const previousRole = previousAuthority === undefined ? undefined : previousAuthority.role
     const needsAdmit = previousAuthority === undefined || previousAuthority.role !== precheck.role
+
     if (needsAdmit) {
       try {
         await this.authority.admitMember({
@@ -140,7 +158,9 @@ export class InvitationService {
         throw new ORPCError('CONFLICT', { status: 409 })
       }
     }
+
     let result: InvitationRepository.ConsumeResult
+
     try {
       result = await this.repository.consume({ tokenHash, userId: user.id, now })
     } catch (error) {
@@ -148,9 +168,12 @@ export class InvitationService {
         await this.compensateAuthority(authorityOrganizationId, user.id, previousRole, headers)
       throw error
     }
+
     if (result.status === 'consumed') return toNonOwnerMembership(result.membership)
+
     if (needsAdmit)
       await this.compensateAuthority(authorityOrganizationId, user.id, previousRole, headers)
+
     if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
     throw new ORPCError('NOT_FOUND')
   }
@@ -172,9 +195,12 @@ export class InvitationService {
     try {
       if (previousRole === undefined) {
         await this.authority.removeMember({ organizationId, userId, headers })
+
         return
       }
+
       const current = await this.authority.getMember({ organizationId, userId, headers })
+
       if (current === undefined || current.role === previousRole) return
       await this.authority.changeMemberRole({
         organizationId,
@@ -223,7 +249,8 @@ function toNonOwnerMembership(
   }
 }
 
-function isConstraintError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false
-  return /constraint|unique/i.test(error.message)
+function isConstraintError(cause: unknown): cause is Error {
+  if (!(cause instanceof Error)) return false
+
+  return /constraint|unique/i.test(cause.message)
 }

@@ -16,6 +16,7 @@ const [useProvideCarousel, useInjectCarousel] = createInjectionState(
     function scrollPrev() {
       emblaApi.value?.scrollPrev()
     }
+
     function scrollNext() {
       emblaApi.value?.scrollNext()
     }

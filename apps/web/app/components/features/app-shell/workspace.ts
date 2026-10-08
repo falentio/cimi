@@ -13,12 +13,14 @@ export interface WorkspaceSite {
 
 export function getTeamInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
+
   if (parts.length > 1)
     return parts
       .slice(0, 2)
       .map((part) => part[0])
       .join('')
       .toUpperCase()
+
   return name.trim().slice(0, 2).toUpperCase()
 }
 

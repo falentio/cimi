@@ -7,6 +7,7 @@ import {
 } from '../fixture.ts'
 
 const owner = createTestAuthUser({ role: 'member' })
+
 const policy = schema.DEFAULT_COLLECTION_POLICY
 
 describe('CollectionPolicyService.get', () => {

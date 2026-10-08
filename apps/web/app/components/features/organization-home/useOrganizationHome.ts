@@ -8,12 +8,15 @@ export function useOrganizationHome(): OrganizationHomeController {
   const workspace = useWorkspaceData()
 
   const organizationId = computed(() => parseOrganizationId(route.params.organizationId))
+
   const error = computed(() => {
     const value = workspace.error.value
+
     return value == null
       ? undefined
       : normalizeSettingsError(value, 'Workspace data could not be loaded')
   })
+
   const state = computed(() =>
     deriveOrganizationHomeState({
       organizationId: organizationId.value,

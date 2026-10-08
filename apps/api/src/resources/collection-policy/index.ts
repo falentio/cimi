@@ -7,26 +7,32 @@ import { collectionPolicyRouter } from './router.ts'
 import { CollectionPolicyService, type CollectionPolicyIdFactory } from './service.ts'
 
 export { collectionPolicyRouter }
+
 export {
   CollectionPolicyReportingProfileFilter,
   type CollectionPolicyReportingProfileFilterDependencies,
 } from './reporting-profile-filter.ts'
+
 export {
   CollectionPolicyService,
   type CollectionPolicyIdFactory,
   type CollectionPolicyServiceDependencies,
 } from './service.ts'
+
 export {
   CollectionPolicyRepositoryDrizzle,
   type CollectionPolicyRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { CollectionPolicyRepository } from './repository.ts'
+
 export {
   clonePolicyValues,
   resolvePolicy,
   validatePolicyCombination,
   PolicyValidationError,
 } from './model.ts'
+
 export type {
   PolicyField,
   PolicyLayers,
@@ -36,7 +42,9 @@ export type {
   PolicyTarget,
   PolicyValues,
 } from './model.ts'
+
 export { evaluateAdmission, sanitizeProperties, sanitizeUrls } from './evaluator.ts'
+
 export type {
   AdmissionDecision,
   AdmissionInput,
@@ -66,14 +74,16 @@ export function createCollectionPolicy({
   ids,
 }: CreateCollectionPolicyDependencies) {
   const repository = new CollectionPolicyRepositoryDrizzle({ db })
+
   const service = new CollectionPolicyService({
     repository,
     lock,
     scope: scope ?? createSiteScopeDependencies({ db }),
     lifecycle,
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
   })
+
   return { repository, service, router: collectionPolicyRouter(service) }
 }
 

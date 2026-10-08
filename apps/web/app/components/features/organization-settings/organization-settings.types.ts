@@ -5,29 +5,38 @@ import type { SettingsError } from '../../../utils/settings-error'
 export type { SettingsError } from '../../../utils/settings-error'
 
 export type Organization = Awaited<ReturnType<CimiOrpc['organization']['getOrganization']['call']>>
+
 export type OrganizationId = Organization['id']
+
 export type OrganizationNameInput = Pick<
   Parameters<CimiOrpc['organization']['updateOrganization']['call']>[0],
   'name'
 >
+
 export type OrganizationCreateInput = Parameters<
   CimiOrpc['organization']['createOrganization']['call']
 >[0]
+
 export type OrganizationMember = Awaited<
   ReturnType<CimiOrpc['membership']['listMembers']['call']>
 >['items'][number]
+
 export type OrganizationMemberRoleUpdate = Awaited<
   ReturnType<CimiOrpc['membership']['changeMemberRole']['call']>
 >
+
 export type OrganizationOwnershipTransfer = Awaited<
   ReturnType<CimiOrpc['membership']['transferOrganizationOwnership']['call']>
 >
+
 export type OrganizationInvitation = Awaited<
   ReturnType<CimiOrpc['invitation']['listInvitations']['call']>
 >['items'][number]
+
 export type CreatedInvitation = Awaited<
   ReturnType<CimiOrpc['invitation']['createInvitation']['call']>
 >
+
 export type EditableMemberRole = Exclude<OrganizationMember['role'], 'owner'>
 
 export interface OffsetCollection<TItem> {

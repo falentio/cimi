@@ -22,7 +22,9 @@ const emit = defineEmits<{
 }>()
 
 const role = shallowRef<EditableMemberRole>('member')
+
 const copyStatus = shallowRef<string | null>(null)
+
 const revokeInvitationId = shallowRef<string | undefined>()
 
 const revokeDialogOpen = computed({
@@ -34,6 +36,7 @@ const revokeDialogOpen = computed({
 
 const inviteUrl = computed(() => {
   const token = props.createdInvitation?.token
+
   return token === undefined ? null : `/invite/${token}`
 })
 
@@ -54,12 +57,14 @@ function askRevoke(invitationId: string): void {
 function confirmRevoke(): void {
   const invitationId = revokeInvitationId.value
   revokeInvitationId.value = undefined
+
   if (invitationId !== undefined) emit('revokeInvitation', invitationId)
 }
 
 async function copyInviteUrl(): Promise<void> {
   if (inviteUrl.value === null || navigator.clipboard === undefined) {
     copyStatus.value = 'Copy is unavailable in this browser.'
+
     return
   }
 

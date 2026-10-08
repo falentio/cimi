@@ -3,7 +3,9 @@ import { schema } from '@cimi/contract'
 import { createCollectionPolicyFixture, createTestAuthUser } from '../fixture.ts'
 
 const admin = createTestAuthUser({ role: 'admin', installationGrant: true })
+
 const owner = createTestAuthUser({ role: 'member' })
+
 const policy = schema.DEFAULT_COLLECTION_POLICY
 
 describe('CollectionPolicyService.update', () => {

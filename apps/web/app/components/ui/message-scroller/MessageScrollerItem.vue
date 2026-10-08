@@ -27,8 +27,11 @@ watch(
   () => props.messageId,
   (messageId, previousMessageId) => {
     const element = itemEl.value
+
     if (!element) return
+
     if (previousMessageId) register(previousMessageId, null, element)
+
     if (messageId) register(messageId, element, null)
   },
 )

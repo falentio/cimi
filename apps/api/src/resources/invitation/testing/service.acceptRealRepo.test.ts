@@ -70,11 +70,13 @@ function seed(
       updatedAt: createdAt,
     })
     .run()
+
   for (const membership of extraMemberships) {
     db.insert(schema.TMembership)
       .values({ ...membership, createdAt, updatedAt: createdAt })
       .run()
   }
+
   return db
 }
 
@@ -97,23 +99,28 @@ function buildService(
   const scope = new InMemorySiteScopePort([], [...memberships])
   const membership = mock<OrganizationMembershipReconciler>()
   membership.reconcile.mockResolvedValue(undefined)
+
   const service = new InvitationService({
     repository,
     scope: { membership: scope },
     authority,
     membership,
   })
+
   return { authority, service }
 }
 
 describe('InvitationService.accept with a real repository', () => {
   it('accepts a pending invitation and links exactly one membership', async () => {
     const db = seed()
+
     try {
       const repository = new InvitationRepositoryDrizzle({ db })
+
       const { authority, service } = buildService(repository, [
         { organizationId: 'org_1', userId: 'user_1', role: 'owner' },
       ])
+
       const token = 'real-accept-token-1'
       const now = new Date()
       await repository.insert({
@@ -138,10 +145,12 @@ describe('InvitationService.accept with a real repository', () => {
       ])
       expect(JSON.stringify(result)).not.toContain('tokenHash')
       await expect(repository.findById('inv_1')).resolves.toMatchObject({ status: 'accepted' })
+
       const members = await db
         .select()
         .from(schema.TMembership)
         .where(eq(schema.TMembership.organizationId, 'org_1'))
+
       expect(members).toHaveLength(2)
       expect(members.filter((member) => member.userId === 'user_2')).toMatchObject([
         expect.objectContaining({ organizationId: 'org_1', userId: 'user_2', role: 'member' }),
@@ -154,12 +163,15 @@ describe('InvitationService.accept with a real repository', () => {
 
   it('keeps a conflicting-role invitation pending', async () => {
     const db = seed([{ organizationId: 'org_1', userId: 'user_2', role: 'admin' }])
+
     try {
       const repository = new InvitationRepositoryDrizzle({ db })
+
       const { authority, service } = buildService(repository, [
         { organizationId: 'org_1', userId: 'user_1', role: 'owner' },
         { organizationId: 'org_1', userId: 'user_2', role: 'admin' },
       ])
+
       const token = 'real-accept-token-2'
       const now = new Date()
       await repository.insert({
@@ -178,10 +190,12 @@ describe('InvitationService.accept with a real repository', () => {
         code: 'CONFLICT',
       })
       await expect(repository.findById('inv_1')).resolves.toMatchObject({ status: 'pending' })
+
       const members = await db
         .select()
         .from(schema.TMembership)
         .where(eq(schema.TMembership.organizationId, 'org_1'))
+
       expect(members).toHaveLength(2)
       expect(members.find((member) => member.userId === 'user_2')).toMatchObject({ role: 'admin' })
       expect(authority.admitMember).not.toHaveBeenCalled()

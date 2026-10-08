@@ -9,6 +9,7 @@ import { createTestAnalyticsDb } from '../../testing/index.ts'
 describe('readProjectionSnapshot', () => {
   it('returns a null checkpoint for an unprojected Site without inventing statistics', async () => {
     const analytics = await createTestAnalyticsDb()
+
     try {
       const snapshot = await analytics.readProjectionSnapshot({ siteId: 'ste-missing' })
 
@@ -25,6 +26,7 @@ describe('readProjectionSnapshot', () => {
     const controlDb = createDb({ path: ':memory:' })
     const analytics = await createTestAnalyticsDb()
     const now = Date.parse('2026-09-05T00:00:00.000Z')
+
     try {
       migrateControlDb(controlDb)
       seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 3 })
@@ -60,6 +62,7 @@ describe('readProjectionSnapshot', () => {
     const controlDb = createDb({ path: ':memory:' })
     const analytics = await createTestAnalyticsDb()
     const now = Date.parse('2026-09-05T00:00:00.000Z')
+
     try {
       migrateControlDb(controlDb)
       seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 999 })
@@ -81,6 +84,7 @@ describe('readProjectionSnapshot', () => {
     const analytics = await createTestAnalyticsDb()
     const now = Date.parse('2026-09-05T00:00:00.000Z')
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(now)
+
     try {
       migrateControlDb(controlDb)
       seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 3 })
@@ -107,6 +111,7 @@ describe('readProjectionSnapshot', () => {
     const controlDb = createDb({ path: ':memory:' })
     const analytics = await createTestAnalyticsDb()
     const now = Date.parse('2026-09-05T00:00:00.000Z')
+
     try {
       migrateControlDb(controlDb)
       seedControlDb(controlDb, now, { statisticsRefreshedAt: now, projectedReplaySequence: 3 })
@@ -185,9 +190,11 @@ function seedControlDb(
       'INSERT INTO retention_effective_cutoff (site_id, installation_id, policy_id, reporting_timezone, local_day, event_occurrence_cutoff_at, raw_receipt_cutoff_at, profile_activity_cutoff_at, effective_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run('ste-1', 'ins-1', 'rtn-1', 'UTC', '2026-09-05', now, now, now, now, now)
+
   const insertEvent = controlDb.$client.prepare(
     'INSERT INTO accepted_event (event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id, analytics_session_id, policy_revision_id, replay_sequence, payload_fingerprint, projection_state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   )
+
   for (const [eventPk, offset] of [
     [1, 0],
     [2, 1_000],
@@ -209,6 +216,7 @@ function seedControlDb(
       now + offset,
     )
   }
+
   controlDb.$client
     .prepare(
       'INSERT INTO projection_checkpoint (site_id, projected_replay_sequence, occurrence_covered_from, occurrence_covered_through, statistics_refreshed_at, readiness, projection_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -223,9 +231,11 @@ function seedControlDb(
       'v5',
       now,
     )
+
   const insertGap = controlDb.$client.prepare(
     'INSERT INTO projection_gap (id, site_id, occurrence_from, occurrence_to, status, observed_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
+
   insertGap.run('gap-open-1', 'ste-1', now - 10_000, now - 5_000, 'open', now, null)
   insertGap.run('gap-resolved-1', 'ste-1', now - 30_000, now - 20_000, 'resolved', now, now)
 }

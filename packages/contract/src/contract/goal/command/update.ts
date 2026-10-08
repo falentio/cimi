@@ -5,8 +5,11 @@ import { SGoal, SGoalDefinitionFields, SGoalIdentityFields } from '../schema.ts'
 export const SGoalUpdateInput = v.strictObject(
   v.entriesFromObjects([SGoalIdentityFields, SGoalDefinitionFields]),
 )
+
 export type SGoalUpdateInput = v.InferOutput<typeof SGoalUpdateInput>
+
 export const SGoalUpdateOutput = SGoal
+
 export type SGoalUpdateOutput = v.InferOutput<typeof SGoalUpdateOutput>
 
 export const updateGoal = oc

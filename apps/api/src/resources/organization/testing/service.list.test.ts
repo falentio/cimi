@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createOrganizationFixture, createOrganizationRecord } from '../fixture.ts'
 
 const organization = createOrganizationRecord()
+
 const refreshedOrganization = createOrganizationRecord({ name: 'Refreshed Analytics' })
 
 describe('OrganizationService.list', () => {

@@ -33,6 +33,7 @@ describe('backup-restore routes', () => {
   it('starts a configured SQLite backup and returns a contract-valid operation', async () => {
     await using fixture = await createApiTestFixture()
     const user = await signUpTestUser(fixture.app, 'backup-create@example.com', 'Backup Create')
+
     const initialized = await fixture.app.fetch(
       new Request('http://localhost/api/installation/initializeInstallation', {
         method: 'POST',
@@ -40,6 +41,7 @@ describe('backup-restore routes', () => {
         body: JSON.stringify({}),
       }),
     )
+
     expect(initialized.status).toBe(201)
 
     const response = await fixture.app.fetch(

@@ -36,6 +36,7 @@ describe('InstallationRepositoryDrizzle.completeUpgrade', () => {
       .from(schema.TBackupOperation)
       .where(eq(schema.TBackupOperation.id, 'bop_1'))
       .all()
+
     expect(operations[0]).toMatchObject({
       operationType: 'upgrade',
       status: 'creating',
@@ -45,11 +46,13 @@ describe('InstallationRepositoryDrizzle.completeUpgrade', () => {
       progress: 0.5,
       analyticsReadiness: 'rebuilding',
     })
+
     const artifacts = fixture.db
       .select()
       .from(schema.TBackupArtifact)
       .where(eq(schema.TBackupArtifact.operationId, 'bop_1'))
       .all()
+
     expect(artifacts[0]).toMatchObject({
       id: 'bar_1',
       generationId: 'bop_1',

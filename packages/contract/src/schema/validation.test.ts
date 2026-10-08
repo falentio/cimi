@@ -58,6 +58,7 @@ describe('shared report schemas', () => {
     })
 
     expect(result.success).toBe(false)
+
     if (result.success) return
 
     expect(result.issues[0]?.message).toBe('validation.contract.report.dateRangeOrdered')
@@ -279,6 +280,7 @@ describe('shared report schemas', () => {
       occurrenceTimeCoverageThrough: '2026-08-01T00:00:00Z',
       status: 'current' as const,
     }
+
     const metricBuckets = Array.from({ length: MAX_MINUTE_REPORT_BUCKETS }, (_, index) => ({
       at: new Date(Date.parse('2026-08-01T00:00:00Z') + index * 60_000).toISOString(),
       value: 0,
@@ -288,6 +290,7 @@ describe('shared report schemas', () => {
       unit: 'rate',
       denominator: 0,
     }))
+
     const eventBuckets = metricBuckets.map(({ at, complete }) => ({ at, count: 0, complete }))
 
     expect({
@@ -328,6 +331,7 @@ describe('shared report schemas', () => {
       dimension: 'page',
       filters: [{ scope: 'event', field: 'pagePath', operator: 'equals', values: ['/'] }],
     }
+
     expect(query).toEqual(expect.schemaMatching(SPublicDashboardQueryFields))
     expect({
       ...query,
@@ -375,8 +379,10 @@ describe('shared report schemas', () => {
       const at = new Date(
         Date.parse('2026-11-01T00:00:00Z') + index * 60 * 60 * 1_000,
       ).toISOString()
+
       return { key: at, at, value: 0 }
     })
+
     const output = {
       fromDate: '2026-11-01',
       toDate: '2027-01-29',
@@ -432,6 +438,7 @@ describe('shared report schemas', () => {
       profileFilterKeys: [],
       exclusions: { hostnames: [], paths: [], countries: [], ipRanges: [] },
     }
+
     expect({
       scope: 'site',
       policy: { siteId: 'ste-2', ...policy },
@@ -494,6 +501,7 @@ describe('shared report schemas', () => {
       createdAt: '2026-08-01T00:00:00Z',
       updatedAt: '2026-08-01T00:00:00Z',
     }
+
     expect({ status: 'deleting' }).toEqual(expect.schemaMatching(SProfile))
     expect({ ...profile, status: 'deleting', traits: null, aliases: [] }).not.toEqual(
       expect.schemaMatching(SProfile),
@@ -519,6 +527,7 @@ describe('shared report schemas', () => {
         updatedAt: '2026-08-01T00:01:00Z',
       },
     }
+
     expect(status).toEqual(expect.schemaMatching(SDeletionStatusOutput))
     expect({
       ...status,

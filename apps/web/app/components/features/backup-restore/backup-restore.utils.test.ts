@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type {
   Backup,
-  BackupRestoreFailure,
   Installation,
   InstallationSignal,
   LockSectionView,
@@ -92,6 +91,7 @@ describe('backup restore utilities', () => {
         errorCode: null,
       },
     })
+
     const cleanupPending = sourceBackup({
       id: 'backup-complete',
       phase: 'cleanup_pending',
@@ -141,6 +141,7 @@ describe('backup restore utilities', () => {
         { code, status: 500, message: '/private/path and checksum=secret' },
         'create',
       )
+
       expect(failure.code).toBe(code)
       expect(failure.message).not.toContain('/private/path')
       expect(failure.message).not.toContain('checksum')
@@ -150,6 +151,7 @@ describe('backup restore utilities', () => {
 
   it('blocks actions while lock state is unknown, held, or cleanup-pending', () => {
     expect(deriveLifecycleLock({ installation: { kind: 'loading' } })).toEqual({ kind: 'loading' })
+
     const states: readonly LockSectionView[] = [
       { kind: 'loading' },
       { kind: 'unknown', message: 'Refresh to verify installation state.' },
@@ -198,6 +200,7 @@ describe('backup restore utilities', () => {
         errorCode: 'BACKUP_FAILED',
       },
     })
+
     const view = toBackupRestoreViewModel({
       data: {
         order: [backup.id],
@@ -217,8 +220,10 @@ describe('backup restore utilities', () => {
     })
 
     expect(view.kind).toBe('ready')
+
     if (view.kind !== 'ready') return
     expect(view.cleanup.kind).toBe('visible')
+
     if (view.cleanup.kind !== 'visible') return
     expect(view.cleanup.stages.map((stage) => stage.kind)).toEqual(['derived', 'backup'])
     expect(view.cleanup.stages[1].error?.code).toBe('BACKUP_FAILED')
@@ -266,8 +271,6 @@ describe('backup restore utilities', () => {
     const failure = normalizeBackupRestoreError(new Error('storage key /tmp/secret'), 'status')
     expect(failure.kind).toBe('retryable')
     expect(failure).not.toHaveProperty('message', expect.stringContaining('/tmp/secret'))
-    expect((failure as BackupRestoreFailure).message).toBe(
-      'Backup status could not be loaded. Refresh and try again.',
-    )
+    expect(failure.message).toBe('Backup status could not be loaded. Refresh and try again.')
   })
 })

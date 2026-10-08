@@ -6,6 +6,7 @@ import { SEventListInput } from './query/list.ts'
 import { SEventTimeseriesInput } from './query/get-timeseries.ts'
 
 const pagination = { offset: 0, limit: 10 }
+
 const reportInput = {
   siteId: 'ste-1',
   fromDate: '2026-08-24',
@@ -161,6 +162,7 @@ describe('event report contract', () => {
       toDate: '2026-08-24',
       ...pagination,
     }
+
     expect({ ...base, sort: 'occurredAt' }).toEqual(expect.schemaMatching(SEventListInput))
     expect({ ...base, sort: 'createdAt' }).not.toEqual(expect.schemaMatching(SEventListInput))
     expect({ ...base, sort: 'count', direction: 'desc' }).toEqual(
@@ -178,6 +180,7 @@ describe('event report contract', () => {
       kind: 'page_view',
       pagePath: '/',
     }
+
     expect(event).toEqual(expect.schemaMatching(SEvent))
     expect({ ...event, occurredAt: '2026-08-24T12:00:00' }).not.toEqual(
       expect.schemaMatching(SEvent),

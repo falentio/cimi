@@ -15,6 +15,7 @@ export const SRetentionPolicy = v.pipe(
     VALIDATION_KEYS.contract.retention.policyOrder,
   ),
 )
+
 const SInstallationRetentionPolicyResult = v.strictObject({
   scope: v.literal('installation'),
   installationDefault: SRetentionPolicy,
@@ -27,6 +28,7 @@ const SInstallationRetentionPolicyResult = v.strictObject({
   }),
   updatedAt: SDateTime,
 })
+
 const SSiteRetentionPolicyResult = v.strictObject({
   scope: v.literal('site'),
   siteId: SId,
@@ -40,14 +42,17 @@ const SSiteRetentionPolicyResult = v.strictObject({
   }),
   updatedAt: SDateTime,
 })
+
 export const SRetentionPolicyResult = v.variant('scope', [
   SInstallationRetentionPolicyResult,
   SSiteRetentionPolicyResult,
 ])
+
 export const SRetentionPolicyGetFields = v.variant('scope', [
   v.strictObject({ scope: v.literal('installation') }),
   v.strictObject({ scope: v.literal('site'), siteId: SId }),
 ])
+
 export const SRetentionPolicyUpdateFields = v.variant('scope', [
   v.strictObject({ scope: v.literal('installation'), policy: SRetentionPolicy }),
   v.strictObject({ scope: v.literal('site'), siteId: SId, policy: v.nullable(SRetentionPolicy) }),

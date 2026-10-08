@@ -7,6 +7,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number, offsetMs = 0): number {
@@ -82,6 +83,7 @@ async function projectedSiteWithKinds(email: string) {
     },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -108,7 +110,9 @@ describe('EventReportService.getTimeseries', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds(
       'event-timeseries-filter@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       timeseriesPath(
@@ -129,15 +133,18 @@ describe('EventReportService.getTimeseries', () => {
 
   it('rejects an hourly range after the authenticated bucket limit', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'event-timeseries-bucket-limit@example.com',
     )
+
     await fixture.analytics.rebuild({ controlDb: fixture.db })
 
     const path = (toDate: string) =>
       `/event-report/getEventTimeseries?siteId=${encodeURIComponent(siteId)}&fromDate=2026-08-01&toDate=${toDate}&eventKind=page_view&granularity=hour`
+
     const accepted = await apiTestRequest(fixture.app, path('2026-08-30'), cookie)
     expect(accepted.status, await accepted.clone().text()).toBe(200)
 

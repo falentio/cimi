@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import type { ViteOptions } from 'nuxt/schema'
 
 // Nuxt and Tailwind resolve separate vite-plus-core instances, so their Plugin types differ.
+// SAFETY: both Plugin types describe the same Vite plugin interface; the mismatch is packaging-only.
 const tailwindPlugins = tailwindcss() as NonNullable<ViteOptions['plugins']>
 
 // https://nuxt.com/docs/api/configuration/nuxt-config

@@ -5,10 +5,12 @@ describe('createApiServerShutdown', () => {
   test('attempts later resources and retries only the failed phase', async () => {
     const events: string[] = []
     let compositionAttempts = 0
+
     const shutdown = createApiServerShutdown({
       closeComposition: async () => {
         events.push('composition')
         compositionAttempts += 1
+
         if (compositionAttempts === 1) throw new Error('composition failed')
       },
       closeAnalytics: async () => {

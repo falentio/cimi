@@ -54,6 +54,7 @@ describe('public API error normalizer', () => {
       }),
       procedure,
     )
+
     const invalid = await normalizeApiError(
       new ORPCError('TOO_MANY_REQUESTS', {
         data: { providerDetail: 'secret' },

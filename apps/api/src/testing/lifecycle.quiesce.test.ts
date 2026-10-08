@@ -10,7 +10,9 @@ import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 import { readyLifecycle } from './reporting-fixture.ts'
 
 const CHECKSUM = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function sourceManifest(input: {
@@ -75,32 +77,40 @@ function createFakeBackupRestoreExecutor(overrides: Partial<BackupRestoreExecuto
     async rollback() {},
     ...overrides,
   }
+
   return executor
 }
 
 async function createInstallationSite(app: ApiApp, email: string, hostname: string) {
   const owner = await signUpTestUser(app, email, 'Lifecycle Owner')
+
   const initialized = await apiTestRequest(
     app,
     '/installation/initializeInstallation',
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: 'Lifecycle Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname,
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
+
   return { owner, site: parse(schema.SSiteCreateOutput, await siteResponse.json()) }
 }
 
@@ -135,10 +145,12 @@ async function collectEventUntilAccepted(
   prefix: string,
 ): Promise<Response> {
   let response = await collectEvent(app, site, `${prefix}_0`)
+
   for (let attempt = 1; attempt < 200 && response.status !== 200; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 5))
     response = await collectEvent(app, site, `${prefix}_${attempt}`)
   }
+
   return response
 }
 
@@ -146,9 +158,12 @@ function seedSiteRetentionCutoff(
   db: Awaited<ReturnType<typeof createApiTestFixture>>['db'],
   siteId: string,
 ): void {
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const installation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined
+
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const policy = db.$client
     .prepare(
       `SELECT id FROM retention_policy
@@ -156,6 +171,7 @@ function seedSiteRetentionCutoff(
        LIMIT 1`,
     )
     .get(installation?.id) as { id: string } | undefined
+
   if (installation === undefined || policy === undefined)
     throw new Error('Initialize the installation before seeding a retention cutoff')
   const now = Date.now()
@@ -187,17 +203,22 @@ function seedSiteRetentionCutoff(
 
 test('backup quiesces ingestion writes while analytics reads stay available', async () => {
   let releaseCapture: (() => void) | undefined
+
   const captureGate = new Promise<void>((resolve) => {
     releaseCapture = resolve
   })
+
   const executor = createFakeBackupRestoreExecutor({
     async captureBackup(input) {
       await captureGate
+
       return sourceManifest(input)
     },
   })
+
   await using fixture = await createApiTestFixture({ backupRestoreExecutor: executor })
   const { app } = fixture
+
   const { owner, site } = await createInstallationSite(
     app,
     'backup-quiesce@example.com',
@@ -207,8 +228,8 @@ test('backup quiesces ingestion writes while analytics reads stay available', as
   const created = await apiTestRequest(app, '/backup-restore/createBackup', owner.cookie, {})
   expect(created.status, await created.clone().text()).toBe(202)
   const createdBody = await created.json()
-  const backupId = createdBody.id as string
-  expect(typeof backupId).toBe('string')
+  expect(createdBody.id).toEqual(expect.any(String))
+  const backupId: string = createdBody.id
 
   // Lock ownership is observable through safe operation status: the kind is named, the id is an
   // opaque operation id, and no path, storage key, credential, or Site identifier appears.
@@ -220,6 +241,7 @@ test('backup quiesces ingestion writes while analytics reads stay available', as
     activeOperation: { kind: 'backup', phase: 'lifecycle_transition' },
   })
   const statusText = JSON.stringify(statusBody)
+
   for (const leaked of [
     'controlDatabasePath',
     'dataDirectoryPath',
@@ -253,35 +275,43 @@ test('backup quiesces ingestion writes while analytics reads stay available', as
 
   let observedStatus: string | undefined
   let observedCompletedAt: string | null = null
+
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const poll = await apiTestRequest(
       app,
       `/backup-restore/getBackupStatus?backupId=${encodeURIComponent(backupId)}`,
       owner.cookie,
     )
+
     expect(poll.status, await poll.clone().text()).toBe(200)
     const body = await poll.json()
     observedStatus = body.status
     observedCompletedAt = body.completedAt
+
     if (body.status === 'available' || body.status === 'failed') break
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
+
   expect(observedCompletedAt, 'completedAt must be populated once terminal').not.toBeNull()
   expect(observedStatus, 'backup must complete as available').toBe('available')
 })
 
 test('restore quiesces analytics reads and writes', async () => {
   let releaseRestore: (() => void) | undefined
+
   const restoreGate = new Promise<void>((resolve) => {
     releaseRestore = resolve
   })
+
   const executor = createFakeBackupRestoreExecutor({
     async restoreSqlite() {
       await restoreGate
     },
   })
+
   await using fixture = await createApiTestFixture({ backupRestoreExecutor: executor })
   const { app } = fixture
+
   const { owner, site } = await createInstallationSite(
     app,
     'restore-quiesce@example.com',
@@ -290,26 +320,31 @@ test('restore quiesces analytics reads and writes', async () => {
 
   const created = await apiTestRequest(app, '/backup-restore/createBackup', owner.cookie, {})
   expect(created.status, await created.clone().text()).toBe(202)
-  const backupId = ((await created.json()) as { id: string }).id
+  const { id: backupId } = await created.json()
 
   let backupStatus: string | undefined
+
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const poll = await apiTestRequest(
       app,
       `/backup-restore/getBackupStatus?backupId=${encodeURIComponent(backupId)}`,
       owner.cookie,
     )
+
     expect(poll.status, await poll.clone().text()).toBe(200)
-    backupStatus = ((await poll.json()) as { status: string }).status
+    backupStatus = (await poll.json()).status
+
     if (backupStatus === 'available' || backupStatus === 'failed') break
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
+
   expect(backupStatus, 'seeded backup must be available before restore').toBe('available')
 
   const restored = await apiTestRequest(app, '/backup-restore/restoreBackup', owner.cookie, {
     backupId,
     confirmation: 'RESTORE',
   })
+
   expect(restored.status, await restored.clone().text()).toBe(202)
 
   const reads = await apiTestRequest(app, listProfilesPath(site.id), owner.cookie)
@@ -336,6 +371,7 @@ test('cleanup quiesces ingestion writes and report reads while health stays avai
   const lock = new InMemoryLifecycleLock()
   await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle(), lock })
   const { app, db, analytics } = fixture
+
   const { owner, site } = await createInstallationSite(
     app,
     'retention-quiesce@example.com',
@@ -360,9 +396,11 @@ test('cleanup quiesces ingestion writes and report reads while health stays avai
     code: 'SERVICE_UNAVAILABLE',
     status: 503,
   })
+
   const rejectedRows = db.$client
     .prepare('SELECT event_id FROM accepted_event WHERE event_id = ?')
     .all('event_during_retention')
+
   expect(rejectedRows, 'a write during cleanup must not be admitted').toHaveLength(0)
 
   const health = await apiTestRequest(app, '/system/health', '')
@@ -393,13 +431,17 @@ test('cleanup quiesces ingestion writes and report reads while health stays avai
 
 test('upgrade quiesces ingestion and blocks other lifecycle mutations', async () => {
   let releaseMigration: (() => void) | undefined
+
   const migrationGate = new Promise<void>((resolve) => {
     releaseMigration = resolve
   })
+
   await using fixture = await createApiTestFixture({
     upgradeExecutor: createFakeUpgradeExecutor({ migrate: () => migrationGate }),
   })
+
   const { app } = fixture
+
   const { owner, site } = await createInstallationSite(
     app,
     'upgrade-quiesce@example.com',
@@ -409,6 +451,7 @@ test('upgrade quiesces ingestion and blocks other lifecycle mutations', async ()
   const upgrade = await apiTestRequest(app, '/installation/upgradeInstallation', owner.cookie, {
     confirmation: 'UPGRADE',
   })
+
   expect(upgrade.status, await upgrade.clone().text()).toBe(202)
   await expect(upgrade.json()).resolves.toMatchObject({
     status: 'maintenance',
@@ -424,6 +467,7 @@ test('upgrade quiesces ingestion and blocks other lifecycle mutations', async ()
     owner.cookie,
     { confirmation: 'UPGRADE' },
   )
+
   expect(secondUpgrade.status, await secondUpgrade.clone().text()).toBe(409)
   await expect(secondUpgrade.json()).resolves.toMatchObject({
     code: 'CONFLICT',
@@ -438,6 +482,7 @@ test('upgrade quiesces ingestion and blocks other lifecycle mutations', async ()
     activeOperation: { kind: 'upgrade' },
   })
   const serialized = JSON.stringify(statusBody)
+
   for (const leaked of [
     'controlDatabasePath',
     'dataDirectoryPath',
@@ -449,19 +494,23 @@ test('upgrade quiesces ingestion and blocks other lifecycle mutations', async ()
 
   releaseMigration?.()
 
-  let finalActive: unknown = { kind: 'upgrade' }
+  let finalActive = { kind: 'upgrade' }
   let finalStatus: string | undefined
+
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const poll = await apiTestRequest(app, '/installation/getInstallationStatus', owner.cookie)
     expect(poll.status, await poll.clone().text()).toBe(200)
     const body = await poll.json()
     finalActive = body.activeOperation
     finalStatus = body.status
+
     if (body.activeOperation === null && (body.status === 'ready' || body.status === 'degraded')) {
       break
     }
+
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
+
   expect(finalActive).toBeNull()
   expect(finalStatus, 'installation must settle out of maintenance').toMatch(/ready|degraded/)
 

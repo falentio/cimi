@@ -2,6 +2,7 @@ import { adminApi, api } from '../../orpc.ts'
 import type { InstallationService } from './service.ts'
 
 const installationApi = api.installation
+
 const adminInstallationApi = adminApi.installation
 
 export function installationRouter(service: InstallationService) {

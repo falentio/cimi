@@ -5,9 +5,13 @@ import { useSiteSettings } from '@/components/features/site-settings/useSiteSett
 import { parseSiteId } from '@/components/features/site-settings/site-settings.utils'
 
 const route = useRoute()
+
 const router = useRouter()
+
 const siteId = computed(() => parseSiteId(route.params.siteId))
+
 const { snapshot, retry, beginDelete, cancelDelete, confirmDelete } = useSiteSettings({ siteId })
+
 const site = computed(() => ('site' in snapshot.value.load ? snapshot.value.load.site : undefined))
 
 async function handleDelete(): Promise<void> {

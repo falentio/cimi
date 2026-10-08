@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isRecord } from '@cimi/utils'
+import { isNumberValue, isRecord } from '@cimi/utils'
 import Database from 'better-sqlite3'
 
 const LEGACY_FIXTURE_FOLDER = fileURLToPath(new URL('./fixtures/legacy-471c10d', import.meta.url))
@@ -29,6 +29,7 @@ export function createLegacy471c10dTestDb(
   options: CreateLegacy471c10dTestDbOptions,
 ): Legacy471c10dTestDb {
   const client = new Database(options.path)
+
   try {
     client.pragma('journal_mode = WAL')
     client.pragma('synchronous = FULL')
@@ -38,6 +39,7 @@ export function createLegacy471c10dTestDb(
     applyLegacy471c10dSchema(client)
     applyLegacy471c10dLedger(client)
     seedLegacy471c10dDataset(client)
+
     return { client, close: () => client.close() }
   } catch (error) {
     client.close()
@@ -48,6 +50,7 @@ export function createLegacy471c10dTestDb(
 export function applyLegacy471c10dSchema(client: Database.Database): void {
   for (const tag of LEGACY_MIGRATION_TAGS) {
     const sql = readFileSync(join(LEGACY_FIXTURE_FOLDER, `${tag}.sql`), 'utf8')
+
     for (const statement of sql.split('--> statement-breakpoint')) {
       if (statement.trim()) client.exec(statement)
     }
@@ -74,9 +77,11 @@ export function seedLegacy471c10dDataset(client: Database.Database): void {
       'INSERT INTO membership (organization_id, user_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
     )
     .run('legacy-org-1', 'legacy-user-1', 'owner', now, now)
+
   const insertSite = client.prepare(
     'INSERT INTO site (id, organization_id, name, hostname, ingestion_identifier, reporting_timezone, week_starts_on, status, cleanup_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   )
+
   insertSite.run(
     'legacy-site-1',
     'legacy-org-1',
@@ -103,9 +108,11 @@ export function seedLegacy471c10dDataset(client: Database.Database): void {
     now,
     now,
   )
+
   const insertDashboard = client.prepare(
     'INSERT INTO public_dashboard (site_id, enabled, public_identifier, public_identifier_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
   )
+
   const dashboardOne = 'legacy-9f2c4e1a'
   const dashboardTwo = 'legacy-7b3d8f5c'
   insertDashboard.run('legacy-site-1', 1, dashboardOne, '9f2c4e1a', now, now)
@@ -218,11 +225,14 @@ export function applyLegacy471c10dLedger(client: Database.Database): void {
     'CREATE TABLE IF NOT EXISTS "__drizzle_migrations" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "hash" TEXT NOT NULL, "created_at" NUMERIC)',
   )
   const entries = readLegacyJournal()
+
   const insert = client.prepare(
     'INSERT INTO __drizzle_migrations (id, hash, created_at) VALUES (?, ?, ?)',
   )
+
   for (const entry of entries) {
     const tag = LEGACY_MIGRATION_TAGS[entry.idx]
+
     if (tag === undefined) throw new Error('Legacy migration journal entry is invalid')
     const sql = readFileSync(join(LEGACY_FIXTURE_FOLDER, `${tag}.sql`))
     insert.run(entry.idx + 1, createHash('sha256').update(sql).digest('hex'), entry.when)
@@ -238,13 +248,16 @@ function readLegacyJournal(): readonly LegacyJournalEntry[] {
   const parsed: unknown = JSON.parse(
     readFileSync(join(LEGACY_FIXTURE_FOLDER, 'meta/_journal.json'), 'utf8'),
   )
+
   if (!isRecord(parsed) || !Array.isArray(parsed['entries'])) {
     throw new Error('Legacy migration journal is invalid')
   }
+
   return parsed['entries'].map((entry) => {
-    if (!isRecord(entry) || typeof entry['idx'] !== 'number' || typeof entry['when'] !== 'number') {
+    if (!isRecord(entry) || !isNumberValue(entry['idx']) || !isNumberValue(entry['when'])) {
       throw new Error('Legacy migration journal entry is invalid')
     }
+
     return { idx: entry['idx'], when: entry['when'] }
   })
 }

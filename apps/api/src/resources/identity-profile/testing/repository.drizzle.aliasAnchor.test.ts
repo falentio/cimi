@@ -11,9 +11,12 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
     await new InstallationRepositoryDrizzle({ db: fixture.db }).insert(
       createInstallationInsertInput(),
     )
+
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const policyRevision = fixture.db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { readonly id: string }
+
     const events = [
       {
         eventId: 'event_old',
@@ -37,6 +40,7 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
         replaySequence: 3,
       },
     ]
+
     for (const event of events) {
       fixture.db
         .insert(schema.TAcceptedEvent)
@@ -62,6 +66,7 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
         })
         .run()
     }
+
     const repository = new IdentityProfileRepositoryDrizzle({ db: fixture.db })
 
     await expect(
@@ -86,9 +91,12 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
     await new InstallationRepositoryDrizzle({ db: fixture.db }).insert(
       createInstallationInsertInput(),
     )
+
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const policyRevision = fixture.db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { readonly id: string }
+
     const events = [
       {
         eventId: 'event_old',
@@ -103,6 +111,7 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
         replaySequence: 2,
       },
     ]
+
     for (const event of events) {
       fixture.db
         .insert(schema.TAcceptedEvent)
@@ -128,6 +137,7 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
         })
         .run()
     }
+
     const repository = new IdentityProfileRepositoryDrizzle({ db: fixture.db })
 
     const now = new Date('2026-09-10T06:10:00.000Z')
@@ -153,9 +163,12 @@ describe('IdentityProfileRepositoryDrizzle.aliasAnchor', () => {
     await new InstallationRepositoryDrizzle({ db: fixture.db }).insert(
       createInstallationInsertInput(),
     )
+
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const policyRevision = fixture.db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { readonly id: string }
+
     const redactedAt = new Date('2026-09-10T05:30:00.000Z')
     fixture.db
       .insert(schema.TIdentityProfile)

@@ -14,8 +14,11 @@ const activeOperation = {
   lastSafeSequence: null,
   errorCode: null,
 } as const
+
 const siteOperation = { ...activeOperation, kind: 'site_deletion' as const }
+
 const backupOperation = { ...activeOperation, kind: 'backup' as const }
+
 const staleClock = () => new Date('2026-09-01T00:10:00.000Z')
 
 describe('InstallationService.resumeOnStartup', () => {
@@ -31,15 +34,18 @@ describe('InstallationService.resumeOnStartup', () => {
         checksumValue: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       }),
     })
+
     const { repository, service } = createInstallationFixture({
       clock: () => new Date('2026-09-01T00:01:00.000Z'),
       upgradeExecutor: executor,
     })
+
     const stored = createInstallationRecord({
       status: 'maintenance',
       activeOperation,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const claimed = createInstallationRecord({ status: 'recovering', activeOperation })
     repository.find.mockResolvedValue(stored)
     repository.claimUpgrade.mockResolvedValue(claimed)
@@ -74,20 +80,24 @@ describe('InstallationService.resumeOnStartup', () => {
       migrate: vi.fn().mockResolvedValue(undefined),
       rebuildAnalytics: vi.fn().mockResolvedValue(undefined),
     })
+
     const { repository, service } = createInstallationFixture({
       clock: staleClock,
       upgradeExecutor: executor,
     })
+
     const stored = createInstallationRecord({
       status: 'maintenance',
       activeOperation,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const claimed = createInstallationRecord({
       status: 'recovering',
       activeOperation,
       updatedAt: '2026-09-01T00:10:00.000Z',
     })
+
     repository.find.mockResolvedValue(stored)
     repository.claimUpgrade.mockResolvedValue(claimed)
     repository.findSafetyArtifact.mockResolvedValue(undefined)
@@ -112,15 +122,18 @@ describe('InstallationService.resumeOnStartup', () => {
 
   it('does not steal a stale operation after a lost claim race', async () => {
     const executor = createFakeUpgradeExecutor({ createSafetyArtifact: vi.fn() })
+
     const { repository, service } = createInstallationFixture({
       clock: staleClock,
       upgradeExecutor: executor,
     })
+
     const stored = createInstallationRecord({
       status: 'maintenance',
       activeOperation,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     repository.find.mockResolvedValue(stored)
     repository.claimUpgrade.mockResolvedValue(undefined)
 
@@ -166,6 +179,7 @@ describe('InstallationService.resumeOnStartup', () => {
     const { repository, lock, service } = createInstallationFixture({ clock: staleClock })
     const lease = lock.acquire('upgrade')
     expect(lease).toBeDefined()
+
     try {
       await expect(service.resumeOnStartup()).resolves.toBeUndefined()
       expect(repository.find).not.toHaveBeenCalled()
@@ -212,25 +226,30 @@ describe('InstallationService.resumeOnStartup', () => {
   it('skips creating a safety artifact when one already exists', async () => {
     const createSafetyArtifact = vi.fn()
     const migrate = vi.fn().mockResolvedValue(undefined)
+
     const executor = createFakeUpgradeExecutor({
       createSafetyArtifact,
       migrate,
       rebuildAnalytics: vi.fn().mockResolvedValue(undefined),
     })
+
     const { repository, service } = createInstallationFixture({
       clock: staleClock,
       upgradeExecutor: executor,
     })
+
     const stored = createInstallationRecord({
       status: 'maintenance',
       activeOperation,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const claimed = createInstallationRecord({
       status: 'recovering',
       activeOperation,
       updatedAt: '2026-09-01T00:10:00.000Z',
     })
+
     repository.find.mockResolvedValue(stored)
     repository.claimUpgrade.mockResolvedValue(claimed)
     repository.findSafetyArtifact.mockResolvedValue({
@@ -259,22 +278,27 @@ describe('InstallationService.resumeOnStartup', () => {
       checkpoint: 'duckdb_rebuilt' as const,
       progress: 0.9,
     }
+
     const migrate = vi.fn().mockRejectedValue(new Error('migration must not run'))
     const executor = createFakeUpgradeExecutor({ migrate })
+
     const { repository, service } = createInstallationFixture({
       clock: staleClock,
       upgradeExecutor: executor,
     })
+
     const stored = createInstallationRecord({
       status: 'maintenance',
       activeOperation: completedUpgrade,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const claimed = createInstallationRecord({
       status: 'recovering',
       activeOperation: completedUpgrade,
       updatedAt: '2026-09-01T00:10:00.000Z',
     })
+
     repository.find.mockResolvedValue(stored)
     repository.claimUpgrade.mockResolvedValue(claimed)
     repository.findSafetyArtifact.mockResolvedValue({
@@ -312,20 +336,24 @@ describe('InstallationService.resumeOnStartup', () => {
       migrate: vi.fn().mockRejectedValue(new Error('migration failed')),
       rebuildAnalytics: vi.fn().mockResolvedValue(undefined),
     })
+
     const { repository, service } = createInstallationFixture({
       clock: staleClock,
       upgradeExecutor: executor,
     })
+
     const stored = createInstallationRecord({
       status: 'maintenance',
       activeOperation,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     const claimed = createInstallationRecord({
       status: 'recovering',
       activeOperation,
       updatedAt: '2026-09-01T00:10:00.000Z',
     })
+
     repository.find.mockResolvedValue(stored)
     repository.claimUpgrade.mockResolvedValue(claimed)
     repository.findSafetyArtifact.mockResolvedValue(undefined)
@@ -349,11 +377,13 @@ describe('InstallationService.resumeOnStartup', () => {
 
   it('treats a terminal operation as idle without resuming', async () => {
     const { repository, service } = createInstallationFixture({ clock: staleClock })
+
     const terminal = createInstallationRecord({
       status: 'degraded',
       activeOperation: { ...activeOperation, errorCode: 'INTERNAL_SERVER_ERROR' },
       updatedAt: '2026-09-01T00:00:00.000Z',
     })
+
     repository.find.mockResolvedValue(terminal)
 
     const result = await service.resumeOnStartup()

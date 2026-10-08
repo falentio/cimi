@@ -22,6 +22,7 @@ function testingDirectories(): string[] {
 
 test('resource testing directories use per-method test files', () => {
   const offenders: string[] = []
+
   for (const directory of testingDirectories()) {
     for (const file of readdirSync(directory)) {
       if (bannedTestFiles.has(file)) {

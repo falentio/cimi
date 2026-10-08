@@ -21,6 +21,7 @@ const props = withDefaults(
 const item = injectQuestionnaireItemContext()
 
 const errorId = props.id ?? useId()
+
 const unregisterError = item.registerError(errorId)
 
 const fallback = computed(() =>

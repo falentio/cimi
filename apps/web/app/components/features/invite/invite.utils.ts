@@ -49,7 +49,9 @@ export function invitationRenderFor(input: InvitationViewInput): InvitationRende
   if (input.sessionStatus !== 'authenticated') return { view: 'signedOut', loadingMessageKey }
 
   if (input.invitationStatus === 'loading') return { view: 'loading', loadingMessageKey }
+
   if (input.invitationStatus === 'error') return { view: 'error', loadingMessageKey }
+
   if (input.invitationStatus === 'accepted') return { view: 'accepted', loadingMessageKey }
 
   // Authenticated with an idle invitation: acceptance starts on the next tick.

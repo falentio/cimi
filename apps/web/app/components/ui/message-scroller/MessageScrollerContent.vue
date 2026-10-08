@@ -13,14 +13,18 @@ const { handleContentChange, handleResize, setContentElement, setSpacerElement }
   useMessageScrollerContext()
 
 const contentRef = useTemplateRef<HTMLElement>('content')
+
 const spacerRef = useTemplateRef<HTMLElement>('spacer')
 
 let mutationObserver: MutationObserver | null = null
+
 let resizeObserver: ResizeObserver | null = null
+
 let resizeFrame = 0
 
 onMounted(() => {
   const content = contentRef.value
+
   if (!content) return
 
   setContentElement(content)

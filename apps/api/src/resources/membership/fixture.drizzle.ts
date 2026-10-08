@@ -4,10 +4,14 @@ import { createMigratedTestDb } from '@cimi/db/testing'
 const createdAt = new Date('2026-08-31T00:00:00.000Z')
 
 export type UserRow = typeof schema.TUser.$inferSelect
+
 export type OrganizationRow = typeof schema.TOrganization.$inferSelect
+
 export type MembershipRow = typeof schema.TMembership.$inferSelect
+
 export type MembershipGovernanceOperationRow =
   typeof schema.TOrganizationGovernanceOperation.$inferSelect
+
 export type MembershipRepairOperationRow = typeof schema.TOrganizationRepairOperation.$inferSelect
 
 export function createMembershipUserRow(
@@ -142,6 +146,7 @@ export interface MembershipDrizzleFixture extends Disposable {
 
 export function createMembershipDrizzleFixture(): MembershipDrizzleFixture {
   const db = createMigratedTestDb()
+
   return {
     db,
     [Symbol.dispose]() {

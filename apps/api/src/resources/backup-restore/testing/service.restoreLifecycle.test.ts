@@ -1,4 +1,4 @@
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
 import {
@@ -11,14 +11,16 @@ import type { BackupRestoreExecutor } from '../executor.ts'
 import type { BackupRestoreRepository } from '../repository.ts'
 import { createRestoreOperation, createSafetyManifest, createSourceManifest } from './fixture.ts'
 
-const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+const admin = createTestUser()
 
 describe('BackupRestoreService.restoreLifecycle', () => {
   it('keeps the global lock held until an asynchronous restore is terminal', async () => {
     let release: (() => void) | undefined
+
     const restore = new Promise<void>((resolve) => {
       release = resolve
     })
+
     const repository = mock<BackupRestoreRepository>()
     const executor = mock<BackupRestoreExecutor>()
     const lock = new InMemoryLifecycleLock()

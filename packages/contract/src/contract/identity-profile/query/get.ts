@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SProfile, SProfileIdentityFields } from '../schema.ts'
 
 export const SProfileGetInput = SProfileIdentityFields
+
 export type SProfileGetInput = v.InferOutput<typeof SProfileGetInput>
+
 export const SProfileGetOutput = SProfile
+
 export type SProfileGetOutput = v.InferOutput<typeof SProfileGetOutput>
 
 export const getProfile = oc

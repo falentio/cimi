@@ -4,7 +4,9 @@ import { LRUCache } from 'lru-cache'
 import UAParser from 'ua-parser-js'
 
 const DEFAULT_CACHE_SIZE = 10_000
+
 const MAX_CACHE_SIZE = 100_000
+
 const UA_MAX_LENGTH = 500
 
 export interface ParsedUserAgent {
@@ -41,6 +43,7 @@ export interface UserAgentParser {
 
 export function createUserAgentParser(options: UserAgentParserOptions = {}): UserAgentParser {
   const cacheSize = options.cacheSize ?? DEFAULT_CACHE_SIZE
+
   if (!Number.isInteger(cacheSize) || cacheSize < 1 || cacheSize > MAX_CACHE_SIZE) {
     throw new RangeError(`cacheSize must be an integer between 1 and ${MAX_CACHE_SIZE}`)
   }
@@ -51,11 +54,14 @@ export function createUserAgentParser(options: UserAgentParserOptions = {}): Use
     parse(userAgent) {
       const parserInput = normalizeUserAgentInput(userAgent)
       const cached = cache.get(parserInput)
+
       if (cached !== undefined) return cached
 
       const result =
         parserInput === '' ? EMPTY_PARSED_USER_AGENT : toParsedUserAgent(UAParser(parserInput))
+
       cache.set(parserInput, result)
+
       return result
     },
   }
@@ -101,6 +107,7 @@ function normalizeUserAgentInput(userAgent: string): string {
   // Scan only the bounded prefix; hostile whitespace beyond it is treated as empty input.
   const boundedPrefix = userAgent.substring(0, UA_MAX_LENGTH)
   const leadingWhitespace = boundedPrefix.match(/^\s*/)?.[0].length ?? 0
+
   if (leadingWhitespace === UA_MAX_LENGTH) return ''
 
   return userAgent.substring(leadingWhitespace, leadingWhitespace + UA_MAX_LENGTH)

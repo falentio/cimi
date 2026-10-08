@@ -10,7 +10,9 @@ defineProps<{
 
 function stageBadgeVariant(stage: AdminCleanupStageProjection) {
   if (stage.status === 'failed') return 'destructive'
+
   if (stage.status === 'running' || stage.status === 'completed') return 'secondary'
+
   return 'outline'
 }
 </script>

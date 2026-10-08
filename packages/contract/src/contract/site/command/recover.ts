@@ -4,12 +4,15 @@ import { SId } from '../../../schema/index.ts'
 import { SSiteIdFields } from '../schema.ts'
 
 export const SSiteRecoverInput = SSiteIdFields
+
 export type SSiteRecoverInput = v.InferOutput<typeof SSiteRecoverInput>
+
 export const SSiteRecoverOutput = v.strictObject({
   accepted: v.literal(true),
   status: v.literal('recovering'),
   operationId: SId,
 })
+
 export type SSiteRecoverOutput = v.InferOutput<typeof SSiteRecoverOutput>
 
 export const recoverSite = oc

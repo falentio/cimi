@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SMembershipChangeRoleFields, SMembershipNonOwner } from '../schema.ts'
 
 export const SMembershipChangeRoleInput = SMembershipChangeRoleFields
+
 export type SMembershipChangeRoleInput = v.InferOutput<typeof SMembershipChangeRoleInput>
+
 export const SMembershipChangeRoleOutput = SMembershipNonOwner
+
 export type SMembershipChangeRoleOutput = v.InferOutput<typeof SMembershipChangeRoleOutput>
 
 export const changeMemberRole = oc

@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SMembershipOrganizationFields } from '../schema.ts'
 
 export const SMembershipLeaveInput = SMembershipOrganizationFields
+
 export type SMembershipLeaveInput = v.InferOutput<typeof SMembershipLeaveInput>
+
 export const SMembershipLeaveOutput = v.void()
+
 export type SMembershipLeaveOutput = v.InferOutput<typeof SMembershipLeaveOutput>
 
 export const leaveOrganization = oc

@@ -21,7 +21,7 @@ export function loadLoggingConfig(
   return parseConfig(loggingEnvironmentSchema, env, 'environment')
 }
 
-export function parseLoggingConfig(input: unknown): LoggingConfig {
+export function parseLoggingConfig(input: v.InferInput<typeof loggingConfigSchema>): LoggingConfig {
   return parseConfig(loggingConfigSchema, input, 'logging')
 }
 

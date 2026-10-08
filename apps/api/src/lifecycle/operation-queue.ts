@@ -12,6 +12,7 @@ export function createSerializedOperationQueue(): SerializedOperationQueue {
         () => undefined,
         () => undefined,
       )
+
       return result
     },
   }

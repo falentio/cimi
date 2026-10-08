@@ -28,11 +28,14 @@ describe('PublicDashboardService.enable', () => {
   it('rotates the identifier when enabling an already enabled dashboard', async () => {
     const repository = mock<PublicDashboardRepository>()
     repository.enable.mockResolvedValue({ status: 'updated', config })
+
     const scope = new InMemorySiteScopePort(
       [{ siteId: 'ste_1', organizationId: 'org_1' }],
       [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
     )
+
     const now = new Date('2026-09-02T00:00:00.000Z')
+
     const service = new PublicDashboardService({
       repository,
       lock: new InMemoryLifecycleLock(),

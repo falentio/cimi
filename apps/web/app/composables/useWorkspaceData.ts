@@ -19,12 +19,14 @@ interface WorkspaceData {
 type Organization = Awaited<
   ReturnType<CimiOrpc['organization']['listOrganizations']['call']>
 >['items'][number]
+
 type Site = Awaited<ReturnType<CimiOrpc['site']['listSites']['call']>>['items'][number]
 
 export function useWorkspaceData() {
   const { session } = useAuth()
   const orpc = useOrpc()
   const enabled = computed(() => session.value.status === 'authenticated')
+
   const queryKey = computed(() => [
     'workspace',
     'sidebar',
@@ -40,6 +42,7 @@ export function useWorkspaceData() {
   const teams = computed<readonly WorkspaceTeam[]>(() => {
     return query.data.value?.teams ?? []
   })
+
   const sites = computed<readonly WorkspaceSite[]>(() => {
     return query.data.value?.sites ?? []
   })
@@ -55,9 +58,11 @@ export function useWorkspaceData() {
 
 async function loadWorkspaceData(orpc: CimiOrpc, signal: AbortSignal): Promise<WorkspaceData> {
   await orpc.organization.ensurePersonalOrganization.call({}, { signal })
+
   const organizations = await fetchAllPages((offset) =>
     orpc.organization.listOrganizations.call({ offset, limit: PAGE_SIZE }, { signal }),
   )
+
   const sitesByOrganization = await Promise.all(
     organizations.map((organization) =>
       fetchAllPages((offset) =>
@@ -84,6 +89,7 @@ async function fetchAllPages<TItem>(
   while (true) {
     const page = await fetchPage(offset)
     items.push(...page.items)
+
     if (!page.hasMore || page.nextOffset === null) return items
     offset = page.nextOffset
   }

@@ -16,8 +16,11 @@ import { eventReportRouter } from './router.ts'
 import { EventReportService } from './service.ts'
 
 export { eventReportRouter }
+
 export { EventReportService, type EventReportServiceDependencies } from './service.ts'
+
 export { toOrpcReportingError } from '../../errors.ts'
+
 export type {
   EventBreakdownsInput,
   EventBreakdownsOutput,
@@ -51,6 +54,7 @@ export function createEventReport({
   const metadata = new ReportingMetadataDrizzle({ db })
   const evidence = new ReportingEvidenceDrizzleDuckDb({ db, analytics })
   const query = new DuckDbReportingQuery({ analytics })
+
   const admission = new ReportingAdmissionService({
     metadata,
     evidence,
@@ -59,6 +63,7 @@ export function createEventReport({
       lifecycle,
     }),
   })
+
   const service = new EventReportService({
     admission,
     query,
@@ -66,6 +71,7 @@ export function createEventReport({
     scope: scope ?? createSiteScopeDependencies({ db }),
     lifecycleLock,
   })
+
   return { metadata, evidence, admission, query, service, router: eventReportRouter(service) }
 }
 

@@ -3,42 +3,68 @@ import en from '../../i18n/locales/en.json'
 import fr from '../../i18n/locales/fr.json'
 import { describe, expect, it } from 'vitest'
 import { authErrorMessageKeys } from '../utils/error-message'
+import { isStringValue } from '../utils/type-guards'
 
 type LocaleLeaf = { message: string; path: string }
 
-function collectLeaves(value: unknown, path = ''): LocaleLeaf[] {
-  if (typeof value === 'string') return [{ message: value, path }]
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return []
+type LocaleJson = string | number | boolean | null | undefined | LocaleJsonObject | LocaleJson[]
+
+interface LocaleJsonObject {
+  [key: string]: LocaleJson
+}
+
+function collectLeaves(value: LocaleJson, path = ''): LocaleLeaf[] {
+  if (isStringValue(value)) return [{ message: value, path }]
+
+  if (!isLocaleObject(value)) return []
 
   return Object.entries(value).flatMap(([key, child]) =>
     collectLeaves(child, path ? `${path}.${key}` : key),
   )
 }
 
-function interpolationShape(message: string): string[] {
+function isLocaleObject(value: LocaleJson): value is LocaleJsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function interpolationKeys(message: string): string[] {
   return (message.match(/{[^{}]+}/g) ?? []).sort()
 }
 
 const englishLeaves = collectLeaves(en.validation.auth)
+
 const frenchLeaves = collectLeaves(fr.validation.auth)
+
 const registryLeaves = collectLeaves(VALIDATION_KEYS)
+
 const englishValidationLeaves = [
   ...collectLeaves(en.validation.shared, 'shared'),
   ...collectLeaves(en.validation.contract, 'contract'),
 ]
+
 const frenchValidationLeaves = [
   ...collectLeaves(fr.validation.shared, 'shared'),
   ...collectLeaves(fr.validation.contract, 'contract'),
 ]
+
 const frenchByPath = new Map(frenchLeaves.map((leaf) => [leaf.path, leaf]))
+
 const englishErrorLeaves = collectLeaves(en.errors)
+
 const frenchErrorLeaves = collectLeaves(fr.errors)
+
 const frenchErrorsByPath = new Map(frenchErrorLeaves.map((leaf) => [leaf.path, leaf]))
+
 const englishAuthErrorLeaves = collectLeaves(en.authErrors)
+
 const frenchAuthErrorLeaves = collectLeaves(fr.authErrors)
+
 const frenchAuthErrorsByPath = new Map(frenchAuthErrorLeaves.map((leaf) => [leaf.path, leaf]))
+
 const englishInviteLeaves = collectLeaves(en.invite)
+
 const frenchInviteLeaves = collectLeaves(fr.invite)
+
 const frenchInviteByPath = new Map(frenchInviteLeaves.map((leaf) => [leaf.path, leaf]))
 
 describe('auth validation locale messages', () => {
@@ -51,10 +77,11 @@ describe('auth validation locale messages', () => {
       const frenchLeaf = frenchByPath.get(path)
 
       expect(frenchLeaf?.message, path).toBeDefined()
+
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 
@@ -67,10 +94,11 @@ describe('auth validation locale messages', () => {
     expect(registryLeaves.every(({ message }) => message.startsWith('validation.'))).toBe(true)
 
     const localeLeaves = [englishValidationLeaves, frenchValidationLeaves]
+
     for (const leaves of localeLeaves) {
       for (const { message, path } of leaves) {
         expect(message.trim(), path).not.toBe('')
-        expect(interpolationShape(message), path).toEqual([])
+        expect(interpolationKeys(message), path).toEqual([])
       }
     }
   })
@@ -91,10 +119,11 @@ describe('auth validation locale messages', () => {
       const frenchLeaf = frenchErrorsByPath.get(path)
 
       expect(frenchLeaf?.message, path).toBeDefined()
+
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 
@@ -108,10 +137,11 @@ describe('auth validation locale messages', () => {
       const frenchLeaf = frenchAuthErrorsByPath.get(path)
 
       expect(frenchLeaf?.message, path).toBeDefined()
+
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 
@@ -124,10 +154,11 @@ describe('auth validation locale messages', () => {
       const frenchLeaf = frenchInviteByPath.get(path)
 
       expect(frenchLeaf?.message, path).toBeDefined()
+
       if (!frenchLeaf) continue
 
       expect(frenchLeaf.message.trim(), path).not.toBe('')
-      expect(interpolationShape(frenchLeaf.message), path).toEqual(interpolationShape(message))
+      expect(interpolationKeys(frenchLeaf.message), path).toEqual(interpolationKeys(message))
     }
   })
 })

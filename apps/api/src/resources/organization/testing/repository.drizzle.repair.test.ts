@@ -14,6 +14,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
     const { db } = fixture
     const organization = createOrganizationRow()
     const repository = new OrganizationRepositoryDrizzle({ db })
+
     const repair = await repository.createRepairOperation(
       createOrganizationRepairOperationRow({
         organizationId: null,
@@ -56,6 +57,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
     const { db } = fixture
     const organization = createOrganizationRow()
     const repository = new OrganizationRepositoryDrizzle({ db })
+
     const repair = await repository.createRepairOperation(
       createOrganizationRepairOperationRow({
         organizationId: null,
@@ -105,6 +107,7 @@ describe.concurrent('OrganizationRepositoryDrizzle repair operations', () => {
       userId: organization.ownerUserId,
       now: organization.createdAt,
     })
+
     const repair = await repository.createRepairOperation(
       createOrganizationRepairOperationRow({
         organizationId: organization.id,

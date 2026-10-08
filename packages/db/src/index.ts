@@ -6,8 +6,11 @@ export {
   type CreateDbOptions,
   type Db,
 } from './client.ts'
+
 export * as schema from './schema/index.ts'
+
 export type { JsonObject, JsonScalar, JsonValue } from './schema/types.ts'
+
 export {
   BASE_SKELETON_TABLES,
   ControlMigrationIncompatibilityError,
@@ -18,6 +21,7 @@ export {
   validateControlMigrationHistory,
   type ControlMigrationOptions,
 } from './migrate.ts'
+
 export {
   ANALYTICS_DB_FILENAME,
   ANALYTICS_PROJECTION_VERSION,
@@ -34,6 +38,7 @@ export {
   type AnalyticsWindowReader,
   type CreateAnalyticsDbOptions,
 } from './duckdb/index.ts'
+
 export {
   isRedacted,
   linkCoversEvent,
@@ -42,10 +47,12 @@ export {
   type IdentityRedactionScope,
   type IdentityRedactionTarget,
 } from './identity/coverage.ts'
+
 export {
   DuckDbReportingQuery,
   type DuckDbReportingQueryDependencies,
 } from './duckdb/reporting-query.ts'
+
 export {
   DuckDbPublicDashboardQuery,
   type DuckDbPublicDashboardQueryDependencies,

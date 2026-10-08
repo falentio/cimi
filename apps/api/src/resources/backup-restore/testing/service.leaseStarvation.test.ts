@@ -1,4 +1,4 @@
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
 import {
@@ -11,7 +11,7 @@ import type { BackupRestoreExecutor } from '../executor.ts'
 import type { BackupRestoreRepository } from '../repository.ts'
 import { createBackupOperation, createSourceManifest } from './fixture.ts'
 
-const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+const admin = createTestUser()
 
 function createStarvationFixture(leaseAcquisitionTimeoutMs = 2_000) {
   const lock = new InMemoryLifecycleLock()
@@ -32,6 +32,7 @@ function createStarvationFixture(leaseAcquisitionTimeoutMs = 2_000) {
     readiness: { controlStore: 'ready', analyticsStore: 'ready', structural: 'ready' },
   })
   executor.captureBackup.mockResolvedValue(createSourceManifest())
+
   const service = new BackupRestoreService({
     repository,
     executor,
@@ -47,6 +48,7 @@ function createStarvationFixture(leaseAcquisitionTimeoutMs = 2_000) {
       ownerToken: () => 'own_1',
     },
   })
+
   return { lock, repository, executor, service }
 }
 

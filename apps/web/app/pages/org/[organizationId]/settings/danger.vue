@@ -4,6 +4,7 @@ import OrganizationSettingsContainer from '@/components/features/organization-se
 import { useOrganizationSettings } from '@/components/features/organization-settings/useOrganizationSettings'
 
 const { activeOrganizationId } = useWorkspaceSelection()
+
 const { snapshot, isMutating, refresh, leaveOrganization, deleteOrganization } =
   useOrganizationSettings({
     section: 'danger',

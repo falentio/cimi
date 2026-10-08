@@ -11,6 +11,7 @@ defineOptions({
 })
 
 const props = defineProps<DrawerContentProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<DrawerContentEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')
