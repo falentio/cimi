@@ -14,6 +14,8 @@ import type {
   CollectionPolicySummary,
   CollectionPolicyViewModel,
   CollectionValidation,
+  EffectiveCollectionPolicyGroup,
+  EffectiveCollectionPolicyRow,
   ParsedCollectionDraft,
   CollectionFieldValue,
   CollectionSubfields,
@@ -339,6 +341,44 @@ export function describeEffectiveField(policy: PolicyValues, field: PolicyField)
       return _exhaustive
     }
   }
+}
+
+export const EFFECTIVE_COLLECTION_POLICY_GROUPS = [
+  {
+    id: 'collected',
+    title: 'What is collected',
+    fields: ['anonymousCollection', 'honorGpcDnt', 'consentMode', 'botPolicy'],
+  },
+  {
+    id: 'stored',
+    title: 'What is stored',
+    fields: ['captureQueryStrings', 'urlPolicy', 'propertyPolicy', 'profileFilterKeys'],
+  },
+  {
+    id: 'refused',
+    title: 'What is refused',
+    fields: ['exclusions'],
+  },
+] as const satisfies ReadonlyArray<{
+  readonly id: string
+  readonly title: string
+  readonly fields: ReadonlyArray<PolicyField>
+}>
+
+export function effectiveCollectionPolicyGroups(policy: {
+  readonly effective: PolicyValues
+  readonly source: CollectionPolicyResult['source']
+}): ReadonlyArray<EffectiveCollectionPolicyGroup> {
+  return EFFECTIVE_COLLECTION_POLICY_GROUPS.map((spec) => ({
+    id: spec.id,
+    title: spec.title,
+    rows: spec.fields.map((field): EffectiveCollectionPolicyRow => ({
+      field,
+      label: POLICY_FIELD_LABELS[field],
+      value: describeEffectiveField(policy.effective, field),
+      source: policy.source[field],
+    })),
+  }))
 }
 
 const SUBFIELD_LABELS = {
