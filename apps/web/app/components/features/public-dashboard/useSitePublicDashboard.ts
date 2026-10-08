@@ -21,16 +21,13 @@ import type {
   SitePublicDashboardOptions,
 } from './public-dashboard.types'
 import { toast } from 'vue-sonner'
-import {
-  normalizePublicDashboardError,
-  publicDashboardNotice,
-  toPublicDashboardView,
-} from './public-dashboard.utils'
+import { normalizePublicDashboardError, toPublicDashboardView } from './public-dashboard.utils'
 
 type ReadIntent = 'refresh' | 'reconcile'
 
 type ReadOutcome =
   | { readonly kind: 'settled' }
+  | { readonly kind: 'stale' }
   | { readonly kind: 'failed'; readonly error: PublicDashboardFailure }
 
 const INVALID_SITE_ID_FAILURE: PublicDashboardFailure = {
@@ -54,8 +51,10 @@ export function useSitePublicDashboard(
     await readConfig('refresh')
   }
 
-  function announceSuccess(operation: PublicDashboardOperation): void {
-    const notice = publicDashboardNotice(operation, null)
+  function announceSuccess(): void {
+    const notice = state.value.notice
+
+    if (notice === null) return
 
     toast.success(notice.message)
   }
@@ -95,7 +94,7 @@ export function useSitePublicDashboard(
 
         if (disposed) return
         state.value = reducePublicDashboard(state.value, { kind: 'access-revoked' })
-        announceSuccess('disable')
+        announceSuccess()
       } else {
         const config =
           command.operation === 'enable'
@@ -108,7 +107,7 @@ export function useSitePublicDashboard(
           operation: command.operation,
           config,
         })
-        announceSuccess(command.operation)
+        announceSuccess()
       }
     } catch (error: unknown) {
       if (disposed) return
@@ -153,9 +152,7 @@ export function useSitePublicDashboard(
     try {
       const config = await orpc.publicDashboard.getPublicDashboardConfig.call({ siteId })
 
-      if (disposed || version !== requestVersion) {
-        return { kind: 'failed', error: normalizePublicDashboardError({}, 'read') }
-      }
+      if (disposed || version !== requestVersion) return { kind: 'stale' }
 
       state.value = reducePublicDashboard(state.value, { kind: 'config-received', config })
 

@@ -34,7 +34,7 @@ function showToast() {
 
 - `index.ts` exports only `Toaster` from `./Sonner.vue`. The correct auto-imported tag is `<UIToaster>`. Do not use `<UISonner>`.
 - `Sonner.vue` accepts `ToasterProps` from `vue-sonner` and forwards the upstream toaster configuration. `ToasterProps` is a type-only import from `vue-sonner`, not from the local barrel.
-- The wrapper applies `toaster group` to the toaster, maps normal toast colors to the app's popover and border variables, and gives toasts a `rounded-2xl` class when `toastOptions` is omitted.
+- The wrapper applies `toaster group` to the toaster, maps normal toast colors to the app's popover and border variables, and gives toasts a `rounded-2xl` class when `toastOptions` is omitted. The effective radius is still the `--border-radius` the wrapper pins to `var(--radius)`, which is 10px and matches the app's `--radius-lg`, because `[data-sonner-toast]` applies it as an unlayered rule that outranks the utility class.
 - Passing `toastOptions` replaces that local default object. Merge `classes.toast` yourself when you need both custom options and the default rounded class.
 - The wrapper supplies Hugeicons for success, info, warning, error, loading, and close states. The loading icon spins. Parent slots do not override these icons because the wrapper defines the icon templates itself.
 - The toaster positions toasts at `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center`, or `bottom-right`. The locked `vue-sonner` v2.0.9 package defaults to `bottom-right`.
@@ -54,7 +54,8 @@ function showToast() {
 - The upstream toaster supports keyboard focus with `Alt+T`. Set the `hotkey` prop to an array of keyboard modifier names or `event.code` values when the default conflicts with the app.
 - The upstream component guards `window`, `document`, and system-theme listeners during SSR. Render `<UIToaster>` during SSR, but call `toast` from client-side handlers or client lifecycle code rather than during server setup.
 - A toast emitted before the toaster subscribes has no mounted UI to receive it. Mount `<UIToaster>` before code can emit startup notifications.
-- The local `Sonner.vue` file and `apps/web/app/assets/css/tailwind.css` do not import `vue-sonner/style.css`. Add `import 'vue-sonner/style.css'` to an app-level entry when the stylesheet is not already loaded.
+- `apps/web/app/assets/css/tailwind.css` imports `vue-sonner/style.css`, so the toaster is styled for the whole app and neither `Sonner.vue` nor an app-level entry needs to import it again.
+- That stylesheet is plain CSS loaded after `@import 'tailwindcss'`, so its rules are unlayered and win over every Tailwind layer. Its `[data-sonner-toaster]` rule sets `font-family` directly on the element, which beats the `body` font the app otherwise inherits, so `Sonner.vue` sets `font-family: var(--font-sans)` in its inline `:style` object. Override an unlayered toast property there, not with a utility class.
 - Do not add the `vue-sonner/nuxt` module for this component. This app uses the local shadcn wrapper and explicit `toast` imports instead of the module's `$toast` injection.
 
 ## Examples

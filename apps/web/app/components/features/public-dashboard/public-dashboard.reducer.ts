@@ -5,7 +5,7 @@ import type {
   PublicDashboardResource,
   PublicDashboardState,
 } from './public-dashboard.types'
-import { publicDashboardNotice } from './public-dashboard.utils'
+import { publicDashboardNotice, publicDashboardStatus } from './public-dashboard.utils'
 
 export function createInitialPublicDashboardState(): PublicDashboardState {
   return {
@@ -86,11 +86,17 @@ function commit(
   configuration: PublicDashboardConfiguration,
   operation: PublicDashboardOperation,
 ): PublicDashboardState {
+  const priorStatus = loadedConfiguration(state.config)
+
   return {
     ...state,
     config: { kind: 'ready', configuration, refreshing: false },
     command: { kind: 'idle' },
-    notice: publicDashboardNotice(operation, null),
+    notice: publicDashboardNotice(
+      operation,
+      null,
+      priorStatus === null ? null : publicDashboardStatus(priorStatus),
+    ),
   }
 }
 

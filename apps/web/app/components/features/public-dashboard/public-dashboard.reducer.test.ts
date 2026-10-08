@@ -109,6 +109,34 @@ describe('public-dashboard.reducer', () => {
     expect(next.notice?.message).toContain('previous public URL no longer resolves')
   })
 
+  it('announces the first identifier when a Site that never enabled it is enabled', () => {
+    const unconfigured = reducePublicDashboard(createInitialPublicDashboardState(), {
+      kind: 'config-absent',
+    })
+
+    const next = reducePublicDashboard(unconfigured, {
+      kind: 'identifier-issued',
+      operation: 'enable',
+      config: enabled,
+    })
+
+    expect(next.notice?.message).toContain('the first identifier was issued')
+    expect(next.notice?.message).not.toContain('no longer resolves')
+  })
+
+  it('announces a revoked earlier identifier when a disabled Site is enabled', () => {
+    const disabled = reducePublicDashboard(ready(), { kind: 'access-revoked' })
+
+    const next = reducePublicDashboard(disabled, {
+      kind: 'identifier-issued',
+      operation: 'enable',
+      config: enabled,
+    })
+
+    expect(next.notice?.message).toContain('a new identifier was issued')
+    expect(next.notice?.message).toContain('no longer resolves')
+  })
+
   it('clears the enabled flag on revoke because disable returns no body', () => {
     const next = reducePublicDashboard(ready(), { kind: 'access-revoked' })
 

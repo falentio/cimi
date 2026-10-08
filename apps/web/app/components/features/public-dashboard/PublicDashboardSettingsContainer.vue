@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { siteSettingsPath } from '@/components/features/app-shell/organization-nav-config'
@@ -107,7 +107,7 @@ async function refresh(): Promise<void> {
         </Button>
       </Alert>
 
-      <Alert v-if="view.notice" role="status">
+      <div v-if="view.notice" :class="alertVariants()">
         <AlertTitle>
           {{
             view.notice.operation === 'disable' ? 'Public access disabled' : 'Identifier updated'
@@ -117,7 +117,7 @@ async function refresh(): Promise<void> {
           {{ view.notice.message }}
           <template v-if="view.notice.warning !== null">{{ view.notice.warning.message }}</template>
         </AlertDescription>
-      </Alert>
+      </div>
 
       <PublicDashboardStatusCard
         :busy="view.busy"

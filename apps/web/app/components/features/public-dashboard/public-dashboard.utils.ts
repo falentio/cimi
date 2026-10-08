@@ -200,10 +200,13 @@ export function normalizePublicDashboardError(
 export function publicDashboardNotice(
   operation: PublicDashboardOperation,
   warning: PublicDashboardFailure | null,
+  priorStatus: PublicDashboardStatus | null,
 ): PublicDashboardNotice {
   const message =
     operation === 'enable'
-      ? 'The public dashboard is enabled and a new identifier was issued. Any identifier issued earlier no longer resolves.'
+      ? priorStatus === 'unconfigured'
+        ? 'The public dashboard is enabled and the first identifier was issued.'
+        : 'The public dashboard is enabled and a new identifier was issued. Any identifier issued earlier no longer resolves.'
       : operation === 'disable'
         ? 'The public dashboard is disabled and its identifier was revoked. The server authorizes no new public request.'
         : 'A new identifier was issued. The previous public URL no longer resolves.'
@@ -243,8 +246,6 @@ export function toPublicDashboardView(state: PublicDashboardState): SitePublicDa
 }
 
 function buildAnnouncement(state: PublicDashboardState): string {
-  if (state.notice !== null) return state.notice.message
-
   if (state.command.kind === 'submitting') {
     return `Public dashboard ${state.command.operation} in progress.`
   }

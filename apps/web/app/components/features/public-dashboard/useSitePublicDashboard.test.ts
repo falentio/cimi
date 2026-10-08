@@ -63,11 +63,14 @@ function createController(siteId: string = 'ste_1') {
   return { controller, scope, id }
 }
 
+function flushPending(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
 beforeEach(() => {
   resetMocks()
   vi.restoreAllMocks()
   vi.spyOn(toast, 'success')
-  vi.spyOn(toast, 'error')
 })
 
 afterEach(() => vi.useRealTimers())
@@ -295,7 +298,6 @@ describe('useSitePublicDashboard', () => {
     await controller.confirm()
 
     expect(toast.success).not.toHaveBeenCalled()
-    expect(toast.error).not.toHaveBeenCalled()
     expect(controller.view.value).toMatchObject({
       kind: 'ready',
       command: { kind: 'failed', operation: 'disable', error: { kind: 'conflict' } },
@@ -330,6 +332,88 @@ describe('useSitePublicDashboard', () => {
     expect(controller.view.value).toMatchObject({
       kind: 'ready',
       notice: { operation: 'rotate', warning: { kind: 'server' } },
+    })
+    scope.stop()
+  })
+
+  it('attaches no load warning when a later read supersedes the reconcile read', async () => {
+    let resolveSuperseded: (config: PublicDashboardConfig) => void = () => undefined
+
+    const supersededRead = new Promise<PublicDashboardConfig>((resolve) => {
+      resolveSuperseded = resolve
+    })
+
+    mocks.getPublicDashboardConfig
+      .mockResolvedValueOnce(config())
+      .mockImplementationOnce(() => supersededRead)
+      .mockResolvedValue(config())
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('rotate')
+    const first = controller.confirm()
+    await flushPending()
+    controller.request('rotate')
+    const second = controller.confirm()
+    await flushPending()
+    resolveSuperseded(config())
+    await Promise.all([first, second])
+
+    expect(controller.view.value).toMatchObject({
+      kind: 'ready',
+      notice: { operation: 'rotate', warning: null },
+    })
+    scope.stop()
+  })
+
+  it('announces the first identifier when a Site that never enabled it is enabled', async () => {
+    mocks.getPublicDashboardConfig.mockRejectedValueOnce({ code: 'NOT_FOUND', status: 404 })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('enable')
+    await controller.confirm()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'The public dashboard is enabled and the first identifier was issued.',
+    )
+    scope.stop()
+  })
+
+  it('announces the revoked identifier when enabling a disabled dashboard', async () => {
+    mocks.getPublicDashboardConfig.mockResolvedValue(config({ enabled: false }))
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('enable')
+    await controller.confirm()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'The public dashboard is enabled and a new identifier was issued. Any identifier issued earlier no longer resolves.',
+    )
+    scope.stop()
+  })
+
+  it('leaves the page announcement empty because the Sonner toast announces the commit', async () => {
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('rotate')
+    await controller.confirm()
+
+    expect(controller.view.value).toMatchObject({ kind: 'ready', announcement: '' })
+    scope.stop()
+  })
+
+  it('still announces a failed command inline because no toast covers it', async () => {
+    mocks.disablePublicDashboard.mockRejectedValue({ code: 'CONFLICT', status: 409 })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('disable')
+    await controller.confirm()
+
+    expect(controller.view.value).toMatchObject({
+      kind: 'ready',
+      announcement:
+        'This Site is not active, or another operation is running. Refresh before retrying.',
     })
     scope.stop()
   })
