@@ -187,6 +187,10 @@ test('quiesce drains a pre-admitted candidate and rejects a new write in the sam
     async rebuildAnalytics() {},
     async verifyStructuralReadiness() {},
     async rollback() {},
+    async reclaimSafety() {},
+    async listSafetyArtifactOperationIds() {
+      return []
+    },
   }
 
   await using fixture = await createApiTestFixture({ backupRestoreExecutor: executor })

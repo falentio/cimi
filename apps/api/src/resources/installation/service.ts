@@ -48,6 +48,7 @@ export interface UpgradeExecutor {
     operationId: string
     artifact: InstallationRepository.SafetyArtifactInput
   }): Promise<void>
+  reclaimSafety(input: { storageKey: string }): Promise<void>
 }
 
 export interface InstallationIdFactory {
@@ -559,6 +560,18 @@ export class InstallationService implements LifecycleOperationStatusReader {
     }
   }
 
+  private async reclaimSafety(
+    storageKey: string,
+    stage: 'reclaim',
+    operationId: string,
+  ): Promise<void> {
+    try {
+      await this.upgradeExecutor.reclaimSafety({ storageKey })
+    } catch (error) {
+      reportInstallationError(error, stage, operationId)
+    }
+  }
+
   private async executeUpgrade(input: {
     operationId: string
     ownerToken: string
@@ -647,6 +660,10 @@ export class InstallationService implements LifecycleOperationStatusReader {
         now: this.clock(),
       })
 
+      if (completed !== undefined && artifact !== undefined) {
+        await this.reclaimSafety(artifact.storageKey, 'reclaim', input.operationId)
+      }
+
       if (completed === undefined) {
         try {
           const current = await this.repository.find()
@@ -678,12 +695,15 @@ export class InstallationService implements LifecycleOperationStatusReader {
     } catch (error) {
       reportInstallationError(error, 'execute', input.operationId)
 
+      let rolledBack = false
+
       if (artifact !== undefined && !ownershipLost) {
         try {
           await this.upgradeExecutor.rollback({
             operationId: input.operationId,
             artifact,
           })
+          rolledBack = true
         } catch (rollbackError) {
           reportInstallationError(rollbackError, 'rollback', input.operationId)
         }
@@ -700,8 +720,10 @@ export class InstallationService implements LifecycleOperationStatusReader {
                 ? 'INTERNAL_SERVER_ERROR'
                 : 'INTERNAL_SERVER_ERROR'
 
+      let failed: Awaited<ReturnType<InstallationRepository['failUpgrade']>>
+
       try {
-        await this.repository.failUpgrade({
+        failed = await this.repository.failUpgrade({
           operationId: input.operationId,
           ownerToken: input.ownerToken,
           errorCode: failCode,
@@ -709,6 +731,10 @@ export class InstallationService implements LifecycleOperationStatusReader {
         })
       } catch (failureError) {
         reportInstallationError(failureError, 'record-failure', input.operationId)
+      }
+
+      if (rolledBack && failed !== undefined && artifact !== undefined) {
+        await this.reclaimSafety(artifact.storageKey, 'reclaim', input.operationId)
       }
     }
   }
@@ -759,6 +785,7 @@ function reportInstallationError(
     | 'record-failure'
     | 'resume-admission'
     | 'rollback'
+    | 'reclaim'
     | 'release',
   operationId?: string,
 ): void {

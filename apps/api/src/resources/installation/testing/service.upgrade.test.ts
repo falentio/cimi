@@ -222,6 +222,80 @@ describe('InstallationService.upgrade', () => {
     )
   })
 
+  it('reclaims the safety artifact after a successful upgrade', async () => {
+    const reclaimSafety = vi.fn().mockResolvedValue(undefined)
+    const executor = createFakeUpgradeExecutor({ reclaimSafety })
+    const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.recordSafetyArtifact.mockResolvedValue(maintenanceRecord())
+    repository.updateUpgradeProgress.mockResolvedValue(maintenanceRecord())
+    repository.completeUpgrade.mockResolvedValue(createInstallationRecord())
+
+    await service.upgrade(input, admin)
+    await service.stop()
+
+    expect(reclaimSafety).toHaveBeenCalledWith({ storageKey: 'safety/bop_1.sqlite' })
+  })
+
+  it('reclaims the safety artifact after a failed upgrade whose rollback succeeded', async () => {
+    const order: string[] = []
+
+    const reclaimSafety = vi.fn().mockImplementation(async () => {
+      order.push('reclaim')
+    })
+
+    const executor = createFakeUpgradeExecutor({
+      migrate: vi.fn().mockRejectedValue(new Error('migration failed')),
+      rollback: vi.fn().mockResolvedValue(undefined),
+      reclaimSafety,
+    })
+
+    const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.recordSafetyArtifact.mockResolvedValue(maintenanceRecord())
+    repository.updateUpgradeProgress.mockResolvedValue(maintenanceRecord())
+    repository.failUpgrade.mockImplementation(async () => {
+      order.push('fail')
+
+      return createInstallationRecord({ status: 'degraded', activeOperation: null })
+    })
+
+    await service.upgrade(input, admin)
+    await service.stop()
+
+    expect(reclaimSafety).toHaveBeenCalledWith({ storageKey: 'safety/bop_1.sqlite' })
+    expect(order).toEqual(['fail', 'reclaim'])
+  })
+
+  it('keeps the safety artifact when the rollback itself fails', async () => {
+    const reclaimSafety = vi.fn().mockResolvedValue(undefined)
+
+    const executor = createFakeUpgradeExecutor({
+      migrate: vi.fn().mockRejectedValue(new Error('migration failed')),
+      rollback: vi.fn().mockRejectedValue(new Error('rollback failed')),
+      reclaimSafety,
+    })
+
+    const { repository, service } = createInstallationFixture({ ids, upgradeExecutor: executor })
+    repository.find.mockResolvedValue(createInstallationRecord())
+    repository.beginUpgrade.mockResolvedValue(maintenanceRecord())
+    repository.findSafetyArtifact.mockResolvedValue(undefined)
+    repository.recordSafetyArtifact.mockResolvedValue(maintenanceRecord())
+    repository.updateUpgradeProgress.mockResolvedValue(maintenanceRecord())
+    repository.failUpgrade.mockResolvedValue(
+      createInstallationRecord({ status: 'degraded', activeOperation: null }),
+    )
+
+    await service.upgrade(input, admin)
+    await service.stop()
+
+    expect(reclaimSafety).not.toHaveBeenCalled()
+  })
+
   it('reuses an existing safety artifact without creating or recording', async () => {
     const existing = {
       id: 'bar_1',

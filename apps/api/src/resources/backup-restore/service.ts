@@ -20,6 +20,7 @@ import {
   SafetyArtifactUnavailableError,
   type BackupRestoreExecutor,
 } from './executor.ts'
+import { safetyArtifactStorageKey } from './safety-artifacts.ts'
 import type {
   BackupOperation,
   BackupRestoreRepository,
@@ -455,6 +456,7 @@ export class BackupRestoreService {
 
   async start(): Promise<void> {
     await this.resumeOnStartup()
+    await this.sweepSafetyArtifacts()
   }
 
   async stop(): Promise<void> {
@@ -702,6 +704,14 @@ export class BackupRestoreService {
       })
 
       if (completed === undefined) ownershipLost = true
+
+      if (completed !== undefined && safety !== undefined) {
+        await this.reclaimSafety(safety.storageKey, {
+          operation: 'backup.restore',
+          stage: 'reclaim',
+          operationId: operation.id,
+        })
+      }
     } catch (error) {
       if (!ownershipLost) {
         const context = {
@@ -784,12 +794,47 @@ export class BackupRestoreService {
       }
     }
 
-    await this.repository.fail({
+    const failed = await this.repository.fail({
       operationId,
       ownerToken,
       errorCode: errorCodeFor(cause, fallbackErrorCode),
       now: this.clock(),
     })
+
+    if (failed !== undefined && safety !== undefined) {
+      await this.reclaimSafety(safety.storageKey, {
+        operation: context.operation,
+        stage: 'reclaim',
+        operationId,
+      })
+    }
+  }
+
+  private async sweepSafetyArtifacts(): Promise<void> {
+    try {
+      const operationIds = await this.executor.listSafetyArtifactOperationIds()
+      const live = await this.repository.findLiveSafetyOperationIds(operationIds)
+
+      for (const operationId of operationIds) {
+        if (live.has(operationId)) continue
+
+        await this.reclaimSafety(safetyArtifactStorageKey(operationId), {
+          operation: 'backup.restore',
+          stage: 'scan',
+          operationId,
+        })
+      }
+    } catch (error) {
+      this.reportError(error, { operation: 'backup.restore', stage: 'scan' })
+    }
+  }
+
+  private async reclaimSafety(storageKey: string, context: LogOperationContext): Promise<void> {
+    try {
+      await this.executor.reclaimSafety({ storageKey })
+    } catch (error) {
+      this.reportError(error, context)
+    }
   }
 
   private async failAfterAdmissionError(

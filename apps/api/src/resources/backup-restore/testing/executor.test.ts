@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
@@ -15,6 +15,87 @@ import {
   createSiteRow,
   createSiteUserRow,
 } from '../../site/fixture.drizzle.ts'
+
+describe('ConfiguredSqliteExecutor.reclaimSafety', () => {
+  async function createExecutor(directory: string) {
+    const controlDatabasePath = join(directory, 'control.sqlite')
+    const db = createDb({ path: controlDatabasePath })
+    migrateControlDb(db)
+    const analytics = await createTestAnalyticsDb()
+
+    return {
+      db,
+      analytics,
+      executor: new ConfiguredSqliteExecutor({
+        db,
+        analytics,
+        controlDatabasePath,
+        dataDirectoryPath: directory,
+      }),
+    }
+  }
+
+  it('removes the safety file with its wal and shm sidecars', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-safety-reclaim-'))
+    const { db, analytics, executor } = await createExecutor(directory)
+
+    try {
+      const storageKey = 'safety/bop_1.sqlite'
+
+      await mkdir(join(directory, 'safety'), { recursive: true })
+      await writeFile(join(directory, storageKey), 'artifact')
+      await writeFile(join(directory, `${storageKey}-wal`), 'wal')
+      await writeFile(join(directory, `${storageKey}-shm`), 'shm')
+
+      await executor.reclaimSafety({ storageKey })
+
+      await expect(stat(join(directory, storageKey))).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(stat(join(directory, `${storageKey}-wal`))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      await expect(stat(join(directory, `${storageKey}-shm`))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('is idempotent when the safety file is absent', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-safety-reclaim-'))
+    const { db, analytics, executor } = await createExecutor(directory)
+
+    try {
+      await expect(
+        executor.reclaimSafety({ storageKey: 'safety/bop_missing.sqlite' }),
+      ).resolves.toBeUndefined()
+      await expect(
+        executor.reclaimSafety({ storageKey: 'safety/bop_missing.sqlite' }),
+      ).resolves.toBeUndefined()
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a safety storage key outside the configured root', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cimi-safety-reclaim-'))
+    const { db, analytics, executor } = await createExecutor(directory)
+
+    try {
+      await expect(
+        executor.reclaimSafety({ storageKey: 'safety/../../escape.sqlite' }),
+      ).rejects.toThrow(/invalid/)
+    } finally {
+      await analytics.close()
+      closeDb(db)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('ConfiguredSqliteExecutor', () => {
   it('preserves a current deleted Site when restoring an active backup', async () => {

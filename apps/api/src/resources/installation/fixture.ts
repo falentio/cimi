@@ -45,6 +45,7 @@ export function createFakeUpgradeExecutor(
     migrate: async () => undefined,
     rebuildAnalytics: async () => undefined,
     rollback: async () => undefined,
+    reclaimSafety: async () => undefined,
     ...overrides,
   }
 }

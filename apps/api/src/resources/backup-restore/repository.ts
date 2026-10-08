@@ -170,6 +170,7 @@ export interface BackupRestoreRepository {
   findSourceManifest(backupId: string): Promise<SourceManifest | undefined>
   findAuthoritativeArtifact(operationId: string): Promise<SourceManifest | undefined>
   findSafetyArtifact(operationId: string): Promise<SafetyManifest | undefined>
+  findLiveSafetyOperationIds(operationIds: readonly string[]): Promise<ReadonlySet<string>>
   findCleanupPending(): Promise<BackupOperation | undefined>
   list(input: BackupRestoreRepository.PageInput): Promise<BackupOperationPage>
   claim(input: BackupRestoreRepository.ClaimInput): Promise<BackupOperation | undefined>

@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createTestUser } from '@cimi/auth'
@@ -33,6 +33,9 @@ class FailAfterSwapExecutor implements BackupRestoreExecutor {
   rebuildAnalytics: BackupRestoreExecutor['rebuildAnalytics'] = (input) =>
     this.real.rebuildAnalytics(input)
   rollback: BackupRestoreExecutor['rollback'] = (input) => this.real.rollback(input)
+  reclaimSafety: BackupRestoreExecutor['reclaimSafety'] = (input) => this.real.reclaimSafety(input)
+  listSafetyArtifactOperationIds: BackupRestoreExecutor['listSafetyArtifactOperationIds'] = () =>
+    this.real.listSafetyArtifactOperationIds()
 
   async verifyStructuralReadiness(input: { readonly operationId: string }): Promise<void> {
     if (this.fail) throw new Error('structural readiness failed after the sqlite swap')
@@ -114,10 +117,26 @@ async function createHarness() {
     }
   }
 
+  async function safetyEntries(): Promise<string[]> {
+    try {
+      return await readdir(join(directory, 'safety'))
+    } catch {
+      return []
+    }
+  }
+
+  async function writeSafetyFile(name: string): Promise<void> {
+    await mkdir(join(directory, 'safety'), { recursive: true })
+    await writeFile(join(directory, 'safety', name), 'orphan')
+  }
+
   return {
     service,
     executor,
+    db,
     safetyFiles,
+    safetyEntries,
+    writeSafetyFile,
     async dispose() {
       await service.stop()
       await analytics.close()
@@ -161,6 +180,50 @@ describe('BackupRestoreService.safetyReclamation', () => {
       expect(retryStatus.preRestoreSafetyArtifact?.status).toBe('ready')
 
       expect(await harness.safetyFiles()).toEqual([])
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  it('sweeps a row-less orphan on start and keeps a file whose operation row is live', async () => {
+    const harness = await createHarness()
+
+    try {
+      await harness.writeSafetyFile('orphan_x.sqlite')
+      await harness.writeSafetyFile('orphan_x.sqlite-wal')
+      await harness.writeSafetyFile('orphan_x.sqlite-shm')
+      await harness.writeSafetyFile('bop_live.sqlite')
+
+      const now = new Date('2026-09-01T00:00:00.000Z')
+
+      harness.db
+        .insert(schema.TBackupOperation)
+        .values({
+          id: 'bop_live',
+          operationType: 'upgrade',
+          status: 'creating',
+          scope: 'installation',
+          phase: 'capturing_sqlite',
+          progress: 0,
+          checkpoint: 'none',
+          lastSafeSequence: null,
+          controlReadiness: 'ready',
+          analyticsReadiness: 'ready',
+          structuralReadiness: 'not_ready',
+          cleanupPending: false,
+          errorCode: null,
+          recoveryKey: null,
+          createdAt: now,
+          startedAt: null,
+          completedAt: null,
+          updatedAt: now,
+          ownerToken: 'own_live',
+        })
+        .run()
+
+      await harness.service.start()
+
+      expect(await harness.safetyEntries()).toEqual(['bop_live.sqlite'])
     } finally {
       await harness.dispose()
     }
