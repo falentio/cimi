@@ -8,16 +8,19 @@ describe('InvitationService.create', () => {
   it('returns the token once and stores only its hash', async () => {
     const { repository, service } = createInvitationFixture()
     repository.insert.mockImplementation(async (createInput) => ({
-      id: createInput.id,
-      organizationId: createInput.organizationId,
-      role: createInput.role,
-      tokenHash: createInput.tokenHash,
-      expiresAt: createInput.expiresAt,
-      status: 'pending',
-      acceptedAt: null,
-      revokedAt: null,
-      createdAt: createInput.createdAt,
-      updatedAt: createInput.updatedAt,
+      status: 'inserted',
+      invitation: {
+        id: createInput.id,
+        organizationId: createInput.organizationId,
+        role: createInput.role,
+        tokenHash: createInput.tokenHash,
+        expiresAt: createInput.expiresAt,
+        status: 'pending',
+        acceptedAt: null,
+        revokedAt: null,
+        createdAt: createInput.createdAt,
+        updatedAt: createInput.updatedAt,
+      },
     }))
 
     const result = await service.create(input, { id: 'user_1' }, new Headers())

@@ -46,6 +46,11 @@ export const ERROR_CATALOG = {
     status: 409,
     message: 'The invitation has already been consumed.',
   },
+  INVITATION_LIMIT_REACHED: {
+    code: 'INVITATION_LIMIT_REACHED',
+    status: 409,
+    message: 'The organization has reached its limit of pending invitations.',
+  },
   QUERY_LIMIT_EXCEEDED: {
     code: 'QUERY_LIMIT_EXCEEDED',
     status: 422,

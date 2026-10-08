@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
+import { MAX_PENDING_INVITATIONS_PER_ORGANIZATION } from '@cimi/contract'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
@@ -85,9 +86,16 @@ function invitationStatusLabel(status: string): string {
   <Card>
     <CardHeader>
       <CardTitle><h2>Invitations</h2></CardTitle>
-      <CardDescription>Invite people with a role-specific, single-use link.</CardDescription>
+      <CardDescription
+        >Invite people with a role-specific, single-use link. An organization can have at most
+        {{ MAX_PENDING_INVITATIONS_PER_ORGANIZATION }} pending invitations.</CardDescription
+      >
     </CardHeader>
     <CardContent class="flex flex-col gap-5">
+      <p class="text-muted-foreground text-sm">
+        {{ pendingInvitations.length }} of {{ MAX_PENDING_INVITATIONS_PER_ORGANIZATION }} pending
+        invitations
+      </p>
       <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="submitInvitation">
         <div class="flex flex-1 flex-col gap-2">
           <label for="invitation-role" class="text-sm font-medium">Role</label>

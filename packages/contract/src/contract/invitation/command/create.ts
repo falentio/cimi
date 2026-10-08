@@ -30,6 +30,7 @@ export const createInvitation = oc
     FORBIDDEN: {},
     NOT_FOUND: {},
     BAD_REQUEST: {},
+    INVITATION_LIMIT_REACHED: {},
   })
   .input(SInvitationCreateInput)
   .output(SInvitationCreateOutput)

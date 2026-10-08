@@ -16,6 +16,7 @@ const statuses = {
   ORGANIZATION_NOT_EMPTY: 409,
   PERSONAL_ORGANIZATION_PROTECTED: 409,
   INVITATION_CONSUMED: 409,
+  INVITATION_LIMIT_REACHED: 409,
   QUERY_LIMIT_EXCEEDED: 422,
   INCOMPATIBLE_BACKUP: 422,
   PAYLOAD_TOO_LARGE: 413,
@@ -213,7 +214,13 @@ const expectedErrors = {
     'INTERNAL_SERVER_ERROR',
   ),
   'invitation.listInvitations': catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST'),
-  'invitation.createInvitation': catalog('UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'BAD_REQUEST'),
+  'invitation.createInvitation': catalog(
+    'UNAUTHORIZED',
+    'FORBIDDEN',
+    'NOT_FOUND',
+    'BAD_REQUEST',
+    'INVITATION_LIMIT_REACHED',
+  ),
   'invitation.revokeInvitation': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',

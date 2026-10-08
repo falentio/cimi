@@ -64,11 +64,11 @@ pending -> revoked
 
 **Purpose:** Create a seven-day, single-use invitation with a fixed non-owner role.
 
-**Behavior:** Return the bearer token exactly once. Store only its hash. Reissuing creates a new invitation and does not mutate an existing token. Return 201.
+**Behavior:** Return the bearer token exactly once. Store only its hash. Reissuing creates a new invitation and does not mutate an existing token. Reject a sixth pending invitation for the same Organization with `INVITATION_LIMIT_REACHED` (409), persisting no row and returning no token. Return 201.
 
 **Events Emitted:** None in MVP.
 
-**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400).
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `BAD_REQUEST` (400), `INVITATION_LIMIT_REACHED` (409).
 
 ### C2: `POST /invitation/revokeInvitation` — `revokeInvitation`
 
@@ -106,6 +106,7 @@ pending -> revoked
 | A valid bearer token is transferable and not email-bound.                                                | Token and acceptance boundary.      | C3                  |
 | Email verification is not an acceptance prerequisite.                                                    | Authentication boundary.            | C3                  |
 | Better Auth owns the resulting Organization membership; Cimi reconciles persisted Site scope separately. | Auth organization integration.      | C3                  |
+| An Organization holds at most five pending Invitations.                                                  | Repository insert transaction.      | C1                  |
 
 ## 7. Authorization Matrix
 
@@ -133,14 +134,15 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code                  | HTTP | Trigger                                                               |
-| --------------------- | ---: | --------------------------------------------------------------------- |
-| `UNAUTHORIZED`        |  401 | Recipient is not authenticated.                                       |
-| `FORBIDDEN`           |  403 | Caller lacks invitation management role.                              |
-| `NOT_FOUND`           |  404 | Token is invalid, expired, revoked, or unknown.                       |
-| `BAD_REQUEST`         |  400 | Invitation role, organization, token, or pagination input is invalid. |
-| `CONFLICT`            |  409 | The existing membership has an incompatible role.                     |
-| `INVITATION_CONSUMED` |  409 | Revoke attempted after acceptance.                                    |
+| Code                       | HTTP | Trigger                                                               |
+| -------------------------- | ---: | --------------------------------------------------------------------- |
+| `UNAUTHORIZED`             |  401 | Recipient is not authenticated.                                       |
+| `FORBIDDEN`                |  403 | Caller lacks invitation management role.                              |
+| `NOT_FOUND`                |  404 | Token is invalid, expired, revoked, or unknown.                       |
+| `BAD_REQUEST`              |  400 | Invitation role, organization, token, or pagination input is invalid. |
+| `CONFLICT`                 |  409 | The existing membership has an incompatible role.                     |
+| `INVITATION_CONSUMED`      |  409 | Revoke attempted after acceptance.                                    |
+| `INVITATION_LIMIT_REACHED` |  409 | Create attempted with five pending Invitations already outstanding.   |
 
 ## 11. Related Resources & Dependencies
 

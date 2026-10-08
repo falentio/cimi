@@ -1,4 +1,5 @@
-import { and, asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, eq, gt } from 'drizzle-orm'
+import { MAX_PENDING_INVITATIONS_PER_ORGANIZATION } from '@cimi/contract'
 import { schema, type Db } from '@cimi/db'
 import type { InvitationRepository } from './repository.ts'
 import type { TokenHash } from './token.ts'
@@ -84,28 +85,50 @@ export class InvitationRepositoryDrizzle implements InvitationRepository {
 
   async insert(
     input: InvitationRepository.CreateInput,
-  ): Promise<InvitationRepository.InvitationRecord> {
-    const rows = await this.db
-      .insert(schema.TInvitation)
-      .values({
-        id: input.id,
-        organizationId: input.organizationId,
-        role: input.role,
-        tokenHash: input.tokenHash,
-        expiresAt: input.expiresAt,
-        status: 'pending',
-        acceptedAt: null,
-        revokedAt: null,
-        createdAt: input.createdAt,
-        updatedAt: input.updatedAt,
-      })
-      .returning()
+  ): Promise<InvitationRepository.InsertResult> {
+    return this.db.transaction(
+      (tx) => {
+        const [pending] = tx
+          .select({ count: count() })
+          .from(schema.TInvitation)
+          .where(
+            and(
+              eq(schema.TInvitation.organizationId, input.organizationId),
+              eq(schema.TInvitation.status, 'pending'),
+              gt(schema.TInvitation.expiresAt, input.createdAt),
+            ),
+          )
+          .all()
 
-    const row = rows[0]
+        if ((pending?.count ?? 0) >= MAX_PENDING_INVITATIONS_PER_ORGANIZATION) {
+          return { status: 'limit-reached' }
+        }
 
-    if (row === undefined) throw new Error('Invitation insert returned no row')
+        const rows = tx
+          .insert(schema.TInvitation)
+          .values({
+            id: input.id,
+            organizationId: input.organizationId,
+            role: input.role,
+            tokenHash: input.tokenHash,
+            expiresAt: input.expiresAt,
+            status: 'pending',
+            acceptedAt: null,
+            revokedAt: null,
+            createdAt: input.createdAt,
+            updatedAt: input.updatedAt,
+          })
+          .returning()
+          .all()
 
-    return toRecord(row)
+        const row = rows[0]
+
+        if (row === undefined) throw new Error('Invitation insert returned no row')
+
+        return { status: 'inserted', invitation: toRecord(row) }
+      },
+      { behavior: 'immediate' },
+    )
   }
 
   async consume(

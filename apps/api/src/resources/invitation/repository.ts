@@ -10,7 +10,7 @@ export interface InvitationRepository {
     options: InvitationRepository.FindManyOptions,
   ): Promise<InvitationRepository.FindManyResult>
   findAuthorityOrganizationId(organizationId: string): Promise<string | undefined>
-  insert(input: InvitationRepository.CreateInput): Promise<InvitationRepository.InvitationRecord>
+  insert(input: InvitationRepository.CreateInput): Promise<InvitationRepository.InsertResult>
   consume(input: InvitationRepository.ConsumeInput): Promise<InvitationRepository.ConsumeResult>
   revoke(input: InvitationRepository.RevokeInput): Promise<InvitationRepository.RevokeResult>
 }
@@ -61,6 +61,10 @@ export declare namespace InvitationRepository {
     userId: string
     now: Date
   }
+
+  export type InsertResult =
+    | { status: 'inserted'; invitation: InvitationRecord }
+    | { status: 'limit-reached' }
 
   export type ConsumeResult =
     | { status: 'consumed'; invitation: InvitationRecord; membership: MembershipRecord }
