@@ -75,18 +75,16 @@ export function resolvePostAuthDestination(rawRedirect: RedirectQueryValue): Pos
 }
 
 export function toRouteLocation(
-  decision: AuthDecision,
+  destination: AuthDestination,
   localePath: LocalePath,
-): AuthRedirect | undefined {
-  if (decision === undefined) return undefined
-
-  switch (decision.kind) {
+): AuthRedirect {
+  switch (destination.kind) {
     case 'sign-in':
-      return { path: localePath('login'), query: { redirect: decision.returnTo } }
+      return { path: localePath('login'), query: { redirect: destination.returnTo } }
     case 'home':
       return { path: localePath('index') }
     case 'path':
-      return { path: decision.path }
+      return { path: destination.path }
   }
 }
 

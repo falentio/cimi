@@ -1,4 +1,4 @@
-import { resolveAuthDecision } from '@/utils/auth-guard'
+import { resolveAuthDecision, toRouteLocation } from '@/utils/auth-guard'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
@@ -6,23 +6,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuth()
   const localePath = useLocalePath()
 
-  if (auth.session.value.status !== 'authenticated') {
-    await auth.refreshSession()
-  }
+  // The cached status is display state. The server owns the session, so re-derive
+  // it on every navigation rather than trusting a status that a server-side revoke
+  // or expiry has already invalidated.
+  await auth.refreshSession()
 
   const state = auth.session.value
   const userRole = state.status === 'authenticated' ? state.session.user.role : null
   const decision = resolveAuthDecision(to, state.status, userRole)
 
-  if (!decision) return undefined
+  if (decision === undefined) return undefined
 
-  if (decision.path === '/login') {
-    return navigateTo({ ...decision, path: localePath('login') })
-  }
-
-  if (decision.path === '/') {
-    return navigateTo({ ...decision, path: localePath('index') })
-  }
-
-  return navigateTo(decision)
+  return navigateTo(toRouteLocation(decision, localePath))
 })

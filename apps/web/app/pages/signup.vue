@@ -3,7 +3,7 @@ import AuthPanel from '@/components/AuthPanel.vue'
 
 definePageMeta({
   layout: 'bare',
-  auth: false,
+  guest: true,
   key: (route) => route.path.replace(/^\/fr(?=\/)/, ''),
 })
 </script>
