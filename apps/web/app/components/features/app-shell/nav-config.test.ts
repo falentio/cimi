@@ -18,10 +18,7 @@ describe('NAV_REGISTRY', () => {
   })
 
   it('flags exactly the admin entries', () => {
-    expect(ALL_ITEMS.filter((item) => item.admin).map((item) => item.to)).toEqual([
-      '/admin',
-      '/setup',
-    ])
+    expect(ALL_ITEMS.flatMap((item) => (item.admin ? [item.to] : []))).toEqual(['/admin', '/setup'])
   })
 
   it('defines Setup as an exact admin navigation entry', () => {
@@ -58,6 +55,7 @@ describe('isNavItemActive', () => {
     expect(isNavItemActive('/sites/ste_1/events', { to: '/sites/ste_1', exact: true })).toBe(false)
     expect(isNavItemActive('/sites/ste_1', { to: '/sites/ste_1', exact: true })).toBe(true)
     const setup = NAV_REGISTRY.secondary.items.find((item) => item.to === '/setup')
+
     if (setup === undefined) throw new Error('Setup nav item is missing')
     expect(isNavItemActive('/setup', setup)).toBe(true)
     expect(isNavItemActive('/setup/child', setup)).toBe(false)
@@ -66,9 +64,11 @@ describe('isNavItemActive', () => {
 
 function pageFileExists(to: string): boolean {
   const segments = to.split('/').filter(Boolean)
+
   if (segments.length === 0) {
     return existsSync(join(PAGES_DIR, 'index.vue'))
   }
+
   return matchesPage(PAGES_DIR, segments)
 }
 
@@ -76,16 +76,20 @@ function matchesPage(dir: string, segments: string[]): boolean {
   if (segments.length === 0) {
     return existsSync(join(dir, 'index.vue'))
   }
+
   const [head, ...rest] = segments
   const entries = readdirSync(dir)
+
   const fileHit =
     rest.length === 0 &&
     (entries.includes(`${head}.vue`) ||
       entries.some((entry) => isDynamic(entry) && entry.endsWith('.vue')))
+
   const dirHits = entries
     .filter((entry) => entry === head || (isDynamic(entry) && !entry.endsWith('.vue')))
     .map((entry) => join(dir, entry))
     .filter((path) => statSync(path).isDirectory())
+
   return fileHit || dirHits.some((path) => matchesPage(path, rest))
 }
 

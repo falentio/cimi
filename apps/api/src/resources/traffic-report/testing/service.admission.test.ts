@@ -11,6 +11,7 @@ describe('TrafficReportService.admission', () => {
   it('rejects an unprojected Site with QUERY_LIMIT_EXCEEDED rather than reporting empty data', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
     const { app } = fixture
+
     const { cookie, siteId } = await createOwnerSite(
       app,
       fixture.db,

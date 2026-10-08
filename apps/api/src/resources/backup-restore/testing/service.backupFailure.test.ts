@@ -1,4 +1,4 @@
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
 import {
@@ -11,7 +11,7 @@ import type { BackupRestoreExecutor } from '../executor.ts'
 import type { BackupRestoreRepository } from '../repository.ts'
 import { createBackupOperation } from './fixture.ts'
 
-const admin = { id: 'user_1', role: 'admin', installationGrant: true } as unknown as AuthUser
+const admin = createTestUser()
 
 describe('BackupRestoreService.backupFailure', () => {
   it('records asynchronous capture failures as safe backup failures', async () => {
@@ -23,6 +23,7 @@ describe('BackupRestoreService.backupFailure', () => {
     repository.findAuthoritativeArtifact.mockResolvedValue(undefined)
     repository.fail.mockResolvedValue(undefined)
     executor.captureBackup.mockRejectedValue(new Error('capture failed'))
+
     const service = new BackupRestoreService({
       repository,
       executor,

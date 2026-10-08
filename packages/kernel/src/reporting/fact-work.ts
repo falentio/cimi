@@ -22,6 +22,7 @@ export function estimateFactWork(
     input.distinctCountOperations,
     input.budget,
   ]
+
   if (values.some((value) => !Number.isFinite(value) || value < 0)) return undefined
 
   const components = {
@@ -32,8 +33,11 @@ export function estimateFactWork(
     filters: input.filterCount * FACT_WORK_WEIGHTS.filters,
     distinctCounts: input.distinctCountOperations * FACT_WORK_WEIGHTS.distinctCounts,
   }
+
   const units = Object.values(components).reduce((total, value) => total + value, 0)
+
   if (!Number.isFinite(units)) return undefined
+
   return { units, budget: input.budget, components }
 }
 

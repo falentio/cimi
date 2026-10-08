@@ -4,7 +4,9 @@ import {
   type PublicDashboardQueryPort,
 } from '@cimi/kernel'
 import type { AnalyticsDb } from './index.ts'
+import type { DuckDBValue } from '@duckdb/node-api'
 import { renderFilterPlan, type EventColumnOverrides } from './reporting-query.ts'
+import { isBigintValue, isNumberValue, isStringValue } from '@cimi/utils'
 
 export interface DuckDbPublicDashboardQueryDependencies {
   readonly analytics: AnalyticsDb
@@ -24,7 +26,9 @@ export class DuckDbPublicDashboardQuery implements PublicDashboardQueryPort {
         query.period.interval,
         PUBLIC_EVENT_COLUMN_OVERRIDES,
       )
+
       const grouped = publicDashboardGroupedCte(query)
+
       const rows = await reader.read(
         `WITH ${publicDashboardFilteredCte(predicate.sql)},
 session_stats AS (
@@ -45,6 +49,7 @@ FROM grouped
 WHERE group_key IS NOT NULL AND trim(CAST(group_key AS VARCHAR)) <> ''`,
         publicDashboardArgs(query, predicate.args, true),
       )
+
       return readCount(rows[0]?.['total_count'])
     })
   }
@@ -56,12 +61,14 @@ WHERE group_key IS NOT NULL AND trim(CAST(group_key AS VARCHAR)) <> ''`,
         query.period.interval,
         PUBLIC_EVENT_COLUMN_OVERRIDES,
       )
+
       const rows = await reader.read(
         `WITH ${publicDashboardFilteredCte(predicate.sql)}
 SELECT count(DISTINCT visitor_id) AS total_count
 FROM filtered`,
         publicDashboardArgs(query, predicate.args),
       )
+
       return readCount(rows[0]?.['total_count'])
     })
   }
@@ -75,7 +82,9 @@ FROM filtered`,
         query.period.interval,
         PUBLIC_EVENT_COLUMN_OVERRIDES,
       )
+
       const grouped = publicDashboardGroupedCte(query)
+
       const rows = await reader.read(
         `WITH ${publicDashboardFilteredCte(predicate.sql)},
 session_stats AS (
@@ -99,9 +108,12 @@ GROUP BY group_key
 ORDER BY group_key`,
         publicDashboardArgs(query, predicate.args, true),
       )
+
       return rows.flatMap((row) => {
         const groupKey = readGroupKey(row['group_key'])
+
         if (groupKey === null) return []
+
         return [
           {
             groupKey,
@@ -147,9 +159,11 @@ function publicDashboardFilteredCte(predicateSql: string): string {
 function publicDashboardGroupedCte(query: PublicDashboardAggregateQuery): string {
   if (query.dimension === 'time') {
     const starts = query.period.bucketStarts ?? []
+
     const values = starts
       .map(() => '(CAST(? AS BIGINT), CAST(? AS BIGINT), CAST(? AS BIGINT))')
       .join(', ')
+
     return `buckets(bucket_index, start_ms, end_ms) AS (
   VALUES ${values}
 ),
@@ -171,6 +185,7 @@ grouped AS (
   }
 
   const value = publicDashboardDimensionExpression(query.dimension)
+
   return `grouped AS (
   SELECT ${value} AS group_key,
          filtered.*,
@@ -261,31 +276,39 @@ function publicDashboardArgs(
     timestamp(query.period.interval.endExclusive),
     ...predicateArgs,
   ]
+
   if (includeSessionStats) args.push(query.siteId)
+
   if (query.dimension === 'time') {
     const starts = query.period.bucketStarts ?? []
+
     for (let index = 0; index < starts.length; index += 1) {
       const start = starts[index]!
       const end = starts[index + 1]?.at ?? query.period.interval.endExclusive
       args.push(index, start.at, end)
     }
   }
+
   return args
 }
 
-function readCount(value: unknown): number {
+function readCount(value: DuckDBValue | undefined): number {
   const parsed = Number(value ?? 0)
+
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function readGroupKey(value: unknown): string | number | null {
-  if (typeof value === 'string') {
+function readGroupKey(value: DuckDBValue | undefined): string | number | null {
+  if (isStringValue(value)) {
     return value.length > PUBLIC_DIMENSION_KEY_MAX_LENGTH
       ? value.slice(0, PUBLIC_DIMENSION_KEY_MAX_LENGTH)
       : value
   }
-  if (typeof value === 'number') return value
-  if (typeof value === 'bigint') return Number(value)
+
+  if (isNumberValue(value)) return value
+
+  if (isBigintValue(value)) return Number(value)
+
   return null
 }
 

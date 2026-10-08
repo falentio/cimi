@@ -65,6 +65,7 @@ describe('fillBuckets zero-filling and ordering', () => {
 
   it('passes the zero-count row through toValue for a missing bucket', () => {
     const seen: BucketCount[] = []
+
     const filled = fillBuckets({
       bucketStarts: spine,
       interval,
@@ -72,6 +73,7 @@ describe('fillBuckets zero-filling and ordering', () => {
       rows: [{ at: instant('2026-09-05T00:00:00.000Z'), count: 5 }],
       toValue: (row) => {
         seen.push(row)
+
         return row.count
       },
     })

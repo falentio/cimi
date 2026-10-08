@@ -3,6 +3,7 @@ import type { HTMLAttributes } from 'vue'
 import type { ChartConfig } from '.'
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
+import { isStringValue } from '../../../utils/type-guards'
 
 const props = withDefaults(
   defineProps<{
@@ -12,7 +13,7 @@ const props = withDefaults(
     nameKey?: string
     labelKey?: string
     labelFormatter?: (d: number | Date) => string
-    payload?: Record<string, any>
+    payload?: Record<string, string | number | boolean | null | undefined>
     config?: ChartConfig
     class?: HTMLAttributes['class']
     color?: string
@@ -33,7 +34,8 @@ const payload = computed(() => {
     .map(([key, value]) => {
       // const key = `${props.nameKey || item.name || item.dataKey || "value"}`
       const itemConfig = props.config[key]
-      const indicatorColor = props.config[key]?.color ?? props.payload.fill
+      const fill = props.payload.fill
+      const indicatorColor = props.config[key]?.color ?? (isStringValue(fill) ? fill : undefined)
 
       return { key, value, itemConfig, indicatorColor }
     })
@@ -43,11 +45,14 @@ const payload = computed(() => {
 const nestLabel = computed(
   () => Object.keys(props.payload).length === 1 && props.indicator !== 'dot',
 )
+
 const tooltipLabel = computed(() => {
   if (props.hideLabel) return null
+
   if (props.labelFormatter && props.x !== undefined) {
     return props.labelFormatter(props.x)
   }
+
   return props.labelKey
     ? props.config[props.labelKey]?.label || props.payload[props.labelKey]
     : props.x

@@ -22,6 +22,7 @@ describe('InstallationRepositoryDrizzle.activate', () => {
       .run()
 
     const activatedAt = new Date('2026-09-02T00:00:00.000Z')
+
     const activated = await fixture.repository.activate({
       retentionPolicyId: 'rtn_1',
       retention: { eventMonths: 12, profileMonths: 12, replayMonths: null },
@@ -41,11 +42,13 @@ describe('InstallationRepositoryDrizzle.activate', () => {
       defaultRetention: { eventMonths: 12, profileMonths: 12, replayMonths: null },
       updatedAt: activatedAt.toISOString(),
     })
+
     const installationRows = fixture.db
       .select()
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.id, 'ins_1'))
       .all()
+
     expect(installationRows[0]).toMatchObject({
       status: 'ready',
       eventRetentionMonths: 12,
@@ -214,11 +217,13 @@ describe('InstallationRepositoryDrizzle.activate', () => {
       status: 'ready',
       defaultRetention: { eventMonths: 12, profileMonths: 12, replayMonths: null },
     })
+
     const policies = fixture.db
       .select()
       .from(schema.TRetentionPolicy)
       .where(eq(schema.TRetentionPolicy.installationId, 'ins_1'))
       .all()
+
     expect(policies).toHaveLength(1)
     expect(policies[0]).toMatchObject({ id: 'rtn_1' })
   })

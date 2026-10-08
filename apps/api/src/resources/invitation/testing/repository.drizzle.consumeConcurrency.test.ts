@@ -6,7 +6,9 @@ import { InvitationRepositoryDrizzle } from '../repository.drizzle.ts'
 import { hashInvitationToken } from '../token.ts'
 
 const now = new Date('2026-09-03T00:00:00.000Z')
+
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const future = new Date('2026-09-10T00:00:00.000Z')
 
 function seed() {
@@ -74,12 +76,14 @@ function seed() {
       updatedAt: createdAt,
     })
     .run()
+
   return db
 }
 
 describe('InvitationRepositoryDrizzle.consumeConcurrency', () => {
   it('lets exactly one of two concurrent consumers win without duplicate memberships', async () => {
     const db = seed()
+
     try {
       const repo = new InvitationRepositoryDrizzle({ db })
       const tokenHash = hashInvitationToken('race-token')
@@ -100,11 +104,13 @@ describe('InvitationRepositoryDrizzle.consumeConcurrency', () => {
 
       const statuses = [first.status, second.status].sort()
       expect(statuses).toEqual(['consumed', 'not-found'])
+
       const members = db
         .select()
         .from(schema.TMembership)
         .where(eq(schema.TMembership.organizationId, 'org_1'))
         .all()
+
       const invited = members.filter((member) => member.userId !== 'user_1')
       expect(invited).toHaveLength(1)
       await expect(repo.findById('inv_1')).resolves.toMatchObject({ status: 'accepted' })

@@ -1,12 +1,32 @@
-import type { AuthUser } from '@cimi/auth'
+import { createTestUser } from '@cimi/auth'
 import { ORPCError } from '@orpc/server'
 import { describe, expect, it } from 'vitest'
 import { assertAuthorization } from '../../guard.ts'
 import { assertOrganizationRole, assertSiteScope, InMemorySiteScopePort } from '../../site.ts'
 
-const user = { id: 'user-1', role: 'user' } as unknown as AuthUser
-const organizationAdmin = { id: 'admin-1', role: 'user' } as unknown as AuthUser
-const nonMember = { id: 'stranger-1', role: 'user' } as unknown as AuthUser
+const user = createTestUser({
+  id: 'user-1',
+  email: 'user-1@example.com',
+  name: 'User 1',
+  role: 'user',
+  installationGrant: false,
+})
+
+const organizationAdmin = createTestUser({
+  id: 'admin-1',
+  email: 'admin-1@example.com',
+  name: 'Admin 1',
+  role: 'user',
+  installationGrant: false,
+})
+
+const nonMember = createTestUser({
+  id: 'stranger-1',
+  email: 'stranger-1@example.com',
+  name: 'Stranger',
+  role: 'user',
+  installationGrant: false,
+})
 
 describe('authorization guards', () => {
   it('applies coarse admission and installation-admin levels separately', () => {
@@ -92,6 +112,7 @@ describe('authorization guards', () => {
       isActive: () => true,
       getOrganizationId: () => undefined,
     }
+
     const membership = {
       getRole: () => 'member' as const,
       hasPendingGovernanceOperation: () => false,
@@ -107,15 +128,19 @@ describe('authorization guards', () => {
       [],
       [{ organizationId: 'org-1', userId: 'admin-1', role: 'admin' }],
     )
+
     const member = new InMemorySiteScopePort(
       [],
       [{ organizationId: 'org-1', userId: 'user-1', role: 'member' }],
     )
+
     const empty = new InMemorySiteScopePort()
+
     const pending = new InMemorySiteScopePort(
       [],
       [{ organizationId: 'org-1', userId: 'admin-1', role: 'admin' }],
     )
+
     pending.setPendingGovernanceOperation('org-1')
 
     await expect(

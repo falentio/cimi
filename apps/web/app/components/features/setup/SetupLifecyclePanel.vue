@@ -20,15 +20,18 @@ const props = defineProps<{
 }>()
 
 const retrying = shallowRef(false)
+
 const progressValue = computed(() => {
   if (props.lifecycle.kind !== 'running' || props.lifecycle.operation.progress === null) {
     return null
   }
+
   return Math.round(props.lifecycle.operation.progress * 100)
 })
 
 async function refreshStatus(): Promise<void> {
   retrying.value = true
+
   try {
     await props.refresh()
   } catch {

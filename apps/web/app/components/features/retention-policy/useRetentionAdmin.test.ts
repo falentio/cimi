@@ -3,28 +3,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   Installation,
   InstallationRetentionResult,
+  RetentionAdminClient,
   RetentionPolicy,
 } from './retention-policy.types'
 
-const mocks = vi.hoisted(() => {
-  const getRetentionPolicy = vi.fn()
-  const updateRetentionPolicy = vi.fn()
-  const getInstallationStatus = vi.fn()
-  return {
-    getRetentionPolicy,
-    updateRetentionPolicy,
-    getInstallationStatus,
-    client: {
-      retentionPolicy: {
-        getRetentionPolicy: { call: getRetentionPolicy },
-        updateRetentionPolicy: { call: updateRetentionPolicy },
-      },
-      installation: { getInstallationStatus: { call: getInstallationStatus } },
-    },
-  }
-})
+const getRetentionPolicy = vi.fn()
 
-vi.mock('@/composables/useOrpc', () => ({ useOrpc: () => mocks.client }))
+const updateRetentionPolicy = vi.fn()
+
+const getInstallationStatus = vi.fn()
+
+const client: RetentionAdminClient = {
+  retentionPolicy: {
+    getRetentionPolicy: { call: getRetentionPolicy },
+    updateRetentionPolicy: { call: updateRetentionPolicy },
+  },
+  installation: { getInstallationStatus: { call: getInstallationStatus } },
+}
+
+const mocks = {
+  getRetentionPolicy,
+  updateRetentionPolicy,
+  getInstallationStatus,
+  client,
+}
 
 import { useRetentionAdmin } from './useRetentionAdmin'
 
@@ -71,13 +73,16 @@ function createController() {
   const scope = effectScope()
   let controller: ReturnType<typeof useRetentionAdmin> | undefined
   scope.run(() => {
-    controller = useRetentionAdmin()
+    controller = useRetentionAdmin(mocks.client)
   })
+
   if (controller === undefined) throw new Error('Controller was not created.')
+
   return { controller, scope }
 }
 
 beforeEach(resetMocks)
+
 afterEach(() => vi.useRealTimers())
 
 describe('useRetentionAdmin', () => {
@@ -106,6 +111,7 @@ describe('useRetentionAdmin', () => {
         },
       },
     )
+
     mocks.updateRetentionPolicy.mockResolvedValue(saved)
     const { controller, scope } = createController()
     await controller.refresh()

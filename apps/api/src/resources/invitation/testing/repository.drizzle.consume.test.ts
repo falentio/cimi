@@ -5,7 +5,9 @@ import { InvitationRepositoryDrizzle } from '../repository.drizzle.ts'
 import { hashInvitationToken } from '../token.ts'
 
 const now = new Date('2026-09-03T00:00:00.000Z')
+
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const future = new Date('2026-09-10T00:00:00.000Z')
 
 function seed() {
@@ -73,12 +75,14 @@ function seed() {
       updatedAt: createdAt,
     })
     .run()
+
   return db
 }
 
 describe('InvitationRepositoryDrizzle.consume', () => {
   it('consumes a pending invitation with a membership insert', async () => {
     const db = seed()
+
     try {
       const repo = new InvitationRepositoryDrizzle({ db })
       const tokenHash = hashInvitationToken('consume-1')
@@ -94,6 +98,7 @@ describe('InvitationRepositoryDrizzle.consume', () => {
 
       const result = await repo.consume({ tokenHash, userId: 'user_2', now })
       expect(result.status).toBe('consumed')
+
       if (result.status !== 'consumed') throw new Error('Expected consumed')
       expect(result.membership).toMatchObject({
         organizationId: 'org_1',
@@ -108,6 +113,7 @@ describe('InvitationRepositoryDrizzle.consume', () => {
 
   it('reuses a same-role membership while consuming', async () => {
     const db = seed()
+
     try {
       db.insert(schema.TMembership)
         .values({
@@ -140,6 +146,7 @@ describe('InvitationRepositoryDrizzle.consume', () => {
 
   it('leaves a pending invitation untouched on a conflicting role', async () => {
     const db = seed()
+
     try {
       db.insert(schema.TMembership)
         .values({

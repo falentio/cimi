@@ -12,16 +12,21 @@ const admin = createTestAuthUser({
   role: 'admin',
   installationGrant: true,
 })
+
 const adminWithoutGrant = createTestAuthUser({
   id: 'user_1',
   email: 'admin@example.com',
   role: 'admin',
 })
+
 const member = createTestAuthUser({ id: 'user_2', email: 'member@example.com', role: 'member' })
+
 const siteOwner = createTestAuthUser({ id: 'user_1', email: 'owner@example.com', role: 'member' })
+
 const siteMember = createTestAuthUser({ id: 'user_2', email: 'member@example.com', role: 'member' })
 
 const policy = { eventMonths: 12, profileMonths: 12, replayMonths: null }
+
 const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
 
 describe('RetentionPolicyService.update', () => {
@@ -48,10 +53,12 @@ describe('RetentionPolicyService.update', () => {
 
   it('passes injected clock and ids to the repository', async () => {
     const now = new Date('2026-09-02T00:00:00.000Z')
+
     const { repository, service } = createRetentionPolicyFixture({
       clock: () => now,
       ids: { retentionPolicyId: () => 'rtn_fixed' },
     })
+
     repository.saveInstallationDefault.mockResolvedValue(
       createStoredResolution({ installationDefault: override, effectivePolicy: override }),
     )
@@ -68,10 +75,12 @@ describe('RetentionPolicyService.update', () => {
 
   it('saves a site override with injected clock and ids', async () => {
     const now = new Date('2026-09-02T00:00:00.000Z')
+
     const { repository, service } = createRetentionPolicyFixture({
       clock: () => now,
       ids: { retentionPolicyId: () => 'rtn_site_fixed' },
     })
+
     repository.saveSiteOverride.mockResolvedValue(
       createStoredResolution({ siteOverride: override, effectivePolicy: override }),
     )
@@ -111,6 +120,7 @@ describe('RetentionPolicyService.update', () => {
     const { repository, lock, service } = createRetentionPolicyFixture()
     const lease = lock.acquire('retention')
     expect(lease).toBeDefined()
+
     try {
       await expect(
         service.update({ scope: 'installation', policy: override }, admin),
@@ -125,6 +135,7 @@ describe('RetentionPolicyService.update', () => {
     const { repository, lock, service } = createRetentionPolicyFixture()
     const lease = lock.acquire('retention')
     expect(lease).toBeDefined()
+
     try {
       await expect(
         service.update({ scope: 'site', siteId: 'ste_1', policy: override }, siteOwner),
@@ -272,6 +283,7 @@ describe('RetentionPolicyService.update', () => {
         errorCode: 'INTERNAL_SERVER_ERROR',
       },
     })
+
     repository.saveInstallationDefault.mockResolvedValue(
       createStoredResolution({ installationDefault: override, effectivePolicy: override }),
     )
@@ -286,6 +298,7 @@ describe('RetentionPolicyService.update', () => {
     const { repository, lock, service } = createRetentionPolicyFixture()
     const lease = lock.acquire('upgrade')
     expect(lease).toBeDefined()
+
     try {
       await expect(
         service.update({ scope: 'installation', policy: override }, admin),
@@ -299,11 +312,14 @@ describe('RetentionPolicyService.update', () => {
   it('serializes overlapping updates so only one proceeds', async () => {
     const { repository, service } = createRetentionPolicyFixture()
     let releaseRepository!: () => void
+
     const gate = new Promise<void>((resolve) => {
       releaseRepository = resolve
     })
+
     repository.saveInstallationDefault.mockImplementationOnce(async () => {
       await gate
+
       return createStoredResolution({ installationDefault: override, effectivePolicy: override })
     })
 
@@ -341,6 +357,7 @@ describe('RetentionPolicyService.update', () => {
     expect(repository.saveInstallationDefault).toHaveBeenCalledTimes(2)
     const lease = lock.acquire('retention')
     expect(lease).toBeDefined()
+
     if (lease !== undefined) await lease.release()
   })
 
@@ -361,6 +378,7 @@ describe('RetentionPolicyService.update', () => {
     expect(repository.saveSiteOverride).toHaveBeenCalledTimes(2)
     const lease = lock.acquire('retention')
     expect(lease).toBeDefined()
+
     if (lease !== undefined) await lease.release()
   })
 
@@ -379,6 +397,7 @@ describe('RetentionPolicyService.update', () => {
     expect(repository.clearSiteOverride).toHaveBeenCalledTimes(2)
     const lease = lock.acquire('retention')
     expect(lease).toBeDefined()
+
     if (lease !== undefined) await lease.release()
   })
 })

@@ -74,6 +74,7 @@ export class FunnelService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<InferOutput<typeof SFunnelListOutput>> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
+
     return this.deps.repository.findMany({
       siteId: input.siteId,
       offset: input.offset ?? 0,
@@ -87,7 +88,9 @@ export class FunnelService {
   ): Promise<InferOutput<typeof SFunnelGetOutput>> {
     await assertSiteScope(user, input.siteId, this.deps.scope)
     const funnel = await this.deps.repository.findById(input)
+
     if (funnel === undefined) throw new ORPCError('NOT_FOUND')
+
     return funnel
   }
 
@@ -96,6 +99,7 @@ export class FunnelService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<InferOutput<typeof SFunnelCreateOutput>> {
     await this.assertCanManage(input.siteId, user)
+
     try {
       return await this.deps.repository.insert({ ...input, id: this.funnelId(), now: this.clock() })
     } catch (error) {
@@ -109,6 +113,7 @@ export class FunnelService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<InferOutput<typeof SFunnelUpdateOutput>> {
     await this.assertCanManage(input.siteId, user)
+
     return mutationOutput(await this.deps.repository.update({ ...input, now: this.clock() }))
   }
 
@@ -118,7 +123,9 @@ export class FunnelService {
   ): Promise<void> {
     await this.assertCanManage(input.siteId, user)
     const result = await this.deps.repository.archive({ ...input, now: this.clock() })
+
     if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
+
     if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
   }
 
@@ -127,19 +134,23 @@ export class FunnelService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<InferOutput<typeof SFunnelReportOutput>> {
     const funnel = await this.deps.repository.findById({ funnelId: input.funnelId })
+
     if (funnel === undefined) throw new ORPCError('NOT_FOUND')
     await assertSiteScope(user, funnel.siteId, this.deps.scope)
     const window = reportWindow(input)
+
     return this.query.run({
       siteId: funnel.siteId,
       window,
       plan: async (planning) => {
         const preparation = await planning.prepare()
+
         const current = await requireFunnelDefinition(
           this.deps.repository,
           funnel,
           preparation.evaluation.current.period,
         )
+
         const comparison =
           preparation.evaluation.comparison === null
             ? null
@@ -148,11 +159,13 @@ export class FunnelService {
                 funnel,
                 preparation.evaluation.comparison.period,
               )
+
         const definitions: HistoricalDefinitionPlan<FunnelRepository.Funnel> = {
           current: historicalFunnel(current),
           comparison: comparison === null ? null : historicalFunnel(comparison),
           all: [current, ...(comparison === null ? [] : [comparison])].map(historicalFunnel),
         }
+
         return {
           preparation,
           coverage: coverageForDefinitions({
@@ -166,6 +179,7 @@ export class FunnelService {
             historicalDefinitionFor(definitions, evaluation.period.key).identityKind,
           evaluate: (evaluation) => {
             const definition = historicalDefinitionFor(definitions, evaluation.period.period.key)
+
             return evaluateFunnel({
               ...evaluation,
               definition: { steps: definition.definition.steps },
@@ -175,7 +189,7 @@ export class FunnelService {
       },
       render: (run) => ({
         ...funnelReportPeriod(run.current),
-        ...(run.comparison === null ? {} : { comparison: funnelReportPeriod(run.comparison) }),
+        ...(run.comparison !== null && { comparison: funnelReportPeriod(run.comparison) }),
       }),
     })
   }
@@ -185,18 +199,21 @@ export class FunnelService {
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<void> {
     await assertSiteManagementScope(user, siteId, this.deps.scope)
+
     if (!(await this.deps.scope.siteScope.isActive(siteId))) throw new ORPCError('NOT_FOUND')
   }
 }
 
 function mutationOutput(result: FunnelRepository.MutationResult): FunnelRepository.Funnel {
   if (result.status === 'updated') return result.funnel
+
   if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
   throw new ORPCError('CONFLICT', { status: 409 })
 }
 
 function reportWindow(input: InferOutput<typeof SFunnelReportInput>) {
   const { funnelId: _funnelId, ...window } = input
+
   return window
 }
 
@@ -214,7 +231,9 @@ async function requireFunnelDefinition(
     funnelId: funnel.id,
     at: periodEnd(period),
   })
+
   if (definition === undefined) throw reportingNotFound('definition-version-missing')
+
   return definition
 }
 
@@ -236,6 +255,6 @@ function funnelReportPeriod(period: ReportRun<readonly FunnelReportStep[]>['curr
   } as const
 }
 
-function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique|reserved/i.test(error.message)
+function isConstraintError(cause: unknown): cause is Error {
+  return cause instanceof Error && /constraint|unique|reserved/i.test(cause.message)
 }

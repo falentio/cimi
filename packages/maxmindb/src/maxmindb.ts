@@ -1,5 +1,6 @@
 import type { Asn, City } from '@maxmind/geoip2-node'
 import { Reader } from '@maxmind/geoip2-node'
+import { isNumberValue } from '@cimi/utils'
 
 const DEFAULT_CACHE_SIZE = 10_000
 
@@ -20,11 +21,17 @@ export interface AsnInfo {
 
 export type AsnLookup = (ip: string) => AsnInfo | null
 
+export interface ReaderOpener {
+  openCityReader(path: string, cacheSize: number): Promise<CityReader>
+  openAsnReader(path: string, cacheSize: number): Promise<AsnReader>
+}
+
 export interface CreateMaxMindDbOptions {
   cityPath: string
   asnPath?: string
   cacheSize?: number
-  onAsnLoadFailure?: (error: unknown, path: string) => void
+  onAsnLoadFailure?: (cause: unknown, path: string) => void
+  readerOpener?: ReaderOpener
 }
 
 export interface MaxMindDb {
@@ -32,23 +39,29 @@ export interface MaxMindDb {
   lookupAsn(ip: string): AsnInfo | null
 }
 
-interface CityReader {
+export interface CityReader {
   city(ip: string): City
 }
 
-interface AsnReader {
+export interface AsnReader {
   asn(ip: string): Asn
 }
 
 export async function createMaxMindDb(options: CreateMaxMindDbOptions): Promise<MaxMindDb> {
   const cacheSize = options.cacheSize ?? DEFAULT_CACHE_SIZE
+
   if (!Number.isInteger(cacheSize) || cacheSize < 1) {
     throw new RangeError('cacheSize must be a positive integer')
   }
 
+  const opener: ReaderOpener = options.readerOpener ?? {
+    openCityReader: (path, size) => loadCityReader(path, size),
+    openAsnReader: (path, size) => loadAsnReaderOrThrow(path, size),
+  }
+
   const [cityReader, asnReader] = await Promise.all([
-    loadCityReader(options.cityPath, cacheSize),
-    loadAsnReader(options.asnPath, cacheSize, options.onAsnLoadFailure),
+    opener.openCityReader(options.cityPath, cacheSize),
+    loadAsnReader(options.asnPath, cacheSize, options.onAsnLoadFailure, opener),
   ])
 
   return {
@@ -62,29 +75,37 @@ export function createAsnLookup(lookup: AsnLookup): AsnLookup {
 
   return (ip) => {
     const cached = resolved.get(ip)
+
     if (cached !== undefined) return cached
 
     const info = lookup(ip)
     resolved.set(ip, info)
+
     return info
   }
 }
 
 async function loadCityReader(path: string, cacheSize: number): Promise<CityReader> {
-  return (await Reader.open(path, { cache: { max: cacheSize } })) as CityReader
+  return Reader.open(path, { cache: { max: cacheSize } })
+}
+
+async function loadAsnReaderOrThrow(path: string, cacheSize: number): Promise<AsnReader> {
+  return Reader.open(path, { cache: { max: cacheSize } })
 }
 
 async function loadAsnReader(
   path: string | undefined,
   cacheSize: number,
   onFailure: CreateMaxMindDbOptions['onAsnLoadFailure'],
+  opener: ReaderOpener,
 ): Promise<AsnReader | null> {
   if (!path) return null
 
   try {
-    return (await Reader.open(path, { cache: { max: cacheSize } })) as AsnReader
+    return await opener.openAsnReader(path, cacheSize)
   } catch (error) {
     onFailure?.(error, path)
+
     return null
   }
 }
@@ -125,7 +146,8 @@ function lookupAsn(reader: AsnReader | null, ip: string): AsnInfo | null {
 
   try {
     const response = reader.asn(ip)
-    if (typeof response.autonomousSystemNumber !== 'number') return null
+
+    if (!isNumberValue(response.autonomousSystemNumber)) return null
 
     return {
       asn: response.autonomousSystemNumber,

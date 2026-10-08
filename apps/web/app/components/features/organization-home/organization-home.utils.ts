@@ -4,6 +4,7 @@ import type {
   SettingsError,
 } from '@/components/features/organization-settings/organization-settings.types'
 import type { OrganizationHomeState } from './organization-home.types'
+import { isStringValue } from '../../../utils/type-guards'
 
 export interface DeriveOrganizationHomeStateInput {
   readonly organizationId: OrganizationId | undefined
@@ -13,8 +14,10 @@ export interface DeriveOrganizationHomeStateInput {
   readonly error: SettingsError | undefined
 }
 
-export function parseOrganizationId(value: unknown): OrganizationId | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+export function parseOrganizationId(
+  value: string | readonly string[] | undefined,
+): OrganizationId | undefined {
+  return isStringValue(value) && value.trim().length > 0 ? value : undefined
 }
 
 export function getOrganizationSiteDraftError(
@@ -25,8 +28,11 @@ export function getOrganizationSiteDraftError(
 ): string | null {
   if (!submitted) return null
   const normalizedValue = value.trim()
+
   if (normalizedValue.length === 0) return `Enter a ${label}.`
+
   if (normalizedValue.length <= maxLength) return null
+
   return `${label.replace(/^./, (character) => character.toUpperCase())} must be ${maxLength} characters or fewer.`
 }
 
@@ -34,10 +40,13 @@ export function deriveOrganizationHomeState(
   input: DeriveOrganizationHomeStateInput,
 ): OrganizationHomeState {
   if (input.organizationId === undefined) return { kind: 'invalid-route' }
+
   if (input.isLoading) return { kind: 'loading' }
+
   if (input.error !== undefined) return { kind: 'error', error: input.error }
 
   const organization = input.teams.find((team) => team.id === input.organizationId)
+
   if (organization === undefined) {
     return { kind: 'missing', organizationId: input.organizationId }
   }

@@ -9,16 +9,20 @@ import {
 import type { Predicate, PresencePredicate, ReportFilterPlan } from '../query/index.ts'
 
 const noTraits: readonly string[] = []
+
 const approvedTraits = ['plan', 'company'] as const
 
 function expectOk(result: CompileFilterResult): ReportFilterPlan {
   expect(result.ok).toBe(true)
+
   if (!result.ok) throw new Error(`expected ok, got ${result.reason}`)
+
   return result.plan
 }
 
 function expectFail(result: CompileFilterResult, reason: string): void {
   expect(result.ok).toBe(false)
+
   if (result.ok) throw new Error('expected failure')
   expect(result.reason).toBe(reason)
 }
@@ -32,6 +36,7 @@ describe('compileTrafficFilterPlan', () => {
     const plan = expectOk(
       traffic([{ scope: 'event', field: 'pagePath', operator: 'equals', values: ['/pricing'] }]),
     )
+
     expect(plan.event).toEqual<Predicate[]>([
       { target: 'event.pagePath', propertyKey: null, operator: 'eq', bind: ['/pricing'] },
     ])
@@ -47,6 +52,7 @@ describe('compileTrafficFilterPlan', () => {
         { scope: 'session', field: 'device', operator: 'not_equals', values: ['mobile', 'tablet'] },
       ]),
     )
+
     expect(plan.session).toEqual<Predicate[]>([
       { target: 'session.device', propertyKey: null, operator: 'neq', bind: ['mobile', 'tablet'] },
     ])
@@ -63,6 +69,7 @@ describe('compileTrafficFilterPlan', () => {
         },
       ]),
     )
+
     expect(plan.visitor).toEqual<Predicate[]>([
       {
         target: 'visitor.identityKind',
@@ -84,6 +91,7 @@ describe('compileTrafficFilterPlan', () => {
         },
       ]),
     )
+
     expect(plan.visitor[0]?.bind).toEqual(['anonymous', 'identified'])
   })
 
@@ -105,6 +113,7 @@ describe('compileTrafficFilterPlan', () => {
 
     for (const { expected, filter } of cases) {
       const plan = expectOk(traffic([filter]))
+
       if (filter.scope === 'event') expect(plan.event[0]?.operator).toBe(expected)
       else expect(plan.session[0]?.operator).toBe(expected)
     }
@@ -115,6 +124,7 @@ describe('compileTrafficFilterPlan', () => {
       filters: [{ scope: 'profile', field: 'trait.secret', operator: 'equals', values: ['x'] }],
       profileFilterKeys: approvedTraits,
     })
+
     expectFail(result, 'unapproved-trait')
   })
 
@@ -125,6 +135,7 @@ describe('compileTrafficFilterPlan', () => {
         profileFilterKeys: approvedTraits,
       }),
     )
+
     expect(plan.profile).toEqual<Predicate[]>([
       { target: 'profile.trait', propertyKey: 'plan', operator: 'eq', bind: ['pro'] },
     ])
@@ -142,6 +153,7 @@ describe('compileTrafficFilterPlan', () => {
         },
       ]),
     )
+
     expect(plan.sessionPresence).toEqual<PresencePredicate[]>([
       {
         scope: 'visitor',
@@ -158,6 +170,7 @@ describe('compileTrafficFilterPlan', () => {
     const plan = expectOk(
       traffic([{ scope: 'visitor', operator: 'has_not_done', action: { kind: 'page_view' } }]),
     )
+
     expect(plan.sessionPresence).toEqual<PresencePredicate[]>([
       {
         scope: 'visitor',
@@ -244,6 +257,7 @@ describe('compileTrafficFilterPlan', () => {
     const plan = expectOk(
       traffic([{ scope: 'event', field: 'unit', operator: 'equals', values: [null] }]),
     )
+
     expect(plan.event[0]?.bind).toEqual([null])
   })
 })
@@ -257,6 +271,7 @@ describe('compileEventFilterPlan', () => {
         profileFilterKeys: noTraits,
       }),
     )
+
     expect(plan.event).toEqual<Predicate[]>([
       { target: 'event.code', propertyKey: null, operator: 'eq', bind: ['E1'] },
     ])
@@ -277,6 +292,7 @@ describe('compileEventFilterPlan', () => {
         profileFilterKeys: noTraits,
       }),
     )
+
     expect(plan.event).toEqual<Predicate[]>([
       { target: 'event.property', propertyKey: 'total', operator: 'eq', bind: [12, false, null] },
     ])
@@ -303,6 +319,7 @@ describe('compileEventFilterPlan', () => {
         profileFilterKeys: noTraits,
       }),
     )
+
     expect(plan.sessionPresence).toEqual<PresencePredicate[]>([
       {
         scope: 'session',
@@ -324,6 +341,7 @@ describe('compileEventFilterPlan', () => {
       filters: [{ scope: 'event', field: 'property.total', operator: 'contains', values: [5] }],
       profileFilterKeys: noTraits,
     })
+
     expectFail(result, 'incompatible-value')
   })
 
@@ -335,6 +353,7 @@ describe('compileEventFilterPlan', () => {
       ],
       profileFilterKeys: noTraits,
     })
+
     expectFail(result, 'incompatible-value')
   })
 
@@ -344,6 +363,7 @@ describe('compileEventFilterPlan', () => {
       filters: [{ scope: 'event', field: 'device', operator: 'equals', values: ['mobile'] }],
       profileFilterKeys: noTraits,
     })
+
     expectFail(result, 'unsupported-field')
   })
 
@@ -355,6 +375,7 @@ describe('compileEventFilterPlan', () => {
         profileFilterKeys: noTraits,
       }),
     )
+
     expect(plan.event).toEqual<Predicate[]>([
       { target: 'event.referrer', propertyKey: null, operator: 'eq', bind: [null] },
     ])
@@ -442,6 +463,7 @@ describe('compileEventFilterPlan', () => {
       filters: [{ scope: 'event', field: 'referrer', operator: 'not_equals', values: [null] }],
       profileFilterKeys: noTraits,
     })
+
     expectFail(result, 'incompatible-value')
   })
 
@@ -451,6 +473,7 @@ describe('compileEventFilterPlan', () => {
       filters: [{ scope: 'event', field: 'referrer', operator: 'contains', values: [null] }],
       profileFilterKeys: noTraits,
     })
+
     expectFail(result, 'incompatible-value')
   })
 })

@@ -31,7 +31,9 @@ const emit = defineEmits<{
 }>()
 
 const organizationName = shallowRef('')
+
 const hasSubmitted = shallowRef(false)
+
 const localizeError = useLocalizedErrorMessage()
 
 watch(
@@ -46,15 +48,18 @@ const nameError = computed(() => {
   if (!hasSubmitted.value || normalizeOrganizationNameDraft(organizationName.value) !== null) {
     return null
   }
+
   return 'Enter an organization name.'
 })
 
 async function submit(): Promise<void> {
   hasSubmitted.value = true
   const name = normalizeOrganizationNameDraft(organizationName.value)
+
   if (name === null) {
     await nextTick()
     document.getElementById('organization-settings-name')?.focus()
+
     return
   }
 

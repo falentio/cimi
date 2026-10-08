@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SCohortIdentityFields } from '../schema.ts'
 
 export const SCohortArchiveInput = SCohortIdentityFields
+
 export type SCohortArchiveInput = v.InferOutput<typeof SCohortArchiveInput>
+
 export const SCohortArchiveOutput = v.void()
+
 export type SCohortArchiveOutput = v.InferOutput<typeof SCohortArchiveOutput>
 
 export const archiveCohort = oc

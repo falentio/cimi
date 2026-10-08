@@ -49,10 +49,12 @@ export class OrganizationService {
       offset: input.offset ?? 0,
       limit: input.limit ?? 20,
     })
+
     for (const organization of page.items) {
       await this.reconcileOrganization(organization.id, headers, user.id)
       await this.assertReadable(organization.id)
     }
+
     if (page.items.length === 0) {
       return {
         items: [],
@@ -61,11 +63,13 @@ export class OrganizationService {
         totalCount: page.totalCount,
       }
     }
+
     const refreshed = await this.repository.findManyForUser({
       userId: user.id,
       offset: input.offset ?? 0,
       limit: input.limit ?? 20,
     })
+
     return {
       items: refreshed.items.map(toOrganization),
       nextOffset: refreshed.nextOffset,
@@ -80,11 +84,14 @@ export class OrganizationService {
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationGetOutput>> {
     const organization = await this.repository.findByIdForUser(input.organizationId, user.id)
+
     if (organization === undefined) throw new ORPCError('NOT_FOUND')
     await this.reconcileOrganization(organization.id, headers, user.id)
     const refreshed = await this.repository.findByIdForUser(input.organizationId, user.id)
+
     if (refreshed === undefined) throw new ORPCError('NOT_FOUND')
     await this.assertReadable(refreshed.id)
+
     return toOrganization(refreshed)
   }
 
@@ -94,11 +101,13 @@ export class OrganizationService {
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationEnsurePersonalOutput>> {
     const existing = await this.repository.findPersonalByOwner(user.id)
+
     if (existing !== undefined) return this.reusePersonal(existing, user.id, headers)
 
     const slug = `personal-${user.id}`
     const name = `${user.name}'s Organization`
     let authorityOrganization = await this.authority.getOrganizationBySlug({ slug, headers })
+
     if (authorityOrganization === undefined) {
       try {
         const created = await this.authority.createOrganization({
@@ -106,19 +115,25 @@ export class OrganizationService {
           slug,
           ownerUserId: user.id,
         })
+
         authorityOrganization = created.organization
+
         const members = await this.authority.listAllMembers({
           organizationId: authorityOrganization.id,
           headers,
         })
+
         assertAuthorityOwner(authorityOrganization.id, members, user.id)
       } catch {
         authorityOrganization = await this.authority.getOrganizationBySlug({ slug, headers })
+
         if (authorityOrganization === undefined) throw new ORPCError('CONFLICT')
+
         const members = await this.authority.listAllMembers({
           organizationId: authorityOrganization.id,
           headers,
         })
+
         assertAuthorityOwner(authorityOrganization.id, members, user.id)
       }
     } else {
@@ -126,6 +141,7 @@ export class OrganizationService {
         organizationId: authorityOrganization.id,
         headers,
       })
+
       assertAuthorityOwner(authorityOrganization.id, members, user.id)
     }
 
@@ -142,10 +158,13 @@ export class OrganizationService {
         },
         { userId: user.id, now: new Date() },
       )
+
       return toOrganization(organization)
     } catch (error) {
       const winner = await this.repository.findPersonalByOwner(user.id)
+
       if (winner !== undefined) return this.reusePersonal(winner, user.id, headers)
+
       if (isConstraintError(error)) throw new ORPCError('CONFLICT')
       throw error
     }
@@ -158,6 +177,7 @@ export class OrganizationService {
   ): Promise<InferOutput<typeof SOrganizationEnsurePersonalOutput>> {
     await this.reconcileOrganization(organization.id, headers, userId)
     await this.assertReadable(organization.id)
+
     return toOrganization(organization)
   }
 
@@ -167,8 +187,10 @@ export class OrganizationService {
     headers: Headers,
   ): Promise<InferOutput<typeof SOrganizationCreateOutput>> {
     let repair: OrganizationRepository.RepairOperation | undefined
+
     try {
       repair = await this.repository.findPendingCreateRepair(user.id)
+
       if (repair !== undefined) {
         if (repair.desiredName !== input.name) throw new ORPCError('CONFLICT')
       } else {
@@ -194,6 +216,7 @@ export class OrganizationService {
       if (error instanceof ORPCError) throw error
       throw new ORPCError('CONFLICT')
     }
+
     return toOrganization(await this.reconcileCreateRepair(repair, user.id, headers))
   }
 
@@ -205,14 +228,17 @@ export class OrganizationService {
     let authorityOrganizationId = repair.authorityOrganizationId
     let localOrganizationMaterialized = false
     let authorityCreatedInAttempt = repair.authorityCleanupRequired
+
     try {
       await this.repository.incrementRepairAttempt(repair.id)
       const authoritySlug = requireAuthoritySlug(repair)
+
       if (authorityOrganizationId === null) {
         const existingAuthority = await this.authority.getOrganizationBySlug({
           slug: authoritySlug,
           headers,
         })
+
         if (existingAuthority !== undefined) {
           authorityOrganizationId = existingAuthority.id
           await this.repository.setRepairAuthorityOrganization(
@@ -220,19 +246,23 @@ export class OrganizationService {
             authorityOrganizationId,
             authorityCreatedInAttempt,
           )
+
           const members = await this.authority.listAllMembers({
             organizationId: authorityOrganizationId,
             headers,
           })
+
           assertAuthorityOwner(authorityOrganizationId, members, userId)
         } else {
           await this.repository.setRepairAuthorityCleanupRequired(repair.id)
           authorityCreatedInAttempt = true
+
           const created = await this.authority.createOrganization({
             name: repair.desiredName,
             slug: authoritySlug,
             ownerUserId: userId,
           })
+
           authorityOrganizationId = created.organization.id
           authorityCreatedInAttempt = true
           await this.repository.setRepairAuthorityOrganization(
@@ -247,10 +277,12 @@ export class OrganizationService {
           organizationId: authorityOrganizationId,
           headers,
         })
+
         assertAuthorityOwner(authorityOrganizationId, members, userId)
       }
 
       const existingLocal = await this.repository.findById(repair.localOrganizationId)
+
       if (existingLocal !== undefined) {
         if (
           existingLocal.name !== repair.desiredName ||
@@ -260,7 +292,9 @@ export class OrganizationService {
         ) {
           throw new Error('Organization create repair local state is invalid')
         }
+
         localOrganizationMaterialized = true
+
         try {
           if (!(await this.repository.completeRepairOperation(repair.id))) {
             throw new Error('Organization repair completion failed')
@@ -269,8 +303,10 @@ export class OrganizationService {
           await this.recordRepairFailure(repair.id, completionError)
           throw new ORPCError('CONFLICT')
         }
+
         return existingLocal
       }
+
       const createdLocal = await this.repository.insertWithOwnerAndCompleteRepair(
         {
           id: repair.localOrganizationId,
@@ -284,7 +320,9 @@ export class OrganizationService {
         { userId, now: new Date() },
         repair.id,
       )
+
       localOrganizationMaterialized = true
+
       return createdLocal
     } catch (error) {
       if (
@@ -297,6 +335,7 @@ export class OrganizationService {
             organizationId: authorityOrganizationId,
             headers,
           })
+
           if (!(await this.repository.completeRepairOperation(repair.id))) {
             throw new Error('Organization repair completion failed')
           }
@@ -307,7 +346,9 @@ export class OrganizationService {
       } else {
         await this.recordRepairFailure(repair.id, error)
       }
+
       if (error instanceof ORPCError) throw error
+
       if (isConstraintError(error)) throw new ORPCError('CONFLICT')
       throw error
     }
@@ -319,21 +360,23 @@ export class OrganizationService {
     headers: Headers,
   ): Promise<void> {
     await this.assertCommandRole(repair.localOrganizationId, userId, 'admin')
+
     const authorityMember = await this.authority.getMember({
       organizationId: repair.authorityOrganizationId!,
       userId,
       headers,
     })
+
     if (authorityMember === undefined || authorityMember.role === 'member') {
       throw new ORPCError('FORBIDDEN')
     }
   }
 
-  private async recordRepairFailure(repairId: string, error: unknown): Promise<void> {
+  private async recordRepairFailure(repairId: string, cause: unknown): Promise<void> {
     try {
       await this.repository.recordRepairFailure(
         repairId,
-        error instanceof Error ? error.message : 'Organization repair did not complete',
+        cause instanceof Error ? cause.message : 'Organization repair did not complete',
       )
     } catch {
       // Keep the repair pending when failure metadata cannot be recorded.
@@ -347,31 +390,40 @@ export class OrganizationService {
     if (repair.authorityOrganizationId === null || repair.previousName === null) {
       throw new ORPCError('CONFLICT')
     }
+
     await this.repository.incrementRepairAttempt(repair.id)
     let authorityMutationAttempted = false
+
     try {
       const currentAuthority = await this.authority.getOrganization({
         organizationId: repair.authorityOrganizationId,
         headers,
       })
+
       if (currentAuthority === undefined) throw new Error('Authority Organization is unavailable')
+
       if (currentAuthority.name !== repair.desiredName) {
         authorityMutationAttempted = true
+
         const updatedAuthority = await this.authority.updateOrganization({
           organizationId: repair.authorityOrganizationId,
           name: repair.desiredName,
           headers,
         })
+
         if (updatedAuthority === undefined || updatedAuthority.name !== repair.desiredName) {
           throw new Error('Organization name update did not converge')
         }
       }
+
       const updated = await this.repository.updateNameAndCompleteRepair(
         repair.localOrganizationId,
         repair.desiredName,
         repair.id,
       )
+
       if (updated === undefined) throw new ORPCError('NOT_FOUND')
+
       return updated
     } catch (error) {
       if (authorityMutationAttempted) {
@@ -381,6 +433,7 @@ export class OrganizationService {
             name: repair.previousName,
             headers,
           })
+
           if (restored === undefined || restored.name !== repair.previousName) {
             throw new Error('Organization name rollback did not converge')
           }
@@ -389,7 +442,9 @@ export class OrganizationService {
           throw new ORPCError('CONFLICT')
         }
       }
+
       await this.recordRepairFailure(repair.id, error)
+
       if (error instanceof ORPCError) throw error
       throw new ORPCError('CONFLICT')
     }
@@ -402,16 +457,22 @@ export class OrganizationService {
   ): Promise<InferOutput<typeof SOrganizationUpdateOutput>> {
     const organization = await this.requireOrganizationForUser(input.organizationId, user.id)
     const pendingRepair = await this.repository.findPendingUpdateRepair(organization.id)
+
     if (pendingRepair !== undefined) {
       await this.assertUpdateRepairRecoverable(pendingRepair, user.id, headers)
+
       if (pendingRepair.desiredName !== input.name) throw new ORPCError('CONFLICT')
+
       return toOrganization(await this.reconcileUpdateRepair(pendingRepair, headers))
     }
+
     await this.reconcileOrganization(organization.id, headers, user.id)
     await this.assertCommandRole(organization.id, user.id, 'admin')
+
     if (organization.authorityOrganizationId !== null) {
       const now = new Date()
       let repair: OrganizationRepository.RepairOperation
+
       try {
         repair = await this.repository.createRepairOperation({
           id: generateId('orp'),
@@ -431,10 +492,14 @@ export class OrganizationService {
       } catch {
         throw new ORPCError('CONFLICT')
       }
+
       return toOrganization(await this.reconcileUpdateRepair(repair, headers))
     }
+
     const updated = await this.repository.updateName(organization.id, input.name)
+
     if (updated === undefined) throw new ORPCError('NOT_FOUND')
+
     return toOrganization(updated)
   }
 
@@ -487,6 +552,7 @@ export class OrganizationService {
   ): Promise<OrganizationRepository.DeleteOperation> {
     try {
       const now = new Date()
+
       return await this.repository.createDeleteOperation({
         id: generateId('gop'),
         organizationId: organization.id,
@@ -517,15 +583,16 @@ export class OrganizationService {
             throw new ORPCError('CONFLICT', { status: 409 })
         }
       }
+
       throw new ORPCError('CONFLICT', { status: 409 })
     }
   }
 
-  private async recordDeleteFailure(operationId: string, error: unknown): Promise<void> {
+  private async recordDeleteFailure(operationId: string, cause: unknown): Promise<void> {
     try {
       await this.repository.recordDeleteFailure(
         operationId,
-        error instanceof Error ? error.message : 'Organization deletion did not complete',
+        cause instanceof Error ? cause.message : 'Organization deletion did not complete',
       )
     } catch {
       // Keep the operation pending when failure metadata cannot be recorded.
@@ -537,7 +604,9 @@ export class OrganizationService {
     userId: string,
   ): Promise<OrganizationRecord> {
     const organization = await this.repository.findByIdForUser(id, userId)
+
     if (organization === undefined) throw new ORPCError('NOT_FOUND')
+
     return organization
   }
 
@@ -549,6 +618,7 @@ export class OrganizationService {
     if (await this.repository.hasPendingGovernanceOperation(organizationId)) {
       throw new ORPCError('CONFLICT')
     }
+
     if (this.membership !== undefined) {
       await this.membership.reconcile(organizationId, headers, userId)
     }
@@ -567,8 +637,10 @@ export class OrganizationService {
   ): Promise<void> {
     await this.assertReadable(organizationId)
     const role = await this.repository.findRoleForUser(organizationId, userId)
+
     if (role === undefined) throw new ORPCError('NOT_FOUND')
     const rank = { member: 1, admin: 2, owner: 3 } as const
+
     if (rank[role] < rank[required]) throw new ORPCError('FORBIDDEN')
   }
 }
@@ -588,6 +660,7 @@ function requireAuthoritySlug(repair: OrganizationRepository.RepairOperation): s
   if (repair.authoritySlug === null) {
     throw new Error('Organization create repair is missing authority slug')
   }
+
   return repair.authoritySlug
 }
 
@@ -611,6 +684,7 @@ function assertAuthorityOwner(
   userId: string,
 ): void {
   const owners = members.filter((member) => member.role === 'owner')
+
   if (
     owners.length !== 1 ||
     owners[0]?.organizationId !== organizationId ||
@@ -622,6 +696,6 @@ function assertAuthorityOwner(
   }
 }
 
-function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique/i.test(error.message)
+function isConstraintError(cause: unknown): cause is Error {
+  return cause instanceof Error && /constraint|unique/i.test(cause.message)
 }

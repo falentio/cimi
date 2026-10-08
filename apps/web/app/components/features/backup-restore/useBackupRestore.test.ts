@@ -1,32 +1,35 @@
 import { effectScope, nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Backup, Installation } from './backup-restore.types'
+import type { Backup, BackupRestoreClient, Installation } from './backup-restore.types'
 
-const mocks = vi.hoisted(() => {
-  const listBackups = vi.fn()
-  const getBackupStatus = vi.fn()
-  const createBackup = vi.fn()
-  const restoreBackup = vi.fn()
-  const getInstallationStatus = vi.fn()
-  return {
-    listBackups,
-    getBackupStatus,
-    createBackup,
-    restoreBackup,
-    getInstallationStatus,
-    client: {
-      backupRestore: {
-        listBackups: { call: listBackups },
-        getBackupStatus: { call: getBackupStatus },
-        createBackup: { call: createBackup },
-        restoreBackup: { call: restoreBackup },
-      },
-      installation: { getInstallationStatus: { call: getInstallationStatus } },
-    },
-  }
-})
+const listBackups = vi.fn()
 
-vi.mock('@/composables/useOrpc', () => ({ useOrpc: () => mocks.client }))
+const getBackupStatus = vi.fn()
+
+const createBackup = vi.fn()
+
+const restoreBackup = vi.fn()
+
+const getInstallationStatus = vi.fn()
+
+const client: BackupRestoreClient = {
+  backupRestore: {
+    listBackups: { call: listBackups },
+    getBackupStatus: { call: getBackupStatus },
+    createBackup: { call: createBackup },
+    restoreBackup: { call: restoreBackup },
+  },
+  installation: { getInstallationStatus: { call: getInstallationStatus } },
+}
+
+const mocks = {
+  listBackups,
+  getBackupStatus,
+  createBackup,
+  restoreBackup,
+  getInstallationStatus,
+  client,
+}
 
 import { useBackupRestore } from './useBackupRestore'
 
@@ -125,9 +128,11 @@ function createController() {
   const scope = effectScope()
   let controller: ReturnType<typeof useBackupRestore> | undefined
   scope.run(() => {
-    controller = useBackupRestore()
+    controller = useBackupRestore(mocks.client)
   })
+
   if (controller === undefined) throw new Error('Controller was not created.')
+
   return { controller, scope }
 }
 
@@ -364,6 +369,7 @@ describe('useBackupRestore', () => {
 
   it('disables confirmation but keeps cancel available when the open dialog becomes locked', async () => {
     const source = sourceBackup()
+
     const heldInstallation = {
       ...readyInstallation,
       status: 'maintenance',
@@ -377,6 +383,7 @@ describe('useBackupRestore', () => {
         errorCode: null,
       },
     } satisfies Installation
+
     mocks.listBackups.mockResolvedValue(page([source]))
     mocks.getInstallationStatus
       .mockResolvedValueOnce(readyInstallation)
@@ -436,9 +443,11 @@ describe('useBackupRestore', () => {
   it('locks restore confirmation before admission resolves and ignores duplicate submits', async () => {
     const source = sourceBackup()
     let resolveAdmission: (installation: Installation) => void = () => undefined
+
     const admission = new Promise<Installation>((resolve) => {
       resolveAdmission = resolve
     })
+
     mocks.listBackups.mockResolvedValue(page([source]))
     mocks.getInstallationStatus
       .mockResolvedValueOnce(readyInstallation)

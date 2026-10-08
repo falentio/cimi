@@ -20,6 +20,7 @@ export const SGoalAction = v.variant('kind', [
   v.strictObject({ kind: v.literal('performance'), name: SName }),
   v.strictObject({ kind: v.literal('error'), name: SName }),
 ])
+
 export const SGoal = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -34,6 +35,7 @@ export const SGoal = v.strictObject(
     SCreated,
   ]),
 )
+
 const SGoalReportPeriod = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -46,6 +48,7 @@ const SGoalReportPeriod = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const SGoalReport = v.pipe(
   v.strictObject(
     v.entriesFromObjects([
@@ -63,8 +66,11 @@ export const SGoalReport = v.pipe(
     VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
+
 export const SGoalSiteFields = v.strictObject({ siteId: SId })
+
 export const SGoalIdentityFields = v.strictObject({ siteId: SId, goalId: SId })
+
 export const SGoalDefinitionFields = v.strictObject({
   name: SName,
   action: SGoalAction,

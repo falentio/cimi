@@ -16,13 +16,18 @@ import SetupLifecyclePanel from './SetupLifecyclePanel.vue'
 import { useSetup } from './useSetup'
 
 const setup = useSetup()
+
 const view = setup.view
+
 const retrying = shallowRef(false)
+
 const initializing = shallowRef(false)
+
 const operationalView = computed(() => (view.value.kind === 'operational' ? view.value : undefined))
 
 async function initialize(): Promise<void> {
   initializing.value = true
+
   try {
     await setup.initialize()
   } catch {
@@ -34,6 +39,7 @@ async function initialize(): Promise<void> {
 
 async function refresh(): Promise<void> {
   retrying.value = true
+
   try {
     await setup.refresh()
   } catch {

@@ -7,6 +7,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number, offsetMs = 0): number {
@@ -89,6 +90,7 @@ async function projectedSiteWithAttributedEvents(email: string) {
     { sessionId: 's6', visitorId: 'v6', kind: 'page_view', at: at(DAY_TWO, 12), pagePath: '/a' },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -96,11 +98,13 @@ describe('TrafficReportService.getBreakdowns', () => {
   it('serves an admitted breakdown page with pagination metadata', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
     const { app } = fixture
+
     const { cookie, siteId } = await createOwnerSite(
       app,
       fixture.db,
       'report-breakdown@example.com',
     )
+
     await fixture.analytics.rebuild({ controlDb: fixture.db })
 
     const response = await apiTestRequest(
@@ -123,6 +127,7 @@ describe('TrafficReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-page@example.com',
     )
+
     await using _ = fixture
     const response = await apiTestRequest(fixture.app, breakdownPath(siteId, 'page'), cookie)
 
@@ -156,7 +161,9 @@ describe('TrafficReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-filter@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       breakdownPath(
@@ -189,6 +196,7 @@ describe('TrafficReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-exit-page@example.com',
     )
+
     await using _ = fixture
     const response = await apiTestRequest(fixture.app, breakdownPath(siteId, 'exit_page'), cookie)
 
@@ -221,7 +229,9 @@ describe('TrafficReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-device@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       breakdownPath(siteId, 'device', '&sort=count&direction=desc'),
@@ -255,7 +265,9 @@ describe('TrafficReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-percentage@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       breakdownPath(siteId, 'page', '&sort=percentage&direction=asc'),
@@ -271,7 +283,9 @@ describe('TrafficReportService.getBreakdowns', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithAttributedEvents(
       'report-breakdown-page2@example.com',
     )
+
     await using _ = fixture
+
     const first = await apiTestRequest(
       fixture.app,
       breakdownPath(siteId, 'page', '&sort=count&direction=desc&limit=1'),
@@ -299,6 +313,7 @@ describe('TrafficReportService.getBreakdowns', () => {
       breakdownPath(siteId, 'page', '&sort=count&direction=desc&limit=1&offset=1'),
       cookie,
     )
+
     expect(second.status, await second.clone().text()).toBe(200)
     const secondBody = await second.json()
     expect(secondBody.items).toEqual([
@@ -317,15 +332,18 @@ describe('TrafficReportService.getBreakdowns', () => {
 
   it('rejects an hourly range after the authenticated bucket limit', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'traffic-breakdown-bucket-limit@example.com',
     )
+
     await fixture.analytics.rebuild({ controlDb: fixture.db })
 
     const path = (toDate: string) =>
       `/traffic-report/getTrafficBreakdowns?siteId=${encodeURIComponent(siteId)}&fromDate=2026-08-01&toDate=${toDate}&granularity=hour&dimension=page`
+
     const accepted = await apiTestRequest(fixture.app, path('2026-08-30'), cookie)
     expect(accepted.status, await accepted.clone().text()).toBe(200)
 

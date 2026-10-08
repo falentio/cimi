@@ -3,6 +3,7 @@ import type { Db } from '@cimi/db'
 import { schema as contractSchema } from '@cimi/contract'
 import { apiTestRequest, signUpTestUser } from './fixture.ts'
 import type { createApiApp } from '../index.ts'
+import { isBooleanValue, isNumberValue } from '@cimi/utils'
 
 type App = ReturnType<typeof createApiApp>
 
@@ -30,22 +31,27 @@ export async function createOwnerSite(
 ): Promise<{ readonly cookie: string; readonly siteId: string }> {
   const owner = await signUpTestUser(app, email, 'Report Owner')
   const localPart = email.slice(0, email.indexOf('@'))
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: `Report Org ${localPart}` },
   )
+
   expect(organizationResponse.status).toBe(201)
   const organization = await organizationResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname: `${localPart}.example.com`,
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
   seedRetentionCutoff(db, site.id)
+
   return { cookie: owner.cookie, siteId: site.id }
 }
 
@@ -64,9 +70,12 @@ export function seedRetentionCutoff(db: Db, siteId: string): void {
        ON CONFLICT (singleton_key) DO NOTHING`,
     )
     .run(installationId, now, now)
+
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const existingInstallation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined
+
   const policyId = `rtn_${siteId}`
   db.$client
     .prepare(
@@ -130,10 +139,13 @@ interface SeedEvent {
 }
 
 export function seedAcceptedEvents(db: Db, siteId: string, events: readonly SeedEvent[]): void {
+  // SAFETY: better-sqlite3 returns any; single policy_revision_id column selected below.
   const policyId = db.$client
     .prepare('SELECT policy_revision_id FROM accepted_event LIMIT 1')
     .get() as { policy_revision_id: string } | undefined
+
   const revisionId = policyId?.policy_revision_id ?? ensurePolicyRevision(db)
+
   const insert = db.$client.prepare(
     `INSERT INTO accepted_event (
        site_id, event_id, event_kind, occurrence_time, receipt_time, visitor_id,
@@ -142,6 +154,7 @@ export function seedAcceptedEvents(db: Db, siteId: string, events: readonly Seed
        operating_system, country, utm_source, utm_medium, utm_campaign
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
+
   const sequenceBase = readMaxReplaySequence(db)
   events.forEach((event, index) => {
     const eventId = `evt-${siteId}-${sequenceBase + index + 1}`
@@ -168,31 +181,37 @@ export function seedAcceptedEvents(db: Db, siteId: string, events: readonly Seed
       event.utmCampaign ?? null,
     )
     const eventPk = readEventPk(db, siteId, eventId)
+
     if (event.pagePath !== undefined) {
       db.$client
         .prepare('INSERT INTO event_page_view (event_pk, page_path, referrer) VALUES (?, ?, ?)')
         .run(eventPk, event.pagePath, event.referrer ?? null)
     }
+
     if (event.kind === 'custom_event') {
       db.$client
         .prepare('INSERT INTO event_custom (event_pk, name) VALUES (?, ?)')
         .run(eventPk, event.name ?? '')
     }
+
     if (event.kind === 'outbound') {
       db.$client
         .prepare('INSERT INTO event_outbound (event_pk, destination, name) VALUES (?, ?, ?)')
         .run(eventPk, event.destination ?? '', event.name ?? null)
     }
+
     if (event.kind === 'performance') {
       db.$client
         .prepare('INSERT INTO event_performance (event_pk, name, value, unit) VALUES (?, ?, ?, ?)')
         .run(eventPk, event.name ?? '', event.value ?? 0, event.unit ?? null)
     }
+
     if (event.kind === 'error') {
       db.$client
         .prepare('INSERT INTO event_error (event_pk, name, code, message) VALUES (?, ?, ?, ?)')
         .run(eventPk, event.name ?? '', event.code ?? null, event.message ?? null)
     }
+
     for (const [key, value] of Object.entries(event.properties ?? {})) {
       insertProperty(db, eventPk, key, value)
     }
@@ -210,11 +229,12 @@ function insertProperty(
        event_pk, property_key, value_type, string_value, number_value, boolean_value
      ) VALUES (?, ?, ?, ?, ?, ?)`,
   )
+
   if (value === null) {
     statement.run(eventPk, key, 'null', null, null, null)
-  } else if (typeof value === 'number') {
+  } else if (isNumberValue(value)) {
     statement.run(eventPk, key, 'number', null, value, null)
-  } else if (typeof value === 'boolean') {
+  } else if (isBooleanValue(value)) {
     statement.run(eventPk, key, 'boolean', null, null, value ? 1 : 0)
   } else {
     statement.run(eventPk, key, 'string', value, null, null)
@@ -222,25 +242,33 @@ function insertProperty(
 }
 
 function readEventPk(db: Db, siteId: string, eventId: string): number {
+  // SAFETY: better-sqlite3 returns any; single eventPk column selected below.
   const row = db.$client
     .prepare('SELECT event_pk AS eventPk FROM accepted_event WHERE site_id = ? AND event_id = ?')
     .get(siteId, eventId) as { eventPk: number } | undefined
+
   if (row === undefined) throw new Error(`Accepted event ${eventId} was not inserted`)
+
   return row.eventPk
 }
 
 function readMaxReplaySequence(db: Db): number {
+  // SAFETY: better-sqlite3 returns any; single coalesced sequence column selected below.
   const row = db.$client
     .prepare('SELECT coalesce(max(replay_sequence), 0) AS sequence FROM accepted_event')
     .get() as { sequence: number } | undefined
+
   return Number(row?.sequence ?? 0)
 }
 
 function ensurePolicyRevision(db: Db): string {
+  // SAFETY: better-sqlite3 returns any; single id column selected below.
   const installation = db.$client
     .prepare('SELECT id FROM installation ORDER BY created_at LIMIT 1')
     .get() as { id: string } | undefined
+
   const installationId = installation?.id
+
   if (installationId === undefined) throw new Error('Seed a retention cutoff before seeding events')
   const id = 'pol_report_test'
   const now = Date.now()
@@ -259,5 +287,6 @@ function ensurePolicyRevision(db: Db): string {
       now,
       now,
     )
+
   return id
 }

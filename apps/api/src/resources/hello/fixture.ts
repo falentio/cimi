@@ -9,6 +9,7 @@ export function createHelloFixture() {
   const repo = mock<HelloRepository>()
   const guard = new HelloGuard({ repository: repo })
   const service = new HelloService({ repository: repo, guard })
+
   return { repo, guard, service }
 }
 

@@ -14,6 +14,7 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
     owner.cookie,
     { name: 'Matrix Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
 
@@ -22,6 +23,7 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
     name: 'Production',
     hostname: 'matrix.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
 
@@ -31,12 +33,14 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
     owner.cookie,
     { organizationId: organization.id, role: 'member' },
   )
+
   expect(invitationResponse.status, await invitationResponse.clone().text()).toBe(201)
   const invitation = await invitationResponse.json()
 
   const acceptResponse = await apiTestRequest(app, '/invitation/acceptInvitation', member.cookie, {
     token: invitation.token,
   })
+
   expect(acceptResponse.status, await acceptResponse.clone().text()).toBe(200)
 
   const unauthenticatedStatus = await app.fetch(
@@ -45,6 +49,7 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
       { method: 'GET' },
     ),
   )
+
   expect(unauthenticatedStatus.status).toBe(401)
   await expect(unauthenticatedStatus.json()).resolves.toMatchObject({
     code: 'UNAUTHORIZED',
@@ -57,6 +62,7 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
     member.cookie,
     { siteId: site.id },
   )
+
   expect(rotateResponse.status).toBe(403)
   await expect(rotateResponse.json()).resolves.toMatchObject({
     code: 'FORBIDDEN',
@@ -68,6 +74,7 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
     `/site/getSite?siteId=${encodeURIComponent(site.id)}`,
     outsider.cookie,
   )
+
   expect(outsiderGet.status).toBe(404)
   await expect(outsiderGet.json()).resolves.toMatchObject({ code: 'NOT_FOUND', status: 404 })
 
@@ -76,22 +83,25 @@ test('privileged site matrix enforces auth boundaries and correlates delete oper
     `/site/listSites?organizationId=${encodeURIComponent(organization.id)}`,
     outsider.cookie,
   )
+
   expect(outsiderList.status).toBe(200)
   await expect(outsiderList.json()).resolves.toMatchObject({ items: [] })
 
   const deleteResponse = await apiTestRequest(app, '/site/deleteSite', owner.cookie, {
     siteId: site.id,
   })
+
   expect(deleteResponse.status, await deleteResponse.clone().text()).toBe(202)
   const deletion = await deleteResponse.json()
   expect(deletion).toMatchObject({ accepted: true, status: 'deleting' })
-  expect(typeof deletion.operationId).toBe('string')
+  expect(deletion.operationId).toEqual(expect.any(String))
 
   const statusResponse = await apiTestRequest(
     app,
     `/site/getSiteDeletionStatus?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(statusResponse.status).toBe(200)
   const status = await statusResponse.json()
   expect(status.operationId).toBe(deletion.operationId)
@@ -109,6 +119,7 @@ test('retention over HTTP preserves identifiers across delete and recover', asyn
     owner.cookie,
     { name: 'Retention Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = await organizationResponse.json()
 
@@ -117,35 +128,43 @@ test('retention over HTTP preserves identifiers across delete and recover', asyn
     name: 'Production',
     hostname: 'retention.example.com',
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
   const site = await siteResponse.json()
-  const hostname = site.hostname as string
-  const ingestionIdentifier = site.ingestionIdentifier as string
+  const hostname = site.hostname
+  const ingestionIdentifier = site.ingestionIdentifier
 
   const deleteResponse = await apiTestRequest(app, '/site/deleteSite', owner.cookie, {
     siteId: site.id,
   })
+
   expect(deleteResponse.status, await deleteResponse.clone().text()).toBe(202)
 
   const recoverResponse = await apiTestRequest(app, '/site/recoverSite', owner.cookie, {
     siteId: site.id,
   })
+
   expect(recoverResponse.status, await recoverResponse.clone().text()).toBe(202)
   const recovery = await recoverResponse.json()
   expect(recovery).toMatchObject({ accepted: true, status: 'recovering' })
 
   const deadline = Date.now() + 5000
+
   for (;;) {
     const getResponse = await apiTestRequest(
       app,
       `/site/getSite?siteId=${encodeURIComponent(site.id)}`,
       owner.cookie,
     )
+
     if (getResponse.status === 200) {
       await expect(getResponse.json()).resolves.toMatchObject({ hostname, ingestionIdentifier })
+
       return
     }
+
     expect(getResponse.status).toBe(404)
+
     if (Date.now() >= deadline) break
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
@@ -155,6 +174,7 @@ test('retention over HTTP preserves identifiers across delete and recover', asyn
     `/site/getSiteDeletionStatus?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(statusResponse.status).toBe(200)
   await expect(statusResponse.json()).resolves.toMatchObject({
     siteId: site.id,
@@ -167,5 +187,6 @@ test('retention over HTTP preserves identifiers across delete and recover', asyn
     `/site/getSite?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(getResponse.status).toBe(404)
 }, 15000)

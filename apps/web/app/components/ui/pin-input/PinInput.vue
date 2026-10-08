@@ -11,6 +11,7 @@ const props = withDefaults(
     otp: true,
   },
 )
+
 const emits = defineEmits<PinInputRootEmits<Type>>()
 
 const delegatedProps = reactiveOmit(props, 'class')

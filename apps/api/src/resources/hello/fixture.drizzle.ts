@@ -4,6 +4,7 @@ import { createMigratedTestDb } from '@cimi/db/testing'
 const createdAt = new Date('2026-08-25T00:00:00.000Z')
 
 export type UserRow = typeof schema.TUser.$inferSelect
+
 export type HelloRow = typeof schema.THello.$inferSelect
 
 export function createHelloUserRow(overrides: Partial<UserRow> = {}): UserRow {
@@ -40,6 +41,7 @@ export interface HelloDrizzleFixture extends Disposable {
 
 export async function createHelloDrizzleFixture(): Promise<HelloDrizzleFixture> {
   const db = createMigratedTestDb()
+
   try {
     await db
       .insert(schema.TUser)
@@ -47,6 +49,7 @@ export async function createHelloDrizzleFixture(): Promise<HelloDrizzleFixture> 
         createHelloUserRow(),
         createHelloUserRow({ id: 'user_2', name: 'Grace', email: 'grace@example.com' }),
       ])
+
     return {
       db,
       [Symbol.dispose]() {

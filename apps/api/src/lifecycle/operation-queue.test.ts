@@ -6,6 +6,7 @@ describe('createSerializedOperationQueue', () => {
     const queue = createSerializedOperationQueue()
     const events: string[] = []
     let releaseFirst: (() => void) | undefined
+
     const firstReady = new Promise<void>((resolve) => {
       releaseFirst = resolve
     })
@@ -16,8 +17,10 @@ describe('createSerializedOperationQueue', () => {
       events.push('first:fail')
       throw new Error('first failed')
     })
+
     const second = queue.run(async () => {
       events.push('second:start')
+
       return 'second result'
     })
 
@@ -37,14 +40,17 @@ describe('createSerializedOperationQueue', () => {
     const results = await Promise.all([
       queue.run(async () => {
         events.push('first')
+
         return 1
       }),
       queue.run(async () => {
         events.push('second')
+
         return 2
       }),
       queue.run(async () => {
         events.push('third')
+
         return 3
       }),
     ])

@@ -20,9 +20,11 @@ describe('BackupRestoreService.startupRecovery', () => {
     repository.findActive.mockResolvedValue(operation)
     repository.claim.mockResolvedValue(claimed)
     repository.fail.mockResolvedValue(undefined)
+
     const acceptance = new InMemoryAcceptanceQuiescencePort(async () => {
       throw failure
     })
+
     const service = new BackupRestoreService({
       repository,
       executor: mock<BackupRestoreExecutor>(),

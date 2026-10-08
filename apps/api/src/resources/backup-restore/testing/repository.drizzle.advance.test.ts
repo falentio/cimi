@@ -11,6 +11,7 @@ describe('BackupRestoreRepositoryDrizzle.advance', () => {
     using fixture = createBackupDrizzleFixture()
     await fixture.insertInstallation()
     const started = await fixture.repository.beginBackup(createBackupInsertInput())
+
     if (started === undefined) throw new Error('expected backup operation')
 
     const advanced = await fixture.repository.advance({
@@ -22,6 +23,7 @@ describe('BackupRestoreRepositoryDrizzle.advance', () => {
       lastSafeSequence: 7,
       now: new Date('2026-09-01T00:00:01.000Z'),
     })
+
     expect(advanced).toMatchObject({ progress: 0.2, lastSafeSequence: 7 })
 
     await expect(
@@ -52,6 +54,7 @@ describe('BackupRestoreRepositoryDrizzle.advance', () => {
     using fixture = createBackupDrizzleFixture()
     await fixture.insertInstallation()
     const source = await fixture.repository.beginBackup(createBackupInsertInput())
+
     if (source === undefined) throw new Error('expected source backup operation')
     await fixture.repository.recordBackupArtifact({
       operationId: source.id,
@@ -71,6 +74,7 @@ describe('BackupRestoreRepositoryDrizzle.advance', () => {
       sourceBackupId: source.id,
       now: new Date('2026-09-01T00:00:03.000Z'),
     })
+
     if (restore === undefined) throw new Error('expected restore operation')
     await fixture.repository.recordSafetyArtifact({
       operationId: restore.id,
@@ -88,6 +92,7 @@ describe('BackupRestoreRepositoryDrizzle.advance', () => {
       lastSafeSequence: 42,
       now: new Date('2026-09-01T00:00:05.000Z'),
     })
+
     expect(rebuilt).toMatchObject({
       status: 'restoring',
       phase: 'rebuilding_duckdb',

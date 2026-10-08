@@ -13,9 +13,11 @@ export function checkRetentionCoverage(input: {
 }): void {
   for (const dependency of input.required) {
     const boundary = boundaryForDependency(input.coverage, dependency)
+
     if (!coversPeriod(boundary, input.periods.current.interval.start)) {
       throw queryLimitExceeded('retention-incomplete')
     }
+
     if (
       input.periods.comparison !== null &&
       !coversPeriod(boundary, input.periods.comparison.interval.start)

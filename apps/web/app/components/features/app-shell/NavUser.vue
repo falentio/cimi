@@ -36,6 +36,7 @@ const { isMobile } = useSidebar()
 
 const initials = computed(() => {
   const name = props.user.name
+
   return name
     .split(' ')
     .map((part) => part[0])

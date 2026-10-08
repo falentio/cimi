@@ -4,7 +4,9 @@ import type { CimiOrpc } from '~/plugins/orpc'
 export type Installation = Awaited<
   ReturnType<CimiOrpc['installation']['getInstallationStatus']['call']>
 >
+
 export type Health = Awaited<ReturnType<CimiOrpc['health']['health']['call']>>
+
 export type InitializeResponse = Awaited<
   ReturnType<CimiOrpc['installation']['initializeInstallation']['call']>
 >
@@ -26,6 +28,7 @@ export type SetupHealth = Pick<
 >
 
 export type SetupOperation = NonNullable<SetupInstallation['activeOperation']>
+
 export type InitializedInstallation = Omit<SetupInstallation, 'status'> & {
   status: Exclude<SetupInstallation['status'], 'uninitialized'>
 }

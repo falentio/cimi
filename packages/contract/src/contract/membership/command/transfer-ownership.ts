@@ -3,10 +3,13 @@ import { oc } from '../../../orpc/index.ts'
 import { SMembershipOwner, SMembershipTargetFields } from '../schema.ts'
 
 export const SMembershipTransferOwnershipInput = SMembershipTargetFields
+
 export type SMembershipTransferOwnershipInput = v.InferOutput<
   typeof SMembershipTransferOwnershipInput
 >
+
 export const SMembershipTransferOwnershipOutput = SMembershipOwner
+
 export type SMembershipTransferOwnershipOutput = v.InferOutput<
   typeof SMembershipTransferOwnershipOutput
 >

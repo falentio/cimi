@@ -61,6 +61,7 @@ test('paused admission rejects a standard route with SERVICE_UNAVAILABLE', async
 
 test('recovering admission preserves unclassified route compatibility', async () => {
   await using fixture = await createApiTestFixture()
+
   const app = createApiApp({
     db: fixture.db,
     auth: fixture.auth,
@@ -96,6 +97,7 @@ test('paused admission keeps health and installation exempt', async () => {
   const installation = await app.fetch(
     new Request('http://localhost/api/installation/getInstallationStatus'),
   )
+
   expect(installation.status).toBe(401)
   await expect(installation.json()).resolves.toMatchObject({ code: 'UNAUTHORIZED' })
   await app.close()
@@ -112,6 +114,7 @@ test('accept-only admission passes a standard route through', async () => {
 
 test('backup write quiescence keeps public analytics admission open', async () => {
   await using fixture = await createApiTestFixture()
+
   const app = createApiApp({
     db: fixture.db,
     auth: fixture.auth,
@@ -145,6 +148,7 @@ test('backup write quiescence keeps public analytics admission open', async () =
 
 test('cleanup-pending restore blocks analytics-read identity queries with SERVICE_UNAVAILABLE', async () => {
   await using fixture = await createApiTestFixture()
+
   const app = createApiApp({
     db: fixture.db,
     auth: fixture.auth,
@@ -169,12 +173,14 @@ test('cleanup-pending restore blocks analytics-read identity queries with SERVIC
   await expect(health.json()).resolves.toMatchObject({ status: 'degraded', cleanupPending: true })
 
   const owner = await signUpTestUser(app, 'restore-owner@example.com', 'Restore Owner')
+
   const response = await app.fetch(
     new Request(
       'http://localhost/api/identity-profile/listProfiles?siteId=ste_1&limit=10&offset=0',
       { headers: { cookie: owner.cookie } },
     ),
   )
+
   expect(response.status).toBe(503)
   await expect(response.json()).resolves.toMatchObject({
     code: 'SERVICE_UNAVAILABLE',
@@ -186,6 +192,7 @@ test('cleanup-pending restore blocks analytics-read identity queries with SERVIC
 
 test('health rechecks the configured data directory readiness', async () => {
   await using fixture = await createApiTestFixture()
+
   const app = createApiApp({
     db: fixture.db,
     auth: fixture.auth,

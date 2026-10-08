@@ -3,11 +3,14 @@ import { oc } from '../../../orpc/index.ts'
 import { SInvitation, SInvitationOrganizationFields, SInvitationToken } from '../schema.ts'
 
 export const SInvitationCreateInput = SInvitationOrganizationFields
+
 export type SInvitationCreateInput = v.InferOutput<typeof SInvitationCreateInput>
+
 export const SInvitationCreateOutput = v.strictObject({
   invitation: SInvitation,
   token: SInvitationToken,
 })
+
 export type SInvitationCreateOutput = v.InferOutput<typeof SInvitationCreateOutput>
 
 export const createInvitation = oc

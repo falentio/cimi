@@ -4,11 +4,14 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 const props = defineProps<{ variants: ReadonlyArray<{ id: string; label: string }> }>()
 
 const route = useRoute()
+
 const router = useRouter()
 
 const active = computed(() => {
   const raw = route.query.variant
   const id = Array.isArray(raw) ? String(raw[0]) : raw === undefined ? undefined : String(raw)
+
+  // SAFETY: some() above proves the query id matches a known variant id.
   return props.variants.some((v) => v.id === id) ? (id as string) : props.variants[0]!.id
 })
 
@@ -29,19 +32,24 @@ function onKeydown(event: KeyboardEvent): void {
   if (isTypingTarget(event.target)) return
   const ids = props.variants.map((v) => v.id)
   const index = ids.indexOf(active.value)
+
   if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
     event.preventDefault()
     const step = event.key === 'ArrowLeft' ? -1 : 1
     select(ids[(index + step + ids.length) % ids.length]!)
+
     return
   }
+
   if (/^[1-9]$/.test(event.key)) {
     const target = ids[Number(event.key) - 1]
+
     if (target !== undefined) select(target)
   }
 }
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
+
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 

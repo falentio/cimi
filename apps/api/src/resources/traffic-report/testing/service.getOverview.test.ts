@@ -7,6 +7,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number, offsetMs = 0): number {
@@ -52,6 +53,7 @@ async function projectedSiteWithEvents(email: string) {
     },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -97,11 +99,13 @@ describe('TrafficReportService.getOverview', () => {
   it('rejects a range that reaches past Effective Retention instead of clamping it', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
     const { app } = fixture
+
     const { cookie, siteId } = await createOwnerSite(
       app,
       fixture.db,
       'report-overbound@example.com',
     )
+
     await fixture.analytics.rebuild({ controlDb: fixture.db })
 
     const response = await apiTestRequest(
@@ -120,6 +124,7 @@ describe('TrafficReportService.getOverview', () => {
   it('serves real overview metrics with denominators and a partially complete trend', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithEvents('report-metrics@example.com')
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       `/traffic-report/getTrafficOverview?siteId=${encodeURIComponent(siteId)}&fromDate=${DAY_ONE}&toDate=${DAY_TWO}&granularity=day`,
@@ -162,7 +167,9 @@ describe('TrafficReportService.getOverview', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithEvents(
       'report-trend-filter@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       overviewPath(
@@ -185,7 +192,9 @@ describe('TrafficReportService.getOverview', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithEvents(
       'report-presence-filter@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       overviewPath(
@@ -208,7 +217,9 @@ describe('TrafficReportService.getOverview', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithEvents(
       'report-negated-presence-filter@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       overviewPath(
@@ -229,15 +240,18 @@ describe('TrafficReportService.getOverview', () => {
 
   it('rejects an hourly range after the authenticated bucket limit', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'traffic-overview-bucket-limit@example.com',
     )
+
     await fixture.analytics.rebuild({ controlDb: fixture.db })
 
     const path = (toDate: string) =>
       `/traffic-report/getTrafficOverview?siteId=${encodeURIComponent(siteId)}&fromDate=2026-08-01&toDate=${toDate}&granularity=hour`
+
     const accepted = await apiTestRequest(fixture.app, path('2026-08-30'), cookie)
     expect(accepted.status, await accepted.clone().text()).toBe(200)
 

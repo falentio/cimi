@@ -6,6 +6,7 @@ import { SliderRange, SliderRoot, SliderThumb, SliderTrack, useForwardPropsEmits
 import { cn } from '@/lib/utils'
 
 const props = defineProps<SliderRootProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<SliderRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

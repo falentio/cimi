@@ -40,6 +40,7 @@ function handleClick(event: MouseEvent) {
   // other than a button.
   if (props.disabled) {
     event.preventDefault()
+
     return
   }
 

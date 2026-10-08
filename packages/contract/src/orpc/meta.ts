@@ -11,6 +11,7 @@ export const AUTH_META_VALUES = [
 ] as const
 
 export type AuthMetaValue = (typeof AUTH_META_VALUES)[number]
+
 export type AuthScope = AuthMetaValue
 
 export const ADMISSION_VALUES = ['ingestion', 'analytics-read', 'exempt'] as const

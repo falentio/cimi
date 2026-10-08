@@ -33,19 +33,19 @@ export const configSchema = v.pipe(
     isDev: env.NODE_ENV !== 'production',
     logging: toLoggingConfig(env.CIMI_LOG_LEVEL),
     eventIngestion: {
-      ...(env.CIMI_EVENT_SITE_RATE_PER_SECOND === undefined
-        ? {}
-        : { siteRatePerSecond: env.CIMI_EVENT_SITE_RATE_PER_SECOND }),
-      ...(env.CIMI_EVENT_SITE_BURST === undefined ? {} : { siteBurst: env.CIMI_EVENT_SITE_BURST }),
-      ...(env.CIMI_EVENT_SOURCE_IP_RATE_PER_SECOND === undefined
-        ? {}
-        : { sourceIpRatePerSecond: env.CIMI_EVENT_SOURCE_IP_RATE_PER_SECOND }),
-      ...(env.CIMI_EVENT_SOURCE_IP_BURST === undefined
-        ? {}
-        : { sourceIpBurst: env.CIMI_EVENT_SOURCE_IP_BURST }),
-      ...(env.CIMI_EVENT_TRUST_PROXY_HEADERS === undefined
-        ? {}
-        : { trustProxyHeaders: env.CIMI_EVENT_TRUST_PROXY_HEADERS === 'true' }),
+      ...(env.CIMI_EVENT_SITE_RATE_PER_SECOND !== undefined && {
+        siteRatePerSecond: env.CIMI_EVENT_SITE_RATE_PER_SECOND,
+      }),
+      ...(env.CIMI_EVENT_SITE_BURST !== undefined && { siteBurst: env.CIMI_EVENT_SITE_BURST }),
+      ...(env.CIMI_EVENT_SOURCE_IP_RATE_PER_SECOND !== undefined && {
+        sourceIpRatePerSecond: env.CIMI_EVENT_SOURCE_IP_RATE_PER_SECOND,
+      }),
+      ...(env.CIMI_EVENT_SOURCE_IP_BURST !== undefined && {
+        sourceIpBurst: env.CIMI_EVENT_SOURCE_IP_BURST,
+      }),
+      ...(env.CIMI_EVENT_TRUST_PROXY_HEADERS !== undefined && {
+        trustProxyHeaders: env.CIMI_EVENT_TRUST_PROXY_HEADERS === 'true',
+      }),
     },
   })),
 )

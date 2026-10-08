@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SBackup, SBackupRestoreFields } from '../schema.ts'
 
 export const SBackupRestoreInput = SBackupRestoreFields
+
 export type SBackupRestoreInput = v.InferOutput<typeof SBackupRestoreInput>
+
 export const SBackupRestoreOutput = SBackup
+
 export type SBackupRestoreOutput = v.InferOutput<typeof SBackupRestoreOutput>
 
 export const restoreBackup = oc

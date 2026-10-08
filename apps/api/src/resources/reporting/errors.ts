@@ -1,9 +1,10 @@
 import { ReportingAdmissionError } from '@cimi/kernel'
 import { ORPCError } from '@orpc/server'
 
-export function toOrpcReportingError(error: unknown): ORPCError<string, unknown> {
-  if (error instanceof ReportingAdmissionError) {
-    return new ORPCError(error.code, { cause: error })
+export function toOrpcReportingError(cause: unknown): ORPCError<string, unknown> {
+  if (cause instanceof ReportingAdmissionError) {
+    return new ORPCError(cause.code, { cause })
   }
-  return new ORPCError('SERVICE_UNAVAILABLE', { cause: error })
+
+  return new ORPCError('SERVICE_UNAVAILABLE', { cause })
 }

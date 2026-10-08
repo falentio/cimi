@@ -7,6 +7,7 @@ import {
 } from '../schema.ts'
 
 export const SInstallationInitializeInput = SInstallationInitializeFields
+
 export type SInstallationInitializeInput = v.InferOutput<typeof SInstallationInitializeInput>
 
 export { DEFAULT_RETENTION_POLICY }
@@ -15,14 +16,17 @@ const SInstallationInitializeCreatedOutput = v.strictObject({
   status: v.literal(201),
   body: SInstallation,
 })
+
 const SInstallationInitializeReusedOutput = v.strictObject({
   status: v.literal(200),
   body: SInstallation,
 })
+
 export const SInstallationInitializeOutput = v.union([
   SInstallationInitializeCreatedOutput,
   SInstallationInitializeReusedOutput,
 ])
+
 export type SInstallationInitializeOutput = v.InferOutput<typeof SInstallationInitializeOutput>
 
 export const initializeInstallation = oc

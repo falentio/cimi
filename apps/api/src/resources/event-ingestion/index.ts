@@ -14,53 +14,66 @@ import type { SiteRepository } from '../site/repository.ts'
 import { SiteRepositoryDrizzle } from '../site/repository.drizzle.ts'
 
 export { eventIngestionRouter }
+
 export type { EventIngestionRouterOptions } from './router.ts'
+
 export {
   AcceptanceCoalescer,
   AcceptanceAdmissionStoppedError,
   AcceptanceQueueSaturatedError,
 } from './coalescer.ts'
+
 export type {
   AcceptanceDiagnosticsSnapshot,
   AcceptanceCoalescerDependencies,
   Reservation,
   ReservableCandidate,
 } from './coalescer.ts'
+
 export {
   AcceptanceRepositoryDrizzle,
   type AcceptanceRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export {
   InMemoryIngestionProtection,
   type InMemoryIngestionProtectionDependencies,
 } from './protection.ts'
+
 export {
   DefaultIdentitySessionResolver,
   type DefaultIdentitySessionResolverDependencies,
 } from './identity-session.ts'
+
 export {
   DEFAULT_SESSION_WINDOW,
   sessionContinues,
   type SessionWindow,
   type SessionWindowState,
 } from './session-window.ts'
+
 export { isParsedPayloadOversized } from './payload-size.ts'
+
 export { deriveAttribution, type DerivedAttribution } from './attribution.ts'
+
 export {
   AcceptanceBackupRestoreCleanup,
   AcceptanceRetentionCleanup,
   type AcceptanceBackupRestoreCleanupDependencies,
   type AcceptanceRetentionCleanupDependencies,
 } from './retention-cleanup.ts'
+
 export {
   createIdentityProjectionDebt,
   type IdentityProjectionDebt,
 } from './identity-projection-debt.ts'
+
 export {
   identityRedactionRequest,
   type IdentityRedactionReason,
   type IdentityRedactionRequestValues,
 } from './identity-redaction-transition.ts'
+
 export type {
   AcceptanceCandidate,
   AcceptanceRepository,
@@ -68,6 +81,7 @@ export type {
   EventInput,
   NormalizedEvent,
 } from './repository.ts'
+
 export {
   EventIngestionService,
   type CollectEventInput,
@@ -104,6 +118,7 @@ export function createEventIngestion({
 }: CreateEventIngestionDependencies) {
   const acceptanceRepository = new AcceptanceRepositoryDrizzle({ db })
   const coalescer = new AcceptanceCoalescer({ repository: acceptanceRepository })
+
   const service = new EventIngestionService({
     siteRepository: siteRepository ?? new SiteRepositoryDrizzle({ db }),
     collectionPolicy,
@@ -136,8 +151,11 @@ export function createEventIngestion({
                 ),
               )
               .limit(1)
+
             const profile = row[0]
+
             if (profile === undefined) return false
+
             return (
               profile.profileActivityCutoffAt === null ||
               profile.lastSeenAt >= profile.profileActivityCutoffAt
@@ -175,8 +193,11 @@ export function createEventIngestion({
                 ),
               )
               .limit(1)
+
             const link = row[0]
+
             if (link === undefined) return undefined
+
             return {
               siteId: link.siteId,
               profileId: link.profileId,
@@ -192,6 +213,7 @@ export function createEventIngestion({
       }),
     coalescer,
   })
+
   return {
     acceptanceRepository,
     coalescer,

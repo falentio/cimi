@@ -16,8 +16,11 @@ export const SEventOverviewInput = v.pipe(
   ),
   v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
+
 export type SEventOverviewInput = v.InferOutput<typeof SEventOverviewInput>
+
 export const SEventOverviewOutput = SEventOverview
+
 export type SEventOverviewOutput = v.InferOutput<typeof SEventOverviewOutput>
 
 export const getEventOverview = oc

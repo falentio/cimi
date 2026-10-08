@@ -8,10 +8,12 @@ import { RetentionPolicyRepositoryDrizzle } from '../repository.drizzle.ts'
 import { defaultCleanup } from '../fixture.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const now = new Date('2026-09-02T00:00:00.000Z')
 
 function createFixture() {
   const siteFixture = createSiteDrizzleFixture()
+
   return {
     db: siteFixture.db,
     installation: new InstallationRepositoryDrizzle({ db: siteFixture.db }),
@@ -38,6 +40,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
 
     const updated = { eventMonths: 3, profileMonths: 3, replayMonths: null }
     await repository.saveSiteOverride({ id: 'rtn_site_2', siteId: 'ste_1', policy: updated, now })
+
     const versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,
@@ -52,6 +55,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(versions).toEqual(
       expect.arrayContaining([
         { id: 'rtn_site_1', version: 1, status: 'superseded' },
@@ -90,6 +94,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       siteOverride: reenabled,
       effectivePolicy: reenabled,
     })
+
     const versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,
@@ -104,6 +109,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(versions).toEqual(
       expect.arrayContaining([
         { id: 'rtn_site_1', version: 1, status: 'superseded' },
@@ -138,6 +144,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       policy: override,
       now,
     })
+
     expect(saved).toEqual({
       installationId: 'ins_1',
       installationDefault: fallback,
@@ -165,6 +172,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       updatedAt: now.toISOString(),
     })
     await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toEqual(cleared)
+
     const versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,
@@ -179,7 +187,9 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(versions).toEqual([{ id: 'rtn_site_1', version: 1, status: 'superseded' }])
+
     const installation = fixture.db
       .select({
         eventRetentionMonths: schema.TInstallation.eventRetentionMonths,
@@ -189,6 +199,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       .from(schema.TInstallation)
       .where(eq(schema.TInstallation.singletonKey, 'default'))
       .all()[0]
+
     expect(installation).toEqual({
       eventRetentionMonths: 12,
       profileRetentionMonths: 12,
@@ -231,7 +242,9 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(ste1Versions).toEqual([{ id: 'rtn_site_1', version: 1, status: 'active' }])
+
     const ste2Versions = fixture.db
       .select({
         id: schema.TRetentionPolicy.id,
@@ -246,6 +259,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(ste2Versions).toEqual([{ id: 'rtn_site_2', version: 1, status: 'active' }])
     await expect(repository.findResolved({ siteId: 'ste_1' })).resolves.toMatchObject({
       siteOverride: first,
@@ -313,6 +327,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
         ),
       )
       .all()
+
     expect(rows).toEqual([
       {
         id: 'rtn_site_1',
@@ -363,6 +378,7 @@ describe('RetentionPolicyRepositoryDrizzle', () => {
       )
       .orderBy(schema.TRetentionPolicy.version)
       .all()
+
     expect(rows).toEqual([
       {
         id: 'rtn_site_1',

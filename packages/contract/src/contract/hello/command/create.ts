@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SHelloBase } from '../schema.ts'
 
 export const SHelloCreateInput = v.omit(SHelloBase, ['id', 'ownerId', 'createdAt'])
+
 export type SHelloCreateInput = v.InferOutput<typeof SHelloCreateInput>
+
 export const SHelloCreateOutput = SHelloBase
+
 export type SHelloCreateOutput = v.InferOutput<typeof SHelloCreateOutput>
 
 /**

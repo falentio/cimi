@@ -2,8 +2,11 @@ import type { VariantProps } from 'class-variance-authority'
 import { cva } from 'class-variance-authority'
 
 export { default as Bubble } from './Bubble.vue'
+
 export { default as BubbleContent } from './BubbleContent.vue'
+
 export { default as BubbleGroup } from './BubbleGroup.vue'
+
 export { default as BubbleReactions } from './BubbleReactions.vue'
 
 export const bubbleVariants = cva(
@@ -32,6 +35,7 @@ export const bubbleVariants = cva(
     },
   },
 )
+
 export type BubbleVariants = VariantProps<typeof bubbleVariants>
 
 export const bubbleReactionsVariants = cva(
@@ -53,4 +57,5 @@ export const bubbleReactionsVariants = cva(
     },
   },
 )
+
 export type BubbleReactionsVariants = VariantProps<typeof bubbleReactionsVariants>

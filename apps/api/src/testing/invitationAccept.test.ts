@@ -35,6 +35,7 @@ test('an unauthenticated replay consumes nothing', async () => {
       body: JSON.stringify({ name: 'Accept Org' }),
     }),
   )
+
   expect(createResponse.status, await createResponse.clone().text()).toBe(201)
   const organization = await createResponse.json()
 
@@ -45,9 +46,10 @@ test('an unauthenticated replay consumes nothing', async () => {
       body: JSON.stringify({ organizationId: organization.id, role: 'member' }),
     }),
   )
+
   expect(invitationResponse.status, await invitationResponse.clone().text()).toBe(201)
   const invitation = await invitationResponse.json()
-  expect(typeof invitation.token).toBe('string')
+  expect(invitation.token).toEqual(expect.any(String))
 
   const replay = await app.fetch(
     new Request('http://localhost/api/invitation/acceptInvitation', {
@@ -56,6 +58,7 @@ test('an unauthenticated replay consumes nothing', async () => {
       body: JSON.stringify({ token: invitation.token }),
     }),
   )
+
   expect(replay.status).toBe(401)
   await expect(replay.json()).resolves.toMatchObject({ code: 'UNAUTHORIZED', status: 401 })
 
@@ -66,6 +69,7 @@ test('an unauthenticated replay consumes nothing', async () => {
       body: JSON.stringify({ token: invitation.token }),
     }),
   )
+
   expect(accept.status, await accept.clone().text()).toBe(200)
   const membership = await accept.json()
   expect(membership).toMatchObject({

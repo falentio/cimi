@@ -3,6 +3,7 @@ import { canonicalEventJson, fingerprintEvent } from '../fingerprint.ts'
 import type { EventInput } from '../repository.ts'
 
 function event(overrides: Partial<EventInput> = {}): EventInput {
+  // SAFETY: literal provides every required EventInput field; overrides only replace.
   return {
     eventId: 'event-1',
     ingestionIdentifier: 'ing-1',

@@ -1,9 +1,11 @@
+import { strict as assert } from 'node:assert'
 import { describe, expect, test } from 'vitest'
 import { createShutdownCoordinator } from './shutdown-coordinator.ts'
 
 describe('createShutdownCoordinator', () => {
   test('attempts every phase and labels each failure', async () => {
     const events: string[] = []
+
     const coordinator = createShutdownCoordinator([
       {
         label: 'first worker',
@@ -27,19 +29,25 @@ describe('createShutdownCoordinator', () => {
       },
     ])
 
-    const failure = await coordinator.close().catch((error: unknown) => error)
+    const failure = await coordinator.close().catch((cause: unknown) => cause)
 
     expect(events).toEqual(['first worker', 'second worker', 'third worker'])
     expect(failure).toBeInstanceOf(AggregateError)
-    expect((failure as AggregateError).errors.map((error) => (error as Error).message)).toEqual([
-      'first worker: first failed',
-      'third worker: third failed',
-    ])
+    assert(failure instanceof AggregateError)
+
+    expect(
+      failure.errors.map((error) => {
+        assert(error instanceof Error)
+
+        return error.message
+      }),
+    ).toEqual(['first worker: first failed', 'third worker: third failed'])
   })
 
   test('retries failed phases and caches only a successful close', async () => {
     const attempts = new Map<string, number>()
     const events: string[] = []
+
     const coordinator = createShutdownCoordinator(
       ['first worker', 'second worker'].map((label) => ({
         label,
@@ -47,6 +55,7 @@ describe('createShutdownCoordinator', () => {
           events.push(label)
           const attempt = (attempts.get(label) ?? 0) + 1
           attempts.set(label, attempt)
+
           if (attempt === 1) throw new Error(`${label} failed`)
         },
       })),
@@ -67,10 +76,13 @@ describe('createShutdownCoordinator', () => {
 
   test('shares a close attempt across concurrent callers', async () => {
     let release: (() => void) | undefined
+
     const blocked = new Promise<void>((resolve) => {
       release = resolve
     })
+
     let attempts = 0
+
     const coordinator = createShutdownCoordinator([
       {
         label: 'worker',

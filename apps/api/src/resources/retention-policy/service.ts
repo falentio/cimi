@@ -9,7 +9,9 @@ import type { InferOutput } from 'valibot'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 export type RetentionPolicyGetInput = InferOutput<typeof schema.SRetentionPolicyGetFields>
+
 export type RetentionPolicyUpdateInput = InferOutput<typeof schema.SRetentionPolicyUpdateFields>
+
 export type RetentionPolicyOutput = InferOutput<typeof schema.SRetentionPolicyResult>
 
 export interface RetentionPolicyIdFactory {
@@ -56,6 +58,7 @@ export class RetentionPolicyService {
     if (input.scope === 'installation') {
       assertInstallationAdmin(user)
       const resolved = await this.repository.findResolved({ siteId: null })
+
       return {
         scope: 'installation',
         installationDefault: resolved.installationDefault,
@@ -65,9 +68,12 @@ export class RetentionPolicyService {
         updatedAt: resolved.updatedAt,
       }
     }
+
     await assertSiteManagementScope(user, input.siteId, this.scope)
+
     if (!(await this.scope.siteScope.isActive(input.siteId))) throw new ORPCError('NOT_FOUND')
     const resolved = await this.repository.findResolved({ siteId: input.siteId })
+
     return {
       scope: 'site',
       siteId: input.siteId,
@@ -86,10 +92,13 @@ export class RetentionPolicyService {
     if (input.scope === 'installation') {
       assertInstallationAdmin(user)
       const lease = await this.lock.acquire('retention')
+
       if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+
       try {
         await this.assertNoActiveLifecycleOperation()
         const actor = user
+
         const resolved = (
           await this.repository.commitPolicyChange({
             target: { scope: 'installation' },
@@ -99,6 +108,7 @@ export class RetentionPolicyService {
             now: this.clock(),
           })
         ).resolution
+
         return {
           scope: 'installation',
           installationDefault: resolved.installationDefault,
@@ -111,14 +121,19 @@ export class RetentionPolicyService {
         await lease.release()
       }
     }
+
     await assertSiteManagementScope(user, input.siteId, this.scope)
+
     if (!(await this.scope.siteScope.isActive(input.siteId)))
       throw new ORPCError('CONFLICT', { status: 409 })
     const lease = await this.lock.acquire('retention')
+
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+
     try {
       await this.assertNoActiveLifecycleOperation()
       const actor = user
+
       const resolved = (
         await this.repository.commitPolicyChange({
           target: { scope: 'site', siteId: input.siteId },
@@ -128,6 +143,7 @@ export class RetentionPolicyService {
           now: this.clock(),
         })
       ).resolution
+
       return {
         scope: 'site',
         siteId: input.siteId,
@@ -144,6 +160,7 @@ export class RetentionPolicyService {
 
   private async assertNoActiveLifecycleOperation(): Promise<void> {
     const active = await this.lifecycle.getActiveOperation()
+
     if (active === null || active.errorCode !== null) return
     throw new ORPCError('CONFLICT', { status: 409 })
   }

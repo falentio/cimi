@@ -90,6 +90,7 @@ export function reduceBackupRestoreData(
       return mergeOperation(state, action.operation)
     case 'operation-cleared':
       if (state.trackedOperationId !== action.operationId) return state
+
       return {
         ...state,
         trackedOperationId: null,
@@ -103,6 +104,7 @@ export function reduceBackupRestoreData(
       }
     default: {
       const _exhaustive: never = action
+
       return _exhaustive
     }
   }
@@ -115,6 +117,7 @@ function mergePage(
 ): BackupRestoreDataState {
   const records = new Map(state.records)
   const pageIds: BackupId[] = []
+
   for (const backup of page.items) {
     records.set(backup.id, mergeBackupRecord(records.get(backup.id), backup))
     pageIds.push(backup.id)
@@ -146,6 +149,7 @@ function mergeOperation(state: BackupRestoreDataState, operation: Backup): Backu
   records.set(operation.id, mergedOperation)
 
   const isSourceBackup = mergedOperation.restoreSourceBackupId === null
+
   const order =
     isSourceBackup && !state.order.includes(mergedOperation.id)
       ? [mergedOperation.id, ...state.order]
@@ -162,10 +166,13 @@ function mergeOperation(state: BackupRestoreDataState, operation: Backup): Backu
 
 function mergeBackupRecord(existing: Backup | undefined, incoming: Backup): Backup {
   if (existing === undefined) return incoming
+
   if (isTerminal(existing) && isTerminal(incoming) && existing.status !== incoming.status) {
     return existing
   }
+
   if (compareLifecycle(incoming, existing) >= 0) return incoming
+
   return existing
 }
 
@@ -176,13 +183,17 @@ function isTerminal(backup: Backup): boolean {
 function compareLifecycle(left: Backup, right: Backup): number {
   const leftRank = lifecycleRank(left)
   const rightRank = lifecycleRank(right)
+
   for (let index = 0; index < leftRank.length; index += 1) {
     const leftValue = leftRank[index]
     const rightValue = rightRank[index]
+
     if (leftValue === undefined || rightValue === undefined) return 0
     const difference = leftValue - rightValue
+
     if (difference !== 0) return difference
   }
+
   return 0
 }
 
@@ -203,7 +214,10 @@ function lifecycleRank(backup: Backup): readonly number[] {
 
 function operationStageRank(backup: Backup): number {
   if (backup.status === 'creating') return 0
+
   if (backup.status === 'restoring') return RESTORE_STAGE_RANK[backup.phase]
+
   if (backup.status === 'available') return backup.cleanupPending ? 5 : 6
+
   return 7
 }

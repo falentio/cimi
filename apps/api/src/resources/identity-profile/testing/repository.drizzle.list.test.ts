@@ -6,6 +6,7 @@ import { InstallationRepositoryDrizzle } from '../../installation/repository.dri
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
 
 const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
+
 const later = new Date('2026-09-10T06:05:00.000Z')
 
 function seedProfileActivityCutoff(db: Db, cutoffAt: Date): void {
@@ -30,6 +31,7 @@ describe('IdentityProfileRepositoryDrizzle.list', () => {
   it('lists active and inactive profiles by stable creation order', async () => {
     using fixture = createSiteDrizzleFixture()
     let nextId = 0
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {
@@ -38,6 +40,7 @@ describe('IdentityProfileRepositoryDrizzle.list', () => {
         identityRedactionId: () => `ird_${++nextId}`,
       },
     })
+
     await repository.identify({
       siteId: 'ste_1',
       identifiedUserId: 'app_user_1',
@@ -84,6 +87,7 @@ describe('IdentityProfileRepositoryDrizzle.list', () => {
       createInstallationInsertInput(),
     )
     let nextId = 0
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {
@@ -92,6 +96,7 @@ describe('IdentityProfileRepositoryDrizzle.list', () => {
         identityRedactionId: () => `ird_${++nextId}`,
       },
     })
+
     await repository.identify({
       siteId: 'ste_1',
       identifiedUserId: 'app_user_1',

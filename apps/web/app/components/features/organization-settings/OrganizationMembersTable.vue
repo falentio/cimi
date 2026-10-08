@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
 import { computed } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 
 const canManage = computed(() => {
   const role = props.snapshot.currentMembership?.role
+
   return role === 'owner' || role === 'admin'
 })
 
@@ -40,12 +42,12 @@ const members = computed(() => props.snapshot.members?.items ?? [])
 
 function roleLabel(role: OrganizationMember['role']): string {
   if (role === 'owner') return 'Owner'
+
   return role === 'admin' ? 'Administrator' : 'Member'
 }
 
-function changeRole(userId: string, value: unknown): void {
-  if (value !== 'admin' && value !== 'member') return
-  emit('changeRole', { userId, role: value })
+function changeRole(userId: string, value: AcceptableValue): void {
+  if (value === 'admin' || value === 'member') emit('changeRole', { userId, role: value })
 }
 </script>
 

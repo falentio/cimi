@@ -21,10 +21,12 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
     limit: number
   }): Promise<MembershipRepository.Page> {
     const where = eq(schema.TMembership.organizationId, options.organizationId)
+
     const [countRow] = await this.db
       .select({ count: count() })
       .from(schema.TMembership)
       .where(where)
+
     const rows = await this.db
       .select({ membership: schema.TMembership, email: schema.TUser.email })
       .from(schema.TMembership)
@@ -33,7 +35,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
       .orderBy(desc(schema.TMembership.createdAt), desc(schema.TMembership.userId))
       .limit(options.limit + 1)
       .offset(options.offset)
+
     const hasMore = rows.length > options.limit
+
     return {
       items: rows.slice(0, options.limit).map(toMembershipListRecord),
       nextOffset: hasMore ? options.offset + options.limit : null,
@@ -47,6 +51,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
       .select()
       .from(schema.TMembership)
       .where(eq(schema.TMembership.organizationId, organizationId))
+
     return rows.map(toMembership)
   }
 
@@ -71,7 +76,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toMembership(row)
   }
 
@@ -86,7 +93,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toMembership(row)
   }
 
@@ -96,6 +105,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, organizationId))
       .limit(1)
+
     return rows[0]?.authorityOrganizationId ?? undefined
   }
 
@@ -114,6 +124,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
+
     if (governanceRows.length > 0) return true
 
     const repairRows = await this.db
@@ -126,6 +137,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
+
     return repairRows.length > 0
   }
 
@@ -142,6 +154,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         )
         .limit(1)
         .all()
+
       const pendingRepairs = tx
         .select({ id: schema.TOrganizationRepairOperation.id })
         .from(schema.TOrganizationRepairOperation)
@@ -153,6 +166,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         )
         .limit(1)
         .all()
+
       if (pendingGovernance.length > 0 || pendingRepairs.length > 0) {
         throw new Error('Membership reconciliation is fenced')
       }
@@ -163,8 +177,10 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         .where(eq(schema.TOrganization.id, organizationId))
         .limit(1)
         .all()
+
       const organization = organizations[0]
       const owners = members.filter((member) => member.role === 'owner')
+
       if (
         organization === undefined ||
         owners.length !== 1 ||
@@ -179,7 +195,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         .from(schema.TMembership)
         .where(eq(schema.TMembership.organizationId, organizationId))
         .all()
+
       const existingOwner = existing.find((member) => member.role === 'owner')
+
       if (existingOwner !== undefined && existingOwner.userId !== owners[0]?.userId) {
         tx.update(schema.TMembership)
           .set({ role: 'admin', updatedAt: owners[0]?.updatedAt ?? existingOwner.updatedAt })
@@ -210,6 +228,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
       }
 
       const keep = new Set(members.map((member) => member.userId))
+
       for (const member of existing) {
         if (keep.has(member.userId)) continue
         tx.delete(schema.TMembership)
@@ -241,7 +260,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .returning()
+
     const row = rows[0]
+
     return row === undefined ? undefined : toMembership(row)
   }
 
@@ -256,6 +277,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .returning({ userId: schema.TMembership.userId })
+
     return rows.length > 0
   }
 
@@ -279,6 +301,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         )
         .limit(1)
         .all()[0]
+
       if (pending !== undefined) return { kind: 'already-pending', transfer: toTransfer(pending) }
 
       const organization = tx
@@ -287,6 +310,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         .where(eq(schema.TOrganization.id, options.organizationId))
         .limit(1)
         .all()[0]
+
       if (organization === undefined || organization.ownerUserId !== options.previousOwnerUserId) {
         return { kind: 'invalid' }
       }
@@ -296,11 +320,15 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         .from(schema.TMembership)
         .where(eq(schema.TMembership.organizationId, options.organizationId))
         .all()
+
       const owners = memberships.filter((membership) => membership.role === 'owner')
+
       const previousOwner = memberships.find(
         (membership) => membership.userId === options.previousOwnerUserId,
       )
+
       const target = memberships.find((membership) => membership.userId === options.targetUserId)
+
       if (
         owners.length !== 1 ||
         previousOwner?.role !== 'owner' ||
@@ -330,7 +358,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         })
         .returning()
         .all()[0]
+
       if (row === undefined) throw new Error('Governance operation insert returned no row')
+
       return { kind: 'admitted', transfer: toTransfer(row) }
     })
   }
@@ -349,7 +379,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toTransfer(row)
   }
 
@@ -375,8 +407,11 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
       )
       .orderBy(sql`${schema.TOrganizationGovernanceOperation.completedAt} DESC`)
       .limit(1)
+
     const operation = operations[0]
+
     if (operation === undefined) return undefined
+
     const members = await this.db
       .select()
       .from(schema.TMembership)
@@ -388,10 +423,13 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
+
     const member = members[0]
+
     if (member === undefined || !(await this.isOwnerInvariantValid(options.organizationId))) {
       return undefined
     }
+
     return toMembership(member)
   }
 
@@ -405,6 +443,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         .where(eq(schema.TOrganization.id, options.organizationId))
         .limit(1)
         .all()[0]
+
       const owners = tx
         .select({ userId: schema.TMembership.userId })
         .from(schema.TMembership)
@@ -415,6 +454,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
           ),
         )
         .all()
+
       const target = tx
         .select({ role: schema.TMembership.role })
         .from(schema.TMembership)
@@ -426,10 +466,12 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         )
         .limit(1)
         .all()[0]
+
       const targetRoleIsValid =
         options.operationType === 'change-member-role'
           ? options.targetRole !== null
           : options.targetRole === null
+
       if (
         organization === undefined ||
         owners.length !== 1 ||
@@ -462,7 +504,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         })
         .returning()
         .all()[0]
+
       if (row === undefined) throw new Error('Membership operation insert returned no row')
+
       return toMembershipOperation(row)
     })
   }
@@ -485,7 +529,9 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toMembershipOperation(row)
   }
 
@@ -531,12 +577,15 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
           eq(schema.TOrganizationGovernanceOperation.status, 'pending'),
         ),
       )
+
     if (result.changes > 0) return
+
     const rows = await this.db
       .select({ id: schema.TOrganizationGovernanceOperation.id })
       .from(schema.TOrganizationGovernanceOperation)
       .where(eq(schema.TOrganizationGovernanceOperation.id, id))
       .limit(1)
+
     if (rows.length === 0) throw new Error('Membership operation was not found')
   }
 
@@ -602,6 +651,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         )
         .limit(1)
         .all()[0]
+
       if (
         operation === undefined ||
         operation.previousOwnerUserId !== options.previousOwnerUserId ||
@@ -615,11 +665,15 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         .from(schema.TMembership)
         .where(eq(schema.TMembership.organizationId, options.organizationId))
         .all()
+
       const owners = memberships.filter((membership) => membership.role === 'owner')
+
       const previousOwner = memberships.find(
         (membership) => membership.userId === options.previousOwnerUserId,
       )
+
       const target = memberships.find((membership) => membership.userId === options.targetUserId)
+
       if (
         owners.length !== 1 ||
         previousOwner?.role !== 'owner' ||
@@ -639,6 +693,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
           ),
         )
         .run()
+
       const updatedTarget = tx
         .update(schema.TMembership)
         .set({ role: 'owner', updatedAt: options.now })
@@ -650,6 +705,7 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
         )
         .returning()
         .all()[0]
+
       if (updatedTarget === undefined) throw new Error('Ownership target disappeared')
 
       tx.update(schema.TOrganization)
@@ -671,9 +727,11 @@ export class MembershipRepositoryDrizzle implements MembershipRepository {
           ),
         )
         .all()
+
       if (ownersAfter.length !== 1 || ownersAfter[0]?.userId !== options.targetUserId) {
         throw new Error('Ownership transfer did not produce exactly one owner')
       }
+
       return toMembership(updatedTarget)
     })
   }
@@ -723,6 +781,7 @@ function toTransfer(
   if (row.operationType !== 'transfer-ownership') {
     throw new Error(`Unsupported transfer operation type: ${row.operationType}`)
   }
+
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -742,6 +801,7 @@ function toMembershipOperation(
   ) {
     throw new Error(`Unsupported membership operation type: ${row.operationType}`)
   }
+
   return {
     id: row.id,
     organizationId: row.organizationId,

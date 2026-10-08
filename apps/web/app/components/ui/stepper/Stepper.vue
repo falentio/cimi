@@ -6,6 +6,7 @@ import { StepperRoot, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<StepperRootProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<StepperRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

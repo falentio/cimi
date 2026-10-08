@@ -109,6 +109,7 @@ export const ERROR_CATALOG = {
 } as const
 
 export type ContractErrorCode = keyof typeof ERROR_CATALOG
+
 export type ContractErrorDefinition = (typeof ERROR_CATALOG)[ContractErrorCode]
 
 export const ERRORS = ERROR_CATALOG
@@ -123,6 +124,7 @@ export function toORPCErrorMap<const Codes extends readonly ContractErrorCode[]>
   return Object.fromEntries(
     codes.map((code) => {
       const { status, message } = ERROR_CATALOG[code]
+
       return [code, { status, message }]
     }),
   )

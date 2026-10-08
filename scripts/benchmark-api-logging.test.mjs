@@ -7,7 +7,9 @@ import { createServer } from 'node:http'
 import { afterEach, describe, expect, test } from 'vitest'
 
 const scriptPath = fileURLToPath(new URL('./benchmark-api-logging.mjs', import.meta.url))
+
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
+
 const servers = new Set()
 
 afterEach(async () => {
@@ -25,6 +27,7 @@ afterEach(async () => {
 describe('benchmark-api-logging', () => {
   test('rejects unknown options before making a request', async () => {
     const { url } = await startServer(200)
+
     const result = await runBenchmark([
       '--url',
       url,
@@ -43,6 +46,7 @@ describe('benchmark-api-logging', () => {
 
   test('reports non-2xx responses and fails the performance gate', async () => {
     const { url } = await startServer(500)
+
     const result = await runBenchmark([
       '--url',
       url,
@@ -63,6 +67,7 @@ describe('benchmark-api-logging', () => {
 
   test('fails the performance gate for slow successful responses', async () => {
     const { url } = await startServer(200, undefined, 20)
+
     const result = await runBenchmark([
       '--url',
       url,
@@ -86,6 +91,7 @@ describe('benchmark-api-logging', () => {
   test('sends unique request IDs and enforces captured HTTP record cardinality', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-benchmark-'))
     const recordsFile = join(directory, 'records.jsonl')
+
     const { url, requestIds } = await startServer(200, async ({ requestId, requestNumber }) => {
       if (requestNumber !== 0) return
       await appendFile(
@@ -129,6 +135,7 @@ describe('benchmark-api-logging', () => {
 
   test('fails closed when required record capture is absent', async () => {
     const { url } = await startServer(200)
+
     const result = await runBenchmark([
       '--url',
       url,
@@ -148,6 +155,7 @@ describe('benchmark-api-logging', () => {
   test('passes when required HTTP records match measured request IDs', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-benchmark-'))
     const recordsFile = join(directory, 'records.jsonl')
+
     const { url } = await startServer(200, ({ requestId }) =>
       appendFile(
         recordsFile,
@@ -190,6 +198,7 @@ describe('benchmark-api-logging', () => {
       JSON.stringify({ logger: 'cimi.api.http', properties: { requestId: 'benchmark-old-0' } }) +
         '\n',
     )
+
     const { url } = await startServer(200, ({ requestId }) =>
       appendFile(
         recordsFile,
@@ -223,6 +232,7 @@ describe('benchmark-api-logging', () => {
 
   test('rejects invalid required-record values', async () => {
     const { url } = await startServer(200)
+
     const result = await runBenchmark([
       '--url',
       url,
@@ -240,18 +250,23 @@ describe('benchmark-api-logging', () => {
 
 async function startServer(status, onRequest, responseDelayMs = 0) {
   const requestIds = []
+
   const server = createServer(async (request, response) => {
     const requestId = request.headers['x-request-id']
     requestIds.push(requestId)
     await onRequest?.({ requestId, requestNumber: requestIds.length - 1 })
+
     if (responseDelayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, responseDelayMs))
     }
+
     response.writeHead(status, { 'content-type': 'text/plain' })
     response.end('response')
   })
+
   servers.add(server)
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+
   return { url: `http://127.0.0.1:${server.address().port}/health`, requestIds }
 }
 
@@ -261,6 +276,7 @@ function runBenchmark(args) {
       cwd: repositoryRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
+
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', (chunk) => (stdout += chunk))

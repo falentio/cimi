@@ -25,6 +25,7 @@ export function assertAuthenticated(user: AuthUser | undefined): asserts user is
 export function assertInstallationAdmin(user: AuthUser | undefined): void {
   assertAuthenticated(user)
   assertIsAdmin(user)
+
   if (user.installationGrant !== true) throw new ORPCError('FORBIDDEN')
 }
 
@@ -49,6 +50,7 @@ export function assertOwner(
   options?: AssertOptions,
 ): void {
   if (user === undefined) throw new ORPCError('UNAUTHORIZED')
+
   if (user.id !== ownerId) {
     throw new ORPCError(options?.code ?? 'FORBIDDEN')
   }
@@ -60,6 +62,7 @@ export function assertOwnerOrAdmin(
   options?: AssertOptions,
 ): void {
   assertAuthenticated(user)
+
   if (user.id !== ownerId && user.role !== 'admin') {
     throw new ORPCError(options?.code ?? 'FORBIDDEN')
   }

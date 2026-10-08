@@ -16,6 +16,7 @@ const props = defineProps<
 const emits = defineEmits<MenubarItemEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class', 'inset', 'variant')
+
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 

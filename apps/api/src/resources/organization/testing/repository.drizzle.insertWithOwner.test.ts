@@ -42,6 +42,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.insertWithOwner', () => {
       userId: organization.ownerUserId,
       now: organization.createdAt,
     })
+
     const operation = await repository.createDeleteOperation(
       createOrganizationGovernanceOperationRow({
         organizationId: organization.id,

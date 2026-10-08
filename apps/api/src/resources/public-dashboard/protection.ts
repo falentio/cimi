@@ -24,7 +24,9 @@ interface Window {
 }
 
 const WINDOW_MS = 60_000
+
 const SITE_LIMIT = 360
+
 const IP_LIMIT = 600
 
 export class InMemoryPublicDashboardRateLimiter implements PublicDashboardRateLimiter {
@@ -35,15 +37,19 @@ export class InMemoryPublicDashboardRateLimiter implements PublicDashboardRateLi
   consume(input: PublicDashboardRateLimitInput): void {
     const now = input.now.getTime()
     const startedAt = Math.floor(now / WINDOW_MS) * WINDOW_MS
+
     if (this.lastPrunedWindowStart !== startedAt) {
       this.pruneExpiredWindows(startedAt)
       this.lastPrunedWindowStart = startedAt
     }
+
     const site = this.readWindow(this.siteWindows, input.siteId, now)
     const ip = this.readWindow(this.ipWindows, input.sourceIp, now)
     const siteFailure = this.failure('site', site, SITE_LIMIT, now)
+
     if (siteFailure !== undefined) throw new PublicDashboardRateLimitError(siteFailure)
     const ipFailure = this.failure('ip', ip, IP_LIMIT, now)
+
     if (ipFailure !== undefined) throw new PublicDashboardRateLimitError(ipFailure)
     site.count += 1
     ip.count += 1
@@ -53,6 +59,7 @@ export class InMemoryPublicDashboardRateLimiter implements PublicDashboardRateLi
     for (const [key, window] of this.siteWindows) {
       if (window.startedAt < startedAt) this.siteWindows.delete(key)
     }
+
     for (const [key, window] of this.ipWindows) {
       if (window.startedAt < startedAt) this.ipWindows.delete(key)
     }
@@ -61,9 +68,11 @@ export class InMemoryPublicDashboardRateLimiter implements PublicDashboardRateLi
   private readWindow(windows: Map<string, Window>, key: string, now: number): Window {
     const startedAt = Math.floor(now / WINDOW_MS) * WINDOW_MS
     const current = windows.get(key)
+
     if (current?.startedAt === startedAt) return current
     const next = { startedAt, count: 0 }
     windows.set(key, next)
+
     return next
   }
 
@@ -75,6 +84,7 @@ export class InMemoryPublicDashboardRateLimiter implements PublicDashboardRateLi
   ): PublicDashboardRateLimitFailure | undefined {
     if (window.count < limit) return undefined
     const resetAt = window.startedAt + WINDOW_MS
+
     return {
       scope,
       limit,

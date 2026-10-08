@@ -6,6 +6,7 @@ import { HugeiconsIcon } from '@hugeicons/vue'
 import { Primitive, useForwardProps } from 'reka-ui'
 
 const props = defineProps<PrimitiveProps>()
+
 const forwardedProps = useForwardProps(props)
 </script>
 

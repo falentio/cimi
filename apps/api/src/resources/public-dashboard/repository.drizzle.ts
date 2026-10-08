@@ -19,6 +19,7 @@ export class PublicDashboardRepositoryDrizzle implements PublicDashboardReposito
       .where(and(eq(schema.TPublicDashboard.siteId, siteId), liveActiveSite(this.deps.db)))
       .limit(1)
       .all()[0]
+
     return row === undefined ? undefined : toConfig(row.dashboard)
   }
 
@@ -38,6 +39,7 @@ export class PublicDashboardRepositoryDrizzle implements PublicDashboardReposito
       )
       .limit(1)
       .all()[0]
+
     return row === undefined ? undefined : toConfig(row.dashboard)
   }
 
@@ -47,6 +49,7 @@ export class PublicDashboardRepositoryDrizzle implements PublicDashboardReposito
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectBySiteId(tx, input.siteId)
+
       if (current === undefined) {
         tx.insert(schema.TPublicDashboard)
           .values({
@@ -71,8 +74,11 @@ export class PublicDashboardRepositoryDrizzle implements PublicDashboardReposito
           .where(eq(schema.TPublicDashboard.siteId, input.siteId))
           .run()
       }
+
       const dashboard = selectBySiteId(tx, input.siteId)
+
       if (dashboard === undefined) throw new Error('Public dashboard enable returned no row')
+
       return { status: 'updated', config: toConfig(dashboard) }
     })
   }
@@ -83,13 +89,16 @@ export class PublicDashboardRepositoryDrizzle implements PublicDashboardReposito
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectBySiteId(tx, input.siteId)
+
       if (current === undefined) return { status: 'not-found' }
       tx.update(schema.TPublicDashboard)
         .set({ enabled: false, updatedAt: input.now })
         .where(eq(schema.TPublicDashboard.siteId, input.siteId))
         .run()
       const dashboard = selectBySiteId(tx, input.siteId)
+
       if (dashboard === undefined) throw new Error('Public dashboard disable returned no row')
+
       return { status: 'updated', config: toConfig(dashboard) }
     })
   }
@@ -100,10 +109,13 @@ export class PublicDashboardRepositoryDrizzle implements PublicDashboardReposito
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectBySiteId(tx, input.siteId)
+
       if (current === undefined) return { status: 'not-found' }
+
       if (!current.enabled && current.publicIdentifier !== null) {
         return { status: 'conflict' }
       }
+
       tx.update(schema.TPublicDashboard)
         .set({
           enabled: true,
@@ -115,7 +127,9 @@ export class PublicDashboardRepositoryDrizzle implements PublicDashboardReposito
         .where(eq(schema.TPublicDashboard.siteId, input.siteId))
         .run()
       const dashboard = selectBySiteId(tx, input.siteId)
+
       if (dashboard === undefined) throw new Error('Public dashboard rotation returned no row')
+
       return { status: 'updated', config: toConfig(dashboard) }
     })
   }
@@ -161,6 +175,7 @@ function assertActiveSite(tx: SqliteTransaction, siteId: string): void {
     )
     .limit(1)
     .all()
+
   if (rows.length === 0) throw new ORPCError('NOT_FOUND')
 }
 

@@ -8,7 +8,9 @@ export {
   TUser,
   TVerification,
 } from './auth.ts'
+
 export { THello } from './hello.ts'
+
 export {
   TAcceptedEvent,
   TCollectionPolicyRevision,
@@ -21,6 +23,7 @@ export {
   TEventPerformance,
   TEventProperty,
 } from './collection.ts'
+
 export {
   TInvitation,
   TMembership,
@@ -31,12 +34,14 @@ export {
   TSiteLifecycleOperation,
   TSiteTombstone,
 } from './governance.ts'
+
 export {
   TIdentityLink,
   TIdentityProfile,
   TIdentityProfileEpoch,
   TIdentityRedaction,
 } from './identity.ts'
+
 export {
   TBackupArtifact,
   TBackupCleanupStage,
@@ -48,8 +53,11 @@ export {
   TRetentionCleanupRun,
   TRetentionPolicy,
 } from './lifecycle.ts'
+
 export { TIdentityProjectionDebt, TProjectionCheckpoint, TProjectionGap } from './projection.ts'
+
 export type { JsonObject, JsonScalar, JsonValue } from './types.ts'
+
 export {
   TCohort,
   TCohortVersion,

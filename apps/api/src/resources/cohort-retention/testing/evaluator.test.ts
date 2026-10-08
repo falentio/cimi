@@ -49,6 +49,7 @@ describe('evaluateRetention', () => {
     const snapshot = reportSnapshot()
     const visitor = identityScope('visitor')
     const identifiedUser = identityScope('identified_user')
+
     const outerPeriod: ResolvedPeriod = {
       ...firstPeriod,
       dates: {
@@ -97,6 +98,7 @@ describe('evaluateRetention', () => {
       visitorId: 'vis-1',
       endedAt: new Date('2026-09-02T10:05:00.000Z'),
     })
+
     const current = snapshot(
       [first],
       [
@@ -125,6 +127,7 @@ describe('evaluateRetention', () => {
         }),
       ],
     )
+
     const evaluationPeriod: EvaluationPeriod = {
       period: resolvedPeriod('2026-09-01', '2026-09-02'),
       sequence: [
@@ -155,6 +158,7 @@ describe('evaluateRetention', () => {
       startedAt: new Date('2026-09-01T10:00:00.000Z'),
       endedAt: new Date('2026-09-01T10:05:00.000Z'),
     })
+
     const retentionSession = session({
       sessionId: 'ses-retention',
       visitorId: 'vis-1',
@@ -162,6 +166,7 @@ describe('evaluateRetention', () => {
       startedAt: new Date('2026-09-02T10:00:00.000Z'),
       endedAt: new Date('2026-09-02T10:05:00.000Z'),
     })
+
     const current = snapshot(
       [entrySession, retentionSession],
       [
@@ -183,6 +188,7 @@ describe('evaluateRetention', () => {
         }),
       ],
     )
+
     const evaluationPeriod: EvaluationPeriod = {
       period: resolvedPeriod('2026-09-01', '2026-09-02'),
       sequence: [
@@ -213,6 +219,7 @@ describe('evaluateRetention', () => {
 
 function day(value: string): ResolvedPeriod {
   const start = Date.parse(`${value}T00:00:00.000Z`)
+
   return {
     key: 'current',
     dates: { fromDate: createCalendarDate(value), toDate: createCalendarDate(value) },
@@ -256,6 +263,7 @@ function reportSnapshot(): ReportSnapshot {
     region: null,
     city: null,
   }
+
   const retentionSession: ReportSession = {
     ...entrySession,
     sessionId: 'ses-retention',
@@ -263,6 +271,7 @@ function reportSnapshot(): ReportSnapshot {
     startedAt: new Date('2026-09-02T10:00:00.000Z'),
     endedAt: new Date('2026-09-02T10:05:00.000Z'),
   }
+
   const entryEvent: ReportEvent = {
     eventId: 'evt-entry',
     eventKind: 'custom_event',
@@ -278,6 +287,7 @@ function reportSnapshot(): ReportSnapshot {
     code: null,
     properties: {},
   }
+
   const retentionEvent: ReportEvent = {
     ...entryEvent,
     eventId: 'evt-retention',
@@ -286,6 +296,7 @@ function reportSnapshot(): ReportSnapshot {
     sessionId: 'ses-retention',
     name: 'purchase',
   }
+
   return {
     sessions: [entrySession, retentionSession],
     events: [entryEvent, retentionEvent],

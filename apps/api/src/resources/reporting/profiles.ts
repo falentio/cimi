@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { schema, type Db, type JsonObject, type JsonValue } from '@cimi/db'
 import type { AnalyticsReportScalar } from '@cimi/db'
-import { isRecord } from '@cimi/utils'
+import { isBooleanValue, isNumberValue, isStringValue, isRecord } from '@cimi/utils'
 
 export type ReportingProfileTraits = ReadonlyMap<string, JsonObject>
 
@@ -25,6 +25,7 @@ export function readActiveProfiles(db: Db, siteId: string): ReadonlyMap<string, 
   return new Map(
     rows.map((row) => {
       const traits = readJsonObject(row.traits ?? {})
+
       return [row.identifiedUserId, { identifiedUserId: row.identifiedUserId, traits }] as const
     }),
   )
@@ -44,38 +45,41 @@ export function readProfileTrait(
   field: string,
 ): AnalyticsReportScalar | undefined {
   let value: unknown = traits
+
   for (const key of field.slice('trait.'.length).split('.')) {
     if (!isRecord(value)) return undefined
     value = value[key]
   }
+
   return isAnalyticsReportScalar(value) ? value : undefined
 }
 
 function isAnalyticsReportScalar(value: unknown): value is AnalyticsReportScalar {
-  return (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  )
+  return value === null || isStringValue(value) || isNumberValue(value) || isBooleanValue(value)
 }
 
-function readJsonObject(value: unknown): JsonObject {
+function readJsonObject(value: JsonObject): JsonObject {
   if (!isRecord(value)) throw new Error('Profile traits are not a JSON object')
   const result: JsonObject = {}
-  for (const [key, child] of Object.entries(value)) result[key] = readJsonValue(child)
+
+  for (const [key, child] of Object.entries(value)) {
+    // SAFETY: readJsonValue validates each entry and throws on non-JSON values.
+    result[key] = readJsonValue(child as JsonValue)
+  }
+
   return result
 }
 
-function readJsonValue(value: unknown): JsonValue {
-  if (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'boolean' ||
-    (typeof value === 'number' && Number.isFinite(value))
-  ) {
+function readJsonValue(value: JsonValue): JsonValue {
+  if (value === null || isStringValue(value) || isBooleanValue(value)) return value
+
+  if (isNumberValue(value)) {
+    if (!Number.isFinite(value)) throw new Error('Profile traits are not a JSON object')
+
     return value
   }
+
   if (Array.isArray(value)) return value.map(readJsonValue)
+
   return readJsonObject(value)
 }

@@ -30,7 +30,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       .from(schema.TSite)
       .where(and(eq(schema.TSite.id, siteId), liveSite(this.db)))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toSiteRecord(row)
   }
 
@@ -48,7 +50,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toSiteRecord(row)
   }
 
@@ -61,7 +65,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       eq(schema.TSite.status, 'active'),
       liveSite(this.db),
     )
+
     const [countRow] = await this.db.select({ count: count() }).from(schema.TSite).where(where)
+
     const rows = await this.db
       .select()
       .from(schema.TSite)
@@ -69,7 +75,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       .orderBy(asc(schema.TSite.createdAt), asc(schema.TSite.id))
       .limit(options.limit + 1)
       .offset(options.offset)
+
     const hasMore = rows.length > options.limit
+
     return {
       items: rows.slice(0, options.limit).map(toSite),
       nextOffset: hasMore ? options.offset + options.limit : null,
@@ -91,7 +99,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         )
         .limit(1)
         .all()
+
       if (tombstones.length > 0) throw new Error('Site hostname is reserved by a tombstone')
+
       const rows = tx
         .insert(schema.TSite)
         .values({
@@ -117,7 +127,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         })
         .returning()
         .all()
+
       const row = rows[0]
+
       if (row === undefined) throw new Error('Site insert returned no row')
       tx.insert(schema.TProjectionCheckpoint)
         .values({
@@ -132,6 +144,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           updatedAt: input.updatedAt,
         })
         .run()
+
       return toSite(row)
     })
   }
@@ -144,8 +157,11 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSite.id, input.siteId))
         .limit(1)
         .all()
+
       const current = currentRows[0]
+
       if (current === undefined) return undefined
+
       const tombstones = tx
         .select({ siteId: schema.TSiteTombstone.siteId })
         .from(schema.TSiteTombstone)
@@ -157,14 +173,18 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         )
         .limit(1)
         .all()
+
       if (tombstones.length > 0) throw new Error('Site hostname is reserved by a tombstone')
+
       const siteTombstones = tx
         .select({ siteId: schema.TSiteTombstone.siteId })
         .from(schema.TSiteTombstone)
         .where(eq(schema.TSiteTombstone.siteId, input.siteId))
         .limit(1)
         .all()
+
       if (siteTombstones.length > 0) return undefined
+
       const rows = tx
         .update(schema.TSite)
         .set({
@@ -177,7 +197,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(and(eq(schema.TSite.id, input.siteId), eq(schema.TSite.status, 'active')))
         .returning()
         .all()
+
       const row = rows[0]
+
       return row === undefined ? undefined : toSite(row)
     })
   }
@@ -191,7 +213,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       .set({ ingestionIdentifier, updatedAt: new Date() })
       .where(and(eq(schema.TSite.id, siteId), eq(schema.TSite.status, 'active'), liveSite(this.db)))
       .returning()
+
     const row = rows[0]
+
     return row === undefined ? undefined : toSite(row)
   }
 
@@ -205,6 +229,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSite.id, input.siteId))
         .limit(1)
         .all()[0]
+
       if (site === undefined) {
         const tombstone = tx
           .select({ siteId: schema.TSiteTombstone.siteId })
@@ -212,6 +237,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           .where(eq(schema.TSiteTombstone.siteId, input.siteId))
           .limit(1)
           .all()[0]
+
         return tombstone === undefined
           ? { status: 'not-found' }
           : { status: 'conflict', currentStatus: 'purged' }
@@ -227,6 +253,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         ) {
           return { status: 'conflict', currentStatus: site.status }
         }
+
         const operation = tx
           .select({ id: schema.TSiteLifecycleOperation.id })
           .from(schema.TSiteLifecycleOperation)
@@ -239,8 +266,10 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           )
           .limit(1)
           .all()[0]
+
         if (operation !== undefined) return { status: 'accepted', operationId: operation.id }
       }
+
       if (site.status !== 'active') return { status: 'conflict', currentStatus: site.status }
 
       if (installation !== undefined && installation.activeOperationId !== null) {
@@ -258,6 +287,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         )
         .limit(1)
         .all()[0]
+
       if (activeOperation !== undefined) {
         return { status: 'conflict', currentStatus: site.status }
       }
@@ -276,6 +306,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           updatedAt: input.requestedAt,
         })
         .run()
+
       const updated = tx
         .update(schema.TSite)
         .set({
@@ -289,6 +320,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         })
         .where(and(eq(schema.TSite.id, input.siteId), eq(schema.TSite.status, 'active')))
         .run()
+
       if (updated.changes !== 1) throw new Error('Site deletion transition was lost')
       setInstallationOperation(tx, {
         operationId: input.operationId,
@@ -296,6 +328,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         expectedOperationId: null,
         updatedAt: input.requestedAt,
       })
+
       return { status: 'accepted', operationId: input.operationId }
     })
   }
@@ -310,6 +343,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSite.id, input.siteId))
         .limit(1)
         .all()[0]
+
       if (site === undefined) {
         const tombstone = tx
           .select({ siteId: schema.TSiteTombstone.siteId })
@@ -317,6 +351,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           .where(eq(schema.TSiteTombstone.siteId, input.siteId))
           .limit(1)
           .all()[0]
+
         return tombstone === undefined
           ? { status: 'not-found' }
           : { status: 'conflict', currentStatus: 'purged' }
@@ -332,6 +367,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         ) {
           return { status: 'conflict', currentStatus: site.status }
         }
+
         const operation = tx
           .select({ id: schema.TSiteLifecycleOperation.id })
           .from(schema.TSiteLifecycleOperation)
@@ -344,11 +380,14 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           )
           .limit(1)
           .all()[0]
+
         if (operation !== undefined) return { status: 'accepted', operationId: operation.id }
       }
+
       if (site.status !== 'deleting' && site.status !== 'deleted') {
         return { status: 'conflict', currentStatus: site.status }
       }
+
       if (
         site.status === 'deleted' &&
         (site.recoveryDeadline === null || input.requestedAt >= site.recoveryDeadline)
@@ -375,6 +414,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           )
           .run()
       }
+
       tx.insert(schema.TSiteLifecycleOperation)
         .values({
           id: input.operationId,
@@ -389,6 +429,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           updatedAt: input.requestedAt,
         })
         .run()
+
       const updated = tx
         .update(schema.TSite)
         .set({
@@ -406,6 +447,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) throw new Error('Site recovery transition was lost')
       setInstallationOperation(tx, {
         operationId: input.operationId,
@@ -413,6 +455,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         expectedOperationId: installation?.activeOperationId ?? null,
         updatedAt: input.requestedAt,
       })
+
       return { status: 'accepted', operationId: input.operationId }
     })
   }
@@ -427,13 +470,16 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSite.id, input.siteId))
         .limit(1)
         .all()[0]
+
       if (site === undefined) return { status: 'not-found' }
+
       const operation = tx
         .select()
         .from(schema.TSiteLifecycleOperation)
         .where(eq(schema.TSiteLifecycleOperation.id, input.operationId))
         .limit(1)
         .all()[0]
+
       if (
         site.status === 'deleted' &&
         site.currentOperationId === input.operationId &&
@@ -441,8 +487,10 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         operation.status === 'completed'
       ) {
         clearInstallationOperation(tx, input.operationId, input.completedAt)
+
         return { status: 'completed' }
       }
+
       if (
         site.status !== 'deleting' ||
         site.currentOperationId !== input.operationId ||
@@ -451,7 +499,9 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       ) {
         return { status: 'conflict', currentStatus: site.status }
       }
+
       const recoveryDeadline = new Date(input.completedAt.getTime() + RECOVERY_WINDOW_MS)
+
       const updated = tx
         .update(schema.TSite)
         .set({
@@ -472,6 +522,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) throw new Error('Site deletion completion was lost')
       tx.update(schema.TSiteLifecycleOperation)
         .set({
@@ -483,6 +534,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSiteLifecycleOperation.id, input.operationId))
         .run()
       clearInstallationOperation(tx, input.operationId, input.completedAt)
+
       return { status: 'completed' }
     })
   }
@@ -497,6 +549,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSite.id, input.siteId))
         .limit(1)
         .all()[0]
+
       if (site === undefined) {
         const tombstone = tx
           .select({ siteId: schema.TSiteTombstone.siteId })
@@ -504,16 +557,19 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           .where(eq(schema.TSiteTombstone.siteId, input.siteId))
           .limit(1)
           .all()[0]
+
         return tombstone === undefined
           ? { status: 'not-found' }
           : { status: 'conflict', currentStatus: 'purged' }
       }
+
       const operation = tx
         .select()
         .from(schema.TSiteLifecycleOperation)
         .where(eq(schema.TSiteLifecycleOperation.id, input.operationId))
         .limit(1)
         .all()[0]
+
       if (
         site.status === 'active' &&
         site.currentOperationId === null &&
@@ -521,8 +577,10 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         operation.status === 'completed'
       ) {
         clearInstallationOperation(tx, input.operationId, input.completedAt)
+
         return { status: 'completed' }
       }
+
       if (
         site.status !== 'recovering' ||
         site.currentOperationId !== input.operationId ||
@@ -531,6 +589,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       ) {
         return { status: 'conflict', currentStatus: site.status }
       }
+
       const updated = tx
         .update(schema.TSite)
         .set({
@@ -554,6 +613,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
           ),
         )
         .run()
+
       if (updated.changes !== 1) throw new Error('Site recovery completion was lost')
       tx.update(schema.TSiteLifecycleOperation)
         .set({
@@ -565,6 +625,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSiteLifecycleOperation.id, input.operationId))
         .run()
       clearInstallationOperation(tx, input.operationId, input.completedAt)
+
       return { status: 'completed' }
     })
   }
@@ -577,19 +638,24 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSiteTombstone.siteId, input.siteId))
         .limit(1)
         .all()[0]
+
       if (existingTombstone !== undefined) {
         clearInstallationOperation(tx, input.operationId, input.requestedAt)
+
         return existingTombstone.purgeOperationId === input.operationId
           ? { status: 'completed' }
           : { status: 'conflict', currentStatus: 'purged' }
       }
+
       const site = tx
         .select()
         .from(schema.TSite)
         .where(eq(schema.TSite.id, input.siteId))
         .limit(1)
         .all()[0]
+
       if (site === undefined) return { status: 'not-found' }
+
       if (
         site.status !== 'deleted' ||
         site.deletedAt === null ||
@@ -599,10 +665,13 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       ) {
         return { status: 'conflict', currentStatus: site.status }
       }
+
       const installation = selectInstallation(tx)
+
       if (installation !== undefined && installation.activeOperationId !== null) {
         return { status: 'conflict', currentStatus: site.status }
       }
+
       tx.insert(schema.TSiteLifecycleOperation)
         .values({
           id: input.operationId,
@@ -667,12 +736,15 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       tx.delete(schema.TPublicDashboard)
         .where(eq(schema.TPublicDashboard.siteId, input.siteId))
         .run()
+
       const deleted = tx
         .delete(schema.TSite)
         .where(and(eq(schema.TSite.id, input.siteId), eq(schema.TSite.status, 'deleted')))
         .run()
+
       if (deleted.changes !== 1) throw new Error('Site purge transition was lost')
       clearInstallationOperation(tx, input.operationId, input.requestedAt)
+
       return { status: 'completed' }
     })
   }
@@ -704,6 +776,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
       ) {
         return []
       }
+
       return [
         {
           siteId: row.siteId,
@@ -731,6 +804,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         .where(eq(schema.TSiteTombstone.siteId, siteId))
         .limit(1)
     )[0]
+
     if (tombstone !== undefined) {
       return {
         siteId: tombstone.siteId,
@@ -747,12 +821,15 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         },
       }
     }
+
     const rows = await this.db
       .select()
       .from(schema.TSite)
       .where(eq(schema.TSite.id, siteId))
       .limit(1)
+
     const site = rows[0]
+
     if (site === undefined) return undefined
 
     const operation =
@@ -765,11 +842,14 @@ export class SiteRepositoryDrizzle implements SiteRepository {
               .where(eq(schema.TSiteLifecycleOperation.id, site.currentOperationId))
               .limit(1)
           )[0]
+
     const operationId = site.status === 'active' ? null : site.currentOperationId
+
     const requestedAt =
       site.status === 'active'
         ? null
         : ((operation?.requestedAt ?? site.deleteRequestedAt)?.toISOString() ?? null)
+
     return {
       siteId: site.id,
       status: site.status,
@@ -843,6 +923,7 @@ function setInstallationOperation(
     input.expectedOperationId === null
       ? isNull(schema.TInstallation.activeOperationId)
       : eq(schema.TInstallation.activeOperationId, input.expectedOperationId)
+
   const updated = tx
     .update(schema.TInstallation)
     .set({
@@ -858,7 +939,9 @@ function setInstallationOperation(
     })
     .where(and(eq(schema.TInstallation.singletonKey, 'default'), expected))
     .run()
+
   if (updated.changes > 1) throw new Error('Installation operation transition was not singular')
+
   if (updated.changes === 0 && selectInstallation(tx) !== undefined) {
     throw new Error('Installation lifecycle operation is active')
   }
@@ -892,5 +975,6 @@ function clearInstallationOperation(
 
 function toSafeCleanupErrorCode(value: string | null): SiteRepository.CleanupErrorCode | null {
   if (value === null) return null
+
   return value === 'INTERNAL_SERVER_ERROR' ? 'INTERNAL_SERVER_ERROR' : 'CLEANUP_FAILED'
 }

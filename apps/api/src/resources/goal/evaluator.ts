@@ -25,6 +25,7 @@ export function evaluateGoal(
     identity: input.identity,
     filters: input.filters,
   })
+
   const conversions = sessions.filter((session) =>
     eventsForSession(input.snapshot.events, session).some(
       (event) =>
@@ -33,5 +34,6 @@ export function evaluateGoal(
         matchesAction(event, input.definition.action, input.definition.propertyFilters),
     ),
   ).length
+
   return { conversions, eligibleSessions: sessions.length }
 }

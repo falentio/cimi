@@ -6,31 +6,39 @@ import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.
 import type { ApiApp } from '../index.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 async function createOwnedSite(app: ApiApp, email: string, hostname: string) {
   const owner = await signUpTestUser(app, email, 'Coexistence Owner')
+
   const initialized = await apiTestRequest(
     app,
     '/installation/initializeInstallation',
     owner.cookie,
     {},
   )
+
   expect(initialized.status, await initialized.clone().text()).toBe(201)
+
   const organizationResponse = await apiTestRequest(
     app,
     '/organization/createOrganization',
     owner.cookie,
     { name: 'Coexistence Org' },
   )
+
   expect(organizationResponse.status, await organizationResponse.clone().text()).toBe(201)
   const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname,
   })
+
   expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
+
   return { owner, site: parse(schema.SSiteCreateOutput, await siteResponse.json()) }
 }
 
@@ -52,6 +60,7 @@ test('ingestion and analytics reads are mutually exclusive and both recover', as
   const lock = new InMemoryLifecycleLock()
   await using fixture = await createApiTestFixture({ lock })
   const { app } = fixture
+
   const { owner, site } = await createOwnedSite(
     app,
     'coexistence@example.com',
@@ -64,6 +73,7 @@ test('ingestion and analytics reads are mutually exclusive and both recover', as
     '',
     collectBody(site.ingestionIdentifier, 'coexistence_1'),
   )
+
   expect(baseline.status, await baseline.clone().text()).toBe(200)
 
   const inFlight = apiTestRequest(
@@ -72,6 +82,7 @@ test('ingestion and analytics reads are mutually exclusive and both recover', as
     '',
     collectBody(site.ingestionIdentifier, 'coexistence_2'),
   )
+
   await new Promise((resolve) => setTimeout(resolve, 150))
   expect(lock.heldKind(), 'the in-flight collect holds the ingestion lease').toBe('ingestion')
 
@@ -101,6 +112,7 @@ test('ingestion and analytics reads are mutually exclusive and both recover', as
     '',
     collectBody(site.ingestionIdentifier, 'coexistence_3'),
   )
+
   expect(collectDuringRead.status, await collectDuringRead.clone().text()).toBe(503)
   await expect(collectDuringRead.json()).resolves.toMatchObject({
     code: 'SERVICE_UNAVAILABLE',
@@ -115,5 +127,6 @@ test('ingestion and analytics reads are mutually exclusive and both recover', as
     '',
     collectBody(site.ingestionIdentifier, 'coexistence_4'),
   )
+
   expect(collectAfterRelease.status, await collectAfterRelease.clone().text()).toBe(200)
 })

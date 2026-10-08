@@ -13,10 +13,12 @@ export function setNestedMapValue<T>(
   value: T,
 ): void {
   let nested = map.get(first)
+
   if (nested === undefined) {
     nested = new Map()
     map.set(first, nested)
   }
+
   nested.set(second, value)
 }
 

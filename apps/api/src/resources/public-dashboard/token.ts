@@ -7,6 +7,7 @@ export interface PublicDashboardIdentifier {
 
 export function mintPublicDashboardIdentifier(): PublicDashboardIdentifier {
   const identifier = randomBytes(32).toString('base64url')
+
   return { identifier, hash: hashPublicDashboardIdentifier(identifier) }
 }
 

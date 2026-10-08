@@ -5,8 +5,11 @@ import { InvitationRepositoryDrizzle } from '../repository.drizzle.ts'
 import { hashInvitationToken } from '../token.ts'
 
 const now = new Date('2026-09-03T00:00:00.000Z')
+
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const future = new Date('2026-09-10T00:00:00.000Z')
+
 const past = new Date('2026-08-01T00:00:00.000Z')
 
 function seed() {
@@ -74,12 +77,14 @@ function seed() {
       updatedAt: createdAt,
     })
     .run()
+
   return db
 }
 
 describe('InvitationRepositoryDrizzle.findMany', () => {
   it('lists in created order with pagination metadata and maps expired on read without leaking hashes', async () => {
     const db = seed()
+
     try {
       const repo = new InvitationRepositoryDrizzle({ db, clock: () => now })
       await repo.insert({

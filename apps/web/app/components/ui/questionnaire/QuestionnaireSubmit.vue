@@ -28,6 +28,7 @@ const props = withDefaults(
 const root = injectQuestionnaireRootContext()
 
 const visible = computed(() => root.total.value > 0 && root.last.value)
+
 const shortcut = computed(() => (visible.value && !props.disabled ? 'Enter' : null))
 </script>
 

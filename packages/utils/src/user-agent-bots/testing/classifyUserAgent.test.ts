@@ -16,6 +16,7 @@ describe('classifyUA', () => {
       'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
       'Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0',
     ]
+
     for (const ua of realBrowsers) {
       expect(classifyUA(ua).isBot, ua).toBe(false)
     }
@@ -33,6 +34,7 @@ describe('classifyUA', () => {
       'openai/1.0',
       'claude-code/0.5',
     ]
+
     for (const ua of aiBots) {
       const cls = classifyUA(ua)
       expect(cls.isBot, ua).toBe(true)
@@ -47,6 +49,7 @@ describe('classifyUA', () => {
       'DuckDuckGo-Favicons-Bot/1.0',
       'Mozilla/5.0 (compatible; Yahoo! Slurp; http://help.yahoo.com/help/us/ysearch/slurp)',
     ]
+
     for (const ua of searchBots) {
       const cls = classifyUA(ua)
       expect(cls.isBot, ua).toBe(true)
@@ -62,6 +65,7 @@ describe('classifyUA', () => {
       'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)',
       'LinkedInBot/1.0 (compatible; Mozilla/5.0; +https://www.linkedin.com)',
     ]
+
     for (const ua of socialBots) {
       const cls = classifyUA(ua)
       expect(cls.isBot, ua).toBe(true)
@@ -77,6 +81,7 @@ describe('classifyUA', () => {
       'PostmanRuntime/7.36.0',
       'Apache-HttpClient/4.5.13 (Java/11.0.20)',
     ]
+
     for (const ua of frameworkUAs) {
       const cls = classifyUA(ua)
       expect(cls.isBot, ua).toBe(true)
@@ -91,6 +96,7 @@ describe('classifyUA', () => {
       'Mozilla/5.0 Playwright/1.40.0 (Chromium; +https://playwright.dev)',
       'Mozilla/5.0 Selenium/4.16',
     ]
+
     for (const ua of headlessUAs) {
       const cls = classifyUA(ua)
       expect(cls.isBot, ua).toBe(true)
@@ -105,6 +111,7 @@ describe('classifyUA', () => {
       'StatusCake_Pagespeed_Indev',
       'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Chrome-Lighthouse',
     ]
+
     for (const ua of monitoringUAs) {
       const cls = classifyUA(ua)
       expect(cls.isBot, ua).toBe(true)
@@ -119,6 +126,7 @@ describe('classifyUA', () => {
       'Mozilla/5.0 (compatible; MJ12bot/v1.4.8; http://mj12bot.com/)',
       'Mozilla/5.0 (compatible; DotBot/1.2; +https://opensiteexplorer.org/dotbot)',
     ]
+
     for (const ua of seoUAs) {
       const cls = classifyUA(ua)
       expect(cls.isBot, ua).toBe(true)

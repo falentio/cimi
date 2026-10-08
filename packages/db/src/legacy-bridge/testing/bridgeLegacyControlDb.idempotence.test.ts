@@ -25,6 +25,7 @@ describe('bridgeLegacyControlDb.idempotence', () => {
   it('treats a second migration of the same file-backed handle as a no-op', () => {
     const path = createLegacyFileDb(dir)
     const db = createDb({ path })
+
     try {
       migrateControlDb(db)
       const firstLedger = readLedger(db)
@@ -43,6 +44,7 @@ describe('bridgeLegacyControlDb.idempotence', () => {
   it('keeps data intact when a file-backed database is reopened and migrated again', () => {
     const path = createLegacyFileDb(dir)
     const first = createDb({ path })
+
     try {
       migrateControlDb(first)
     } finally {
@@ -50,6 +52,7 @@ describe('bridgeLegacyControlDb.idempotence', () => {
     }
 
     const reopened = createDb({ path })
+
     try {
       migrateControlDb(reopened)
       expect(readLedger(reopened)).toHaveLength(16)
@@ -70,6 +73,7 @@ describe('bridgeLegacyControlDb.idempotence', () => {
 
   it('treats a second migration of the same in-memory handle as a no-op', () => {
     const db = createLegacyMemoryDb()
+
     try {
       migrateControlDb(db)
       const firstLedger = readLedger(db)

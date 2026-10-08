@@ -16,6 +16,7 @@ import { InvitationService } from '../service.ts'
 import { hashInvitationToken } from '../token.ts'
 
 const token = 'gap-token-1'
+
 const tokenHash = hashInvitationToken(token)
 
 function pendingRecord() {
@@ -39,6 +40,7 @@ describe('InvitationService.accept gaps', () => {
     const { repository, membership, service } = createInvitationFixture({
       memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
     })
+
     repository.findByTokenHash.mockResolvedValue(pendingRecord())
     const record = createInvitationMembership({ userId: 'user_2', role: 'member' })
     repository.consume.mockResolvedValue({
@@ -70,6 +72,7 @@ describe('InvitationService.accept gaps', () => {
     const { repository, authority, service } = createInvitationFixture({
       memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
     })
+
     repository.findByTokenHash.mockResolvedValue(pendingRecord())
     authority.getMember.mockResolvedValue(undefined)
     const record = createInvitationMembership({ userId: 'user_9', role: 'member' })
@@ -90,6 +93,7 @@ describe('InvitationService.accept gaps', () => {
 
   it('accepts with a real repository for a user whose email is unverified', async () => {
     const db = createMigratedTestDb()
+
     try {
       const createdAt = new Date('2026-09-01T00:00:00.000Z')
       db.insert(schema.TUser)
@@ -151,18 +155,22 @@ describe('InvitationService.accept gaps', () => {
       authority.removeMember.mockImplementation(async ({ organizationId, userId }) =>
         createAuthorityMember({ organizationId, userId, role: 'member' }),
       )
+
       const scope = new InMemorySiteScopePort(
         [],
         [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
       )
+
       const membership = mock<OrganizationMembershipReconciler>()
       membership.reconcile.mockResolvedValue(undefined)
+
       const service = new InvitationService({
         repository,
         scope: { membership: scope },
         authority,
         membership,
       })
+
       const unverifiedToken = 'gap-unverified-token-1'
       const now = new Date()
       await repository.insert({

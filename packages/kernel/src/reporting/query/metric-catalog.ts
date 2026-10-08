@@ -9,8 +9,11 @@ export type TrafficMetric =
   | 'average_session_duration_seconds'
 
 export type TrafficMetricGrain = 'visitor' | 'session' | 'event'
+
 export type TrafficMetricUnit = 'count' | 'rate' | 'ratio' | 'seconds'
+
 export type TrafficMetricAdditivity = 'additive' | 'non_additive'
+
 export type TrafficMetricFilterScope = 'event' | 'session' | 'visitor' | 'profile'
 
 export interface TrafficMetricDefinition {
@@ -86,5 +89,6 @@ export function trafficMetricDenominator(
   facts: TrafficMetricsFacts,
 ): number | null {
   const key = TRAFFIC_METRIC_CATALOG[metric].denominator
+
   return key === null ? null : facts[key]
 }

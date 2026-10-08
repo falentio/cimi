@@ -6,6 +6,7 @@ import {
 } from '../fixture.ts'
 
 const organization = createOrganizationRecord()
+
 const operation = createDeleteOperation({
   organizationId: organization.id,
   previousOwnerUserId: organization.ownerUserId,

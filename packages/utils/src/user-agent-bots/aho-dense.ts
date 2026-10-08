@@ -1,4 +1,5 @@
 import { LRUCache } from 'lru-cache'
+import { isStringValue } from '../predicates.ts'
 
 import {
   COMBINED_COMPLEX_REGEX,
@@ -14,10 +15,13 @@ import {
 import { NON_BOT, type BotClassification } from './types.ts'
 
 const CLASSIFY_CACHE_MAX = 10_000
+
 const EARLY_AI_LITERAL_SOURCE_LIMIT = 8
+
 const EARLY_AI_LITERAL_RULES = LITERAL_RULES.filter(
   (rule) => rule.sourceIndex < EARLY_AI_LITERAL_SOURCE_LIMIT,
 )
+
 const classifyCache = new LRUCache<string, BotClassification>({ max: CLASSIFY_CACHE_MAX })
 
 interface SparseNode {
@@ -38,17 +42,19 @@ const AUTOMATON = buildAutomaton(LITERAL_RULES)
  * patterns and regex fallback for complex patterns.
  */
 export function classifyUAAhoDense(userAgent: string | null | undefined): BotClassification {
-  if (typeof userAgent !== 'string' || userAgent.length === 0) {
+  if (!isStringValue(userAgent) || userAgent.length === 0) {
     return NON_BOT
   }
 
   const cached = classifyCache.get(userAgent)
+
   if (cached) {
     return cached
   }
 
   const result = computeClassification(userAgent)
   classifyCache.set(userAgent, result)
+
   return result
 }
 
@@ -59,6 +65,7 @@ export function isBotUAAhoDense(userAgent: string | null | undefined): boolean {
 function computeClassification(userAgent: string): BotClassification {
   const normalizedUserAgent = normalizeAscii(userAgent)
   const hotLiteralRule = findHotLiteralRule(normalizedUserAgent)
+
   if (hotLiteralRule) {
     return classificationFor(hotLiteralRule)
   }
@@ -77,6 +84,7 @@ function computeClassification(userAgent: string): BotClassification {
     if (literalRule && rule.sourceIndex > literalRule.sourceIndex) {
       break
     }
+
     if (rule.regex.test(userAgent)) {
       return classificationFor(rule)
     }
@@ -114,11 +122,13 @@ function findFirstLiteralRule(userAgent: string): LiteralRule | undefined {
 
     for (const rule of AUTOMATON.outputs[state]!) {
       const startIndex = index + 1 - rule.value.length
+
       if (
         matchesLiteralRuleAt(userAgent, rule, startIndex) &&
         (bestRule === undefined || rule.sourceIndex < bestRule.sourceIndex)
       ) {
         bestRule = rule
+
         if (isEarliestLiteralRule(userAgent, bestRule)) {
           return bestRule
         }
@@ -134,9 +144,11 @@ function buildAutomaton(rules: LiteralRule[]): DenseAutomaton {
 
   for (const rule of rules) {
     let state = 0
+
     for (const character of rule.value) {
       const currentNode = nodes[state]!
       const nextState = currentNode.transitions.get(character)
+
       if (nextState !== undefined) {
         state = nextState
         continue
@@ -147,30 +159,37 @@ function buildAutomaton(rules: LiteralRule[]): DenseAutomaton {
       nodes.push(createNode())
       state = createdState
     }
+
     nodes[state]!.outputs.push(rule)
   }
 
   const breadthFirstOrder = [0]
   const queue: number[] = []
+
   for (const childState of nodes[0]!.transitions.values()) {
     queue.push(childState)
     breadthFirstOrder.push(childState)
   }
 
   let queueIndex = 0
+
   while (queueIndex < queue.length) {
     const state = queue[queueIndex++]!
     const currentNode = nodes[state]!
+
     for (const [character, childState] of currentNode.transitions) {
       let failureState = currentNode.failure
+
       while (failureState !== 0 && !nodes[failureState]!.transitions.has(character)) {
         failureState = nodes[failureState]!.failure
       }
 
       nodes[childState]!.failure = nodes[failureState]!.transitions.get(character) ?? 0
+
       for (const rule of nodes[nodes[childState]!.failure]!.outputs) {
         nodes[childState]!.outputs.push(rule)
       }
+
       queue.push(childState)
       breadthFirstOrder.push(childState)
     }
@@ -181,8 +200,10 @@ function buildAutomaton(rules: LiteralRule[]): DenseAutomaton {
   }
 
   const transitions = new Uint16Array(nodes.length * ASCII_ALPHABET_SIZE)
+
   for (const state of breadthFirstOrder) {
     const node = nodes[state]!
+
     for (let code = 0; code < ASCII_ALPHABET_SIZE; code += 1) {
       const character = String.fromCharCode(code)
       const directState = node.transitions.get(character)

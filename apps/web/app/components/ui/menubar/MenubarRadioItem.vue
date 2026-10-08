@@ -9,6 +9,7 @@ import { MenubarItemIndicator, MenubarRadioItem, useForwardPropsEmits } from 're
 import { cn } from '@/lib/utils'
 
 const props = defineProps<MenubarRadioItemProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<MenubarRadioItemEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

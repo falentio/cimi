@@ -18,6 +18,7 @@ describe('computeLegacySchemaFingerprint', () => {
 
   it('matches the pinned legacy 471c10d schema fingerprint', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'legacy.sqlite') })
+
     try {
       expect(computeLegacySchemaFingerprint(fixture.client)).toBe(LEGACY_SCHEMA_FINGERPRINT)
     } finally {
@@ -27,9 +28,11 @@ describe('computeLegacySchemaFingerprint', () => {
 
   it('is stable across repeated fixture builds and rebuilds of the same database', () => {
     const first = createLegacy471c10dTestDb({ path: join(dir, 'first.sqlite') })
+
     try {
       const firstFingerprint = computeLegacySchemaFingerprint(first.client)
       const second = createLegacy471c10dTestDb({ path: join(dir, 'second.sqlite') })
+
       try {
         expect(computeLegacySchemaFingerprint(second.client)).toBe(firstFingerprint)
         expect(computeLegacySchemaFingerprint(first.client)).toBe(firstFingerprint)

@@ -23,6 +23,7 @@ export function createInvitationScopeDependencies({
             ),
           )
           .limit(1)
+
         if (governanceRows.length > 0) return true
 
         const repairRows = await db
@@ -35,10 +36,12 @@ export function createInvitationScopeDependencies({
             ),
           )
           .limit(1)
+
         return repairRows.length > 0
       },
       async getRole(organizationId, userId) {
         if (!(await isOwnerInvariantValid(db, organizationId))) return undefined
+
         const rows = await db
           .select({ role: schema.TMembership.role })
           .from(schema.TMembership)
@@ -49,6 +52,7 @@ export function createInvitationScopeDependencies({
             ),
           )
           .limit(1)
+
         return rows[0]?.role
       },
     },
