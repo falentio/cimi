@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, useTemplateRef } from 'vue'
 import { Copy01Icon, Share08Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,12 @@ const requestUrl = useRequestURL()
 const url = computed(() => publicDashboardUrl(requestUrl.origin, props.identifier))
 
 const copyStatus = shallowRef<string | null>(null)
+
+const input = useTemplateRef<HTMLInputElement>('link')
+
+function selectUrl(): void {
+  input.value?.select()
+}
 
 const canShare = computed(() => typeof navigator !== 'undefined' && navigator.share !== undefined)
 
@@ -52,10 +58,11 @@ async function shareUrl(): Promise<void> {
     <UIInputGroup>
       <UIInputGroupInput
         id="public-dashboard-url"
+        ref="link"
         readonly
         spellcheck="false"
-        :value="url"
-        @focus="($event.target as HTMLInputElement).select()"
+        :model-value="url"
+        @focus="selectUrl"
       />
       <UIInputGroupAddon align="inline-end">
         <UIInputGroupButton aria-label="Copy public link" title="Copy public link" @click="copyUrl">
