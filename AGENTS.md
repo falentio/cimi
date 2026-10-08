@@ -27,7 +27,7 @@ Run Vite Plus directly, never through a package manager wrapper:
 ```bash
 vp check --fix path/to/file.ts   # format + lint + typecheck
 vp test
-vp run <script>                  # package.json scripts, e.g. db:push
+vp run <script-or-task>          # package.json scripts or vite.config.ts tasks, e.g. db:push
 vp run --filter ./apps/web <script>
 vp install                       # only when deps change
 ```
