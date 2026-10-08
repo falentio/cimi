@@ -6,9 +6,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuth()
   const localePath = useLocalePath()
 
-  // The cached status is display state. The server owns the session, so re-derive
-  // it on every navigation rather than trusting a status that a server-side revoke
-  // or expiry has already invalidated.
   await auth.refreshSession()
 
   const state = auth.session.value

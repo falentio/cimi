@@ -13,8 +13,6 @@ function route(fullPath: string, meta: { auth?: unknown; admin?: unknown; guest?
   return { fullPath, meta: meta as RouteMeta }
 }
 
-// Mirrors Nuxt's localePath for strategy prefix_except_default: the default locale
-// keeps bare paths, a prefixed locale joins its prefix onto the route path.
 function localePathFactory(prefix = ''): LocalePath {
   const resolve = (path: string) => (prefix === '' ? path : `${prefix}${path}`)
 
@@ -154,8 +152,17 @@ describe('resolvePostAuthDestination', () => {
 })
 
 describe('toRouteLocation', () => {
-  it('returns undefined when there is no decision', () => {
-    expect(toRouteLocation(undefined, localePathFactory())).toBeUndefined()
+  it('maps every destination kind to a navigable location', () => {
+    const localePath = localePathFactory('/fr')
+
+    expect(toRouteLocation({ kind: 'home' }, localePath)).toEqual({ path: '/fr/' })
+    expect(toRouteLocation({ kind: 'path', path: '/org/o_1/home' }, localePath)).toEqual({
+      path: '/org/o_1/home',
+    })
+    expect(toRouteLocation({ kind: 'sign-in', returnTo: '/x' }, localePath)).toEqual({
+      path: '/fr/login',
+      query: { redirect: '/x' },
+    })
   })
 
   it('maps sign-in to the localized login route with the return path', () => {

@@ -7,10 +7,6 @@ export interface AuthRouteLike {
   readonly meta: RouteMeta
 }
 
-/**
- * A locale-agnostic navigation intent. toRouteLocation is the only place these
- * meet a route name, so nothing downstream re-derives which page is the login page.
- */
 export type AuthDestination =
   | { readonly kind: 'path'; readonly path: string }
   | { readonly kind: 'sign-in'; readonly returnTo: string }

@@ -71,12 +71,6 @@ export function useAuth(): AuthApi {
 
   async function refreshSession(): Promise<AuthResult> {
     return withPending(async () => {
-      const previous = session.value
-      // Revalidating must not briefly hide a session that is still valid: the
-      // route guard refreshes on every navigation, and flipping to loading each
-      // time would re-gate the workspace query and re-fetch it per navigation.
-      session.value = previous.status === 'authenticated' ? previous : { status: 'loading' }
-
       try {
         const result = await getAuthClient().getSession()
 
@@ -167,9 +161,6 @@ export function useAuth(): AuthApi {
     }
   }
 
-  // Called by the API boundary when a request is rejected as UNAUTHORIZED. It only
-  // drops the cached status; navigation stays with the route guard, which owns
-  // the destination rule. Idempotent, so repeated 401 responses change nothing.
   function markUnauthenticated(): void {
     if (session.value.status === 'unauthenticated') return
 
