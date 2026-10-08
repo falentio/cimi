@@ -12,21 +12,25 @@ import {
 } from './cleanup.ts'
 
 export { retentionPolicyRouter }
+
 export {
   RetentionCleanupWorker,
   type RetentionCleanupPort,
   type RetentionCleanupBatchResult,
   type RetentionCleanupWorkerDependencies,
 } from './cleanup.ts'
+
 export {
   RetentionPolicyService,
   type RetentionPolicyServiceDependencies,
   type RetentionPolicyIdFactory,
 } from './service.ts'
+
 export {
   RetentionPolicyRepositoryDrizzle,
   type RetentionPolicyRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { RetentionPolicyRepository } from './repository.ts'
 
 export interface CreateRetentionPolicyDependencies {
@@ -51,22 +55,27 @@ export function createRetentionPolicy({
   intervalMs,
 }: CreateRetentionPolicyDependencies) {
   const repository = new RetentionPolicyRepositoryDrizzle({ db })
+
   const service = new RetentionPolicyService({
     repository,
     lock,
     scope: scope ?? createSiteScopeDependencies({ db }),
     lifecycle,
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
   })
+
   const router = retentionPolicyRouter(service)
+
   const workerDependencies: RetentionCleanupWorkerDependencies = {
     repository,
     lock,
-    ...(cleanup === undefined ? {} : { cleanup }),
-    ...(intervalMs === undefined ? {} : { intervalMs }),
+    ...(cleanup !== undefined && { cleanup }),
+    ...(intervalMs !== undefined && { intervalMs }),
   }
+
   const worker = new RetentionCleanupWorker(workerDependencies)
+
   return { repository, service, router, worker }
 }
 

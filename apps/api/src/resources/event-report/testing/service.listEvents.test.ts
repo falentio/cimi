@@ -7,6 +7,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number, offsetMs = 0): number {
@@ -82,6 +83,7 @@ async function projectedSiteWithKinds(email: string) {
     },
   ])
   await fixture.analytics.rebuild({ controlDb: fixture.db })
+
   return { fixture, cookie, siteId }
 }
 
@@ -93,6 +95,7 @@ describe('EventReportService.listEvents', () => {
   it('lists events ordered by occurrence time with a stable eventId tie-break', async () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds('event-list@example.com')
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       listPath(siteId, 'page_view', '&direction=asc'),
@@ -120,7 +123,9 @@ describe('EventReportService.listEvents', () => {
     const { fixture, cookie, siteId } = await projectedSiteWithKinds(
       'event-list-filter@example.com',
     )
+
     await using _ = fixture
+
     const response = await apiTestRequest(
       fixture.app,
       listPath(
@@ -149,6 +154,7 @@ describe('EventReportService.listEvents', () => {
       listPath(siteId, 'error', '&direction=asc'),
       cookie,
     )
+
     expect(errors.status, await errors.clone().text()).toBe(200)
     const errorBody = await errors.json()
     expect(errorBody.items.map((item: { code: string }) => item.code)).toEqual(['E1', 'E2'])
@@ -191,6 +197,7 @@ describe('EventReportService.listEvents', () => {
       listPath(siteId, 'error', '&direction=asc&limit=1'),
       cookie,
     )
+
     expect(first.status, await first.clone().text()).toBe(200)
     const firstBody = await first.json()
     expect(firstBody.items.map((item: { code: string }) => item.code)).toEqual(['E1'])
@@ -203,6 +210,7 @@ describe('EventReportService.listEvents', () => {
       listPath(siteId, 'error', '&direction=asc&limit=1&offset=1'),
       cookie,
     )
+
     expect(second.status, await second.clone().text()).toBe(200)
     const secondBody = await second.json()
     expect(secondBody.items.map((item: { code: string }) => item.code)).toEqual(['E2'])
@@ -213,11 +221,13 @@ describe('EventReportService.listEvents', () => {
   it('redacts a stack trace and URL query from a listed error message', async () => {
     const fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
     await using _ = fixture
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'event-redact@example.com',
     )
+
     seedAcceptedEvents(fixture.db, siteId, [
       {
         sessionId: 's1',

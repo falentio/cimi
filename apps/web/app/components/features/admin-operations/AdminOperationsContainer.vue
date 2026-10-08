@@ -10,14 +10,18 @@ import { toAdminOperationsView } from './admin-operations.utils'
 import { useSetup } from '../setup/useSetup'
 
 const setup = useSetup()
+
 const projection = computed(() => toAdminOperationsView(setup.view.value))
+
 const refreshing = shallowRef(false)
+
 const refreshAnnouncement = computed(() =>
   refreshing.value ? 'Refreshing installation and health status.' : '',
 )
 
 async function refresh(): Promise<void> {
   refreshing.value = true
+
   try {
     await setup.refresh()
   } catch {

@@ -34,18 +34,23 @@ export async function assertSiteScope(
 
   const siteExists = await dependencies.siteScope.exists(siteId)
   const siteIsActive = siteExists && (await dependencies.siteScope.isActive(siteId))
+
   const organizationId = siteExists
     ? await dependencies.siteScope.getOrganizationId(siteId)
     : undefined
+
   if (!siteExists || !siteIsActive || organizationId === undefined) {
     throw new ORPCError('NOT_FOUND')
   }
 
   const role = await dependencies.membership.getRole(organizationId, user.id)
+
   if (role === undefined) throw new ORPCError('NOT_FOUND')
+
   if (await dependencies.membership.hasPendingGovernanceOperation(organizationId)) {
     throw new ORPCError('NOT_FOUND')
   }
+
   if (!hasRequiredRole(role, options.requiredRole ?? 'member')) {
     throw new ORPCError('FORBIDDEN')
   }
@@ -60,16 +65,21 @@ export async function assertSiteManagementScope(
   assertAuthenticated(user)
 
   const siteExists = await dependencies.siteScope.exists(siteId)
+
   const organizationId = siteExists
     ? await dependencies.siteScope.getOrganizationId(siteId)
     : undefined
+
   if (!siteExists || organizationId === undefined) throw new ORPCError('NOT_FOUND')
 
   const role = await dependencies.membership.getRole(organizationId, user.id)
+
   if (role === undefined) throw new ORPCError('NOT_FOUND')
+
   if (await dependencies.membership.hasPendingGovernanceOperation(organizationId)) {
     throw new ORPCError('CONFLICT')
   }
+
   if (!hasRequiredRole(role, options.requiredRole ?? 'admin')) {
     throw new ORPCError('FORBIDDEN')
   }
@@ -87,10 +97,13 @@ export async function assertOrganizationRole(
   options: OrganizationScopeGuardOptions = {},
 ): Promise<void> {
   const role = await dependencies.membership.getRole(organizationId, user.id)
+
   if (role === undefined) throw new ORPCError(options.missingCode ?? 'NOT_FOUND')
+
   if (await dependencies.membership.hasPendingGovernanceOperation(organizationId)) {
     throw new ORPCError('CONFLICT', { status: 409 })
   }
+
   if (!hasRequiredRole(role, options.requiredRole ?? 'admin')) {
     throw new ORPCError('FORBIDDEN')
   }
@@ -106,6 +119,7 @@ export class InMemorySiteScopePort implements SiteScopePort, SiteMembershipPort 
     memberships: ReadonlyArray<InMemorySiteMembership> = [],
   ) {
     for (const site of sites) this.setSite(site)
+
     for (const membership of memberships) this.setMembership(membership)
   }
 
@@ -177,6 +191,7 @@ function hasRequiredRole(
 ): boolean {
   if (actual === undefined) return false
   const rank: Record<SiteMembershipRole, number> = { member: 1, admin: 2, owner: 3 }
+
   return rank[actual] >= rank[required]
 }
 

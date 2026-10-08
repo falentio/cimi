@@ -20,13 +20,16 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+
 const retrying = shallowRef(false)
+
 const localizeError = useLocalizedErrorMessage()
 
 type SettingsSection = 'general' | 'collection' | 'retention' | 'danger'
 
 const sectionLinks = computed(() => {
   const siteId = props.snapshot.siteId
+
   if (siteId === undefined) return []
 
   return [
@@ -43,6 +46,7 @@ const activeSection = computed<SettingsSection>(
 
 async function handleRetry(): Promise<void> {
   retrying.value = true
+
   try {
     await props.retry()
   } catch {

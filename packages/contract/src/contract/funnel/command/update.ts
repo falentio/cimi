@@ -5,8 +5,11 @@ import { SFunnel, SFunnelDefinitionFields, SFunnelIdentityFields } from '../sche
 export const SFunnelUpdateInput = v.strictObject(
   v.entriesFromObjects([SFunnelIdentityFields, SFunnelDefinitionFields]),
 )
+
 export type SFunnelUpdateInput = v.InferOutput<typeof SFunnelUpdateInput>
+
 export const SFunnelUpdateOutput = SFunnel
+
 export type SFunnelUpdateOutput = v.InferOutput<typeof SFunnelUpdateOutput>
 
 export const updateFunnel = oc

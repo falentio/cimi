@@ -22,6 +22,7 @@ describe('AcceptanceRepositoryDrizzle.walBytes', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-wal-bytes-'))
     const dbPath = join(directory, 'control.sqlite')
     const db = createDb({ path: dbPath })
+
     try {
       migrateControlDb(db)
       const repository = new AcceptanceRepositoryDrizzle({ db })

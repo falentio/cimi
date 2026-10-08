@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SGoal, SGoalIdentityFields } from '../schema.ts'
 
 export const SGoalGetInput = SGoalIdentityFields
+
 export type SGoalGetInput = v.InferOutput<typeof SGoalGetInput>
+
 export const SGoalGetOutput = SGoal
+
 export type SGoalGetOutput = v.InferOutput<typeof SGoalGetOutput>
 
 export const getGoal = oc

@@ -21,11 +21,13 @@ const props = withDefaults(
 const item = injectQuestionnaireItemContext()
 
 const primitiveRef = ref<ComponentPublicInstance | null>(null)
+
 const fallbackId = props.id ?? useId()
 
 let unregisterTitle: (() => void) | null = null
 
 onMounted(() => {
+  // SAFETY: reka primitives always render a single element root.
   const element = primitiveRef.value?.$el as HTMLElement | undefined
 
   // A legend already names the fieldset. Anything else, for example a

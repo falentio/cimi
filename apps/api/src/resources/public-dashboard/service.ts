@@ -30,6 +30,7 @@ import {
   type PublicDashboardRateLimiter,
 } from './protection.ts'
 import type { PublicDashboardRepository } from './repository.ts'
+import { isStringValue } from '@cimi/utils'
 
 export interface PublicDashboardIdentifierFactory {
   mint(): { readonly identifier: string; readonly hash: string }
@@ -47,13 +48,21 @@ export interface PublicDashboardServiceDependencies {
 }
 
 type ConfigInput = InferOutput<typeof SPublicDashboardConfigInput>
+
 type ConfigOutput = InferOutput<typeof SPublicDashboardConfigOutput>
+
 type EnableInput = InferOutput<typeof SPublicDashboardEnableInput>
+
 type EnableOutput = InferOutput<typeof SPublicDashboardEnableOutput>
+
 type DisableInput = InferOutput<typeof SPublicDashboardDisableInput>
+
 type RotateInput = InferOutput<typeof SPublicDashboardRotateInput>
+
 type RotateOutput = InferOutput<typeof SPublicDashboardRotateOutput>
+
 type QueryInput = InferOutput<typeof SPublicDashboardQueryInput>
+
 type QueryOutput = InferOutput<typeof SPublicDashboardQueryOutput>
 
 export class PublicDashboardService {
@@ -76,13 +85,16 @@ export class PublicDashboardService {
   async getConfig(input: ConfigInput, user: AuthUser | undefined): Promise<ConfigOutput> {
     await this.assertCanManage(input.siteId, user)
     const config = await this.deps.repository.findBySiteId(input.siteId)
+
     if (config === undefined) throw new ORPCError('NOT_FOUND')
+
     return config
   }
 
   async enable(input: EnableInput, user: AuthUser | undefined): Promise<EnableOutput> {
     await this.assertCanManage(input.siteId, user)
     const identifier = this.identifiers.mint()
+
     return this.withConfigurationLock(async () => {
       const result = await this.deps.repository.enable({
         siteId: input.siteId,
@@ -90,6 +102,7 @@ export class PublicDashboardService {
         identifierHash: identifier.hash,
         now: this.clock(),
       })
+
       return mutationConfig(result)
     })
   }
@@ -98,7 +111,9 @@ export class PublicDashboardService {
     await this.assertCanManage(input.siteId, user)
     await this.withConfigurationLock(async () => {
       const result = await this.deps.repository.disable({ siteId: input.siteId, now: this.clock() })
+
       if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
+
       if (result.status === 'conflict') throw new ORPCError('CONFLICT', { status: 409 })
     })
   }
@@ -106,6 +121,7 @@ export class PublicDashboardService {
   async rotate(input: RotateInput, user: AuthUser | undefined): Promise<RotateOutput> {
     await this.assertCanManage(input.siteId, user)
     const identifier = this.identifiers.mint()
+
     return this.withConfigurationLock(async () => {
       const result = await this.deps.repository.rotate({
         siteId: input.siteId,
@@ -113,6 +129,7 @@ export class PublicDashboardService {
         identifierHash: identifier.hash,
         now: this.clock(),
       })
+
       return mutationConfig(result)
     })
   }
@@ -121,14 +138,18 @@ export class PublicDashboardService {
     const config = await this.deps.repository.findByIdentifierHash(
       hashPublicDashboardIdentifier(identifier),
     )
+
     if (config === undefined) throw new ORPCError('NOT_FOUND')
+
     return config
   }
 
   async query(input: QueryInput, sourceIp: string): Promise<QueryOutput> {
     let lease: LifecycleLease | undefined
+
     try {
       lease = await this.deps.lock.acquire('analytics-read')
+
       if (lease === undefined) {
         await this.resolveCurrent(input.publicDashboardIdentifier)
         throw toOrpcReportingError(serviceUnavailable('lifecycle-locked'))
@@ -137,17 +158,22 @@ export class PublicDashboardService {
       const config = await this.resolveCurrent(input.publicDashboardIdentifier)
       const query = this.deps.query
       const admission = this.deps.admission
+
       if (query === undefined || admission === undefined) {
         throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })
       }
+
       if (hasSensitivePublicUrlValue(input.filters)) {
         throw new ORPCError('BAD_REQUEST', { status: 400 })
       }
+
       const filterResult = compileTrafficFilterPlan({
         filters: input.filters ?? [],
         profileFilterKeys: [],
       })
+
       if (!filterResult.ok) throw new ORPCError('BAD_REQUEST', { status: 400 })
+
       try {
         this.rateLimiter.consume({ siteId: config.siteId, sourceIp, now: this.clock() })
       } catch (error) {
@@ -157,10 +183,12 @@ export class PublicDashboardService {
             data: rateLimitResponse(error.failure),
           })
         }
+
         throw error
       }
 
       const planner = new PublicDashboardAggregatePlanner({ admission, query })
+
       const prepared = await planner.preflight({
         siteId: config.siteId,
         fromDate: input.fromDate,
@@ -170,7 +198,9 @@ export class PublicDashboardService {
         filterPlan: filterResult.plan,
         filterCount: input.filters?.length ?? 0,
       })
+
       const cacheWitness = publicDashboardCacheWitness(prepared.ticket)
+
       const cacheKey =
         cacheWitness === undefined
           ? undefined
@@ -185,37 +215,48 @@ export class PublicDashboardService {
               period: prepared.query.period,
               witness: cacheWitness,
             })
+
       const now = this.clock().getTime()
       const cached = cacheKey === undefined ? undefined : this.cache.get(cacheKey)
+
       if (cached !== undefined && cached.expiresAt > now) return cached.output
+
       if (cached !== undefined && cacheKey !== undefined) this.cache.delete(cacheKey)
 
       const aggregate = await planner.execute(prepared)
+
       const output: QueryOutput = {
         ...aggregate,
         buckets:
           input.dimension === 'time'
             ? aggregate.buckets.map((bucket) => {
                 if (bucket.at === null) throw new Error('Expected time bucket')
+
                 return bucket
               })
             : aggregate.buckets.map((bucket) => {
                 if (bucket.at !== null) throw new Error('Expected dimension bucket')
+
                 return bucket
               }),
       }
+
       const cachedAt = this.clock().getTime()
       this.evictExpiredCacheEntries(cachedAt)
+
       if (cacheKey !== undefined) {
         if (this.cache.size >= PublicDashboardService.MAX_CACHE_ENTRIES) {
           const oldestKey = this.cache.keys().next().value
+
           if (oldestKey !== undefined) this.cache.delete(oldestKey)
         }
+
         this.cache.set(cacheKey, {
           expiresAt: cachedAt + PublicDashboardService.CACHE_TTL_MS,
           output,
         })
       }
+
       return output
     } finally {
       await lease?.release()
@@ -224,6 +265,7 @@ export class PublicDashboardService {
 
   private async assertCanManage(siteId: string, user: AuthUser | undefined): Promise<void> {
     await assertSiteManagementScope(user, siteId, this.deps.scope)
+
     if (!(await this.deps.scope.siteScope.isActive(siteId))) throw new ORPCError('NOT_FOUND')
   }
 
@@ -235,7 +277,9 @@ export class PublicDashboardService {
 
   private async withConfigurationLock<T>(work: () => Promise<T>): Promise<T> {
     const lease = await this.deps.lock.acquire('site_deletion')
+
     if (lease === undefined) throw new ORPCError('CONFLICT', { status: 409 })
+
     try {
       return await work()
     } finally {
@@ -267,6 +311,7 @@ function mutationConfig(
   result: PublicDashboardRepository.Mutation,
 ): PublicDashboardRepository.Config {
   if (result.status === 'updated') return result.config
+
   if (result.status === 'not-found') throw new ORPCError('NOT_FOUND')
   throw new ORPCError('CONFLICT', { status: 409 })
 }
@@ -276,13 +321,15 @@ function hasSensitivePublicUrlValue(filters: QueryInput['filters']): boolean {
     (filter) =>
       filter.scope === 'event' &&
       (filter.field === 'pagePath' || filter.field === 'referrer') &&
-      filter.values.some((value) => typeof value === 'string' && /[?#]/.test(value)),
+      filter.values.some((value) => isStringValue(value) && /[?#]/.test(value)),
   )
 }
 
 function publicDashboardCacheWitness(ticket: ReportAdmissionTicket) {
   const freshness = ticket.freshness.current
+
   if (freshness.status === 'stale' || ticket.projectionGeneration === null) return undefined
+
   return {
     projectedAcceptanceSequence: freshness.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough: freshness.occurrenceTimeCoverageThrough,

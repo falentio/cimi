@@ -1,12 +1,12 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import type { DB } from 'better-auth/adapters/drizzle'
+import type { DB, DrizzleAdapterConfig } from 'better-auth/adapters/drizzle'
 import { admin, organization } from 'better-auth/plugins'
 import { firstUserAdmin } from './first-user-admin.ts'
 
 export interface CreateAuthDependencies {
   db: DB
-  schema?: Record<string, unknown> | undefined
+  schema?: DrizzleAdapterConfig['schema'] | undefined
   baseURL?: string | undefined
   secret?: string | undefined
   trustedOrigins?: readonly string[] | undefined
@@ -40,3 +40,21 @@ export function createAuth(deps: CreateAuthDependencies) {
 export type Auth = ReturnType<typeof createAuth>
 
 export type AuthUser = Auth['$Infer']['Session']['user'] & { installationGrant?: boolean }
+
+export function createTestUser(overrides: Partial<AuthUser> = {}): AuthUser {
+  return {
+    id: 'user_1',
+    email: 'admin@example.com',
+    name: 'Admin',
+    emailVerified: true,
+    image: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    role: 'admin',
+    banned: false,
+    banReason: null,
+    banExpires: null,
+    installationGrant: true,
+    ...overrides,
+  }
+}

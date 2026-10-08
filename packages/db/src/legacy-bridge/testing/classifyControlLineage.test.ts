@@ -23,6 +23,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies the exact legacy 471c10d fixture as legacy-471c10d', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'legacy.sqlite') })
+
     try {
       expect(classifyControlLineage(fixture.client)).toEqual({ kind: 'legacy-471c10d' })
     } finally {
@@ -32,6 +33,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies a database with no tables and no ledger as empty', () => {
     const client = new Database(join(dir, 'empty.sqlite'))
+
     try {
       expect(classifyControlLineage(client)).toEqual({ kind: 'empty' })
     } finally {
@@ -41,6 +43,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies an empty ledger over user tables as incompatible', () => {
     const client = new Database(join(dir, 'ledgerless.sqlite'))
+
     try {
       client.exec('CREATE TABLE `user` (`id` text PRIMARY KEY NOT NULL)')
       expect(classifyControlLineage(client).kind).toBe('incompatible')
@@ -51,6 +54,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies a mutated ledger hash as incompatible', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'mutated-hash.sqlite') })
+
     try {
       fixture.client
         .prepare('UPDATE __drizzle_migrations SET hash = ? WHERE id = 1')
@@ -68,6 +72,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies a mutated ledger created_at as incompatible', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'mutated-when.sqlite') })
+
     try {
       fixture.client
         .prepare('UPDATE __drizzle_migrations SET created_at = created_at + 1 WHERE id = 2')
@@ -85,6 +90,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies a three-row partial legacy prefix as incompatible', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'partial.sqlite') })
+
     try {
       fixture.client.exec('DELETE FROM __drizzle_migrations WHERE id = 4')
       const result = classifyControlLineage(fixture.client)
@@ -100,6 +106,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies a forged four-row ledger over a dropped-column schema as incompatible', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'forged.sqlite') })
+
     try {
       fixture.client.pragma('foreign_keys = OFF')
       fixture.client.exec('ALTER TABLE `user` DROP COLUMN `role`')
@@ -113,6 +120,7 @@ describe('classifyControlLineage', () => {
 
   it('classifies an extra index on the legacy schema as incompatible', () => {
     const fixture = createLegacy471c10dTestDb({ path: join(dir, 'extra-index.sqlite') })
+
     try {
       fixture.client.exec('CREATE INDEX `forged_user_name_idx` ON `user` (`name`)')
       const result = classifyControlLineage(fixture.client)

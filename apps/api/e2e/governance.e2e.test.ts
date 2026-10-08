@@ -12,11 +12,13 @@ test('persists organization governance, site configuration, and lifecycle owners
     { name: 'Governance Organization' },
     { context: await owner.context() },
   )
+
   const invitation = await call(
     fixture.router.invitation.createInvitation,
     { organizationId: organization.id, role: 'member' },
     { context: await owner.context() },
   )
+
   expect(invitation.token).toHaveLength(43)
   await expect(
     call(
@@ -39,6 +41,7 @@ test('persists organization governance, site configuration, and lifecycle owners
     { organizationId: organization.id, offset: 0, limit: 20 },
     { context: await owner.context() },
   )
+
   expect(members).toMatchObject({
     totalCount: 2,
     items: expect.arrayContaining([
@@ -78,11 +81,13 @@ test('persists organization governance, site configuration, and lifecycle owners
     },
     { context: await member.context() },
   )
+
   const rotated = await call(
     fixture.router.site.rotateIngestionIdentifier,
     { siteId: site.id },
     { context: await member.context() },
   )
+
   expect(rotated.ingestionIdentifier).not.toBe(site.ingestionIdentifier)
   await expect(
     call(
@@ -107,6 +112,7 @@ test('persists organization governance, site configuration, and lifecycle owners
     { siteId: site.id },
     { context: await member.context() },
   )
+
   await fixture.waitFor({
     read: async () =>
       call(
@@ -118,11 +124,13 @@ test('persists organization governance, site configuration, and lifecycle owners
     operationId: deletion.operationId,
     label: 'site deletion',
   })
+
   const recovered = await call(
     fixture.router.site.recoverSite,
     { siteId: site.id },
     { context: await member.context() },
   )
+
   expect(recovered).toMatchObject({ accepted: true, status: 'recovering' })
   await expect(
     fixture.waitFor({

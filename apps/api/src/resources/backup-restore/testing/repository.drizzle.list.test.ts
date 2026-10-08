@@ -10,6 +10,7 @@ describe('BackupRestoreRepositoryDrizzle.list', () => {
     using fixture = createBackupDrizzleFixture()
     await fixture.insertInstallation()
     const first = await fixture.repository.beginBackup(createBackupInsertInput())
+
     if (first === undefined) throw new Error('expected backup operation')
     await fixture.repository.recordBackupArtifact({
       operationId: first.id,

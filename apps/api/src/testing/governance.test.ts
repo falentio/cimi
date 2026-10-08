@@ -22,6 +22,7 @@ test('serves organization and membership governance through the Cimi API', async
     owner.cookie,
     {},
   )
+
   expect(personalResponse.status).toBe(200)
   const personal = await personalResponse.json()
   expect(personal).toEqual(expect.schemaMatching(SOrganizationEnsurePersonalOutput))
@@ -34,6 +35,7 @@ test('serves organization and membership governance through the Cimi API', async
       name: 'Analytics',
     },
   )
+
   const createBody = await createResponse.json()
   expect(createResponse.status, JSON.stringify(createBody)).toBe(201)
   const organization = createBody
@@ -45,6 +47,7 @@ test('serves organization and membership governance through the Cimi API', async
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, organization.id))
   )[0]
+
   expect(authorityOrganization?.authorityOrganizationId).toBeTruthy()
 
   await auth.api.addMember({
@@ -61,6 +64,7 @@ test('serves organization and membership governance through the Cimi API', async
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(listResponse.status).toBe(200)
   const listedMembers = await listResponse.json()
   expect(listedMembers).toEqual(expect.schemaMatching(SMembershipListOutput))
@@ -71,6 +75,7 @@ test('serves organization and membership governance through the Cimi API', async
     userId: member.userId,
     role: 'admin',
   })
+
   expect(roleResponse.status).toBe(200)
   expect(await roleResponse.json()).toMatchObject({ userId: member.userId, role: 'admin' })
 
@@ -80,6 +85,7 @@ test('serves organization and membership governance through the Cimi API', async
     owner.cookie,
     { organizationId: organization.id, userId: member.userId },
   )
+
   expect(transferResponse.status).toBe(200)
   expect(await transferResponse.json()).toMatchObject({ userId: member.userId, role: 'owner' })
 
@@ -88,6 +94,7 @@ test('serves organization and membership governance through the Cimi API', async
     name: 'Production',
     hostname: 'example.com',
   })
+
   expect(siteResponse.status).toBe(201)
   const site = await siteResponse.json()
 
@@ -95,6 +102,7 @@ test('serves organization and membership governance through the Cimi API', async
     organizationId: organization.id,
     userId: owner.userId,
   })
+
   expect(removeResponse.status).toBe(204)
 
   const staleOrganizationResponse = await apiTestRequest(
@@ -102,6 +110,7 @@ test('serves organization and membership governance through the Cimi API', async
     `/organization/getOrganization?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(staleOrganizationResponse.status).toBe(404)
 
   const staleSiteResponse = await apiTestRequest(
@@ -109,6 +118,7 @@ test('serves organization and membership governance through the Cimi API', async
     `/site/getSite?siteId=${encodeURIComponent(site.id)}`,
     owner.cookie,
   )
+
   expect(staleSiteResponse.status).toBe(404)
 
   const replayResponse = await apiTestRequest(
@@ -117,6 +127,7 @@ test('serves organization and membership governance through the Cimi API', async
     owner.cookie,
     { organizationId: organization.id, userId: member.userId },
   )
+
   expect(replayResponse.status).toBe(403)
   expect(await replayResponse.json()).toMatchObject({ code: 'FORBIDDEN', status: 403 })
 })
@@ -130,6 +141,7 @@ test('converges concurrent Personal Organization provisioning requests', async (
     apiTestRequest(app, '/organization/ensurePersonalOrganization', owner.cookie, {}),
     apiTestRequest(app, '/organization/ensurePersonalOrganization', owner.cookie, {}),
   ])
+
   expect(first.status).toBe(200)
   expect(second.status).toBe(200)
   const firstOrganization = await first.json()
@@ -140,6 +152,7 @@ test('converges concurrent Personal Organization provisioning requests', async (
     .select()
     .from(schema.TOrganization)
     .where(eq(schema.TOrganization.ownerUserId, owner.userId))
+
   expect(organizations).toHaveLength(1)
   expect(organizations[0]).toMatchObject({
     id: firstOrganization.id,
@@ -165,6 +178,7 @@ test('deletes an empty Personal Organization and its membership', async () => {
     owner.cookie,
     {},
   )
+
   expect(ensureResponse.status).toBe(200)
   const organization = await ensureResponse.json()
 
@@ -176,6 +190,7 @@ test('deletes an empty Personal Organization and its membership', async () => {
       organizationId: organization.id,
     },
   )
+
   expect(deleteResponse.status).toBe(204)
   await expect(
     db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id)),
@@ -199,19 +214,24 @@ test('prioritizes Personal Organization protection when a Site exists', async ()
     owner.cookie,
     {},
   )
+
   expect(ensureResponse.status).toBe(200)
   const organization = await ensureResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Personal Site',
     hostname: 'personal.example.com',
   })
+
   expect(siteResponse.status).toBe(201)
   const site = await siteResponse.json()
+
   const beforeOrganization = await db
     .select()
     .from(schema.TOrganization)
     .where(eq(schema.TOrganization.id, organization.id))
+
   const beforeMembership = await db
     .select()
     .from(schema.TMembership)
@@ -225,6 +245,7 @@ test('prioritizes Personal Organization protection when a Site exists', async ()
       organizationId: organization.id,
     },
   )
+
   expect(deleteResponse.status).toBe(409)
   await expect(deleteResponse.json()).resolves.toMatchObject({
     code: 'PERSONAL_ORGANIZATION_PROTECTED',
@@ -247,6 +268,7 @@ test('prioritizes Personal Organization protection when a Site exists', async ()
 test('rejects deletion of a non-personal Organization that owns a Site', async () => {
   await using fixture = await createApiTestFixture()
   const { app, db } = fixture
+
   const owner = await signUpTestUser(
     app,
     'non-personal-site-delete@example.com',
@@ -261,19 +283,24 @@ test('rejects deletion of a non-personal Organization that owns a Site', async (
       name: 'Site Organization',
     },
   )
+
   expect(createResponse.status).toBe(201)
   const organization = await createResponse.json()
+
   const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
     organizationId: organization.id,
     name: 'Production',
     hostname: 'production.example.com',
   })
+
   expect(siteResponse.status).toBe(201)
   const site = await siteResponse.json()
+
   const beforeOrganization = await db
     .select()
     .from(schema.TOrganization)
     .where(eq(schema.TOrganization.id, organization.id))
+
   const beforeMembership = await db
     .select()
     .from(schema.TMembership)
@@ -287,6 +314,7 @@ test('rejects deletion of a non-personal Organization that owns a Site', async (
       organizationId: organization.id,
     },
   )
+
   expect(deleteResponse.status).toBe(409)
   await expect(deleteResponse.json()).resolves.toMatchObject({
     code: 'ORGANIZATION_NOT_EMPTY',
@@ -310,6 +338,7 @@ test('authorizes Organization updates and persists the new name', async () => {
   await using fixture = await createApiTestFixture()
   const { app, auth, db } = fixture
   const owner = await signUpTestUser(app, 'organization-update-owner@example.com', 'Update Owner')
+
   const member = await signUpTestUser(
     app,
     'organization-update-member@example.com',
@@ -324,11 +353,14 @@ test('authorizes Organization updates and persists the new name', async () => {
       name: 'Before Update',
     },
   )
+
   expect(createResponse.status).toBe(201)
   const organization = await createResponse.json()
+
   const persistedOrganization = (
     await db.select().from(schema.TOrganization).where(eq(schema.TOrganization.id, organization.id))
   )[0]
+
   expect(persistedOrganization).toBeDefined()
   await auth.api.addMember({
     headers: new Headers({ cookie: owner.cookie }),
@@ -338,11 +370,13 @@ test('authorizes Organization updates and persists the new name', async () => {
       role: 'member',
     },
   })
+
   const membersResponse = await apiTestRequest(
     app,
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(membersResponse.status).toBe(200)
 
   const memberUpdate = await apiTestRequest(
@@ -354,6 +388,7 @@ test('authorizes Organization updates and persists the new name', async () => {
       name: 'Unauthorized Update',
     },
   )
+
   expect(memberUpdate.status).toBe(403)
 
   const promoteResponse = await apiTestRequest(app, '/membership/changeMemberRole', owner.cookie, {
@@ -361,7 +396,9 @@ test('authorizes Organization updates and persists the new name', async () => {
     userId: member.userId,
     role: 'admin',
   })
+
   expect(promoteResponse.status).toBe(200)
+
   const updateResponse = await apiTestRequest(
     app,
     '/organization/updateOrganization',
@@ -371,6 +408,7 @@ test('authorizes Organization updates and persists the new name', async () => {
       name: 'Updated by Administrator',
     },
   )
+
   expect(updateResponse.status).toBe(200)
   await expect(updateResponse.json()).resolves.toMatchObject({
     id: organization.id,
@@ -384,6 +422,7 @@ test('authorizes Organization updates and persists the new name', async () => {
     `/organization/getOrganization?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(getResponse.status).toBe(200)
   await expect(getResponse.json()).resolves.toMatchObject({ name: 'Updated by Administrator' })
   await expect(
@@ -407,18 +446,23 @@ test('isolates Organization lists and returns live offset pagination', async () 
   await using fixture = await createApiTestFixture()
   const { app } = fixture
   const owner = await signUpTestUser(app, 'organization-list-owner@example.com', 'List Owner')
+
   const outsider = await signUpTestUser(
     app,
     'organization-list-outsider@example.com',
     'List Outsider',
   )
+
   const names = ['First Organization', 'Second Organization', 'Third Organization']
+
   for (const name of names) {
     const response = await apiTestRequest(app, '/organization/createOrganization', owner.cookie, {
       name,
     })
+
     expect(response.status).toBe(201)
   }
+
   const outsiderCreate = await apiTestRequest(
     app,
     '/organization/createOrganization',
@@ -427,6 +471,7 @@ test('isolates Organization lists and returns live offset pagination', async () 
       name: 'Outsider Organization',
     },
   )
+
   expect(outsiderCreate.status).toBe(201)
 
   const pageOneResponse = await apiTestRequest(
@@ -434,16 +479,19 @@ test('isolates Organization lists and returns live offset pagination', async () 
     '/organization/listOrganizations?offset=0&limit=1',
     owner.cookie,
   )
+
   const pageTwoResponse = await apiTestRequest(
     app,
     '/organization/listOrganizations?offset=1&limit=1',
     owner.cookie,
   )
+
   const pageThreeResponse = await apiTestRequest(
     app,
     '/organization/listOrganizations?offset=2&limit=1',
     owner.cookie,
   )
+
   expect(pageOneResponse.status).toBe(200)
   expect(pageTwoResponse.status).toBe(200)
   expect(pageThreeResponse.status).toBe(200)
@@ -482,14 +530,17 @@ test('returns not found when Better Auth independently removes a projected membe
       name: 'Authority Drift',
     },
   )
+
   expect(createResponse.status).toBe(201)
   const organization = await createResponse.json()
+
   const persistedOrganization = (
     await db
       .select({ authorityOrganizationId: schema.TOrganization.authorityOrganizationId })
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, organization.id))
   )[0]
+
   expect(persistedOrganization?.authorityOrganizationId).toBeTruthy()
 
   const addedMember = await auth.api.addMember({
@@ -506,6 +557,7 @@ test('returns not found when Better Auth independently removes a projected membe
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(initialList.status).toBe(200)
 
   await auth.api.removeMember({
@@ -521,6 +573,7 @@ test('returns not found when Better Auth independently removes a projected membe
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     member.cookie,
   )
+
   expect(staleMemberResponse.status).toBe(404)
   expect(await staleMemberResponse.json()).toMatchObject({ code: 'NOT_FOUND', status: 404 })
 })
@@ -540,14 +593,17 @@ test('does not let an outsider recover a pending member removal', async () => {
       name: 'Removal Recovery',
     },
   )
+
   expect(createResponse.status).toBe(201)
   const organization = await createResponse.json()
+
   const persistedOrganization = (
     await db
       .select({ authorityOrganizationId: schema.TOrganization.authorityOrganizationId })
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, organization.id))
   )[0]
+
   const authorityOrganizationId = persistedOrganization?.authorityOrganizationId
   expect(authorityOrganizationId).toBeTruthy()
 
@@ -555,20 +611,24 @@ test('does not let an outsider recover a pending member removal', async () => {
     headers: new Headers({ cookie: owner.cookie }),
     body: { organizationId: authorityOrganizationId!, userId: target.userId, role: 'member' },
   })
+
   const initialList = await apiTestRequest(
     app,
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(initialList.status).toBe(200)
 
   const removeMember = vi
     .spyOn(auth.api, 'removeMember')
     .mockRejectedValueOnce(new Error('authority unavailable'))
+
   const firstRemoval = await apiTestRequest(app, '/membership/removeMember', owner.cookie, {
     organizationId: organization.id,
     userId: target.userId,
   })
+
   expect(firstRemoval.status).toBe(409)
 
   const pendingOperation = (
@@ -577,6 +637,7 @@ test('does not let an outsider recover a pending member removal', async () => {
       .from(schema.TOrganizationGovernanceOperation)
       .where(eq(schema.TOrganizationGovernanceOperation.organizationId, organization.id))
   )[0]
+
   expect(pendingOperation).toMatchObject({
     operationType: 'remove-member',
     status: 'pending',
@@ -593,6 +654,7 @@ test('does not let an outsider recover a pending member removal', async () => {
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     outsider.cookie,
   )
+
   expect(outsiderList.status).toBe(404)
   expect(
     (
@@ -611,8 +673,10 @@ test('does not let an outsider recover a pending member removal', async () => {
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(ownerRecovery.status).toBe(200)
   expect(removeMember).toHaveBeenCalledTimes(2)
+
   const completedOperation = (
     await db
       .select({
@@ -623,6 +687,7 @@ test('does not let an outsider recover a pending member removal', async () => {
       .from(schema.TOrganizationGovernanceOperation)
       .where(eq(schema.TOrganizationGovernanceOperation.id, pendingOperation!.id))
   )[0]
+
   expect(completedOperation).toMatchObject({
     status: 'completed',
     failureCode: null,
@@ -642,11 +707,13 @@ test('recovers a pending member leave through another administrator', async () =
   await using fixture = await createApiTestFixture()
   const { app, auth, db } = fixture
   const owner = await signUpTestUser(app, 'leave-owner@example.com', 'Owner')
+
   const administrator = await signUpTestUser(
     app,
     'leave-administrator@example.com',
     'Administrator',
   )
+
   const target = await signUpTestUser(app, 'leave-target@example.com', 'Target')
 
   const createResponse = await apiTestRequest(
@@ -657,14 +724,17 @@ test('recovers a pending member leave through another administrator', async () =
       name: 'Leave Recovery',
     },
   )
+
   expect(createResponse.status).toBe(201)
   const organization = await createResponse.json()
+
   const persistedOrganization = (
     await db
       .select({ authorityOrganizationId: schema.TOrganization.authorityOrganizationId })
       .from(schema.TOrganization)
       .where(eq(schema.TOrganization.id, organization.id))
   )[0]
+
   const authorityOrganizationId = persistedOrganization?.authorityOrganizationId
   expect(authorityOrganizationId).toBeTruthy()
 
@@ -677,19 +747,23 @@ test('recovers a pending member leave through another administrator', async () =
       body: { organizationId: authorityOrganizationId!, ...member },
     })
   }
+
   const initialList = await apiTestRequest(
     app,
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(initialList.status).toBe(200)
 
   const leaveOrganization = vi
     .spyOn(auth.api, 'leaveOrganization')
     .mockRejectedValueOnce(new Error('authority unavailable'))
+
   const firstLeave = await apiTestRequest(app, '/membership/leaveOrganization', target.cookie, {
     organizationId: organization.id,
   })
+
   expect(firstLeave.status).toBe(409)
   expect(leaveOrganization).toHaveBeenCalledTimes(1)
 
@@ -699,6 +773,7 @@ test('recovers a pending member leave through another administrator', async () =
       .from(schema.TOrganizationGovernanceOperation)
       .where(eq(schema.TOrganizationGovernanceOperation.organizationId, organization.id))
   )[0]
+
   expect(pendingOperation).toMatchObject({
     operationType: 'leave-organization',
     status: 'pending',
@@ -715,7 +790,9 @@ test('recovers a pending member leave through another administrator', async () =
     `/membership/listMembers?organizationId=${encodeURIComponent(organization.id)}`,
     owner.cookie,
   )
+
   expect(recovery.status).toBe(200)
+
   const completedOperation = (
     await db
       .select({
@@ -726,6 +803,7 @@ test('recovers a pending member leave through another administrator', async () =
       .from(schema.TOrganizationGovernanceOperation)
       .where(eq(schema.TOrganizationGovernanceOperation.id, pendingOperation!.id))
   )[0]
+
   expect(completedOperation).toMatchObject({
     status: 'completed',
     failureCode: null,
@@ -755,6 +833,7 @@ test('hides pending Organization state from an inaccessible caller', async () =>
       name: 'Pending Organization',
     },
   )
+
   expect(createResponse.status).toBe(201)
   const organization = await createResponse.json()
 
@@ -762,13 +841,16 @@ test('hides pending Organization state from an inaccessible caller', async () =>
   const deletePath = '/organization/deleteOrganization'
   const updatePath = '/organization/updateOrganization'
   const initialGet = await apiTestRequest(app, organizationPath, outsider.cookie)
+
   const initialUpdate = await apiTestRequest(app, updatePath, outsider.cookie, {
     organizationId: organization.id,
     name: 'Unauthorized update',
   })
+
   const initialDelete = await apiTestRequest(app, deletePath, outsider.cookie, {
     organizationId: organization.id,
   })
+
   expect(initialGet.status).toBe(404)
   expect(initialUpdate.status).toBe(404)
   expect(initialDelete.status).toBe(404)
@@ -795,13 +877,16 @@ test('hides pending Organization state from an inaccessible caller', async () =>
     .run()
 
   const pendingGet = await apiTestRequest(app, organizationPath, outsider.cookie)
+
   const pendingUpdate = await apiTestRequest(app, updatePath, outsider.cookie, {
     organizationId: organization.id,
     name: 'Unauthorized pending update',
   })
+
   const pendingDelete = await apiTestRequest(app, deletePath, outsider.cookie, {
     organizationId: organization.id,
   })
+
   expect(pendingGet.status).toBe(404)
   expect(pendingUpdate.status).toBe(404)
   expect(pendingDelete.status).toBe(404)

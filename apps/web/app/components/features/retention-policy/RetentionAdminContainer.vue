@@ -12,21 +12,28 @@ import RetentionCleanupStrip from './cleanup-variants/RetentionCleanupStrip.vue'
 import RetentionCleanupTimeline from './cleanup-variants/RetentionCleanupTimeline.vue'
 import VariantPicker from './cleanup-variants/VariantPicker.vue'
 import { useRetentionAdmin } from './useRetentionAdmin'
+import { isStringValue } from '../../../utils/type-guards'
 
 // TEMPORARY variant harness — delete at promotion (variants + picker + this wiring).
 const route = useRoute()
+
 const CLEANUP_SECTIONS = {
   timeline: RetentionCleanupTimeline,
   register: RetentionCleanupRegister,
   strip: RetentionCleanupStrip,
 } as const
+
 const cleanupSection = computed(() => {
   const variant = route.query.variant
-  if (typeof variant === 'string' && variant in CLEANUP_SECTIONS) {
+
+  if (isStringValue(variant) && variant in CLEANUP_SECTIONS) {
+    // SAFETY: `in` above proves the variant is a known section key.
     return CLEANUP_SECTIONS[variant as keyof typeof CLEANUP_SECTIONS]
   }
+
   return RetentionCleanupSection
 })
+
 const PICKER_VARIANTS = [
   { id: 'stacked', label: 'Stacked (current)' },
   { id: 'timeline', label: 'Timeline' },
@@ -35,11 +42,14 @@ const PICKER_VARIANTS = [
 ] as const
 
 const controller = useRetentionAdmin()
+
 const view = computed(() => controller.view.value)
+
 const refreshing = shallowRef(false)
 
 async function refresh(): Promise<void> {
   refreshing.value = true
+
   try {
     await controller.refresh()
   } finally {

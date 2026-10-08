@@ -15,6 +15,7 @@ const emit = defineEmits<{ fieldChange: [field: RetentionField, value: string] }
 
 function fieldError(field: RetentionField): string | undefined {
   if (props.validation.kind !== 'invalid') return undefined
+
   return props.validation.validation.fieldErrors[field]
 }
 

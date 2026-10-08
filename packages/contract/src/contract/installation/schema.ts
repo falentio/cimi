@@ -10,6 +10,7 @@ export const SInstallationStatus = v.picklist([
   'maintenance',
   'recovering',
 ])
+
 export const SLifecycleOperationKind = v.picklist([
   'backup',
   'restore',
@@ -20,17 +21,20 @@ export const SLifecycleOperationKind = v.picklist([
   'site_recovery',
   'site_purge',
 ])
+
 export const SLifecycleOperationPhase = v.picklist([
   'pre_upgrade_safety',
   'site_transition',
   'lifecycle_transition',
 ])
+
 export const SLifecycleOperationCheckpoint = v.picklist([
   'none',
   'sqlite_captured',
   'duckdb_rebuilt',
   'structurally_ready',
 ])
+
 export const SLifecycleOperationStatus = v.strictObject({
   operationId: SId,
   kind: SLifecycleOperationKind,
@@ -40,7 +44,9 @@ export const SLifecycleOperationStatus = v.strictObject({
   lastSafeSequence: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
   errorCode: v.nullable(SLifecycleErrorCode),
 })
+
 export { SCleanupStage, SCleanupStageStatus, SLifecycleErrorCode }
+
 export const SInstallation = v.pipe(
   v.strictObject({
     status: SInstallationStatus,
@@ -54,10 +60,13 @@ export const SInstallation = v.pipe(
   }),
   v.check(({ status, dataDirectoryReady, cleanupPending, derivedCleanup, backupCleanup }) => {
     if (status === 'ready' && !dataDirectoryReady) return false
+
     const pending = [derivedCleanup.status, backupCleanup.status].some(
       (stage) => stage !== 'not_applicable' && stage !== 'completed',
     )
+
     if (cleanupPending !== pending) return false
+
     if (
       ['pending', 'running', 'completed', 'failed'].includes(backupCleanup.status) &&
       backupCleanup.status !== 'pending' &&
@@ -65,6 +74,7 @@ export const SInstallation = v.pipe(
     ) {
       return false
     }
+
     return true
   }, VALIDATION_KEYS.contract.installation.stateCoherent),
 )
@@ -74,6 +84,7 @@ export const DEFAULT_RETENTION_POLICY = {
   profileMonths: 12,
   replayMonths: null,
 } as const
+
 export const SInstallationInitializeFields = v.strictObject({
   defaultRetention: v.optional(SRetentionPolicy, DEFAULT_RETENTION_POLICY),
 })

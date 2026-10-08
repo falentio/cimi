@@ -14,6 +14,7 @@ export interface LocalCalendarDateTime extends LocalCalendarDate {
 }
 
 export type LocalBucketGranularity = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'
+
 export type LocalWeekStart =
   | 'monday'
   | 'tuesday'
@@ -39,18 +40,23 @@ export interface EnumerateLocalBucketStartsInput {
 }
 
 const DATE_TIME_PARTS = new Set(['year', 'month', 'day', 'hour', 'minute', 'second'])
+
 const MINUTE_MS = 60 * 1000
+
 const HOUR_MS = 60 * MINUTE_MS
 
 export function parseLocalCalendarDate(value: string): LocalCalendarDate {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+
   if (match === null) throw new RangeError('Expected a calendar date')
   const [, yearValue, monthValue, dayValue] = match
   const year = Number(yearValue)
   const month = Number(monthValue)
   const day = Number(dayValue)
   const date = { year, month, day }
+
   if (!isValidLocalCalendarDate(date)) throw new RangeError('Expected a valid calendar date')
+
   return date
 }
 
@@ -60,9 +66,11 @@ export function formatLocalCalendarDate(date: LocalCalendarDate): string {
 
 export function addCalendarDays(date: LocalCalendarDate, days: number): LocalCalendarDate {
   assertCalendarDate(date)
+
   if (!Number.isInteger(days)) throw new RangeError('Calendar day offset must be an integer')
   const moved = new Date(utcWallClock({ ...date, hour: 0, minute: 0, second: 0 }))
   moved.setUTCDate(moved.getUTCDate() + days)
+
   return {
     year: moved.getUTCFullYear(),
     month: moved.getUTCMonth() + 1,
@@ -72,11 +80,13 @@ export function addCalendarDays(date: LocalCalendarDate, days: number): LocalCal
 
 export function subtractCalendarMonths(date: LocalCalendarDate, months: number): LocalCalendarDate {
   assertCalendarDate(date)
+
   if (!Number.isInteger(months)) throw new RangeError('Calendar month offset must be an integer')
   const absoluteMonth = date.year * 12 + date.month - 1 - months
   const year = Math.floor(absoluteMonth / 12)
   const month = (((absoluteMonth % 12) + 12) % 12) + 1
   const day = Math.min(date.day, daysInMonth(year, month))
+
   return { year, month, day }
 }
 
@@ -95,6 +105,7 @@ export function calendarDaysInclusive(
     (utcWallClock({ ...toDate, hour: 0, minute: 0, second: 0 }) -
       utcWallClock({ ...fromDate, hour: 0, minute: 0, second: 0 })) /
     (24 * HOUR_MS)
+
   return Number.isInteger(distance) && distance >= 0 ? distance + 1 : 0
 }
 
@@ -106,6 +117,7 @@ export function resolveLocalDateStart(input: {
   assertTimeZone(input.timeZone)
   const target = { ...input.date, hour: 0, minute: 0, second: 0 }
   const syntheticUtc = utcWallClock(target)
+
   const exact = resolveLocalDateTimeInstants({
     date: input.date,
     timeZone: input.timeZone,
@@ -113,9 +125,12 @@ export function resolveLocalDateStart(input: {
     minute: 0,
     second: 0,
   })[0]
+
   if (exact !== undefined) return exact
   const firstSample = findFirstInstantOnLocalDate(input.date, input.timeZone, syntheticUtc)
+
   if (firstSample === undefined) throw new RangeError('Target local date does not exist')
+
   return firstSample
 }
 
@@ -129,6 +144,7 @@ export function resolveLocalDateTimeInstants(input: {
   assertCalendarDate(input.date)
   assertTimeZone(input.timeZone)
   const second = input.second ?? 0
+
   if (
     !Number.isInteger(input.hour) ||
     input.hour < 0 ||
@@ -146,6 +162,7 @@ export function resolveLocalDateTimeInstants(input: {
   const target = { ...input.date, hour: input.hour, minute: input.minute, second }
   const syntheticUtc = utcWallClock(target)
   const offsets = new Set<number>()
+
   for (let hours = -48; hours <= 48; hours += 1) {
     const sample = new Date(syntheticUtc + hours * HOUR_MS)
     const local = getLocalCalendarDateTime(sample, input.timeZone)
@@ -153,10 +170,16 @@ export function resolveLocalDateTimeInstants(input: {
   }
 
   const candidates = [...offsets]
-    .map((offset) => new Date(syntheticUtc - offset))
-    .filter((candidate) =>
-      isSameLocalCalendarDateTime(getLocalCalendarDateTime(candidate, input.timeZone), target),
-    )
+    .flatMap((offset) => {
+      const candidate = new Date(syntheticUtc - offset)
+
+      return isSameLocalCalendarDateTime(
+        getLocalCalendarDateTime(candidate, input.timeZone),
+        target,
+      )
+        ? [candidate]
+        : []
+    })
     .sort((left, right) => left.getTime() - right.getTime())
 
   return candidates.filter(
@@ -167,6 +190,7 @@ export function resolveLocalDateTimeInstants(input: {
 export function getLocalCalendarDateTime(instant: Date, timeZone: string): LocalCalendarDateTime {
   if (!Number.isFinite(instant.getTime())) throw new RangeError('Expected a valid instant')
   assertTimeZone(timeZone)
+
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
     calendar: 'iso8601',
@@ -179,17 +203,20 @@ export function getLocalCalendarDateTime(instant: Date, timeZone: string): Local
     second: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(instant)
+
   const values = new Map(
     parts
       .filter((part) => DATE_TIME_PARTS.has(part.type))
       .map((part) => [part.type, Number(part.value)]),
   )
+
   const year = values.get('year')
   const month = values.get('month')
   const day = values.get('day')
   const hour = values.get('hour')
   const minute = values.get('minute')
   const second = values.get('second')
+
   if (
     year === undefined ||
     month === undefined ||
@@ -200,11 +227,13 @@ export function getLocalCalendarDateTime(instant: Date, timeZone: string): Local
   ) {
     throw new Error('Timezone formatter did not return a complete date')
   }
+
   return { year, month, day, hour, minute, second }
 }
 
 export function localOffsetMinutes(instant: Date, timeZone: string): number {
   const local = getLocalCalendarDateTime(instant, timeZone)
+
   return Math.round((utcWallClock(local) - instant.getTime()) / MINUTE_MS)
 }
 
@@ -214,7 +243,9 @@ export function enumerateLocalBucketStarts(
   assertCalendarDate(input.fromDate)
   assertCalendarDate(input.toDateExclusive)
   assertTimeZone(input.timeZone)
+
   if (compareCalendarDates(input.fromDate, input.toDateExclusive) >= 0) return []
+
   if (
     input.maxStarts !== undefined &&
     (!Number.isInteger(input.maxStarts) || input.maxStarts < 0)
@@ -223,8 +254,10 @@ export function enumerateLocalBucketStarts(
   }
 
   const starts: LocalBucketStart[] = []
+
   const append = (instant: Date, local: LocalCalendarDateTime): boolean => {
     starts.push({ instant, local, offsetMinutes: localOffsetMinutes(instant, input.timeZone) })
+
     return input.maxStarts !== undefined && starts.length > input.maxStarts
   }
 
@@ -236,20 +269,26 @@ export function enumerateLocalBucketStarts(
     if (input.granularity === 'minute' || input.granularity === 'hour') {
       const stepMs = (input.granularity === 'minute' ? 1 : 60) * MINUTE_MS
       const dayStart = resolveLocalDateStartOrUndefined(date, input.timeZone)
+
       if (dayStart === undefined) continue
+
       const nextDayStart = resolveLocalDateStartOrUndefined(
         addCalendarDays(date, 1),
         input.timeZone,
       )
+
       if (nextDayStart === undefined) continue
+
       for (
         let instantMs = dayStart.getTime();
         instantMs < nextDayStart.getTime();
         instantMs += stepMs
       ) {
         const instant = new Date(instantMs)
+
         if (append(instant, getLocalCalendarDateTime(instant, input.timeZone))) return starts
       }
+
       continue
     }
 
@@ -259,11 +298,14 @@ export function enumerateLocalBucketStarts(
         localWeekday(date) === weekStartNumber(input.weekStartsOn)) ||
       (input.granularity === 'month' && date.day === 1) ||
       (input.granularity === 'year' && date.month === 1 && date.day === 1)
+
     if (!shouldAppend) continue
     // A zone can skip a whole local day (Samoa skipped 2011-12-30). That calendar day has no
     // midnight to start from, so it contributes no bucket rather than failing the whole range.
     const dayStart = resolveLocalDateStartOrUndefined(date, input.timeZone)
+
     if (dayStart === undefined) continue
+
     if (append(dayStart, { ...date, hour: 0, minute: 0, second: 0 })) return starts
   }
 
@@ -273,14 +315,18 @@ export function enumerateLocalBucketStarts(
 function firstBucketDate(input: EnumerateLocalBucketStartsInput): LocalCalendarDate {
   if (input.granularity === 'week') {
     const distance = (localWeekday(input.fromDate) - weekStartNumber(input.weekStartsOn) + 7) % 7
+
     return addCalendarDays(input.fromDate, -distance)
   }
+
   if (input.granularity === 'month') {
     return { ...input.fromDate, day: 1 }
   }
+
   if (input.granularity === 'year') {
     return { year: input.fromDate.year, month: 1, day: 1 }
   }
+
   return input.fromDate
 }
 
@@ -302,21 +348,27 @@ function findFirstInstantOnLocalDate(
   syntheticUtc: number,
 ): Date | undefined {
   const previous = new Date(syntheticUtc - 48 * HOUR_MS)
+
   for (let offset = 0; offset <= 96; offset += 1) {
     const current = new Date(previous.getTime() + offset * HOUR_MS)
+
     if (!isSameLocalCalendarDate(getLocalCalendarDateTime(current, timeZone), date)) continue
     let low = previous.getTime()
     let high = current.getTime()
+
     while (high - low > 1) {
       const middle = Math.floor((low + high) / 2)
+
       if (isSameLocalCalendarDate(getLocalCalendarDateTime(new Date(middle), timeZone), date)) {
         high = middle
       } else {
         low = middle
       }
     }
+
     return new Date(high)
   }
+
   return undefined
 }
 
@@ -361,6 +413,7 @@ function utcWallClock(value: LocalCalendarDateTime): number {
   const date = new Date(0)
   date.setUTCFullYear(value.year, value.month - 1, value.day)
   date.setUTCHours(value.hour, value.minute, value.second, 0)
+
   return date.getTime()
 }
 
@@ -368,11 +421,13 @@ function daysInMonth(year: number, month: number): number {
   const date = new Date(0)
   date.setUTCFullYear(year, month, 0)
   date.setUTCHours(0, 0, 0, 0)
+
   return date.getUTCDate()
 }
 
 function localWeekday(date: LocalCalendarDate): number {
   const value = new Date(utcWallClock({ ...date, hour: 0, minute: 0, second: 0 }))
+
   return value.getUTCDay()
 }
 

@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SBackup } from '../schema.ts'
 
 export const SBackupCreateInput = v.strictObject({})
+
 export type SBackupCreateInput = v.InferOutput<typeof SBackupCreateInput>
+
 export const SBackupCreateOutput = SBackup
+
 export type SBackupCreateOutput = v.InferOutput<typeof SBackupCreateOutput>
 
 export const createBackup = oc

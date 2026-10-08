@@ -19,6 +19,7 @@ async function createQueuedRepository() {
     changedBy: 'user_1',
     now,
   })
+
   return {
     fixture,
     repository,
@@ -44,9 +45,11 @@ describe('RetentionPolicyRepositoryDrizzle.claimNext concurrency', () => {
     expect(first?.runId).toBeDefined()
 
     await created.repository.recoverInterrupted(new Date(now.getTime() + 1))
+
     const reclaimed = await created.repository.claimNext({
       now: new Date(now.getTime() + 2),
     })
+
     expect(reclaimed?.runId).toBe(first?.runId)
 
     await created.repository.succeed({

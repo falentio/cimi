@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { SId, SHostname, SScalarKey } from '../../schema/index.ts'
+
 export { SCollectionContext } from './transport.ts'
 
 export const POLICY_FIELDS = [
@@ -13,12 +14,14 @@ export const POLICY_FIELDS = [
   'profileFilterKeys',
   'exclusions',
 ] as const
+
 export type PolicyField = (typeof POLICY_FIELDS)[number]
 
 const SCollectionPath = v.pipe(v.string(), v.nonEmpty(), v.transform(normalizeCollectionPath))
 
 function normalizeCollectionPath(value: string): string {
   const candidate = value.startsWith('/') ? value : `/${value}`
+
   try {
     return new URL(candidate, 'https://cimi.invalid').pathname || '/'
   } catch {
@@ -52,7 +55,9 @@ const policyValueEntries = {
     ipRanges: v.pipe(v.array(v.string()), v.maxLength(128)),
   }),
 }
+
 export const SPolicyValues = v.strictObject(policyValueEntries)
+
 export type PolicyValues = v.InferOutput<typeof SPolicyValues>
 
 export const DEFAULT_COLLECTION_POLICY: PolicyValues = {
@@ -81,21 +86,25 @@ export const SInstallationDefaultPolicy = v.strictObject({
   scope: v.literal('installation'),
   ...policyValueEntries,
 })
+
 export const SSiteOverridePolicy = v.strictObject({
   scope: v.literal('site'),
   siteId: SId,
   ...policyValueEntries,
 })
+
 export const SPolicy = v.variant('scope', [SInstallationDefaultPolicy, SSiteOverridePolicy])
 
 const SInstallationDefaultPolicyUpdate = v.strictObject({
   scope: v.literal('installation'),
   policy: SPolicyValues,
 })
+
 const SSiteOverridePolicyUpdate = v.strictObject({
   scope: v.literal('site'),
   policy: v.strictObject({ siteId: SId, ...policyValueEntries }),
 })
+
 const SSiteOverridePolicyClear = v.strictObject({
   scope: v.literal('site'),
   policy: v.strictObject({ siteId: SId, clear: v.literal(true) }),
@@ -119,7 +128,9 @@ export const PSafePolicy = v.strictObject({
   effective: SSiteOverridePolicy,
   source: SCollectionPolicySource,
 })
+
 export const SCollectionPolicySiteFields = v.strictObject({ siteId: SId })
+
 export const SCollectionPolicyUpdateFields = v.union([
   SInstallationDefaultPolicyUpdate,
   SSiteOverridePolicyUpdate,

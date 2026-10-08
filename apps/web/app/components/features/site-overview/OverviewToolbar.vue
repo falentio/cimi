@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
 import { computed } from 'vue'
 import { Calendar03Icon, RefreshIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
@@ -11,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { OverviewRange, OverviewRangeOption } from './site-overview.types'
+import { isStringValue } from '../../../utils/type-guards'
 
 const props = defineProps<{
   readonly ranges: readonly OverviewRangeOption[]
@@ -28,9 +30,10 @@ const selectedRangeLabel = computed(
     props.ranges.find((range) => range.value === props.selectedRange)?.label ?? 'Choose a range',
 )
 
-function handleRangeChange(value: unknown): void {
-  if (typeof value !== 'string') return
+function handleRangeChange(value: AcceptableValue): void {
+  if (!isStringValue(value)) return
   const range = props.ranges.find((option) => option.value === value)
+
   if (range === undefined) return
   emit('rangeChange', range.value)
 }

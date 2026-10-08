@@ -7,6 +7,7 @@ import { InvitationService } from './service.ts'
 import { hashInvitationToken } from './token.ts'
 
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const invitationLifetimeMs = 7 * 24 * 60 * 60 * 1000
 
 export interface InvitationFixtureOptions {
@@ -28,10 +29,12 @@ export function createInvitationFixture({
 }: InvitationFixtureOptions = {}) {
   const repository = mock<InvitationRepository>()
   const authority = mock<OrganizationAuthority>()
+
   const scope = new InMemorySiteScopePort(
     [],
     memberships ?? [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
   )
+
   const reconciler = membership ?? createReconcilerMock()
   repository.findAuthorityOrganizationId.mockResolvedValue('authority_1')
   authority.getMember.mockImplementation(async ({ userId }) =>
@@ -40,18 +43,21 @@ export function createInvitationFixture({
   authority.admitMember.mockImplementation(async ({ organizationId, userId, role }) =>
     createAuthorityMember({ organizationId, userId, role }),
   )
+
   const service = new InvitationService({
     repository,
     scope: { membership: scope },
     authority,
     membership: reconciler,
   })
+
   return { repository, authority, scope, membership: reconciler, service }
 }
 
 function createReconcilerMock(): OrganizationMembershipReconciler {
   const reconciler = mock<OrganizationMembershipReconciler>()
   reconciler.reconcile.mockResolvedValue(undefined)
+
   return reconciler
 }
 
@@ -59,6 +65,7 @@ export function createInvitationRecord(
   overrides: Partial<InvitationRepository.InvitationRecord> = {},
 ): InvitationRepository.InvitationRecord {
   const expiresAt = new Date(Date.now() + invitationLifetimeMs)
+
   return {
     id: 'inv_1',
     organizationId: 'org_1',
@@ -89,6 +96,7 @@ export function createInvitationMembership(
 
 export function createAuthorityMember(overrides: Partial<AuthorityMember> = {}): AuthorityMember {
   const userId = overrides.userId ?? 'user_1'
+
   return {
     id: `authority-member-${userId}`,
     organizationId: 'authority_1',

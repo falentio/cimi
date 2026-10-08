@@ -69,6 +69,7 @@ const metricCells = computed(() =>
 
 /** Single-select: the first selected id is the active metric. */
 const activeId = computed<OverviewMetricId | null>(() => props.selectedIds.at(0) ?? null)
+
 const hasSelection = computed(() => activeId.value !== null)
 </script>
 

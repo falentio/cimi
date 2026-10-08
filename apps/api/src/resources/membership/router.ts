@@ -2,6 +2,7 @@ import { api, authenticatedApi } from '../../orpc.ts'
 import type { MembershipService } from './service.ts'
 
 const membershipApi = api.membership
+
 const authenticatedMembershipApi = authenticatedApi.membership
 
 export function membershipRouter(service: MembershipService) {

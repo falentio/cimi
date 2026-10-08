@@ -6,8 +6,11 @@ import { parseSiteId } from '@/components/features/site-settings/site-settings.u
 import type { SiteSettingsDraft } from '@/components/features/site-settings/site-settings.types'
 
 const route = useRoute()
+
 const siteId = computed(() => parseSiteId(route.params.siteId))
+
 const { snapshot, retry, save } = useSiteSettings({ siteId })
+
 const site = computed(() => ('site' in snapshot.value.load ? snapshot.value.load.site : undefined))
 
 async function handleSave(draft: SiteSettingsDraft): Promise<void> {

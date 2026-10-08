@@ -12,6 +12,7 @@ describe('BackupRestoreRepositoryDrizzle.claimCleanupStage', () => {
     using fixture = createBackupDrizzleFixture()
     await fixture.insertInstallation()
     const operation = await fixture.repository.beginBackup(createBackupInsertInput())
+
     if (operation === undefined) throw new Error('expected backup operation')
     await fixture.repository.recordBackupArtifact({
       operationId: operation.id,
@@ -39,6 +40,7 @@ describe('BackupRestoreRepositoryDrizzle.claimCleanupStage', () => {
     using fixture = createBackupDrizzleFixture()
     await fixture.insertInstallation()
     const operation = await fixture.repository.beginBackup(createBackupInsertInput())
+
     if (operation === undefined) throw new Error('expected backup operation')
     await fixture.repository.recordBackupArtifact({
       operationId: operation.id,

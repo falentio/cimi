@@ -38,10 +38,12 @@ describe('BackupRestoreCleanupWorker', () => {
     }))
     repository.claimCleanupStage.mockImplementation(async ({ stage }) => {
       if (stage === 'backup_cleanup' && !derivedComplete) return undefined
+
       return { operationId: operation.id, stage }
     })
     repository.completeCleanupStage.mockImplementation(async ({ stage }) => {
       calls.push(`complete:${stage}`)
+
       if (stage === 'derived_cleanup') derivedComplete = true
     })
     cleanup.runDerived.mockImplementation(async () => {

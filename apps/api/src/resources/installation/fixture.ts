@@ -15,15 +15,17 @@ export function createInstallationFixture(options: InstallationFixtureOptions = 
   const repository = mock<InstallationRepository>()
   const lock = new InMemoryLifecycleLock()
   const journal = new InMemoryAcceptanceJournalPort()
+
   const service = new InstallationService({
     repository,
     lock,
     journal,
     dataDirectoryReady: options.dataDirectoryReady ?? true,
-    ...(options.clock === undefined ? {} : { clock: options.clock }),
-    ...(options.ids === undefined ? {} : { ids: options.ids }),
+    ...(options.clock !== undefined && { clock: options.clock }),
+    ...(options.ids !== undefined && { ids: options.ids }),
     upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
   })
+
   return { repository, lock, journal, service }
 }
 

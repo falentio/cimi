@@ -77,7 +77,9 @@ export function reduceRetention(state: RetentionState, action: RetentionAction):
       }
     case 'save-requested': {
       const current = getCurrentPolicy(state)
+
       if (current === null) return state
+
       return {
         ...state,
         command: {
@@ -90,10 +92,12 @@ export function reduceRetention(state: RetentionState, action: RetentionAction):
         },
       }
     }
+
     case 'save-cancelled':
       return state.command.kind === 'confirming' ? { ...state, command: { kind: 'idle' } } : state
     case 'confirmation-edited':
       if (state.command.kind !== 'confirming') return state
+
       return {
         ...state,
         command: {
@@ -109,7 +113,9 @@ export function reduceRetention(state: RetentionState, action: RetentionAction):
       }
     case 'save-started': {
       const current = getCurrentPolicy(state)
+
       if (current === null) return state
+
       return {
         ...state,
         command: {
@@ -122,6 +128,7 @@ export function reduceRetention(state: RetentionState, action: RetentionAction):
         notice: null,
       }
     }
+
     case 'save-succeeded':
       return {
         ...state,
@@ -145,6 +152,7 @@ export function reduceRetention(state: RetentionState, action: RetentionAction):
       }
     default: {
       const _exhaustive: never = action
+
       return _exhaustive
     }
   }
@@ -155,12 +163,14 @@ function adoptRetentionResult(
   result: InstallationRetentionResult,
 ): RetentionState {
   const previousResult = getRetentionResult(state)
+
   const draft =
     state.draft === null ||
     previousResult === null ||
     !isRetentionDirty(previousResult.installationDefault, state.draft)
       ? draftFromPolicy(result.installationDefault)
       : state.draft
+
   return {
     ...state,
     retention: { kind: 'ready', result, refreshing: false },
@@ -181,19 +191,25 @@ function getCurrentPolicy(state: RetentionState) {
 
 function getUpdatedAt(state: RetentionState): InstallationRetentionResult['updatedAt'] {
   const result = getRetentionResult(state)
+
   if (result === null) throw new Error('Retention confirmation requires a loaded policy.')
+
   return result.updatedAt
 }
 
 function beginRetentionRefresh(state: RetentionResource): RetentionResource {
   if (state.kind === 'ready') return { ...state, refreshing: true }
+
   if (state.kind === 'stale') return { ...state, refreshing: true }
+
   return state
 }
 
 function beginInstallationRefresh(state: InstallationResource): InstallationResource {
   if (state.kind === 'ready') return { ...state, refreshing: true }
+
   if (state.kind === 'stale') return { ...state, refreshing: true }
+
   return state
 }
 

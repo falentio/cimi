@@ -1,3 +1,4 @@
+import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import type { Db } from '@cimi/db'
 import { apiTestRequest, createApiTestFixture } from '../../../testing/fixture.ts'
@@ -8,6 +9,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 function at(date: string, hour: number): number {
@@ -61,24 +63,27 @@ function markProfileRedacted(db: Db, siteId: string): void {
 async function projectedIdentifiedUserId(
   fixture: Awaited<ReturnType<typeof createApiTestFixture>>,
   siteId: string,
-): Promise<unknown> {
+): Promise<string | null> {
   return fixture.analytics.readWindowed(async (reader) => {
     const rows = await reader.read(
       'SELECT identified_user_id AS identifiedUserId FROM events WHERE site_id = ?',
       [siteId],
     )
-    return rows[0]?.['identifiedUserId']
+
+    return v.parse(v.nullable(v.string()), rows[0]?.['identifiedUserId'] ?? null)
   })
 }
 
 describe('EventReportService.redactedProfileProjection', () => {
   it('projects an identified event, then excludes a redacted profile while retaining the event as anonymous activity', async () => {
     await using fixture = await createApiTestFixture({ lifecycle: readyLifecycle() })
+
     const { cookie, siteId } = await createOwnerSite(
       fixture.app,
       fixture.db,
       'redacted-profile@example.com',
     )
+
     seedAcceptedEvents(fixture.db, siteId, [
       {
         sessionId: 's1',

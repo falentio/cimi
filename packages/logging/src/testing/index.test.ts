@@ -40,6 +40,7 @@ describe('toLogError', () => {
     const error = new Error(
       `{"token":"secret"} password=secret\nBasic dXNlcjpwYXNz ${'x'.repeat(600)} https://user:password@example.com/token?token=secret`,
     )
+
     error.stack = `Bearer secret\r${'y'.repeat(5000)}`
 
     const result = toLogError(error)
@@ -112,7 +113,8 @@ describe('log event contract', () => {
   })
 
   it('keeps only safe request context', () => {
-    let context: Record<string, unknown> | undefined
+    let context: { requestId: string } | undefined
+
     const requestContext = {
       requestId: 'request-1',
       method: 'GET',

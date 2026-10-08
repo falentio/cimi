@@ -56,10 +56,12 @@ describe('SiteService.list', () => {
 
   it('lists without a membership reconciler', async () => {
     const repository = mock<SiteRepository>()
+
     const scope = new InMemorySiteScopePort(
       [{ siteId: 'ste_1', organizationId }],
       [{ organizationId, userId: 'user_1', role: 'owner' }],
     )
+
     const service = new SiteService({
       repository,
       scope: { siteScope: scope, membership: scope },
@@ -67,6 +69,7 @@ describe('SiteService.list', () => {
       lifecycle: new InMemoryLifecycleOperationStatusReader(),
       membership: undefined,
     })
+
     const page = { items: [createSite()], nextOffset: null, hasMore: false, totalCount: 1 }
     repository.findMany.mockResolvedValue(page)
 

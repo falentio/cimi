@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 
 const delegatedProps = reactiveOmit(props, 'class')
+
 const forwarded = useForwardProps(delegatedProps)
 </script>
 

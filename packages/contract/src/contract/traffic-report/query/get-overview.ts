@@ -14,8 +14,11 @@ export const STrafficOverviewInput = v.pipe(
     VALIDATION_KEYS.contract.report.granularRangeInvalid,
   ),
 )
+
 export type STrafficOverviewInput = v.InferOutput<typeof STrafficOverviewInput>
+
 export const STrafficOverviewOutput = STrafficOverview
+
 export type STrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput>
 
 export const getTrafficOverview = oc

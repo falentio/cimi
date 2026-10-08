@@ -11,6 +11,7 @@ import {
 
 function createSiteRow(organizationId: string) {
   const now = new Date('2026-08-31T00:00:00.000Z')
+
   return {
     id: `ste_${organizationId}`,
     organizationId,
@@ -92,6 +93,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
 
     await expect(repo.findPendingDeleteOperation('org_1')).resolves.toBeUndefined()
+
     const operation = await repo.createDeleteOperation(
       createOrganizationGovernanceOperationRow({
         requestedAt: new Date('2026-09-01T00:00:00.000Z'),
@@ -99,6 +101,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
         updatedAt: new Date('2026-09-01T00:00:00.000Z'),
       }),
     )
+
     expect(operation).toMatchObject({ organizationId: 'org_1' })
     await expect(repo.findPendingDeleteOperation('org_1')).resolves.toMatchObject({
       id: operation.id,
@@ -235,6 +238,7 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
 
 function createOrganizationRowDeleteInput() {
   const now = new Date('2026-09-01T00:00:00.000Z')
+
   return createOrganizationGovernanceOperationRow({
     requestedAt: now,
     createdAt: now,

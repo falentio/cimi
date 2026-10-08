@@ -15,6 +15,7 @@ import { Toaster as Sonner } from 'vue-sonner'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<ToasterProps>()
+
 const delegatedProps = reactiveOmit(props, 'class', 'toastOptions')
 </script>
 

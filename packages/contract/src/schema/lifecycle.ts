@@ -33,12 +33,15 @@ export const SCleanupStage = v.pipe(
     if (status === 'not_applicable' || status === 'not_started' || status === 'pending') {
       return startedAt === null && completedAt === null && errorCode === null
     }
+
     if (status === 'running') {
       return startedAt !== null && completedAt === null && errorCode === null
     }
+
     if (status === 'completed') {
       return startedAt !== null && completedAt !== null && errorCode === null
     }
+
     return startedAt !== null && completedAt !== null && errorCode !== null
   }, VALIDATION_KEYS.contract.lifecycle.cleanupStageCoherent),
 )

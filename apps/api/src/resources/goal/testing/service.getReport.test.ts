@@ -23,6 +23,7 @@ const now = new Date('2026-09-05T00:00:00.000Z')
 describe('GoalService.getReport', () => {
   it('uses the historical identity population for an earlier report period', async () => {
     const repository = mock<GoalRepository>()
+
     const currentGoal: GoalRepository.Goal = {
       id: 'gol_1',
       siteId: 'ste_1',
@@ -33,10 +34,12 @@ describe('GoalService.getReport', () => {
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     }
+
     const historicalGoal: GoalRepository.Goal = {
       ...currentGoal,
       identityKind: 'visitor',
     }
+
     repository.findById.mockResolvedValue(currentGoal)
     repository.findVersionAt.mockResolvedValue(historicalGoal)
 
@@ -62,6 +65,7 @@ describe('GoalService.getReport', () => {
 
 async function createReportFixture(repository: GoalRepository) {
   const siteFixture = createSiteDrizzleFixture()
+
   const analytics = await createTestAnalyticsDb().catch((error) => {
     siteFixture[Symbol.dispose]()
     throw error
@@ -77,6 +81,7 @@ async function createReportFixture(repository: GoalRepository) {
       .from(schema.TCollectionPolicyRevision)
       .limit(1)
       .all()[0]
+
     if (policyRevision === undefined) throw new Error('Expected a collection policy revision')
 
     await new AcceptanceRepositoryDrizzle({ db }).append([
@@ -102,12 +107,15 @@ async function createReportFixture(repository: GoalRepository) {
     await analytics.rebuild({ controlDb: db })
 
     const scope = createSiteScopeDependencies({ db })
+    const lifecycleLock = new InMemoryLifecycleLock()
+
     const collectionPolicy = new CollectionPolicyService({
       repository: new CollectionPolicyRepositoryDrizzle({ db }),
       lock: new InMemoryLifecycleLock(),
       scope,
       lifecycle: new InMemoryLifecycleOperationStatusReader(),
     })
+
     const trafficReport = createTrafficReport({
       db,
       analytics,
@@ -124,6 +132,7 @@ async function createReportFixture(repository: GoalRepository) {
       dataDirectoryReady: true,
       scope,
       profileFilterKeys: new CollectionPolicyReportingProfileFilter({ collectionPolicy }),
+      lifecycleLock,
     })
 
     return {
@@ -131,7 +140,7 @@ async function createReportFixture(repository: GoalRepository) {
         repository,
         scope,
         admission: trafficReport.admission,
-        lifecycleLock: new InMemoryLifecycleLock(),
+        lifecycleLock,
         analytics,
         db,
       }),
@@ -149,6 +158,7 @@ async function createReportFixture(repository: GoalRepository) {
     } finally {
       siteFixture[Symbol.dispose]()
     }
+
     throw error
   }
 }

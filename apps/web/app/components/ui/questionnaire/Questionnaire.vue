@@ -49,15 +49,23 @@ interface PendingFocus {
 }
 
 const rootElement = ref<HTMLFormElement | null>(null)
+
 const registrations = shallowRef<ItemRegistration[]>([])
+
 const domVersion = ref(0)
+
 const pendingFocus = shallowRef<PendingFocus | null>(null)
 
 const collection = computed(() => createQuestionnaireCollection(props.items))
+
 const uncontrolledItem = ref<string | null>(getInitialItemName(collection.value, props.defaultItem))
+
 const controlled = computed(() => props.item !== undefined)
+
 const activeItemName = computed(() => (controlled.value ? props.item! : uncontrolledItem.value))
+
 const shortcuts = computed(() => props.shortcuts ?? null)
+
 const nativeValidation = computed(() => props.noValidate === false)
 
 let previousActiveItemName = activeItemName.value
@@ -70,16 +78,20 @@ const runtimeItems = computed(() => {
     .filter((registration) => !registration.isDisabled())
     .sort((first, second) => compareDocumentOrder(first.element, second.element))
 })
+
 const runtimeItemByName = computed(
   () => new Map(runtimeItems.value.map((runtimeItem) => [runtimeItem.name, runtimeItem])),
 )
+
 /** `items` is authoritative when provided, so items can be declared before they render. */
 const logicalItems = computed<readonly { name: string }[]>(
   () => collection.value?.enabledItems ?? runtimeItems.value,
 )
+
 const currentIndex = computed(() =>
   logicalItems.value.findIndex((logicalItem) => logicalItem.name === activeItemName.value),
 )
+
 const activeItem = computed(() => {
   if (currentIndex.value < 0 || !activeItemName.value) {
     return null
@@ -87,9 +99,11 @@ const activeItem = computed(() => {
 
   return runtimeItemByName.value.get(activeItemName.value) ?? null
 })
+
 const activeDefinition = computed(() =>
   activeItemName.value ? collection.value?.itemByName.get(activeItemName.value) : undefined,
 )
+
 const activeItemRequired = computed(() => {
   if (currentIndex.value < 0) {
     return null
@@ -99,6 +113,7 @@ const activeItemRequired = computed(() => {
     ? Boolean(activeDefinition.value.required)
     : (activeItem.value?.isRequired() ?? false)
 })
+
 const activeItemStatus = computed(() => {
   if (currentIndex.value < 0) {
     return null
@@ -106,6 +121,7 @@ const activeItemStatus = computed(() => {
 
   return activeItem.value?.status() ?? (activeItemName.value ? 'unanswered' : null)
 })
+
 const orderedRegistrations = computed(() => {
   if (!collection.value) {
     return runtimeItems.value
@@ -117,9 +133,13 @@ const orderedRegistrations = computed(() => {
     return registration ? [registration] : []
   })
 })
+
 const total = computed(() => logicalItems.value.length)
+
 const current = computed(() => (currentIndex.value < 0 ? 0 : currentIndex.value + 1))
+
 const first = computed(() => total.value > 0 && currentIndex.value === 0)
+
 const last = computed(() => total.value > 0 && currentIndex.value === total.value - 1)
 
 function setItem(nextItem: string, focusTarget: PendingFocus['target'] = 'item') {
@@ -172,6 +192,7 @@ function goNext() {
 
   if (!activeItem.value.validate()) {
     activeItem.value.focusInvalid()
+
     return
   }
 
@@ -185,11 +206,13 @@ function confirmCurrent() {
 
   if (!activeItem.value.validate()) {
     activeItem.value.focusInvalid()
+
     return
   }
 
   if (last.value) {
     rootElement.value?.requestSubmit()
+
     return
   }
 
@@ -205,6 +228,7 @@ function skipCurrent() {
 
   if (!last.value) {
     setItemAt(currentIndex.value + 1)
+
     return
   }
 
@@ -292,6 +316,7 @@ function handleKeydown(event: KeyboardEvent) {
 
     if (moved) {
       event.preventDefault()
+
       return
     }
   }
@@ -372,10 +397,12 @@ watch(
 
       if (!controlled.value && activeItemName.value === null) {
         uncontrolledItem.value = firstItem.name
+
         return
       }
 
       setItem(firstItem.name)
+
       return
     }
 

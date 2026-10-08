@@ -7,23 +7,31 @@ import {
 } from '../fixture.ts'
 
 const organizationId = 'org_1'
+
 const authorityOrganizationId = 'authority_1'
+
 const ownerUserId = 'user_owner'
+
 const adminUserId = 'user_admin'
+
 const targetUserId = 'user_target'
 
 const ownerMembership = createMembershipRecord({ userId: ownerUserId, role: 'owner' })
+
 const adminMembership = createMembershipRecord({ userId: adminUserId, role: 'admin' })
+
 const adminAuthorityMember = createAuthorityMember({
   id: 'member_admin',
   userId: adminUserId,
   role: 'admin',
 })
+
 const targetAuthorityMember = createAuthorityMember({
   id: 'member_target',
   userId: targetUserId,
   role: 'member',
 })
+
 const ownerAuthorityMember = createAuthorityMember({ id: 'member_owner', userId: ownerUserId })
 
 const pendingLeave = createMembershipOperation({
@@ -41,6 +49,7 @@ describe('MembershipService.reconcile', () => {
       [ownerMembership, adminMembership],
       [ownerAuthorityMember, adminAuthorityMember, targetAuthorityMember],
     )
+
     repository.findPendingMembershipOperation.mockResolvedValue(pendingLeave)
     repository.incrementMembershipAttempt.mockResolvedValue()
     repository.completeMembershipOperation.mockResolvedValue()

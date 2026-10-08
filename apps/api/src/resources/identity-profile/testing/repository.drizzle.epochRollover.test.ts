@@ -5,22 +5,26 @@ import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { IdentityProfileRepositoryDrizzle } from '../repository.drizzle.ts'
 
 const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
+
 const later = new Date('2026-09-10T06:05:00.000Z')
 
 describe('IdentityProfileRepositoryDrizzle.epochRollover', () => {
   it('starts a new epoch only after the old redaction is complete', async () => {
     using fixture = createSiteDrizzleFixture()
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {
         identityProfileId: () => 'ipr_1',
         identityLinkId: (() => {
           let next = 0
+
           return () => `ilk_${++next}`
         })(),
         identityRedactionId: () => 'ird_1',
       },
     })
+
     await repository.identify({
       siteId: 'ste_1',
       identifiedUserId: 'app_user_1',
@@ -81,6 +85,7 @@ describe('IdentityProfileRepositoryDrizzle.epochRollover', () => {
 
   it('starts epoch 33 while exposing only the latest 32 history entries', async () => {
     using fixture = createSiteDrizzleFixture()
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {
@@ -89,6 +94,7 @@ describe('IdentityProfileRepositoryDrizzle.epochRollover', () => {
         identityRedactionId: () => 'ird_1',
       },
     })
+
     await repository.identify({
       siteId: 'ste_1',
       identifiedUserId: 'app_user_1',
@@ -102,6 +108,7 @@ describe('IdentityProfileRepositoryDrizzle.epochRollover', () => {
       .set({ status: 'redacted', endedAt, redactedAt: endedAt })
       .where(eq(schema.TIdentityProfileEpoch.epoch, 1))
       .run()
+
     for (let epoch = 2; epoch <= 32; epoch += 1) {
       fixture.db
         .insert(schema.TIdentityProfileEpoch)
@@ -117,6 +124,7 @@ describe('IdentityProfileRepositoryDrizzle.epochRollover', () => {
         })
         .run()
     }
+
     fixture.db
       .update(schema.TIdentityProfile)
       .set({ status: 'deleted', profileEpoch: 32, updatedAt: endedAt })
@@ -158,6 +166,7 @@ describe('IdentityProfileRepositoryDrizzle.epochRollover', () => {
       profileEpoch: 33,
     })
     const profile = await repository.find({ siteId: 'ste_1', identifiedUserId: 'app_user_1' })
+
     if (profile?.status !== 'active') throw new Error('Expected an active profile')
     expect(profile.identityHistory).toHaveLength(32)
     expect(profile.identityHistory[0]?.epoch).toBe(2)

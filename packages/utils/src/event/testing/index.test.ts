@@ -23,7 +23,10 @@ describe('EventEmitter', () => {
     const emitter = new EventEmitter()
     const event = createEvent<string>('message')
     const received: string[] = []
-    const unlisten = emitter.on(event, (data) => received.push(data))
+
+    const unlisten = emitter.on(event, (data) => {
+      received.push(data)
+    })
 
     emitter.emit(event, 'first')
     await tick()
@@ -40,11 +43,15 @@ describe('EventEmitter', () => {
     const errors: unknown[] = []
     const received: string[] = []
 
-    emitter.onError((error) => errors.push(error))
+    emitter.onError((error) => {
+      errors.push(error)
+    })
     emitter.on(event, () => {
       throw new Error('boom')
     })
-    emitter.on(event, (data) => received.push(data))
+    emitter.on(event, (data) => {
+      received.push(data)
+    })
     emitter.emit(event, 'value')
     await tick()
     await tick()
@@ -84,9 +91,11 @@ describe('EventEmitter', () => {
 
   it('registers one waitUntil promise per emit', async () => {
     const registered: Promise<unknown>[] = []
+
     const emitter = new EventEmitter({
       waitUntil: (promise) => registered.push(promise),
     })
+
     const event = createEvent<string>('message')
     let received: string | undefined
 

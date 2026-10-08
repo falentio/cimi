@@ -9,6 +9,7 @@ const createdAt = new Date('2026-09-01T00:00:00.000Z')
 
 function createFixture() {
   const siteFixture = createSiteDrizzleFixture()
+
   return {
     db: siteFixture.db,
     installation: new InstallationRepositoryDrizzle({ db: siteFixture.db }),

@@ -12,16 +12,21 @@ const admin = createTestAuthUser({
   role: 'admin',
   installationGrant: true,
 })
+
 const adminWithoutGrant = createTestAuthUser({
   id: 'user_1',
   email: 'admin@example.com',
   role: 'admin',
 })
+
 const member = createTestAuthUser({ id: 'user_2', email: 'member@example.com', role: 'member' })
+
 const siteOwner = createTestAuthUser({ id: 'user_1', email: 'owner@example.com', role: 'member' })
+
 const siteMember = createTestAuthUser({ id: 'user_2', email: 'member@example.com', role: 'member' })
 
 const policy = { eventMonths: 12, profileMonths: 12, replayMonths: null }
+
 const override = { eventMonths: 6, profileMonths: 6, replayMonths: null }
 
 describe('RetentionPolicyService.get', () => {
@@ -150,6 +155,7 @@ describe('RetentionPolicyService.get', () => {
       const { repository, service } = createRetentionPolicyFixture({
         sites: [{ siteId: 'ste_1', organizationId: 'org_1', status }],
       })
+
       repository.findResolved.mockResolvedValue(createStoredResolution())
 
       await expect(

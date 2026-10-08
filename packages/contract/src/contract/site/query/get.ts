@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SSite, SSiteIdFields } from '../schema.ts'
 
 export const SSiteGetInput = SSiteIdFields
+
 export type SSiteGetInput = v.InferOutput<typeof SSiteGetInput>
+
 export const SSiteGetOutput = SSite
+
 export type SSiteGetOutput = v.InferOutput<typeof SSiteGetOutput>
 
 export const getSite = oc

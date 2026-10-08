@@ -38,6 +38,7 @@ export const api = implement({
 
 const authenticatedMiddleware = api.middleware(({ context, next }) => {
   assertAuthenticated(context.user)
+
   return next({
     context: {
       user: context.user,
@@ -57,6 +58,7 @@ export const authenticatedApi = api.use(authenticatedMiddleware)
 const adminMiddleware = api.middleware(({ context, next }) => {
   assertAuthenticated(context.user)
   assertIsAdmin(context.user)
+
   return next({
     context: {
       user: context.user,

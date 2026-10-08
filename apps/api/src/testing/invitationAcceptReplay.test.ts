@@ -14,6 +14,7 @@ test('an authenticated replay of a consumed invitation returns not found', async
       body: JSON.stringify({ name: 'Replay Org' }),
     }),
   )
+
   expect(createResponse.status, await createResponse.clone().text()).toBe(201)
   const organization = await createResponse.json()
 
@@ -24,9 +25,10 @@ test('an authenticated replay of a consumed invitation returns not found', async
       body: JSON.stringify({ organizationId: organization.id, role: 'member' }),
     }),
   )
+
   expect(invitationResponse.status, await invitationResponse.clone().text()).toBe(201)
   const invitation = await invitationResponse.json()
-  expect(typeof invitation.token).toBe('string')
+  expect(invitation.token).toEqual(expect.any(String))
 
   const accept = await app.fetch(
     new Request('http://localhost/api/invitation/acceptInvitation', {
@@ -35,6 +37,7 @@ test('an authenticated replay of a consumed invitation returns not found', async
       body: JSON.stringify({ token: invitation.token }),
     }),
   )
+
   expect(accept.status, await accept.clone().text()).toBe(200)
   await expect(accept.json()).resolves.toMatchObject({
     organizationId: organization.id,
@@ -49,6 +52,7 @@ test('an authenticated replay of a consumed invitation returns not found', async
       body: JSON.stringify({ token: invitation.token }),
     }),
   )
+
   expect(replay.status).toBe(404)
   await expect(replay.json()).resolves.toMatchObject({ code: 'NOT_FOUND' })
 })

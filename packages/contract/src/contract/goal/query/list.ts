@@ -6,10 +6,13 @@ import { SGoal, SGoalSiteFields } from '../schema.ts'
 export const SGoalListInput = v.strictObject(
   v.entriesFromObjects([SGoalSiteFields, SOffsetPaginationInput]),
 )
+
 export type SGoalListInput = v.InferOutput<typeof SGoalListInput>
+
 export const SGoalListOutput = v.strictObject(
   v.entriesFromObjects([v.strictObject({ items: SPageItems(SGoal) }), SOffsetPage]),
 )
+
 export type SGoalListOutput = v.InferOutput<typeof SGoalListOutput>
 
 export const listGoals = oc

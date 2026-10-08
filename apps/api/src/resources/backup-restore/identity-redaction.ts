@@ -28,6 +28,7 @@ export function scrubAcceptedEventIdentity(db: Db, input: BackupIdentityBoundary
 }
 
 export function scrubCanonicalEventPayloads(db: Db, input: BackupIdentityBoundary): void {
+  // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
   const payloads = db.$client
     .prepare(
       `SELECT ep.event_pk AS eventPk, ep.canonical_payload_json AS payload,
@@ -49,28 +50,35 @@ export function scrubCanonicalEventPayloads(db: Db, input: BackupIdentityBoundar
     readonly payload: string
     readonly acceptedIdentifiedUserId: string | null
   }>
+
   for (const payload of payloads) {
     let parsed: unknown
+
     try {
       parsed = JSON.parse(payload.payload)
     } catch {
       if (payload.acceptedIdentifiedUserId === input.identifiedUserId) {
         throw new Error('Backup event payload identity does not match accepted event')
       }
+
       continue
     }
+
     if (!isRecord(parsed)) {
       if (payload.acceptedIdentifiedUserId === input.identifiedUserId) {
         throw new Error('Backup event payload identity does not match accepted event')
       }
+
       continue
     }
+
     if (parsed['identifiedUserId'] === input.identifiedUserId) {
       db.$client
         .prepare('UPDATE event_payload SET canonical_payload_json = ? WHERE event_pk = ?')
         .run(JSON.stringify({ ...parsed, identifiedUserId: null }), payload.eventPk)
       continue
     }
+
     if (
       payload.acceptedIdentifiedUserId === input.identifiedUserId &&
       parsed['identifiedUserId'] !== null

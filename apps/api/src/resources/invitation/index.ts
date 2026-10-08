@@ -7,13 +7,18 @@ import { createInvitationScopeDependencies } from './scope.ts'
 import { InvitationService } from './service.ts'
 
 export { invitationRouter }
+
 export { InvitationService, type InvitationServiceDependencies } from './service.ts'
+
 export {
   InvitationRepositoryDrizzle,
   type InvitationRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { InvitationRepository } from './repository.ts'
+
 export { createInvitationScopeDependencies, type InvitationScopeDependencies } from './scope.ts'
+
 export { hashInvitationToken, mintInvitationToken, type TokenHash } from './token.ts'
 
 export interface CreateInvitationDependencies {
@@ -27,6 +32,7 @@ export function createInvitation({ db, authority, membership }: CreateInvitation
   const scope = createInvitationScopeDependencies({ db })
   const service = new InvitationService({ repository, scope, authority, membership })
   const router = invitationRouter(service)
+
   return { service, router }
 }
 

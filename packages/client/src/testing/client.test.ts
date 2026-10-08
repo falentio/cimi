@@ -6,6 +6,6 @@ describe('createClient', () => {
     const client = createClient({ baseUrl: 'http://localhost:4321' })
 
     expect(client).toBeDefined()
-    expect(typeof client.health.health).toBe('function')
+    expect(client.health.health).toEqual(expect.any(Function))
   })
 })

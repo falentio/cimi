@@ -33,11 +33,13 @@ function onKeyDown(event: KeyboardEvent) {
 }
 
 let resizeObserver: ResizeObserver | null = null
+
 let resizeFrame = 0
 
 onMounted(() => {
   const viewport = viewportEl.value
   setViewportElement(viewport)
+
   if (!viewport || typeof ResizeObserver === 'undefined') return
   resizeObserver = new ResizeObserver(() => {
     window.cancelAnimationFrame(resizeFrame)

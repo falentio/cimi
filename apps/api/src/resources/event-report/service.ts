@@ -26,6 +26,7 @@ import {
   type EventKind,
   type EventRowFacts,
   type FreshnessEvidence,
+  type LifecycleLock,
   type ReportFilterPlan,
   type ReportingProfileFilterPort,
   type ReportingQueryPort,
@@ -34,20 +35,30 @@ import {
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from '../../errors.ts'
+import { withAnalyticsReadLease } from '../../lifecycle/analytics-read-lease.ts'
 
 export type EventOverviewInput = v.InferOutput<typeof SEventOverviewInput>
+
 export type EventOverviewOutput = v.InferOutput<typeof SEventOverviewOutput>
+
 export type EventTimeseriesInput = v.InferOutput<typeof SEventTimeseriesInput>
+
 export type EventTimeseriesOutput = v.InferOutput<typeof SEventTimeseriesOutput>
+
 export type EventListInput = v.InferOutput<typeof SEventListInput>
+
 export type EventListOutput = v.InferOutput<typeof SEventListOutput>
+
 export type EventBreakdownsInput = v.InferOutput<typeof SEventBreakdownsInput>
+
 export type EventBreakdownsOutput = v.InferOutput<typeof SEventBreakdownsOutput>
 
 export type EventReportFamily = 'aggregate' | 'row-list' | 'breakdown'
 
 const DEFAULT_ROW_LIMIT = 50
+
 const DEFAULT_BREAKDOWN_LIMIT = 50
+
 const OVERVIEW_DISTINCT_OPERATIONS = 2
 
 export interface EventReportServiceDependencies {
@@ -55,12 +66,49 @@ export interface EventReportServiceDependencies {
   readonly query: ReportingQueryPort
   readonly profileFilterKeys: ReportingProfileFilterPort
   readonly scope: SiteScopeGuardDependencies
+  readonly lifecycleLock: LifecycleLock
 }
 
 export class EventReportService {
   constructor(private readonly deps: EventReportServiceDependencies) {}
 
   async getOverview(
+    input: EventOverviewInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventOverviewOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getOverviewAdmitted(input, user),
+    )
+  }
+
+  async getTimeseries(
+    input: EventTimeseriesInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventTimeseriesOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getTimeseriesAdmitted(input, user),
+    )
+  }
+
+  async listEvents(
+    input: EventListInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventListOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.listEventsAdmitted(input, user),
+    )
+  }
+
+  async getBreakdowns(
+    input: EventBreakdownsInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<EventBreakdownsOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getBreakdownsAdmitted(input, user),
+    )
+  }
+
+  private async getOverviewAdmitted(
     input: EventOverviewInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventOverviewOutput> {
@@ -77,9 +125,11 @@ export class EventReportService {
       eventKind,
       filterPlan,
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.overviewPeriod(
@@ -92,7 +142,7 @@ export class EventReportService {
     }
   }
 
-  async getTimeseries(
+  private async getTimeseriesAdmitted(
     input: EventTimeseriesInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventTimeseriesOutput> {
@@ -109,9 +159,11 @@ export class EventReportService {
       eventKind,
       filterPlan,
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.timeseriesPeriod(
@@ -124,7 +176,7 @@ export class EventReportService {
     }
   }
 
-  async listEvents(
+  private async listEventsAdmitted(
     input: EventListInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventListOutput> {
@@ -144,11 +196,15 @@ export class EventReportService {
       offset,
       limit,
     })
+
     const items: EventListOutput['items'] = []
+
     for (const row of result.rows) {
       const item = toEventOutput(row)
+
       if (item !== null) items.push(item)
     }
+
     return {
       items,
       nextOffset: result.nextOffset,
@@ -158,7 +214,7 @@ export class EventReportService {
     }
   }
 
-  async getBreakdowns(
+  private async getBreakdownsAdmitted(
     input: EventBreakdownsInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<EventBreakdownsOutput> {
@@ -180,9 +236,11 @@ export class EventReportService {
       filterPlan,
       { field, sort, direction, offset, limit },
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.breakdownPage(
@@ -201,12 +259,15 @@ export class EventReportService {
     siteId: SiteId,
   ): Promise<ReportFilterPlan> {
     const profileFilterKeys = await this.deps.profileFilterKeys.getProfileFilterKeys(siteId)
+
     const result = compileEventFilterPlan({
       eventKind: input.eventKind,
       filters: (input.filters ?? []).map(toEventFilterInput),
       profileFilterKeys,
     })
+
     if (!result.ok) throw new ORPCError('BAD_REQUEST', { message: result.reason })
+
     return result.plan
   }
 
@@ -222,22 +283,20 @@ export class EventReportService {
           fromDate: createCalendarDate(input.fromDate),
           toDate: createCalendarDate(input.toDate),
         },
-        ...('comparison' in input && input.comparison !== undefined && input.comparison !== null
-          ? {
-              comparison: {
-                fromDate: createCalendarDate(input.comparison.fromDate),
-                toDate: createCalendarDate(input.comparison.toDate),
-              },
-            }
-          : {}),
-        ...('granularity' in input
-          ? {
-              bucket: {
-                granularity: input.granularity,
-                maxStarts: AUTHENTICATED_EVENT_BUCKET_LIMITS[input.granularity],
-              },
-            }
-          : {}),
+        ...('comparison' in input &&
+          input.comparison !== undefined &&
+          input.comparison !== null && {
+            comparison: {
+              fromDate: createCalendarDate(input.comparison.fromDate),
+              toDate: createCalendarDate(input.comparison.toDate),
+            },
+          }),
+        ...('granularity' in input && {
+          bucket: {
+            granularity: input.granularity,
+            maxStarts: AUTHENTICATED_EVENT_BUCKET_LIMITS[input.granularity],
+          },
+        }),
         coverage: ['event-occurrence'],
         work: {
           extraMetricCount: 0,
@@ -265,6 +324,7 @@ export class EventReportService {
       eventKind,
       filterPlan,
     })
+
     return {
       fromDate: period.dates.fromDate,
       toDate: period.dates.toDate,
@@ -289,7 +349,9 @@ export class EventReportService {
       eventKind,
       filterPlan,
     })
+
     const rows: BucketCount[] = facts.map((bucket) => ({ at: bucket.at, count: bucket.count }))
+
     const filled = fillBuckets({
       bucketStarts: period.bucketStarts ?? [],
       interval: period.interval,
@@ -297,6 +359,7 @@ export class EventReportService {
       rows,
       toValue: (row) => row.count,
     })
+
     return {
       fromDate: period.dates.fromDate,
       toDate: period.dates.toDate,
@@ -328,6 +391,7 @@ export class EventReportService {
       limit: page.limit,
       filterPlan,
     })
+
     return {
       items: result.rows.map((row) => ({ field: page.field, value: row.value, count: row.count })),
       nextOffset: result.nextOffset,
@@ -362,7 +426,7 @@ function toEventFilterInput(filter: ContractEventFilter): EventFilterInput {
       operator: filter.operator,
       action: {
         kind: filter.action.kind,
-        ...('name' in filter.action ? { name: filter.action.name } : {}),
+        ...('name' in filter.action && { name: filter.action.name }),
         propertyFilters: (filter.action.propertyFilters ?? []).map((property) => ({
           key: property.field,
           operator: property.operator,
@@ -371,6 +435,7 @@ function toEventFilterInput(filter: ContractEventFilter): EventFilterInput {
       },
     }
   }
+
   return {
     scope: 'event',
     field: filter.field,
@@ -411,17 +476,23 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
     referrer: row.referrer,
     properties: row.properties === null ? null : { ...row.properties },
   }
+
   switch (row.kind) {
     case 'page_view': {
       if (row.pagePath === null) return null
+
       return { ...common, kind: 'page_view', pagePath: row.pagePath }
     }
+
     case 'custom_event': {
       if (row.name === null) return null
+
       return { ...common, kind: 'custom_event', name: row.name, pagePath: row.pagePath }
     }
+
     case 'outbound': {
       if (row.destination === null) return null
+
       return {
         ...common,
         kind: 'outbound',
@@ -430,8 +501,10 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
         destination: row.destination,
       }
     }
+
     case 'performance': {
       if (row.name === null || row.value === null) return null
+
       return {
         ...common,
         kind: 'performance',
@@ -441,8 +514,10 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
         unit: row.unit,
       }
     }
+
     case 'error': {
       if (row.name === null) return null
+
       return {
         ...common,
         kind: 'error',
@@ -453,14 +528,11 @@ function toEventOutput(row: EventRowFacts): SEventVariant | null {
       }
     }
   }
+
   return null
 }
 
-function freshnessOutput(freshness: FreshnessEvidence): {
-  readonly projectedAcceptanceSequence: number | null
-  readonly occurrenceTimeCoverageThrough: string | null
-  readonly status: 'current' | 'stale'
-} {
+function freshnessOutput(freshness: FreshnessEvidence) {
   return {
     projectedAcceptanceSequence: freshness.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough:

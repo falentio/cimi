@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { DuckDbReportingQuery } from '@cimi/db'
-import { ReportingAdmissionService } from '@cimi/kernel'
+import { InMemoryLifecycleLock, ReportingAdmissionService } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../../site/scope.ts'
 import {
   ReportingEvidenceDrizzleDuckDb,
@@ -16,6 +16,7 @@ import {
 } from '../../../testing/reporting-fixture.ts'
 
 const DAY_ONE = '2026-09-05'
+
 const DAY_TWO = '2026-09-06'
 
 /**
@@ -37,6 +38,7 @@ async function buildOwner() {
   await fixture.analytics.rebuild({ controlDb: fixture.db })
 
   const lifecycle = readyLifecycle()
+
   const admission = new ReportingAdmissionService({
     metadata: new ReportingMetadataDrizzle({ db: fixture.db }),
     evidence: new ReportingEvidenceDrizzleDuckDb({ db: fixture.db, analytics: fixture.analytics }),
@@ -45,7 +47,9 @@ async function buildOwner() {
       lifecycle,
     }),
   })
+
   const admit = vi.spyOn(admission, 'admit')
+
   const service = new TrafficReportService({
     admission,
     query: new DuckDbReportingQuery({ analytics: fixture.analytics }),
@@ -55,11 +59,16 @@ async function buildOwner() {
       },
     },
     scope: createSiteScopeDependencies({ db: fixture.db }),
+    lifecycleLock: new InMemoryLifecycleLock(),
   })
+
+  // SAFETY: better-sqlite3 returns any; single userId column selected below.
   const owner = fixture.db.$client
     .prepare('SELECT user_id AS userId FROM auth_member ORDER BY created_at LIMIT 1')
     .get() as { userId: string } | undefined
+
   if (owner === undefined) throw new Error('createOwnerSite did not seed an owner membership')
+
   return { fixture, service, admit, siteId, userId: owner.userId }
 }
 

@@ -12,8 +12,11 @@ export const SFunnelReportInput = v.pipe(
   v.strictObject(v.entriesFromObjects([v.strictObject({ funnelId: SId }), SReportFieldsSchema])),
   v.check((input) => isValidReportRange(input), VALIDATION_KEYS.contract.report.dateRangeOrdered),
 )
+
 export const SFunnelReportOutput = SFunnelReport
+
 export type SFunnelReportInput = v.InferOutput<typeof SFunnelReportInput>
+
 export type SFunnelReportOutput = v.InferOutput<typeof SFunnelReportOutput>
 
 export const getFunnelReport = oc

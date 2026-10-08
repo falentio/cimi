@@ -16,6 +16,7 @@ import {
 const SFunnelActionPropertyFields = {
   propertyFilters: v.optional(v.pipe(v.array(SPropertyFilter), v.maxLength(20))),
 }
+
 export const SFunnelAction = v.variant('kind', [
   v.strictObject({ kind: v.literal('page_view'), ...SFunnelActionPropertyFields }),
   v.strictObject({
@@ -39,6 +40,7 @@ export const SFunnelAction = v.variant('kind', [
     ...SFunnelActionPropertyFields,
   }),
 ])
+
 export const SFunnelSteps = v.pipe(
   v.array(SFunnelAction),
   v.minLength(2),
@@ -48,6 +50,7 @@ export const SFunnelSteps = v.pipe(
     VALIDATION_KEYS.contract.funnel.stepsDistinct,
   ),
 )
+
 export const SFunnel = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -61,6 +64,7 @@ export const SFunnel = v.strictObject(
     SCreated,
   ]),
 )
+
 export const SFunnelReportSteps = v.pipe(
   v.array(
     v.strictObject({
@@ -77,6 +81,7 @@ export const SFunnelReportSteps = v.pipe(
     VALIDATION_KEYS.contract.funnel.reportStepsContiguous,
   ),
 )
+
 const SFunnelReportPeriod = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -87,6 +92,7 @@ const SFunnelReportPeriod = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const SFunnelReport = v.pipe(
   v.strictObject(
     v.entriesFromObjects([
@@ -104,8 +110,11 @@ export const SFunnelReport = v.pipe(
     VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
+
 export const SFunnelSiteFields = v.strictObject({ siteId: SId })
+
 export const SFunnelIdentityFields = v.strictObject({ siteId: SId, funnelId: SId })
+
 export const SFunnelDefinitionFields = v.strictObject({
   name: SName,
   steps: SFunnelSteps,

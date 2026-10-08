@@ -17,6 +17,7 @@ import type {
   RetentionCleanupView,
   RetentionAdminViewModel,
 } from './retention-policy.types'
+import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 
 export const SHORTEN_RETENTION_CONFIRMATION = 'SHORTEN RETENTION' as const
 
@@ -79,20 +80,24 @@ export function draftFromPolicy(policy: RetentionPolicy): RetentionDraft {
 export function parseRetentionDraft(draft: RetentionDraft) {
   const fieldErrors: Partial<Record<keyof RetentionPolicy, string>> = {}
   const eventMonths = parseMonths(draft.eventMonths, 'Event retention', fieldErrors, 'eventMonths')
+
   const profileMonths = parseMonths(
     draft.profileMonths,
     'Profile retention',
     fieldErrors,
     'profileMonths',
   )
+
   const replayMonths = parseReplayMonths(draft.replayMonths, fieldErrors)
 
   if (eventMonths !== null && profileMonths !== null && profileMonths > eventMonths) {
     fieldErrors.profileMonths = 'Profile retention cannot exceed Event retention.'
   }
+
   if (replayMonths !== null && eventMonths !== null && replayMonths >= eventMonths) {
     fieldErrors.replayMonths = 'Replay retention must be shorter than Event retention.'
   }
+
   if (replayMonths !== null && profileMonths !== null && replayMonths >= profileMonths) {
     fieldErrors.replayMonths = 'Replay retention must be shorter than Profile retention.'
   }
@@ -115,6 +120,7 @@ export function parseRetentionDraft(draft: RetentionDraft) {
 
 export function isRetentionDirty(policy: RetentionPolicy, draft: RetentionDraft): boolean {
   const initial = draftFromPolicy(policy)
+
   return (
     initial.eventMonths !== draft.eventMonths ||
     initial.profileMonths !== draft.profileMonths ||
@@ -180,19 +186,22 @@ export function isExactRetentionConfirmation(
 
 export function formatRetentionDate(value: string): string {
   const date = new Date(value)
+
   if (Number.isNaN(date.getTime())) return 'Unknown date'
+
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
     date,
   )
 }
 
 export function normalizeRetentionError(
-  error: unknown,
+  cause: unknown,
   source: 'read' | 'update' | 'status',
   scope: RetentionScope,
 ): RetentionFailure {
-  const details = readErrorDetails(error)
+  const details = readErrorDetails(cause)
   const installation = scope === 'installation'
+
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return {
       kind: 'authentication',
@@ -204,6 +213,7 @@ export function normalizeRetentionError(
       action: 'sign-in',
     }
   }
+
   if (details.code === 'FORBIDDEN' || details.status === 403) {
     return {
       kind: 'forbidden',
@@ -215,6 +225,7 @@ export function normalizeRetentionError(
       action: 'contact-admin',
     }
   }
+
   if (details.code === 'NOT_FOUND' || details.status === 404) {
     return {
       kind: 'not-found',
@@ -228,6 +239,7 @@ export function normalizeRetentionError(
       action: installation && source !== 'status' ? 'setup' : 'refresh',
     }
   }
+
   if (details.code === 'BAD_REQUEST' || details.status === 400) {
     return {
       kind: 'bad-request',
@@ -241,6 +253,7 @@ export function normalizeRetentionError(
       action: 'edit',
     }
   }
+
   if (details.code === 'CONFLICT' || details.status === 409) {
     return {
       kind: 'conflict',
@@ -252,6 +265,7 @@ export function normalizeRetentionError(
       action: 'refresh',
     }
   }
+
   if (details.code === 'INTERNAL_SERVER_ERROR' || details.status === 500) {
     return {
       kind: 'server',
@@ -285,15 +299,18 @@ export function normalizeRetentionError(
 
 export function deriveRetentionLock(installation: InstallationResource): RetentionLockView {
   if (installation.kind === 'loading') return { kind: 'loading' }
+
   if (installation.kind === 'failed' || installation.kind === 'stale') {
     return {
       kind: 'unknown',
       message: 'Installation status is unavailable or stale. Refresh before acting.',
     }
   }
+
   if (installation.refreshing) return { kind: 'loading' }
 
   const activeOperation = installation.installation.activeOperation
+
   if (activeOperation !== null && activeOperation.errorCode === null) {
     return {
       kind: 'held',
@@ -301,12 +318,14 @@ export function deriveRetentionLock(installation: InstallationResource): Retenti
       operationLabel: OPERATION_LABELS[activeOperation.kind],
     }
   }
+
   if (installation.installation.cleanupPending) {
     return {
       kind: 'cleanup-pending',
       message: 'Installation cleanup is pending. Refresh before acting.',
     }
   }
+
   if (
     installation.installation.status !== 'ready' ||
     !installation.installation.dataDirectoryReady
@@ -316,6 +335,7 @@ export function deriveRetentionLock(installation: InstallationResource): Retenti
       message: 'The installation must be ready before retention can change.',
     }
   }
+
   return { kind: 'available' }
 }
 
@@ -333,6 +353,7 @@ export function getRetentionLockReason(lock: RetentionLockView): string | null {
       return null
     default: {
       const _exhaustive: never = lock
+
       return _exhaustive
     }
   }
@@ -343,6 +364,7 @@ export function toRetentionCleanupProjection(cleanup: RetentionCleanup): Retenti
     toCleanupStage('derived', cleanup.derived, false),
     toCleanupStage('backup', cleanup.backup, cleanup.derived.status !== 'completed'),
   ] as const
+
   return { pending: cleanup.pending, stages }
 }
 
@@ -358,6 +380,7 @@ export function toRetentionAdminView(state: RetentionState): RetentionAdminViewM
     ) {
       return { kind: 'access-error', error: state.retention.error }
     }
+
     if (
       state.retention.error.kind === 'not-found' &&
       state.installation.kind === 'ready' &&
@@ -368,10 +391,12 @@ export function toRetentionAdminView(state: RetentionState): RetentionAdminViewM
         message: 'Initialize the installation before managing retention settings.',
       }
     }
+
     return { kind: 'error', error: state.retention.error }
   }
 
   const result = state.retention.result
+
   if (
     state.installation.kind === 'ready' &&
     state.installation.installation.status === 'uninitialized'
@@ -428,17 +453,24 @@ function parseMonths(
 ): number | null {
   if (value.length === 0) {
     errors[field] = `${label} is required.`
+
     return null
   }
+
   if (!/^\d+$/.test(value)) {
     errors[field] = `${label} must be a whole number from 1 to 120.`
+
     return null
   }
+
   const months = Number(value)
+
   if (months < 1 || months > 120) {
     errors[field] = `${label} must be between 1 and 120 months.`
+
     return null
   }
+
   return months
 }
 
@@ -447,15 +479,21 @@ function parseReplayMonths(
   errors: Partial<Record<keyof RetentionPolicy, string>>,
 ): number | null {
   if (value.length === 0) return null
+
   if (!/^\d+$/.test(value)) {
     errors.replayMonths = 'Replay retention must be blank or a whole number from 1 to 120.'
+
     return null
   }
+
   const months = Number(value)
+
   if (months < 1 || months > 120) {
     errors.replayMonths = 'Replay retention must be between 1 and 120 months.'
+
     return null
   }
+
   return months
 }
 
@@ -484,10 +522,13 @@ function cleanupErrorMessage(
   if (kind === 'backup' || code === 'BACKUP_FAILED') {
     return 'Historical backup cleanup failed. Review backup and restore status.'
   }
+
   if (code === 'CLEANUP_FAILED')
     return 'Derived cleanup failed. Refresh status and review operations.'
+
   if (code === 'RETENTION_FAILED')
     return 'Derived cleanup could not finish. Refresh status and try again later.'
+
   return 'Cleanup could not finish safely. Refresh status and review operations.'
 }
 
@@ -498,10 +539,14 @@ function getDisabledReason(input: {
   readonly validation: ReturnType<typeof parseRetentionDraft>
 }): string | null {
   if (input.saving) return 'Saving retention settings.'
+
   if (input.stale) return 'Retention settings are stale. Refresh before saving.'
   const lockReason = getRetentionLockReason(input.lock)
+
   if (lockReason !== null) return lockReason
+
   if (input.validation.kind === 'invalid') return 'Fix the retention values before saving.'
+
   return null
 }
 
@@ -511,33 +556,49 @@ function isRefreshing(resource: RetentionResource | InstallationResource): boole
 
 function buildAnnouncement(state: RetentionState): string {
   if (state.notice !== null) return state.notice.message
+
   if (state.command.kind === 'submitting') return 'Saving retention settings.'
+
   if (state.retention.kind === 'stale') return state.retention.error.message
+
   if (state.retention.kind === 'ready' && state.retention.result.cleanup.pending) {
     return 'Cleanup is pending. Derived cleanup runs before historical backup cleanup.'
   }
+
   return ''
 }
 
-function readErrorDetails(error: unknown): {
-  readonly code: string | undefined
-  readonly status: number | undefined
-} {
-  const candidates: unknown[] = [error]
-  if (isRecord(error)) candidates.push(error.data, error.error, error.cause, error.response)
+function readErrorDetails(cause: unknown) {
+  const candidates: unknown[] = [cause]
+
+  if (isRecord(cause)) candidates.push(cause.data, cause.error, cause.cause, cause.response)
 
   let code: string | undefined
   let status: number | undefined
+
   for (const candidate of candidates) {
     if (!isRecord(candidate)) continue
-    if (code === undefined && typeof candidate.code === 'string') code = candidate.code
-    if (status === undefined && typeof candidate.status === 'number') status = candidate.status
-    if (status === undefined && typeof candidate.statusCode === 'number')
-      status = candidate.statusCode
+
+    if (code === undefined && isStringValue(candidate.code)) code = candidate.code
+
+    if (status === undefined && isNumberValue(candidate.status)) status = candidate.status
+
+    if (status === undefined && isNumberValue(candidate.statusCode)) status = candidate.statusCode
   }
+
   return { code, status }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface ErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
+  readonly statusCode?: unknown
+}
+
+function isRecord(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }

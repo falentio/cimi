@@ -23,6 +23,7 @@ export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
     const snapshot = await this.deps.analytics.readProjectionSnapshot({ siteId: request.siteId })
     const retention = await this.readRetention(request.siteId)
     const checkpoint = snapshot.checkpoint
+
     const projection: ProjectionEvidence = {
       checkpoint: {
         projectedAcceptanceSequence: checkpoint?.projectedAcceptanceSequence ?? 0,
@@ -53,6 +54,7 @@ export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
           gap.occurrenceTo === null ? null : createInstantMs(gap.occurrenceTo.getTime()),
       })),
     }
+
     return {
       projection,
       retention,
@@ -69,7 +71,9 @@ export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
       .from(schema.TRetentionEffectiveCutoff)
       .where(eq(schema.TRetentionEffectiveCutoff.siteId, siteId))
       .limit(1)
+
     const row = rows[0]
+
     if (row === undefined) {
       return {
         eventOccurrence: { state: 'unknown' },
@@ -77,6 +81,7 @@ export class ReportingEvidenceDrizzleDuckDb implements ReportingEvidencePort {
         replayReceipt: { state: 'unknown' },
       }
     }
+
     return {
       eventOccurrence: availableFrom(row.eventOccurrenceCutoffAt),
       profileActivity: availableFrom(row.profileActivityCutoffAt),
@@ -103,6 +108,7 @@ function resolveStatistics(
   if (checkpoint === null || checkpoint.readiness !== 'ready') {
     return { state: 'unknown', asOfAcceptanceSequence: null, factCardinality: null }
   }
+
   if (checkpoint.projectedFactCardinality !== factCardinality) {
     return {
       state: 'stale',
@@ -110,6 +116,7 @@ function resolveStatistics(
       factCardinality,
     }
   }
+
   return {
     state: 'aligned',
     asOfAcceptanceSequence: checkpoint.projectedAcceptanceSequence,

@@ -1,3 +1,5 @@
+import type { JsonValue } from '@cimi/utils'
+
 export type PortResult<T> = T | PromiseLike<T>
 
 export interface RetentionPolicy {
@@ -59,6 +61,7 @@ export const LIFECYCLE_OPERATION_PHASES = [
   'site_transition',
   'lifecycle_transition',
 ] as const
+
 export type LifecycleOperationPhase = (typeof LIFECYCLE_OPERATION_PHASES)[number]
 
 export const LIFECYCLE_OPERATION_CHECKPOINTS = [
@@ -67,6 +70,7 @@ export const LIFECYCLE_OPERATION_CHECKPOINTS = [
   'duckdb_rebuilt',
   'structurally_ready',
 ] as const
+
 export type LifecycleOperationCheckpoint = (typeof LIFECYCLE_OPERATION_CHECKPOINTS)[number]
 
 export interface LifecycleOperationStatus {
@@ -98,8 +102,21 @@ export type LifecycleLease =
       release(): PortResult<void>
     }
 
+export interface LifecycleExclusiveAcquireOptions {
+  readonly timeoutMs?: number
+}
+
 export interface LifecycleLock {
   acquire(kind: LifecycleAcquireKind): PortResult<LifecycleLease | undefined>
+  /**
+   * Take an exclusive lease that waits out in-flight shared ingestion leases instead of failing
+   * instantly. New shared ingestion leases are refused while the acquisition is pending, so a
+   * continuous ingestion stream cannot starve it. Returns `undefined` once `timeoutMs` elapses.
+   */
+  acquireExclusive(
+    kind: LifecycleExclusiveKind,
+    options?: LifecycleExclusiveAcquireOptions,
+  ): Promise<LifecycleLease | undefined>
   isLocked(): PortResult<boolean>
   heldKind?(): PortResult<LifecycleLockKind | null>
 }
@@ -108,7 +125,7 @@ export interface LifecycleOperationStatusReader {
   getActiveOperation(): PortResult<LifecycleOperationStatus | null>
 }
 
-export type CollectionPolicy = Readonly<Record<string, unknown>>
+export type CollectionPolicy = Readonly<Record<string, JsonValue>>
 
 export interface CollectionPolicyResolver {
   effective(siteId: string): PortResult<CollectionPolicy>
@@ -173,38 +190,56 @@ export class InMemoryRetentionResolver implements RetentionResolver {
   }
 }
 
+export const DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS = 10_000
+
 export class InMemoryLifecycleLock implements LifecycleLock {
   #exclusiveLease: { readonly token: symbol; readonly kind: LifecycleExclusiveKind } | undefined
   #ingestionLeases = new Set<symbol>()
   #analyticsReadLeases = new Set<symbol>()
+  #pendingExclusiveCount = 0
+  readonly #exclusiveWaiters = new Set<() => void>()
 
   acquire(kind: LifecycleAcquireKind): LifecycleLease | undefined {
     if (kind === 'analytics-read') {
       if (this.#exclusiveLease !== undefined && this.#exclusiveLease.kind !== 'backup')
         return undefined
+
       if (this.#ingestionLeases.size > 0) return undefined
       const token = Symbol('analytics-read-lease')
       this.#analyticsReadLeases.add(token)
+
       return {
         kind: 'analytics-read',
         mode: 'shared-read',
         release: () => {
           this.#analyticsReadLeases.delete(token)
+          this.#notifyExclusiveWaiters()
         },
       }
     }
+
     if (kind === 'ingestion') {
-      if (this.#exclusiveLease !== undefined || this.#analyticsReadLeases.size > 0) return undefined
+      if (
+        this.#exclusiveLease !== undefined ||
+        this.#pendingExclusiveCount > 0 ||
+        this.#analyticsReadLeases.size > 0
+      ) {
+        return undefined
+      }
+
       const token = Symbol('ingestion-lease')
       this.#ingestionLeases.add(token)
+
       return {
         kind: 'ingestion',
         mode: 'exclusive',
         release: () => {
           this.#ingestionLeases.delete(token)
+          this.#notifyExclusiveWaiters()
         },
       }
     }
+
     if (
       this.#exclusiveLease !== undefined ||
       this.#ingestionLeases.size > 0 ||
@@ -212,6 +247,7 @@ export class InMemoryLifecycleLock implements LifecycleLock {
     ) {
       return undefined
     }
+
     const lease = {
       token: Symbol('lifecycle-lease'),
       kind:
@@ -219,7 +255,9 @@ export class InMemoryLifecycleLock implements LifecycleLock {
           ? kind
           : normalizeLifecycleOperationKind(kind),
     }
+
     this.#exclusiveLease = lease
+
     return {
       kind: lease.kind,
       mode: 'exclusive',
@@ -227,6 +265,54 @@ export class InMemoryLifecycleLock implements LifecycleLock {
         if (this.#exclusiveLease?.token === lease.token) this.#exclusiveLease = undefined
       },
     }
+  }
+
+  async acquireExclusive(
+    kind: LifecycleExclusiveKind,
+    options: LifecycleExclusiveAcquireOptions = {},
+  ): Promise<LifecycleLease | undefined> {
+    if (this.#exclusiveLease !== undefined) return undefined
+    const immediate = this.acquire(kind)
+
+    if (immediate !== undefined) return immediate
+    const timeoutMs = options.timeoutMs ?? DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS
+    this.#pendingExclusiveCount += 1
+
+    try {
+      return await new Promise<LifecycleLease | undefined>((resolve) => {
+        let settled = false
+
+        const finish = (lease: LifecycleLease | undefined): void => {
+          if (settled) return
+          settled = true
+          this.#exclusiveWaiters.delete(attempt)
+          clearTimeout(timer)
+          resolve(lease)
+        }
+
+        const attempt = (): void => {
+          const lease = this.acquire(kind)
+
+          if (lease !== undefined) {
+            finish(lease)
+
+            return
+          }
+
+          if (this.#exclusiveLease !== undefined) finish(undefined)
+        }
+
+        const timer = setTimeout(() => finish(undefined), timeoutMs)
+        this.#exclusiveWaiters.add(attempt)
+        attempt()
+      })
+    } finally {
+      this.#pendingExclusiveCount -= 1
+    }
+  }
+
+  #notifyExclusiveWaiters(): void {
+    for (const attempt of this.#exclusiveWaiters) attempt()
   }
 
   isLocked(): boolean {
@@ -300,6 +386,7 @@ export class InMemoryAcceptanceJournalPort implements AcceptanceJournalPort {
 
   drain(): PortResult<void> {
     this.#drainCalls += 1
+
     return this.drainImplementation()
   }
 
@@ -327,7 +414,9 @@ export class InMemoryAcceptanceQuiescencePort implements AcceptanceQuiescencePor
 
   drain(): PortResult<{ readonly lastSafeSequence: number }> {
     this.#drainCalls += 1
+
     if (!this.#admissionStopped) throw new Error('Acceptance admission is not stopped')
+
     return this.drainImplementation()
   }
 
@@ -368,7 +457,9 @@ export class InMemoryReadQuiescencePort implements ReadQuiescencePort {
 
   drain(): PortResult<void> {
     this.#drainCalls += 1
+
     if (!this.#readsStopped) throw new Error('Read admission is not stopped')
+
     return this.drainImplementation()
   }
 

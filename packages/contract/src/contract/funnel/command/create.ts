@@ -5,8 +5,11 @@ import { SFunnel, SFunnelDefinitionFields, SFunnelSiteFields } from '../schema.t
 export const SFunnelCreateInput = v.strictObject(
   v.entriesFromObjects([SFunnelSiteFields, SFunnelDefinitionFields]),
 )
+
 export type SFunnelCreateInput = v.InferOutput<typeof SFunnelCreateInput>
+
 export const SFunnelCreateOutput = SFunnel
+
 export type SFunnelCreateOutput = v.InferOutput<typeof SFunnelCreateOutput>
 
 export const createFunnel = oc

@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SCollectionPolicyUpdateFields, SPolicy } from '../schema.ts'
 
 export const SCollectionPolicyUpdateInput = SCollectionPolicyUpdateFields
+
 export type SCollectionPolicyUpdateInput = v.InferOutput<typeof SCollectionPolicyUpdateInput>
+
 export const SCollectionPolicyUpdateOutput = SPolicy
+
 export type SCollectionPolicyUpdateOutput = v.InferOutput<typeof SCollectionPolicyUpdateOutput>
 
 export const updateCollectionPolicy = oc

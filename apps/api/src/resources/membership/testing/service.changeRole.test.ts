@@ -8,15 +8,23 @@ import {
 } from '../fixture.ts'
 
 const organizationId = 'org_1'
+
 const ownerUserId = 'user_owner'
+
 const adminUserId = 'user_admin'
+
 const memberUserId = 'user_member'
+
 const targetUserId = 'user_target'
 
 const owner = createMembershipRecord({ userId: ownerUserId, role: 'owner' })
+
 const admin = createMembershipRecord({ userId: adminUserId, role: 'admin' })
+
 const currentMember = createMembershipRecord({ userId: memberUserId, role: 'member' })
+
 const targetAdmin = createMembershipRecord({ userId: targetUserId, role: 'admin' })
+
 const targetMember = createMembershipRecord({ userId: targetUserId, role: 'member' })
 
 const pendingRoleChange = createMembershipOperation({
@@ -38,6 +46,7 @@ describe('MembershipService.changeRole', () => {
         createAuthorityMember({ userId: targetUserId, role: 'admin' }),
       ],
     )
+
     const operation = createMembershipOperation({
       id: 'gop_role_change',
       organizationId,
@@ -45,6 +54,7 @@ describe('MembershipService.changeRole', () => {
       targetRole: 'member',
       attemptCount: 0,
     })
+
     repository.createMembershipOperation.mockResolvedValue(operation)
     repository.incrementMembershipAttempt.mockResolvedValue()
     repository.updateRole.mockResolvedValue(targetMember)
@@ -134,6 +144,7 @@ describe('MembershipService.changeRole', () => {
         createAuthorityMember({ userId: memberUserId, role: 'member' }),
       ],
     )
+
     const operation = createMembershipOperation({
       id: 'gop_promotion',
       organizationId,
@@ -142,16 +153,19 @@ describe('MembershipService.changeRole', () => {
       targetRole: 'admin',
       attemptCount: 0,
     })
+
     let authorityTargetRole: AuthorityMember['role'] = 'member'
     fixture.authority.getMember.mockImplementation(async ({ userId }) => {
       if (userId === memberUserId)
         return createAuthorityMember({ userId: memberUserId, role: authorityTargetRole })
+
       return userId === adminUserId
         ? createAuthorityMember({ userId: adminUserId, role: 'admin' })
         : createAuthorityMember({ userId: ownerUserId, role: 'owner' })
     })
     fixture.authority.changeMemberRole.mockImplementation(async ({ memberId, role }) => {
       if (memberId === `authority-member-${memberUserId}`) authorityTargetRole = role
+
       return createAuthorityMember({ userId: memberUserId, role })
     })
     fixture.repository.createMembershipOperation.mockResolvedValue(operation)
@@ -176,6 +190,7 @@ describe('MembershipService.changeRole', () => {
 
   it('does not authorize against a stronger local role after authority reconciliation', async () => {
     const localActor = createMembershipRecord({ userId: adminUserId, role: 'admin' })
+
     const fixture = createMembershipFixture(
       [owner, localActor, targetMember],
       [
@@ -184,6 +199,7 @@ describe('MembershipService.changeRole', () => {
         createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
+
     fixture.repository.updateRole.mockResolvedValue(targetAdmin)
 
     await expect(
@@ -232,6 +248,7 @@ describe('MembershipService.changeRole', () => {
         createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
+
     fixture.authority.getMember.mockImplementation(async ({ userId }) =>
       userId === targetUserId
         ? undefined
@@ -257,6 +274,7 @@ describe('MembershipService.changeRole', () => {
         createAuthorityMember({ userId: targetUserId, role: 'member' }),
       ],
     )
+
     fixture.authority.getMember.mockImplementation(async ({ userId }) =>
       createAuthorityMember({
         userId,

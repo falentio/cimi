@@ -25,7 +25,9 @@ const props = defineProps<{
 }>()
 
 const definitionKey = defineModel<string>('definitionKey', { required: true })
+
 const operator = defineModel<OverviewFilterOperator>('operator', { required: true })
+
 const value = defineModel<string>('value', { required: true })
 
 const emit = defineEmits<{

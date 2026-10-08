@@ -1,3 +1,5 @@
+import { isBooleanValue, isNumberValue, isStringValue } from '../predicates.ts'
+
 export const EVENT_KINDS = [
   'page_view',
   'custom_event',
@@ -19,13 +21,16 @@ export const EVENT_FIELDS = [
 ] as const
 
 export type EventField = (typeof EVENT_FIELDS)[number]
+
 export type EventFilterOperator =
   | 'equals'
   | 'not_equals'
   | 'contains'
   | 'greater_than'
   | 'less_than'
+
 export type EventFilterValue = string | number | boolean | null
+
 export type EventFieldState = 'absent' | 'required' | 'nullable'
 
 export const EVENT_FIELD_STATES = {
@@ -77,10 +82,11 @@ export const EVENT_FIELD_STATES = {
 } satisfies Readonly<Record<EventKind, Readonly<Record<EventField, EventFieldState>>>>
 
 const EVENT_KIND_SET: ReadonlySet<string> = new Set(EVENT_KINDS)
+
 const EVENT_FIELD_SET: ReadonlySet<string> = new Set(EVENT_FIELDS)
 
-function isFiniteNumber(value: EventFilterValue): boolean {
-  return typeof value === 'number' && Number.isFinite(value)
+function isFiniteNumber(value: EventFilterValue): value is number {
+  return isNumberValue(value) && Number.isFinite(value)
 }
 
 export function isEventKind(value: string): value is EventKind {
@@ -108,42 +114,50 @@ export interface EventKindFilterCompatibilityInput extends EventFilterCompatibil
 
 export function isCompatibleDirectEventFilter(input: EventFilterCompatibilityInput): boolean {
   if (input.values.length === 0) return false
+
   if (!isEventField(input.field)) return false
+
   if (input.field === 'kind') {
     if (input.operator !== 'equals' && input.operator !== 'not_equals') return false
-    return input.values.every((value) => typeof value === 'string' && EVENT_KIND_SET.has(value))
+
+    return input.values.every((value) => isStringValue(value) && EVENT_KIND_SET.has(value))
   }
+
   if (input.operator === 'contains') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
+
   if (input.operator === 'equals') {
-    return input.values.every((value) => value === null || typeof value === 'string')
+    return input.values.every((value) => value === null || isStringValue(value))
   }
+
   if (input.operator === 'not_equals') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
+
   return false
 }
 
 export function isCompatiblePropertyFilter(input: PropertyFilterCompatibilityInput): boolean {
   if (input.values.length === 0) return false
+
   if (
     !input.values.every(
       (value) =>
-        value === null ||
-        typeof value === 'string' ||
-        typeof value === 'boolean' ||
-        isFiniteNumber(value),
+        value === null || isStringValue(value) || isBooleanValue(value) || isFiniteNumber(value),
     )
   ) {
     return false
   }
+
   if (input.operator === 'contains') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
+
   if (input.operator === 'greater_than' || input.operator === 'less_than') {
     return input.values.every(isFiniteNumber)
   }
+
   return input.operator === 'equals' || input.operator === 'not_equals'
 }
 
@@ -152,11 +166,14 @@ export function isCompatibleSessionFilter(input: {
   readonly values: readonly EventFilterValue[]
 }): boolean {
   if (input.values.length === 0) return false
+
   if (input.operator === 'contains') {
-    return input.values.every((value) => typeof value === 'string')
+    return input.values.every((value) => isStringValue(value))
   }
+
   if (input.operator === 'greater_than' || input.operator === 'less_than') return false
-  return input.values.every((value) => typeof value === 'string')
+
+  return input.values.every((value) => isStringValue(value))
 }
 
 export function isCompatibleIdentityKindFilter(input: {
@@ -164,7 +181,9 @@ export function isCompatibleIdentityKindFilter(input: {
   readonly values: readonly EventFilterValue[]
 }): boolean {
   if (input.values.length === 0) return false
+
   if (input.operator !== 'equals' && input.operator !== 'not_equals') return false
+
   return input.values.every(
     (value) =>
       value === 'visitor' ||
@@ -176,8 +195,11 @@ export function isCompatibleIdentityKindFilter(input: {
 
 export function isCompatibleEventFilterForKind(input: EventKindFilterCompatibilityInput): boolean {
   if (!isEventField(input.field)) return false
+
   if (!isCompatibleDirectEventFilter(input)) return false
   const state = EVENT_FIELD_STATES[input.eventKind][input.field]
+
   if (state === 'absent') return false
+
   return state === 'nullable' || input.values.every((value) => value !== null)
 }

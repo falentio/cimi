@@ -2,6 +2,7 @@ import { api, authenticatedApi } from '../../orpc.ts'
 import type { CollectionPolicyService } from './service.ts'
 
 const collectionPolicyApi = api.collectionPolicy
+
 const authenticatedCollectionPolicyApi = authenticatedApi.collectionPolicy
 
 export function collectionPolicyRouter(service: CollectionPolicyService) {

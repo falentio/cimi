@@ -16,8 +16,11 @@ const props = defineProps<{
 }>()
 
 const retrying = shallowRef(false)
+
 const { toggleSidebar } = useSidebar()
+
 const route = useRoute()
+
 const localizeError = useLocalizedErrorMessage()
 
 type SettingsSectionLink = {
@@ -29,9 +32,11 @@ type SettingsSectionLink = {
 
 const sectionLinks = computed<readonly SettingsSectionLink[]>(() => {
   const organizationId = props.snapshot.activeOrganizationId
+
   if (organizationId === undefined) return []
 
   const basePath = `/org/${organizationId}/settings`
+
   return [
     {
       label: 'General',
@@ -60,6 +65,7 @@ const activeSection = computed<OrganizationSettingsSnapshot['section']>(
 
 async function retry(): Promise<void> {
   retrying.value = true
+
   try {
     await props.refresh()
   } catch {

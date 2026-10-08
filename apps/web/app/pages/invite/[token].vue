@@ -14,6 +14,7 @@ import {
 } from '@/components/features/organization-settings/organization-settings.utils'
 import type { CimiOrpc } from '~/plugins/orpc'
 import type { SettingsError } from '@/utils/settings-error'
+import { isStringValue } from '../../utils/type-guards'
 
 definePageMeta({
   layout: 'bare',
@@ -34,12 +35,19 @@ type InvitationState =
   | { readonly status: 'error'; readonly failure: InvitationFailure }
 
 const route = useRoute()
+
 const { t } = useI18n()
+
 const auth = useAuth()
+
 const orpc = useOrpc()
+
 const localizeError = useLocalizedErrorMessage()
-const token = computed(() => (typeof route.params.token === 'string' ? route.params.token : ''))
+
+const token = computed(() => (isStringValue(route.params.token) ? route.params.token : ''))
+
 const state = shallowRef<InvitationState>({ status: 'idle' })
+
 const hydrated = ref(false)
 
 const render = computed(() =>
@@ -49,12 +57,16 @@ const render = computed(() =>
     invitationStatus: state.value.status,
   }),
 )
+
 const errorMessage = computed(() => {
   const currentState = state.value
+
   if (currentState.status !== 'error') return ''
+
   if (currentState.failure.kind === 'local') return t(currentState.failure.messageKey)
 
   const { error } = currentState.failure
+
   return isLocalizableSettingsError(error) ? localizeError(error) : t('invite.acceptFailed')
 })
 
@@ -73,10 +85,12 @@ watch(
 async function acceptInvitation(): Promise<void> {
   if (token.value.length === 0) {
     state.value = { status: 'error', failure: { kind: 'local', messageKey: 'invite.missingToken' } }
+
     return
   }
 
   state.value = { status: 'loading' }
+
   try {
     const membership = await orpc.invitation.acceptInvitation.call({ token: token.value })
     state.value = { status: 'accepted', membership }

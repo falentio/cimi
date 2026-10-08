@@ -43,6 +43,7 @@ export function resolveReportPeriods(input: {
       metadata: input.metadata,
       bucket: input.bucket,
     })
+
     const comparison =
       input.comparison === undefined
         ? null
@@ -57,9 +58,11 @@ export function resolveReportPeriods(input: {
       const comparisonToNext = formatLocalCalendarDate(
         addCalendarDays(calendarDateParts(comparison.dates.toDate), 1),
       )
+
       if (comparisonToNext !== current.dates.fromDate) {
         throw badReportingRequest('comparison-not-adjacent')
       }
+
       if (comparison.calendarDays !== current.calendarDays) {
         throw badReportingRequest('comparison-not-equal-length')
       }
@@ -79,16 +82,19 @@ export function resolvePeriodSequence(input: {
   readonly periodization: Periodization
 }): readonly ResolvedPeriod[] {
   const { metadata, dates, periodization } = input
+
   if (!Number.isInteger(periodization.maxPeriods) || periodization.maxPeriods < 1) {
     throw badReportingRequest('period-bound')
   }
 
   const from = calendarDateParts(dates.fromDate)
   const to = calendarDateParts(dates.toDate)
+
   if (compareCalendarDates(from, to) > 0) throw badReportingRequest('invalid-period')
 
   const first = startOfPeriod(from, periodization.kind, metadata.weekStartsOn)
   const periods: ResolvedPeriod[] = []
+
   for (let index = 0; ; index += 1) {
     if (index >= periodization.maxPeriods) throw badReportingRequest('period-bound')
     const periodFrom = addPeriod(first, index, periodization.kind)
@@ -105,6 +111,7 @@ export function resolvePeriodSequence(input: {
         bucket: undefined,
       }),
     )
+
     if (compareCalendarDates(periodTo, to) >= 0) return periods
   }
 }
@@ -115,11 +122,14 @@ export function findRelevantProjectionGap(
 ): ProjectionGap | undefined {
   for (const gap of gaps) {
     if (gap.unbounded || !isBoundedGap(gap)) return gap
+
     if (periodsOverlapGap(periods.current.interval, gap)) return gap
+
     if (periods.comparison !== null && periodsOverlapGap(periods.comparison.interval, gap)) {
       return gap
     }
   }
+
   return undefined
 }
 
@@ -131,23 +141,28 @@ function resolvePeriod(input: {
 }): ResolvedPeriod {
   const fromDate = calendarDateParts(input.dates.fromDate)
   const toDate = calendarDateParts(input.dates.toDate)
+
   if (compareCalendarDates(fromDate, toDate) > 0) {
     throw badReportingRequest('invalid-period')
   }
 
   const toDateExclusive = addCalendarDays(toDate, 1)
+
   const start = resolveLocalDateStart({
     date: fromDate,
     timeZone: input.metadata.reportingTimezone,
   })
+
   const endExclusive = resolveLocalDateStart({
     date: toDateExclusive,
     timeZone: input.metadata.reportingTimezone,
   })
+
   const interval: HalfOpenInterval = {
     start: instantFromDate(start),
     endExclusive: instantFromDate(endExclusive),
   }
+
   if (interval.endExclusive <= interval.start) throw badReportingRequest('invalid-period')
 
   return {
@@ -173,9 +188,11 @@ function startOfPeriod(
   weekStartsOn: LocalWeekStart,
 ): LocalCalendarDate {
   if (kind === 'day') return date
+
   if (kind === 'month') return { year: date.year, month: date.month, day: 1 }
   const weekday = new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay()
   const weekStart = weekStartNumber(weekStartsOn)
+
   return addCalendarDays(date, -((weekday - weekStart + 7) % 7))
 }
 
@@ -185,8 +202,10 @@ function addPeriod(
   kind: Periodization['kind'],
 ): LocalCalendarDate {
   if (kind === 'day') return addCalendarDays(date, amount)
+
   if (kind === 'week') return addCalendarDays(date, amount * 7)
   const absoluteMonth = date.year * 12 + date.month - 1 + amount
+
   return {
     year: Math.floor(absoluteMonth / 12),
     month: (((absoluteMonth % 12) + 12) % 12) + 1,
@@ -222,6 +241,7 @@ function resolveBucketStarts(input: {
   if (!Number.isInteger(input.bucket.maxStarts) || input.bucket.maxStarts < 0) {
     throw badReportingRequest('bucket-bound')
   }
+
   const starts = enumerateLocalBucketStarts({
     fromDate: calendarDateParts(input.fromDate),
     toDateExclusive: input.toDateExclusive,
@@ -230,7 +250,9 @@ function resolveBucketStarts(input: {
     weekStartsOn: input.metadata.weekStartsOn,
     maxStarts: input.bucket.maxStarts,
   })
+
   if (starts.length > input.bucket.maxStarts) throw queryLimitExceeded('bucket-bound')
+
   return starts.map((start) => ({
     at: createInstantMs(start.instant.getTime()),
     localLabel: `${formatLocalCalendarDate(start.local)}T${String(start.local.hour).padStart(2, '0')}:${String(start.local.minute).padStart(2, '0')}:00`,
@@ -250,5 +272,6 @@ function isBoundedGap(gap: ProjectionGap): boolean {
 
 function periodsOverlapGap(interval: HalfOpenInterval, gap: ProjectionGap): boolean {
   if (gap.occurrenceFrom === null || gap.occurrenceTo === null) return true
+
   return gap.occurrenceFrom < interval.endExclusive && interval.start < gap.occurrenceTo
 }

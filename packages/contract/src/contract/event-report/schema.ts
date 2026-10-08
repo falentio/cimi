@@ -25,14 +25,17 @@ import {
 } from '../../schema/index.ts'
 
 export const SEventSiteFields = v.strictObject({ siteId: SId, eventKind: SEventKind })
+
 const SEventReportFilterCommonFields = {
   operator: SFilterOperator,
   values: SFilterValues,
 }
+
 const SEventReportFilterField = v.union([
   v.picklist(EVENT_FIELDS),
   v.pipe(v.string(), v.regex(/^property\.[A-Za-z0-9_.-]{1,63}$/)),
 ])
+
 const SEventPropertyFilter = v.pipe(
   v.strictObject({ field: SScalarKey, operator: SFilterOperator, values: SFilterValues }),
   v.check(
@@ -40,9 +43,11 @@ const SEventPropertyFilter = v.pipe(
     VALIDATION_KEYS.contract.event.propertyFilterValuesCompatible,
   ),
 )
+
 const SEventMatchActionCommonFields = {
   propertyFilters: v.optional(v.pipe(v.array(SEventPropertyFilter), v.maxLength(20))),
 }
+
 export const SEventMatchAction = v.variant('kind', [
   v.strictObject({ kind: v.literal('page_view'), ...SEventMatchActionCommonFields }),
   v.strictObject({
@@ -81,6 +86,7 @@ const SEventValueFilter = v.pipe(
     VALIDATION_KEYS.contract.event.reportFilterValuesCompatible,
   ),
 )
+
 const SEventActionPresenceFilter = v.variant('operator', [
   v.strictObject({
     scope: v.literal('session'),
@@ -95,7 +101,9 @@ const SEventActionPresenceFilter = v.variant('operator', [
     range: v.literal('same_range'),
   }),
 ])
+
 export const SEventReportFilter = v.union([SEventValueFilter, SEventActionPresenceFilter])
+
 export type EventReportFilter = v.InferOutput<typeof SEventReportFilter>
 
 export function areEventFiltersCompatibleWithKind(input: {
@@ -116,6 +124,7 @@ export function areEventFiltersCompatibleWithKind(input: {
 }
 
 export const SEventAbsoluteDateTime = v.pipe(v.string(), v.isoTimestamp())
+
 export const AUTHENTICATED_EVENT_BUCKET_LIMITS = {
   minute: 1_800,
   hour: 720,
@@ -124,6 +133,7 @@ export const AUTHENTICATED_EVENT_BUCKET_LIMITS = {
   month: 36,
   year: 10,
 } as const
+
 export const MAX_AUTHENTICATED_EVENT_OUTPUT_BUCKETS = Math.max(
   ...Object.values(AUTHENTICATED_EVENT_BUCKET_LIMITS),
 )
@@ -131,6 +141,7 @@ export const MAX_AUTHENTICATED_EVENT_OUTPUT_BUCKETS = Math.max(
 const getInclusiveDayCount = (fromDate: string, toDate: string) => {
   const from = Date.parse(`${fromDate}T00:00:00Z`)
   const to = Date.parse(`${toDate}T00:00:00Z`)
+
   return Number.isFinite(from) && Number.isFinite(to) && to >= from
     ? Math.floor((to - from) / (24 * 60 * 60 * 1000)) + 1
     : 0
@@ -162,22 +173,27 @@ export const isWithinAuthenticatedEventBucketLimit = (input: {
 }
 
 const SEventReportComparison = v.strictObject({ fromDate: SDate, toDate: SDate })
+
 const SEventReportFields = {
   fromDate: SDate,
   toDate: SDate,
   comparison: v.optional(SEventReportComparison),
   filters: v.optional(v.pipe(v.array(SEventReportFilter), v.maxLength(20))),
 }
+
 export const SEventReportFieldsSchema = v.strictObject(SEventReportFields)
+
 export const SEventGranularReportFieldsSchema = v.strictObject({
   ...SEventReportFields,
   granularity: SGranularity,
 })
+
 export const SEventReportListFieldsSchema = v.strictObject({
   fromDate: SDate,
   toDate: SDate,
   filters: v.optional(v.pipe(v.array(SEventReportFilter), v.maxLength(20))),
 })
+
 const SEventOverviewPeriod = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -191,6 +207,7 @@ const SEventOverviewPeriod = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const SEventOverview = v.pipe(
   v.strictObject(
     v.entriesFromObjects([
@@ -208,6 +225,7 @@ export const SEventOverview = v.pipe(
     VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
+
 const SEventTimeseriesPeriod = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -227,6 +245,7 @@ const SEventTimeseriesPeriod = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const SEventTimeseries = v.pipe(
   v.strictObject(
     v.entriesFromObjects([
@@ -244,10 +263,12 @@ export const SEventTimeseries = v.pipe(
     VALIDATION_KEYS.contract.report.outputPeriodsOrdered,
   ),
 )
+
 const SEventOutputProperties = v.pipe(
   v.record(SScalarKey, SScalar),
   v.check((value) => Object.keys(value).length <= 64, VALIDATION_KEYS.contract.properties.maxCount),
 )
+
 const SEventOutputCommonFields = {
   eventId: SId,
   occurredAt: SEventAbsoluteDateTime,
@@ -255,6 +276,7 @@ const SEventOutputCommonFields = {
   referrer: v.nullable(v.pipe(v.string(), v.maxLength(2048))),
   properties: v.nullable(SEventOutputProperties),
 }
+
 export const SEvent = v.variant('kind', [
   v.strictObject({
     ...SEventOutputCommonFields,
@@ -291,6 +313,7 @@ export const SEvent = v.variant('kind', [
     message: v.nullable(v.pipe(v.string(), v.maxLength(512))),
   }),
 ])
+
 export const SEventPageResult = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({ items: v.pipe(v.array(SEvent), v.maxLength(100)) }),
@@ -298,6 +321,7 @@ export const SEventPageResult = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 const SEventBreakdownPage = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -316,6 +340,7 @@ const SEventBreakdownPage = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export const SEventBreakdowns = v.strictObject(
   v.entriesFromObjects([
     SEventBreakdownPage,

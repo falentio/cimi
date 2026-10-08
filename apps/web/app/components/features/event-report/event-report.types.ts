@@ -10,8 +10,11 @@ import {
 import type { Client } from '@cimi/client'
 
 export type EventKind = Parameters<Client['eventReport']['getEventOverview']>[0]['eventKind']
+
 export type EventMetric = 'events' | 'unique_visitors' | 'unique_sessions'
+
 export type EventReportOperation = keyof Client['eventReport']
+
 export type EventReportIcon = typeof Activity01Icon
 
 export interface EventReportContextItem {

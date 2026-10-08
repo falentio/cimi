@@ -3,8 +3,11 @@ import { oc } from '../../../orpc/index.ts'
 import { SInstallation } from '../schema.ts'
 
 export const SInstallationStatusInput = v.strictObject({})
+
 export type SInstallationStatusInput = v.InferOutput<typeof SInstallationStatusInput>
+
 export const SInstallationStatusOutput = SInstallation
+
 export type SInstallationStatusOutput = v.InferOutput<typeof SInstallationStatusOutput>
 
 export const getInstallationStatus = oc

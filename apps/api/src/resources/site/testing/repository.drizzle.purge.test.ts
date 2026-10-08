@@ -5,15 +5,18 @@ import { eq } from 'drizzle-orm'
 import { schema } from '@cimi/db'
 
 const requestedAt = new Date('2026-09-01T00:00:00.000Z')
+
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
 
 async function createDeletedSite(repo: SiteRepositoryDrizzle) {
   await repo.beginDelete({ siteId: 'ste_1', operationId: 'sop_1', requestedAt })
   await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
   const deleted = await repo.findById('ste_1')
+
   if (deleted?.purgeAt === null || deleted?.purgeAt === undefined) {
     throw new Error('expected a purge deadline')
   }
+
   return new Date(deleted.purgeAt)
 }
 

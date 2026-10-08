@@ -197,6 +197,7 @@ describe('retention-policy.utils', () => {
           'read',
           scope,
         )
+
         expect(failure.code).toBe(code)
         expect(failure.message).not.toContain('/srv/private')
         expect(failure.message).not.toContain('SQL')
@@ -279,6 +280,7 @@ describe('retention-policy.utils', () => {
       error: normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'read', 'installation'),
       refreshing: false,
     }
+
     expect(
       toRetentionAdminView({
         retention: stale,

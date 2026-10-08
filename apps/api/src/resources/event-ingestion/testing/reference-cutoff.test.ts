@@ -31,7 +31,9 @@ function createFixture() {
       .from(schema.TCollectionPolicyRevision)
       .limit(1)
       .all()[0]
+
     if (revision === undefined) throw new Error('Expected a seeded collection policy revision')
+
     const layers: PolicyLayers = {
       installation: {
         id: revision.id,
@@ -41,8 +43,10 @@ function createFixture() {
       },
       site: null,
     }
+
     return layers
   })
+
   const service = new CollectionPolicyService({
     repository: policyRepository,
     lock: new InMemoryLifecycleLock(),
@@ -53,6 +57,7 @@ function createFixture() {
     lifecycle: new InMemoryLifecycleOperationStatusReader(),
     clock: () => now,
   })
+
   const retention = mock<RetentionPolicyRepository>()
   retention.findResolved.mockResolvedValue({
     installationId: 'ins_1',
@@ -66,12 +71,14 @@ function createFixture() {
     },
     updatedAt: now.toISOString(),
   })
+
   const ingestion = createEventIngestion({
     db,
     siteRepository: new SiteRepositoryDrizzle({ db }),
     collectionPolicy: service,
     retention,
   })
+
   return {
     siteFixture,
     ingestion,

@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<SheetContentProps>(), {
   side: 'right',
   showCloseButton: true,
 })
+
 const emits = defineEmits<DialogContentEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class', 'side', 'showCloseButton')

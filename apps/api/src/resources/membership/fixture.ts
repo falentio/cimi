@@ -5,10 +5,13 @@ import type { MembershipRecord, MembershipRepository } from './repository.ts'
 import { MembershipService } from './service.ts'
 
 const organizationId = 'org_1'
+
 const authorityOrganizationId = 'authority_1'
+
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
 
 type RepositoryMock = ReturnType<typeof mock<MembershipRepository>>
+
 type AuthorityMock = ReturnType<typeof mock<OrganizationAuthority>>
 
 export interface MembershipFixture {
@@ -45,6 +48,7 @@ export function createMembershipFixture(
     const members = projectedMembers.filter(
       (member) => member.organizationId === requestedOrganizationId,
     )
+
     return members.filter((member) => member.role === 'owner').length === 1
   })
   repository.replaceMembers.mockImplementation(async (_requestedOrganizationId, members) => {
@@ -55,8 +59,10 @@ export function createMembershipFixture(
       const members = projectedMembers.filter(
         (member) => member.organizationId === requestedOrganizationId,
       )
+
       const items = members.slice(offset, offset + limit)
       const hasMore = offset + items.length < members.length
+
       return {
         items: items.map((member) => ({
           ...member,
@@ -83,6 +89,7 @@ export function createMembershipRecord(
   overrides: Partial<MembershipRecord> = {},
 ): MembershipRecord {
   const role: OrganizationRole = overrides.role ?? 'owner'
+
   return {
     organizationId,
     userId: 'user_1',
@@ -95,6 +102,7 @@ export function createMembershipRecord(
 
 export function createAuthorityMember(overrides: Partial<AuthorityMember> = {}): AuthorityMember {
   const userId = overrides.userId ?? 'user_1'
+
   return {
     id: `authority-member-${userId}`,
     organizationId: authorityOrganizationId,

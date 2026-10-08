@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { and, eq, lt, max } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
-import { mergeEventAttribution, parseEventAttribution, type EventAttribution } from '@cimi/utils'
+import {
+  isNumberValue,
+  isStringValue,
+  mergeEventAttribution,
+  parseEventAttribution,
+  type EventAttribution,
+} from '@cimi/utils'
 import type { AcceptanceCandidate, AcceptanceRepository, AppendOutcome } from './repository.ts'
 import type { DerivedAttribution } from './attribution.ts'
 
@@ -31,7 +37,9 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
         and(eq(schema.TAcceptedEvent.siteId, siteId), eq(schema.TAcceptedEvent.eventId, eventId)),
       )
       .limit(1)
+
     const event = row[0]
+
     return event === undefined
       ? undefined
       : {
@@ -44,6 +52,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
     const row = await this.db
       .select({ sequence: max(schema.TEventAcceptanceJournal.replaySequence) })
       .from(schema.TEventAcceptanceJournal)
+
     return row[0]?.sequence ?? 0
   }
 
@@ -53,11 +62,15 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
     readonly identifiedUserId: string | null
   }) {
     if (input.anonymousIdentityId === null && input.identifiedUserId === null) return undefined
+
     const identityClause =
       input.anonymousIdentityId === null
         ? 'ae.anonymous_identity_id IS NULL AND ae.identified_user_id = ?'
         : 'ae.anonymous_identity_id = ?'
+
     const identityValue = input.anonymousIdentityId ?? input.identifiedUserId
+
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
     const latest = this.db.$client
       .prepare(
         `SELECT
@@ -74,8 +87,10 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
          LIMIT 1`,
       )
       .get(input.siteId, identityValue) as IdentitySessionRow | undefined
+
     if (latest === undefined) return undefined
 
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
     const first = this.db.$client
       .prepare(
         `SELECT ae.receipt_time AS receiptTime, ep.canonical_payload_json AS payload,
@@ -91,6 +106,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
       .get(input.siteId, latest.analyticsSessionId) as
       | ({ readonly receiptTime: number; readonly payload: string | null } & AttributionRow)
       | undefined
+
     return {
       visitorId: latest.visitorId,
       analyticsSessionId: latest.analyticsSessionId,
@@ -104,6 +120,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
     siteId: string,
     pageViewId: string,
   ): Promise<{ readonly receiptTime: string; readonly payloadFingerprint: string } | undefined> {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SELECT below.
     const row = this.db.$client
       .prepare(
         `SELECT receipt_time AS receiptTime, payload_fingerprint AS payloadFingerprint
@@ -114,6 +131,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
       .get(siteId, pageViewId) as
       | { readonly receiptTime: number; readonly payloadFingerprint: string }
       | undefined
+
     return row === undefined
       ? undefined
       : {
@@ -126,16 +144,19 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
     try {
       return statSync(`${this.db.$client.name}-wal`).size
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+
       return 0
     }
   }
 
   async append(candidates: readonly AcceptanceCandidate[]): Promise<readonly AppendOutcome[]> {
     const flushId = randomUUID()
+
     const outcomes = this.db.transaction((tx) =>
       candidates.map((candidate) => appendCandidate(tx, candidate, flushId)),
     )
+
     return outcomes
   }
 
@@ -153,6 +174,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
       )
       .returning({ eventPk: schema.TAcceptedEvent.eventPk })
       .all()
+
     return rows.length
   }
 
@@ -170,6 +192,7 @@ export class AcceptanceRepositoryDrizzle implements AcceptanceRepository {
          RETURNING event_pk`,
       )
       .all(input.siteId, input.receiptCutoff.getTime())
+
     return rows.length
   }
 }
@@ -199,6 +222,7 @@ function appendCandidate(
   const event = candidate.event
   const receiptTime = new Date(candidate.receiptTime)
   const occurrenceTime = new Date(event.occurrenceTime)
+
   const existing = tx
     .select({
       receiptTime: schema.TAcceptedEvent.receiptTime,
@@ -213,6 +237,7 @@ function appendCandidate(
     )
     .limit(1)
     .all()[0]
+
   if (existing !== undefined) {
     return existing.payloadFingerprint === candidate.payloadFingerprint
       ? { status: 'duplicate', receiptTime: existing.receiptTime.toISOString() }
@@ -234,6 +259,7 @@ function appendCandidate(
       )
       .limit(1)
       .all()[0]
+
     if (existingPageView !== undefined) {
       return existingPageView.payloadFingerprint === candidate.payloadFingerprint
         ? { status: 'duplicate', receiptTime: existingPageView.receiptTime.toISOString() }
@@ -272,6 +298,7 @@ function appendCandidate(
     })
     .returning({ eventPk: schema.TAcceptedEvent.eventPk })
     .all()[0]
+
   if (inserted === undefined) throw new Error('Accepted Event insert returned no row')
 
   tx.insert(schema.TEventPayload)
@@ -292,6 +319,7 @@ function appendCandidate(
       flushId,
     })
     .run()
+
   return { status: 'accepted' }
 }
 
@@ -305,24 +333,29 @@ function appendKind(
       tx.insert(schema.TEventPageView)
         .values({ eventPk, pagePath: event.pagePath ?? '/', referrer: event.referrer })
         .run()
+
       return
     case 'custom_event':
       tx.insert(schema.TEventCustom).values({ eventPk, name: event.name }).run()
+
       return
     case 'outbound':
       tx.insert(schema.TEventOutbound)
         .values({ eventPk, destination: event.destination, name: event.name })
         .run()
+
       return
     case 'performance':
       tx.insert(schema.TEventPerformance)
         .values({ eventPk, name: event.name, value: event.value, unit: event.unit })
         .run()
+
       return
     case 'error':
       tx.insert(schema.TEventError)
         .values({ eventPk, name: event.name, code: event.code, message: event.message })
         .run()
+
       return
     default: {
       const exhaustive: never = event
@@ -341,14 +374,14 @@ function appendProperties(
     const typed =
       value === null
         ? { valueType: 'null' as const, stringValue: null, numberValue: null, booleanValue: null }
-        : typeof value === 'string'
+        : isStringValue(value)
           ? {
               valueType: 'string' as const,
               stringValue: value,
               numberValue: null,
               booleanValue: null,
             }
-          : typeof value === 'number'
+          : isNumberValue(value)
             ? {
                 valueType: 'number' as const,
                 stringValue: null,
@@ -361,6 +394,7 @@ function appendProperties(
                 numberValue: null,
                 booleanValue: value,
               }
+
     tx.insert(schema.TEventProperty)
       .values({ eventPk, propertyKey, ...typed })
       .run()

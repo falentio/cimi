@@ -51,7 +51,9 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
 
   async find(input: IdentityProfileRepository.FindInput): Promise<IdentityProfile | undefined> {
     const row = await this.findRow(input)
+
     if (row === undefined || isActivityExpired(row, input.profileActivityCutoffAt)) return undefined
+
     return toProfile(this.db, row)
   }
 
@@ -63,7 +65,9 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
             ne(schema.TIdentityProfile.status, 'active'),
             gte(schema.TIdentityProfile.lastSeenAt, input.profileActivityCutoffAt),
           )
+
     const where = and(eq(schema.TIdentityProfile.siteId, input.siteId), activityVisible)
+
     const [countRow, rows] = await Promise.all([
       this.db.select({ count: count() }).from(schema.TIdentityProfile).where(where),
       this.db
@@ -78,7 +82,9 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
         .limit(input.limit + 1)
         .offset(input.offset),
     ])
+
     const hasMore = rows.length > input.limit
+
     return {
       items: rows.slice(0, input.limit).map((row) => toProfile(this.db, row)),
       nextOffset: hasMore ? input.offset + input.limit : null,
@@ -91,7 +97,9 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
     input: IdentityProfileRepository.FindInput,
   ): Promise<IdentityDeletionStatus | undefined> {
     const row = await this.findRow(input)
+
     if (row === undefined) return undefined
+
     const redaction =
       row.profileEpoch === null
         ? undefined
@@ -107,6 +115,7 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
             )
             .limit(1)
             .then((rows) => rows[0])
+
     return {
       status: row.status,
       updatedAt: row.updatedAt.toISOString(),
@@ -127,11 +136,14 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
     try {
       return this.db.transaction((tx) => {
         const profile = selectProfile(tx, input)
+
         if (profile === undefined) return { kind: 'not-found' }
+
         if (profile.status !== 'active' || profile.profileEpoch === null)
           return { kind: 'conflict' }
 
         const currentEpoch = selectEpoch(tx, profile.profileId, profile.profileEpoch)
+
         if (currentEpoch === undefined || currentEpoch.status !== 'active')
           return { kind: 'conflict' }
 
@@ -168,6 +180,7 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
           .set({ status: 'deletion-requested', updatedAt: input.now })
           .where(eq(schema.TIdentityProfile.profileId, profile.profileId))
           .run()
+
         return {
           kind: 'accepted',
           output: { accepted: true, status: 'deletion-requested' },
@@ -190,12 +203,15 @@ export class IdentityProfileRepositoryDrizzle implements IdentityProfileReposito
         ),
       )
       .limit(1)
+
     return rows[0]
   }
 }
 
 type SqliteTransaction = Parameters<Parameters<Db['transaction']>[0]>[0]
+
 type ProfileRow = typeof schema.TIdentityProfile.$inferSelect
+
 type ProfileEpochRow = typeof schema.TIdentityProfileEpoch.$inferSelect
 
 function identifyInTransaction(
@@ -204,8 +220,10 @@ function identifyInTransaction(
   ids: IdentityProfileIdFactory,
 ): IdentityProfileRepository.IdentifyResult {
   const profile = selectProfile(tx, input)
+
   if (profile === undefined) {
     const mergedTraits = mergeTraits(null, input.traits)
+
     if (mergedTraits.kind !== 'valid') return mergedTraits
     const profileId = ids.identityProfileId()
     insertProfile(tx, {
@@ -222,13 +240,16 @@ function identifyInTransaction(
       profileEpoch: 1,
       ids,
     })
+
     return accepted(input.identifiedUserId, input.now)
   }
 
   if (profile.status === 'active') {
     if (profile.profileEpoch === null) return { kind: 'conflict' }
+
     if (isActivityExpired(profile, input.profileActivityCutoffAt)) return { kind: 'conflict' }
     const mergedTraits = mergeTraits(parseTraits(profile.traits), input.traits)
+
     if (mergedTraits.kind !== 'valid') return mergedTraits
     const traits = mergedTraits.value
     tx.update(schema.TIdentityProfile)
@@ -245,6 +266,7 @@ function identifyInTransaction(
       profileEpoch: profile.profileEpoch,
       ids,
     })
+
     return accepted(input.identifiedUserId, input.now)
   }
 
@@ -252,6 +274,7 @@ function identifyInTransaction(
     if (profile.profileEpoch === null) return { kind: 'conflict' }
     const oldEpoch = selectEpoch(tx, profile.profileId, profile.profileEpoch)
     const redaction = selectRedaction(tx, profile)
+
     if (
       oldEpoch?.status !== 'redacted' ||
       redaction === undefined ||
@@ -259,15 +282,19 @@ function identifyInTransaction(
       !cleanupComplete(redaction.backupCleanupStatus)
     )
       return { kind: 'conflict' }
+
     const maxEpoch =
       tx
         .select({ epoch: max(schema.TIdentityProfileEpoch.epoch) })
         .from(schema.TIdentityProfileEpoch)
         .where(eq(schema.TIdentityProfileEpoch.profileId, profile.profileId))
         .all()[0]?.epoch ?? profile.profileEpoch
+
     const nextEpoch = maxEpoch + 1
+
     if (nextEpoch > PROFILE_EPOCH_NUMBER_MAX) return { kind: 'conflict' }
     const mergedTraits = mergeTraits(null, input.traits)
+
     if (mergedTraits.kind !== 'valid') return mergedTraits
     const traits = mergedTraits.value
     tx.insert(schema.TIdentityProfileEpoch)
@@ -298,6 +325,7 @@ function identifyInTransaction(
       profileEpoch: nextEpoch,
       ids,
     })
+
     return accepted(input.identifiedUserId, input.now)
   }
 
@@ -352,6 +380,7 @@ function linkAlias(
   },
 ): void {
   if (input.anonymousIdentityId === undefined) return
+
   const current = tx
     .select()
     .from(schema.TIdentityLink)
@@ -364,6 +393,7 @@ function linkAlias(
     )
     .limit(1)
     .all()[0]
+
   if (current !== undefined) {
     if (current.profileId === input.profileId && current.profileEpoch === input.profileEpoch) return
     tx.update(schema.TIdentityLink)
@@ -371,6 +401,7 @@ function linkAlias(
       .where(eq(schema.TIdentityLink.id, current.id))
       .run()
   }
+
   const sessionStart = current === undefined ? resolveSessionStart(tx, input) : input.now
   tx.insert(schema.TIdentityLink)
     .values({
@@ -392,6 +423,7 @@ function resolveSessionStart(
   input: IdentityProfileRepository.IdentifyInput,
 ): Date {
   if (input.anonymousIdentityId === undefined) return input.now
+
   const latest = tx
     .select({
       eventPk: schema.TAcceptedEvent.eventPk,
@@ -408,7 +440,9 @@ function resolveSessionStart(
     .orderBy(desc(schema.TAcceptedEvent.receiptTime), desc(schema.TAcceptedEvent.eventPk))
     .limit(1)
     .all()[0]
+
   if (latest === undefined) return input.now
+
   const sessionStart =
     latest.analyticsSessionId === null
       ? latest.receiptTime
@@ -425,12 +459,14 @@ function resolveSessionStart(
           .orderBy(asc(schema.TAcceptedEvent.receiptTime), asc(schema.TAcceptedEvent.eventPk))
           .limit(1)
           .all()[0]?.receiptTime ?? latest.receiptTime)
+
   const anchored = sessionContinues(
     { sessionStartMs: sessionStart.getTime(), lastSeenMs: latest.receiptTime.getTime() },
     input.now.getTime(),
   )
     ? sessionStart
     : input.now
+
   const redactedThrough =
     tx
       .select({ endedAt: schema.TIdentityProfileEpoch.endedAt })
@@ -445,6 +481,7 @@ function resolveSessionStart(
       .orderBy(desc(schema.TIdentityProfileEpoch.endedAt))
       .limit(1)
       .all()[0]?.endedAt ?? null
+
   return redactedThrough !== null && redactedThrough > anchored ? redactedThrough : anchored
 }
 
@@ -485,6 +522,7 @@ function selectEpoch(
 
 function selectRedaction(db: SqliteTransaction, profile: ProfileRow) {
   if (profile.profileEpoch === null) return undefined
+
   return db
     .select()
     .from(schema.TIdentityRedaction)
@@ -508,6 +546,7 @@ function toProfile(db: Db | SqliteTransaction, row: ProfileRow): IdentityProfile
       return { status: 'deleted' }
     case 'active': {
       if (row.profileEpoch === null) throw new Error('Active identity profile has no epoch')
+
       const history = db
         .select()
         .from(schema.TIdentityProfileEpoch)
@@ -516,7 +555,9 @@ function toProfile(db: Db | SqliteTransaction, row: ProfileRow): IdentityProfile
         .all()
         .slice(-PROFILE_EPOCH_HISTORY_MAX)
         .map(toEpoch)
+
       if (history.length === 0) throw new Error('Active identity profile has no epoch history')
+
       const aliases = db
         .select({ anonymousIdentityId: schema.TIdentityLink.anonymousIdentityId })
         .from(schema.TIdentityLink)
@@ -531,6 +572,7 @@ function toProfile(db: Db | SqliteTransaction, row: ProfileRow): IdentityProfile
         .all()
         .map(({ anonymousIdentityId }) => anonymousIdentityId)
         .slice(-128)
+
       return {
         siteId: row.siteId,
         identifiedUserId: row.identifiedUserId,
@@ -545,8 +587,10 @@ function toProfile(db: Db | SqliteTransaction, row: ProfileRow): IdentityProfile
         updatedAt: row.updatedAt.toISOString(),
       }
     }
+
     default: {
       const exhaustive: never = row.status
+
       return exhaustive
     }
   }
@@ -555,6 +599,7 @@ function toProfile(db: Db | SqliteTransaction, row: ProfileRow): IdentityProfile
 function toEpoch(row: ProfileEpochRow): IdentityProfileEpoch {
   if (row.status === 'active') {
     if (row.endedAt !== null) throw new Error('Active identity epoch is ended')
+
     return {
       epoch: row.epoch,
       status: 'active',
@@ -562,7 +607,9 @@ function toEpoch(row: ProfileEpochRow): IdentityProfileEpoch {
       endedAt: null,
     }
   }
+
   if (row.endedAt === null) throw new Error('Redacted identity epoch is not ended')
+
   return {
     epoch: row.epoch,
     status: 'redacted',
@@ -573,6 +620,7 @@ function toEpoch(row: ProfileEpochRow): IdentityProfileEpoch {
 
 function parseTraits(value: ProfileRow['traits']): ActiveIdentityProfile['traits'] {
   if (value === null) return null
+
   return parse(SProfileTraits, value)
 }
 
@@ -585,14 +633,19 @@ function mergeTraits(
   | { readonly kind: 'payload-too-large' } {
   if (incoming === undefined) return { kind: 'valid', value: current }
   const next = { ...current }
+
   for (const [key, value] of Object.entries(incoming)) {
     if (value === null) delete next[key]
     else next[key] = value
   }
+
   if (Object.keys(next).length === 0) return { kind: 'valid', value: null }
+
   if (!hasAllowedProfileTraitKeys(next)) return { kind: 'invalid' }
   const parsed = safeParse(SProfileTraits, next)
+
   if (parsed.success) return { kind: 'valid', value: parsed.output }
+
   return isProfileTraitsPayloadOversized(next) ? { kind: 'payload-too-large' } : { kind: 'invalid' }
 }
 
@@ -615,8 +668,8 @@ function cleanupStatus(status: 'not-required' | 'pending' | 'complete', updatedA
   return { status, updatedAt: updatedAt.toISOString() }
 }
 
-function isConstraintError(error: unknown): boolean {
-  return error instanceof Error && /constraint|unique|foreign key/i.test(error.message)
+function isConstraintError(cause: unknown): cause is Error {
+  return cause instanceof Error && /constraint|unique|foreign key/i.test(cause.message)
 }
 
 function isActivityExpired(row: ProfileRow, cutoff: Date | undefined): boolean {

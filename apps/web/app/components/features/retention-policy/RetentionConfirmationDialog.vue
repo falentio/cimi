@@ -31,17 +31,20 @@ const emit = defineEmits<{
 }>()
 
 const confirmation = shallowRef('')
+
 const open = computed({
   get: () => props.command.kind === 'confirming' || props.command.kind === 'submitting',
   set: (value: boolean) => {
     if (!value && props.command.kind !== 'submitting') emit('cancel')
   },
 })
+
 const acknowledgement = computed(() =>
   props.command.kind === 'confirming'
     ? props.command.acknowledgement
     : { kind: 'accepted' as const, value: SHORTEN_RETENTION_CONFIRMATION },
 )
+
 const canConfirm = computed(() => props.command.kind === 'confirming')
 const currentRows = computed(() => retentionPolicyRows(props.command.current))
 const proposedRows = computed(() => retentionPolicyRows(proposedPolicy(props.command.proposal)))
@@ -72,6 +75,7 @@ function submit(): void {
   if (!canConfirm.value) return
   const value = confirmation.value
   emit('confirm', value)
+
   if (value !== SHORTEN_RETENTION_CONFIRMATION) {
     void nextTick(() => document.getElementById('retention-confirmation')?.focus())
   }

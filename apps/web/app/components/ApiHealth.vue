@@ -2,6 +2,7 @@
 import { useQuery } from '@pinia/colada'
 
 const orpc = useOrpc()
+
 const { data, error, isLoading } = useQuery(orpc.health.health.queryOptions())
 </script>
 

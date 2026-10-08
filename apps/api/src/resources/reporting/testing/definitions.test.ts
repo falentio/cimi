@@ -33,6 +33,7 @@ describe('versioned reporting definitions', () => {
       identityKind: 'identified_user',
       now: new Date(now.getTime() + 1),
     })
+
     expect(updated).toMatchObject({ status: 'updated', goal: { identityKind: 'identified_user' } })
     expect(
       fixture.db
@@ -65,6 +66,7 @@ describe('versioned reporting definitions', () => {
     using fixture = createSiteDrizzleFixture()
     const repository = new GoalRepositoryDrizzle({ db: fixture.db })
     const action = { kind: 'page_view' as const }
+
     for (const id of ['gol_b', 'gol_a']) {
       await repository.insert({
         id,

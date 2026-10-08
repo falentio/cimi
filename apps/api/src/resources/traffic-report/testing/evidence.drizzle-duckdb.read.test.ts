@@ -34,15 +34,18 @@ function createAdapter(
     factCardinality,
   })
   const db = mock<Db>()
+  // SAFETY: mock chain stub; tests assert only the evidence mapping, never the query builder.
   db.select.mockReturnValue({
     from: () => ({ where: () => ({ limit: async () => [] }) }),
   } as never)
+
   return new ReportingEvidenceDrizzleDuckDb({ db, analytics })
 }
 
 describe('ReportingEvidenceDrizzleDuckDb.read', () => {
   it('reports aligned only when the count matches the published cardinality', async () => {
     const refreshedAt = new Date('2026-09-07T00:00:00.000Z')
+
     const evidence = await createAdapter(100, 100, refreshedAt).read({
       siteId: createSiteId('ste-1'),
       periods,

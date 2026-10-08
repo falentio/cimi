@@ -14,6 +14,7 @@ const props = withDefaults(
 )
 
 const delegatedProps = reactiveOmit(props, 'class', 'size')
+
 const forwardedProps = useForwardProps(delegatedProps)
 </script>
 

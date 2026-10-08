@@ -5,7 +5,9 @@ import { InvitationRepositoryDrizzle } from '../repository.drizzle.ts'
 import { hashInvitationToken } from '../token.ts'
 
 const now = new Date('2026-09-03T00:00:00.000Z')
+
 const createdAt = new Date('2026-09-01T00:00:00.000Z')
+
 const future = new Date('2026-09-10T00:00:00.000Z')
 
 function seed() {
@@ -73,12 +75,14 @@ function seed() {
       updatedAt: createdAt,
     })
     .run()
+
   return db
 }
 
 describe('InvitationRepositoryDrizzle.revoke', () => {
   it('revokes pending exactly once and reports consumed for accepted', async () => {
     const db = seed()
+
     try {
       const repo = new InvitationRepositoryDrizzle({ db })
       await repo.insert({

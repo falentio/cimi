@@ -49,32 +49,41 @@ describe('AcceptanceRepositoryDrizzle.append', () => {
     await using fixture = await createApiTestFixture()
     const { app, db } = fixture
     const owner = await signUpTestUser(app, 'append-owner@example.com', 'Append Owner')
+
     const initialized = await apiTestRequest(
       app,
       '/installation/initializeInstallation',
       owner.cookie,
       {},
     )
+
     expect(initialized.status).toBe(201)
+
     const organizationResponse = await apiTestRequest(
       app,
       '/organization/createOrganization',
       owner.cookie,
       { name: 'Append Org' },
     )
+
     const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
     const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
       organizationId: organization.id,
       name: 'Append',
       hostname: 'append.example.com',
     })
+
     expect(siteResponse.status, await siteResponse.clone().text()).toBe(201)
     const site = parse(schema.SSiteCreateOutput, await siteResponse.json())
+
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const revision = db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as {
       id: string
     }
+
     const repository = new AcceptanceRepositoryDrizzle({ db: fixture.db })
 
     expect(await repository.append([candidate(site.id, revision.id)])).toEqual([
@@ -94,9 +103,11 @@ describe('AcceptanceRepositoryDrizzle.append', () => {
       ]),
     ).toEqual([{ status: 'conflict' }])
 
+    // SAFETY: better-sqlite3 returns any; flush_id and replay_sequence columns selected below.
     const journal = db.$client
       .prepare('SELECT flush_id, replay_sequence FROM event_acceptance_journal ORDER BY rowid')
       .all() as Array<{ flush_id: string | null; replay_sequence: number }>
+
     expect(journal).toHaveLength(1)
     expect(journal[0]?.flush_id).toBeTruthy()
     expect(journal[0]?.replay_sequence).toBe(1)

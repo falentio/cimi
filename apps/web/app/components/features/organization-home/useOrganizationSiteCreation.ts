@@ -22,8 +22,10 @@ export function useOrganizationSiteCreation(options: {
   const orpc = useOrpc()
   const mutation = useMutation(orpc.site.createSite.mutationOptions())
   const isCreating = mutation.isLoading
+
   const error = computed<SettingsError | undefined>(() => {
     const value = mutation.error.value
+
     return value === null
       ? undefined
       : normalizeSettingsError(value, 'Site creation failed. Try again.')
@@ -33,11 +35,13 @@ export function useOrganizationSiteCreation(options: {
     input: OrganizationSiteCreationInput,
   ): Promise<OrganizationSiteCreationResult> {
     mutation.reset()
+
     const site = await mutation.mutateAsync({
       organizationId: toValue(options.organizationId),
       name: input.name,
       hostname: input.hostname,
     })
+
     return { id: site.id }
   }
 

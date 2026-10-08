@@ -12,5 +12,7 @@ export const SOrganization = v.strictObject(
     SCreated,
   ]),
 )
+
 export const SOrganizationIdentityFields = v.strictObject({ organizationId: SId })
+
 export const SOrganizationNameFields = v.strictObject({ organizationId: SId, name: SName })

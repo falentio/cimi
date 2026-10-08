@@ -24,6 +24,7 @@ export function createReportingReadinessPort(
         undefined,
         false,
       )
+
       return { controlStore, analyticsStore }
     },
   }

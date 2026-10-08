@@ -6,9 +6,11 @@ import { AccordionRoot, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<AccordionRootProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<AccordionRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')
+
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 

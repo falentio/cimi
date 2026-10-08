@@ -12,15 +12,18 @@ const props = defineProps<{
 }>()
 
 const retrying = shallowRef(false)
+
 const report = computed<SetupHealth | undefined>(() => {
   if (props.health.kind === 'report' || props.health.kind === 'stale-report') {
     return props.health.report
   }
+
   return undefined
 })
 
 async function retry(): Promise<void> {
   retrying.value = true
+
   try {
     await props.refresh()
   } catch {

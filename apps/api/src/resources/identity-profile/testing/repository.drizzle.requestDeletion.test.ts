@@ -4,11 +4,13 @@ import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { IdentityProfileRepositoryDrizzle } from '../repository.drizzle.ts'
 
 const firstSeenAt = new Date('2026-09-10T06:00:00.000Z')
+
 const later = new Date('2026-09-10T06:05:00.000Z')
 
 describe('IdentityProfileRepositoryDrizzle.requestDeletion', () => {
   it('requests deletion once and reports pending cleanup', async () => {
     using fixture = createSiteDrizzleFixture()
+
     const repository = new IdentityProfileRepositoryDrizzle({
       db: fixture.db,
       ids: {
@@ -17,6 +19,7 @@ describe('IdentityProfileRepositoryDrizzle.requestDeletion', () => {
         identityRedactionId: () => 'ird_1',
       },
     })
+
     await repository.identify({
       siteId: 'ste_1',
       identifiedUserId: 'app_user_1',

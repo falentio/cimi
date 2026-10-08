@@ -22,21 +22,28 @@ import {
 import { getOrganizationSiteDraftError } from './organization-home.utils'
 
 const SITE_NAME_MAX_LENGTH = 256
+
 const HOSTNAME_MAX_LENGTH = 253
+
 const props = defineProps<{
   organizationId: OrganizationId
   organizationName: WorkspaceTeam['name']
 }>()
 
 const isOpen = defineModel<boolean>('open', { default: false })
+
 const emit = defineEmits<{
   created: [site: OrganizationSiteCreationResult]
 }>()
 
 const nameDraft = shallowRef('')
+
 const hostnameDraft = shallowRef('')
+
 const hasSubmitted = shallowRef(false)
+
 const feedback = shallowRef<string | null>(null)
+
 const { isCreating, error, createSite } = useOrganizationSiteCreation({
   organizationId: toRef(props, 'organizationId'),
 })
@@ -49,6 +56,7 @@ const nameError = computed(() =>
     SITE_NAME_MAX_LENGTH,
   ),
 )
+
 const hostnameError = computed(() =>
   getOrganizationSiteDraftError(
     hostnameDraft.value,
@@ -75,6 +83,7 @@ async function submit(): Promise<void> {
 
   if (nameError.value !== null || hostnameError.value !== null) {
     focusFirstError()
+
     return
   }
 
@@ -83,6 +92,7 @@ async function submit(): Promise<void> {
       name: nameDraft.value.trim(),
       hostname: hostnameDraft.value.trim(),
     })
+
     emit('created', site)
   } catch {
     feedback.value = error.value?.message ?? 'Site creation failed. Try again.'

@@ -10,6 +10,7 @@ const teams = [
   { id: 'org-first', name: 'First', isPersonal: false },
   { id: 'org-second', name: 'Second', isPersonal: false },
 ] satisfies readonly WorkspaceTeam[]
+
 const sites = [
   { id: 'site-second', teamId: 'org-second', name: 'Second site', hostname: 'second.example' },
 ] satisfies readonly WorkspaceSite[]

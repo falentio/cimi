@@ -13,6 +13,7 @@ export interface CreateClientOptions {
 
 export function createClient(options: CreateClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/$/, '')
+
   const link = new OpenAPILink(contract, {
     url: `${baseUrl}/api`,
     ...(options.headers && { headers: options.headers }),
@@ -23,6 +24,7 @@ export function createClient(options: CreateClientOptions) {
       }),
   })
 
+  // SAFETY: OpenAPILink serves the contract router, so the client shape matches by construction.
   return createORPCClient(link) as JsonifiedClient<ContractRouterClient<typeof contract>>
 }
 

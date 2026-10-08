@@ -5,8 +5,11 @@ import { SiteRepositoryDrizzle } from '../repository.drizzle.ts'
 import { createSiteDrizzleFixture, createSiteTombstoneRow } from '../fixture.drizzle.ts'
 
 const requestedAt = new Date('2026-09-01T00:00:00.000Z')
+
 const completedAt = new Date('2026-09-02T00:00:00.000Z')
+
 const recoverRequestedAt = new Date('2026-09-03T00:00:00.000Z')
+
 const recoverCompletedAt = new Date('2026-09-04T00:00:00.000Z')
 
 const identity = {
@@ -114,6 +117,7 @@ describe.concurrent('SiteRepositoryDrizzle.retention', () => {
     await repo.completeDelete({ siteId: 'ste_1', operationId: 'sop_1', completedAt })
     const deleted = await repo.findById('ste_1')
     expect(deleted?.purgeAt, 'deleted site carries a purge deadline').not.toBeNull()
+    // SAFETY: completeDelete above sets the purge deadline; null would fail the Date below.
     const purgeAt = new Date(deleted?.purgeAt as string)
 
     await expect(
@@ -127,6 +131,7 @@ describe.concurrent('SiteRepositoryDrizzle.retention', () => {
       .from(schema.TSiteTombstone)
       .where(eq(schema.TSiteTombstone.siteId, 'ste_1'))
       .all()
+
     expect(tombstones.length, 'purge writes one tombstone').toBe(1)
     expect(tombstones[0], 'tombstone preserves hostname reservation').toMatchObject({
       siteId: 'ste_1',

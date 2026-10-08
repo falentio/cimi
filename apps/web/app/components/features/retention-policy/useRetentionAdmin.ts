@@ -1,5 +1,6 @@
 import { computed, getCurrentInstance, onMounted, onScopeDispose, shallowRef } from 'vue'
-import { useOrpc } from '@/composables/useOrpc'
+import { useOrpc } from '../../../composables/useOrpc'
+import type { RetentionAdminClient } from './retention-policy.types'
 import { createInitialRetentionState, reduceRetention } from './retention-policy.reducer'
 import type {
   Installation,
@@ -38,8 +39,8 @@ const STALE_CONFIRMATION_FAILURE: RetentionFailure = {
   action: 'refresh',
 }
 
-export function useRetentionAdmin(): RetentionController {
-  const orpc = useOrpc()
+export function useRetentionAdmin(client?: RetentionAdminClient): RetentionController {
+  const orpc: RetentionAdminClient = client ?? useOrpc()
   const state = shallowRef<RetentionState>(createInitialRetentionState())
   const view = computed(() => toRetentionAdminView(state.value))
   let requestVersion = 0
@@ -55,16 +56,19 @@ export function useRetentionAdmin(): RetentionController {
 
   async function submit(policy: RetentionPolicy): Promise<void> {
     const current = getLoadedState()
+
     if (current === null || !canSubmit(policy)) return
 
     const proposal: RetentionProposal = { kind: 'policy', policy }
     const shortening = isRetentionShortening(current.result.installationDefault, policy)
+
     if (shortening) {
       state.value = reduceRetention(state.value, {
         kind: 'save-requested',
         proposal,
         impact: retentionShorteningImpact(current.result.installationDefault, policy),
       })
+
       return
     }
 
@@ -81,17 +85,21 @@ export function useRetentionAdmin(): RetentionController {
 
   async function confirmShortening(confirmation: string): Promise<void> {
     const command = state.value.command
+
     if (command.kind !== 'confirming') return
     state.value = reduceRetention(state.value, {
       kind: 'confirmation-edited',
       value: confirmation,
     })
     const accepted = state.value.command
+
     if (accepted.kind !== 'confirming' || accepted.acknowledgement.kind !== 'accepted') return
+
     const baseline: RetentionBaseline = {
       updatedAt: command.baselineUpdatedAt,
       installationDefault: command.current,
     }
+
     await commit(accepted.proposal, true, baseline)
   }
 
@@ -107,12 +115,15 @@ export function useRetentionAdmin(): RetentionController {
       shortening,
     })
     const fresh = await readResources()
+
     if (fresh.retention === null || fresh.installation === null) {
       const error =
         fresh.retentionError ??
         fresh.installationError ??
         normalizeRetentionError({}, 'status', 'installation')
+
       fail(proposal, shortening, error)
+
       return
     }
 
@@ -121,6 +132,7 @@ export function useRetentionAdmin(): RetentionController {
       !samePolicy(fresh.retention.installationDefault, baseline.installationDefault)
     ) {
       fail(proposal, shortening, STALE_CONFIRMATION_FAILURE)
+
       return
     }
 
@@ -129,12 +141,14 @@ export function useRetentionAdmin(): RetentionController {
       installation: fresh.installation,
       refreshing: false,
     })
+
     if (lock.kind !== 'available') {
       fail(
         proposal,
         shortening,
         lockFailure(lock.kind === 'held' || lock.kind === 'cleanup-pending'),
       )
+
       return
     }
 
@@ -143,14 +157,17 @@ export function useRetentionAdmin(): RetentionController {
         scope: 'installation',
         policy: proposedPolicy(proposal),
       })
+
       if (response.scope !== 'installation') {
         fail(
           proposal,
           shortening,
           normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'update', 'installation'),
         )
+
         return
       }
+
       state.value = reduceRetention(state.value, { kind: 'save-succeeded', result: response })
     } catch (error: unknown) {
       fail(proposal, shortening, normalizeRetentionError(error, 'update', 'installation'))
@@ -169,10 +186,12 @@ export function useRetentionAdmin(): RetentionController {
   async function readResources(): Promise<FreshRead> {
     const version = ++requestVersion
     state.value = reduceRetention(state.value, { kind: 'refresh-started' })
+
     const [retentionResult, installationResult] = await Promise.allSettled([
       orpc.retentionPolicy.getRetentionPolicy.call({ scope: 'installation' }),
       orpc.installation.getInstallationStatus.call({}),
     ])
+
     if (disposed || version !== requestVersion) {
       return {
         retention: null,
@@ -184,6 +203,7 @@ export function useRetentionAdmin(): RetentionController {
 
     const retention = resolveRetentionResult(retentionResult)
     const installation = resolveInstallationResult(installationResult)
+
     if (retention.result !== null) {
       state.value = reduceRetention(state.value, {
         kind: 'retention-received',
@@ -195,6 +215,7 @@ export function useRetentionAdmin(): RetentionController {
         error: retention.error,
       })
     }
+
     if (installation.result !== null) {
       state.value = reduceRetention(state.value, {
         kind: 'installation-received',
@@ -206,6 +227,7 @@ export function useRetentionAdmin(): RetentionController {
         error: installation.error,
       })
     }
+
     return {
       retention: retention.result,
       installation: installation.result,
@@ -216,11 +238,13 @@ export function useRetentionAdmin(): RetentionController {
 
   function getLoadedState(): Extract<RetentionState['retention'], { kind: 'ready' }> | null {
     if (state.value.retention.kind !== 'ready' || state.value.retention.refreshing) return null
+
     return state.value.retention
   }
 
   function canSubmit(policy: RetentionPolicy): boolean {
     const current = view.value
+
     return (
       (current.kind === 'ready' && current.policy.canSubmit) ||
       (current.kind === 'ready' &&
@@ -241,26 +265,23 @@ export function useRetentionAdmin(): RetentionController {
   return { view, refresh, edit, submit, cancelConfirmation, confirmShortening }
 }
 
-function resolveRetentionResult(result: PromiseSettledResult<RetentionResult>): {
-  readonly result: InstallationRetentionResult | null
-  readonly error: RetentionFailure
-} {
+function resolveRetentionResult(result: PromiseSettledResult<RetentionResult>) {
   if (result.status === 'rejected')
     return { result: null, error: normalizeRetentionError(result.reason, 'read', 'installation') }
+
   if (result.value.scope === 'installation')
     return { result: result.value, error: normalizeRetentionError({}, 'read', 'installation') }
+
   return {
     result: null,
     error: normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'read', 'installation'),
   }
 }
 
-function resolveInstallationResult(result: PromiseSettledResult<Installation>): {
-  readonly result: Installation | null
-  readonly error: RetentionFailure
-} {
+function resolveInstallationResult(result: PromiseSettledResult<Installation>) {
   if (result.status === 'fulfilled')
     return { result: result.value, error: normalizeRetentionError({}, 'status', 'installation') }
+
   return {
     result: null,
     error: normalizeRetentionError(result.reason, 'status', 'installation'),

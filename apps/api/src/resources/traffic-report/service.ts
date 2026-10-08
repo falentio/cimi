@@ -19,6 +19,7 @@ import {
   type BreakdownSort,
   type BucketCount,
   type FreshnessEvidence,
+  type LifecycleLock,
   type ReportFilterPlan,
   type ReportingProfileFilterPort,
   type ReportingQueryPort,
@@ -31,13 +32,18 @@ import {
 } from '@cimi/kernel'
 import type * as v from 'valibot'
 import { toOrpcReportingError } from '../../errors.ts'
+import { withAnalyticsReadLease } from '../../lifecycle/analytics-read-lease.ts'
 
 export type TrafficOverviewInput = v.InferOutput<typeof STrafficOverviewInput>
+
 export type TrafficOverviewOutput = v.InferOutput<typeof STrafficOverviewOutput>
+
 export type TrafficBreakdownsInput = v.InferOutput<typeof STrafficBreakdownsInput>
+
 export type TrafficBreakdownsOutput = v.InferOutput<typeof STrafficBreakdownsOutput>
 
 const DEFAULT_BREAKDOWN_LIMIT = 50
+
 const TREND_METRIC = 'visitors' satisfies TrafficMetric
 
 /**
@@ -54,12 +60,31 @@ export interface TrafficReportServiceDependencies {
   readonly query: ReportingQueryPort
   readonly profileFilterKeys: ReportingProfileFilterPort
   readonly scope: SiteScopeGuardDependencies
+  readonly lifecycleLock: LifecycleLock
 }
 
 export class TrafficReportService {
   constructor(private readonly deps: TrafficReportServiceDependencies) {}
 
   async getOverview(
+    input: TrafficOverviewInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<TrafficOverviewOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getOverviewAdmitted(input, user),
+    )
+  }
+
+  async getBreakdowns(
+    input: TrafficBreakdownsInput,
+    user: Pick<AuthUser, 'id'> | undefined,
+  ): Promise<TrafficBreakdownsOutput> {
+    return withAnalyticsReadLease(this.deps.lifecycleLock, () =>
+      this.getBreakdownsAdmitted(input, user),
+    )
+  }
+
+  private async getOverviewAdmitted(
     input: TrafficOverviewInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<TrafficOverviewOutput> {
@@ -74,9 +99,11 @@ export class TrafficReportService {
       ticket.freshness.current,
       filterPlan,
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.overviewPeriod(
@@ -88,7 +115,7 @@ export class TrafficReportService {
     }
   }
 
-  async getBreakdowns(
+  private async getBreakdownsAdmitted(
     input: TrafficBreakdownsInput,
     user: Pick<AuthUser, 'id'> | undefined,
   ): Promise<TrafficBreakdownsOutput> {
@@ -109,9 +136,11 @@ export class TrafficReportService {
       filterPlan,
       { dimension, sort, direction, offset, limit },
     )
+
     if (ticket.periods.comparison === null || ticket.freshness.comparison === null) {
       return current
     }
+
     return {
       ...current,
       comparison: await this.breakdownPage(
@@ -129,11 +158,14 @@ export class TrafficReportService {
     siteId: SiteId,
   ): Promise<ReportFilterPlan> {
     const profileFilterKeys = await this.deps.profileFilterKeys.getProfileFilterKeys(siteId)
+
     const result = compileTrafficFilterPlan({
       filters: input.filters ?? [],
       profileFilterKeys,
     })
+
     if (!result.ok) throw new ORPCError('BAD_REQUEST', { message: result.reason })
+
     return result.plan
   }
 
@@ -148,14 +180,13 @@ export class TrafficReportService {
           fromDate: createCalendarDate(input.fromDate),
           toDate: createCalendarDate(input.toDate),
         },
-        ...(input.comparison === undefined || input.comparison === null
-          ? {}
-          : {
-              comparison: {
-                fromDate: createCalendarDate(input.comparison.fromDate),
-                toDate: createCalendarDate(input.comparison.toDate),
-              },
-            }),
+        ...(input.comparison !== undefined &&
+          input.comparison !== null && {
+            comparison: {
+              fromDate: createCalendarDate(input.comparison.fromDate),
+              toDate: createCalendarDate(input.comparison.toDate),
+            },
+          }),
         bucket: {
           granularity: input.granularity,
           maxStarts: AUTHENTICATED_REPORT_BUCKET_LIMITS[input.granularity],
@@ -186,14 +217,18 @@ export class TrafficReportService {
       includeTrend: true,
       filterPlan,
     })
+
     const facts = result.metrics
     const trendDefinition = TRAFFIC_METRIC_CATALOG[TREND_METRIC]
+
     const trendDenominator =
       trendDefinition.denominator === null ? null : facts[trendDefinition.denominator]
+
     const rows: BucketCount[] = result.trend.map((bucket) => ({
       at: bucket.at,
       count: bucket.visitors,
     }))
+
     const filled = fillBuckets({
       bucketStarts: period.bucketStarts ?? [],
       interval: period.interval,
@@ -201,6 +236,7 @@ export class TrafficReportService {
       rows,
       toValue: (row) => row.count,
     })
+
     return {
       fromDate: period.dates.fromDate,
       toDate: period.dates.toDate,
@@ -242,6 +278,7 @@ export class TrafficReportService {
       limit: page.limit,
       filterPlan,
     })
+
     return {
       items: result.rows.map((row) => ({
         value: row.value,
@@ -274,9 +311,11 @@ interface BreakdownPageRequest {
 function breakdownPercentage(count: number, denominator: number): number {
   if (denominator === 0) return 0
   const rate = count / denominator
+
   if (rate > 1) {
     throw new Error(`Traffic breakdown count ${count} exceeds denominator ${denominator}`)
   }
+
   return rate
 }
 
@@ -284,11 +323,7 @@ function readCompleteThrough(freshness: FreshnessEvidence) {
   return freshness.occurrenceTimeCoverageThrough
 }
 
-function freshnessOutput(freshness: FreshnessEvidence): {
-  readonly projectedAcceptanceSequence: number | null
-  readonly occurrenceTimeCoverageThrough: string | null
-  readonly status: 'current' | 'stale'
-} {
+function freshnessOutput(freshness: FreshnessEvidence) {
   return {
     projectedAcceptanceSequence: freshness.projectedAcceptanceSequence,
     occurrenceTimeCoverageThrough:

@@ -37,11 +37,13 @@ describe('InstallationRepositoryDrizzle.beginUpgrade', () => {
     expect(fixture.db.select().from(schema.TInstallation).all()[0]).toMatchObject({
       activeOperationOwnerToken: 'owner_1',
     })
+
     const operations = fixture.db
       .select()
       .from(schema.TBackupOperation)
       .where(eq(schema.TBackupOperation.id, 'bop_1'))
       .all()
+
     expect(operations).toHaveLength(1)
     expect(operations[0]).toMatchObject({ ownerToken: 'owner_1' })
     expect(

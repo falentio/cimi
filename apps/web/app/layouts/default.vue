@@ -13,6 +13,7 @@ import AppSidebar from '@/components/features/app-shell/AppSidebar.vue'
 import { resolveBreadcrumbs } from '@/components/features/app-shell/breadcrumbs'
 
 const route = useRoute()
+
 const breadcrumbs = computed(() => resolveBreadcrumbs(route.path))
 </script>
 

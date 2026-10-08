@@ -9,6 +9,7 @@ import { ContextMenuCheckboxItem, ContextMenuItemIndicator, useForwardPropsEmits
 import { cn } from '@/lib/utils'
 
 const props = defineProps<ContextMenuCheckboxItemProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<ContextMenuCheckboxItemEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

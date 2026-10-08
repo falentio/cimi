@@ -18,16 +18,22 @@ import { normalizeOrganizationNameDraft } from '@/components/features/organizati
 import type { Organization } from '@/components/features/organization-settings/organization-settings.types'
 
 const isOpen = defineModel<boolean>('open', { default: false })
+
 const emit = defineEmits<{
   created: [organization: Organization]
 }>()
+
 const organizationName = shallowRef('')
+
 const hasSubmitted = shallowRef(false)
+
 const feedback = shallowRef<string | null>(null)
+
 const { isCreating, error, createOrganization } = useOrganizationSettings({ section: 'create' })
 
 const nameError = computed(() => {
   if (!hasSubmitted.value || organizationName.value.trim().length > 0) return null
+
   return 'Enter an organization name.'
 })
 
@@ -41,10 +47,12 @@ async function submit(): Promise<void> {
 
   if (nameError.value !== null) {
     void nextTick(() => document.getElementById('organization-name')?.focus())
+
     return
   }
 
   const name = normalizeOrganizationNameDraft(organizationName.value)
+
   if (name === null) return
 
   try {

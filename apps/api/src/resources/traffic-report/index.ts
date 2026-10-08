@@ -1,6 +1,10 @@
 import { DuckDbReportingQuery, type AnalyticsDb, type Db } from '@cimi/db'
 import type { SiteScopeGuardDependencies } from '@cimi/guard'
-import { ReportingAdmissionService, type ReportingProfileFilterPort } from '@cimi/kernel'
+import {
+  ReportingAdmissionService,
+  type LifecycleLock,
+  type ReportingProfileFilterPort,
+} from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import type { HealthLifecycle } from '../../health.ts'
 import { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
@@ -10,11 +14,17 @@ import { trafficReportRouter } from './router.ts'
 import { TrafficReportService } from './service.ts'
 
 export { trafficReportRouter }
+
 export { TrafficReportService, type TrafficReportServiceDependencies } from './service.ts'
+
 export { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
+
 export { ReportingMetadataDrizzle } from './metadata.drizzle.ts'
+
 export { createReportingReadinessPort } from './readiness.ts'
+
 export { toOrpcReportingError } from '../../errors.ts'
+
 export type {
   TrafficBreakdownsInput,
   TrafficBreakdownsOutput,
@@ -29,6 +39,7 @@ export interface CreateTrafficReportDependencies {
   readonly dataDirectoryReady: boolean | (() => boolean)
   readonly scope?: SiteScopeGuardDependencies | undefined
   readonly profileFilterKeys: ReportingProfileFilterPort
+  readonly lifecycleLock: LifecycleLock
 }
 
 export function createTrafficReport({
@@ -38,10 +49,12 @@ export function createTrafficReport({
   dataDirectoryReady,
   scope,
   profileFilterKeys,
+  lifecycleLock,
 }: CreateTrafficReportDependencies) {
   const metadata = new ReportingMetadataDrizzle({ db })
   const evidence = new ReportingEvidenceDrizzleDuckDb({ db, analytics })
   const query = new DuckDbReportingQuery({ analytics })
+
   const admission = new ReportingAdmissionService({
     metadata,
     evidence,
@@ -50,12 +63,15 @@ export function createTrafficReport({
       lifecycle,
     }),
   })
+
   const service = new TrafficReportService({
     admission,
     query,
     profileFilterKeys,
     scope: scope ?? createSiteScopeDependencies({ db }),
+    lifecycleLock,
   })
+
   return { metadata, evidence, admission, query, service, router: trafficReportRouter(service) }
 }
 

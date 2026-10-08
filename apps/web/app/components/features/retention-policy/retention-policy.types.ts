@@ -2,36 +2,66 @@ import type { ComputedRef } from 'vue'
 import type { CimiOrpc } from '~/plugins/orpc'
 
 type GetRetentionPolicyCall = CimiOrpc['retentionPolicy']['getRetentionPolicy']['call']
+
 type UpdateRetentionPolicyCall = CimiOrpc['retentionPolicy']['updateRetentionPolicy']['call']
 
+type GetInstallationStatusCall = CimiOrpc['installation']['getInstallationStatus']['call']
+
+export interface RetentionAdminClient {
+  readonly retentionPolicy: {
+    readonly getRetentionPolicy: { readonly call: GetRetentionPolicyCall }
+    readonly updateRetentionPolicy: { readonly call: UpdateRetentionPolicyCall }
+  }
+  readonly installation: {
+    readonly getInstallationStatus: { readonly call: GetInstallationStatusCall }
+  }
+}
+
 export type RetentionResult = Awaited<ReturnType<GetRetentionPolicyCall>>
+
 export type InstallationRetentionResult = Extract<RetentionResult, { scope: 'installation' }>
+
 export type SiteRetentionResult = Extract<RetentionResult, { scope: 'site' }>
+
 export type RetentionPolicy = InstallationRetentionResult['installationDefault']
+
 export type RetentionPolicyRow = {
   readonly label: string
   readonly value: string
 }
+
 export type RetentionPolicyCardFooter = RetentionPolicyRow & { readonly datetime: string }
+
 export type RetentionField = keyof RetentionPolicy
+
 export type RetentionCleanup = InstallationRetentionResult['cleanup']
+
 export type RetentionCleanupStatus = RetentionCleanup['derived']['status']
+
 export type RetentionCleanupErrorCode = RetentionCleanup['derived']['errorCode']
+
 export type RetentionGetInput = Parameters<GetRetentionPolicyCall>[0]
+
 export type InstallationRetentionGetInput = Extract<RetentionGetInput, { scope: 'installation' }>
+
 export type RetentionUpdateInput = Parameters<UpdateRetentionPolicyCall>[0]
+
 export type InstallationRetentionUpdateInput = Extract<
   RetentionUpdateInput,
   { scope: 'installation' }
 >
+
 export type RetentionUpdateResult = Awaited<ReturnType<UpdateRetentionPolicyCall>>
+
 export type InstallationRetentionUpdateResult = Extract<
   RetentionUpdateResult,
   { scope: 'installation' }
 >
+
 export type Installation = Awaited<
   ReturnType<CimiOrpc['installation']['getInstallationStatus']['call']>
 >
+
 export type InstallationOperation = NonNullable<Installation['activeOperation']>
 
 export type RetentionDraft = {

@@ -1,12 +1,9 @@
+import type { RouteMeta } from 'vue-router'
 import type { AuthState } from '@/composables/useAuth'
 
 export interface AuthRouteLike {
   readonly fullPath: string
-  readonly meta: {
-    readonly auth?: unknown
-    readonly admin?: unknown
-    readonly [key: PropertyKey]: unknown
-  }
+  readonly meta: RouteMeta
 }
 
 export interface AuthRedirect {
