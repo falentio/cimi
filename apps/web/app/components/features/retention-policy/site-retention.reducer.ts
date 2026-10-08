@@ -49,6 +49,7 @@ export function reduceSiteRetention(
       }
     case 'field-edited':
       if (state.draft === null) return state
+
       return {
         ...state,
         draft: {
@@ -58,7 +59,9 @@ export function reduceSiteRetention(
       }
     case 'save-requested': {
       const result = getResult(state)
+
       if (result === null) return state
+
       return {
         ...state,
         command: {
@@ -71,10 +74,12 @@ export function reduceSiteRetention(
         },
       }
     }
+
     case 'save-cancelled':
       return state.command.kind === 'confirming' ? { ...state, command: { kind: 'idle' } } : state
     case 'confirmation-edited':
       if (state.command.kind !== 'confirming') return state
+
       return {
         ...state,
         command: {
@@ -120,6 +125,7 @@ export function reduceSiteRetention(
       }
     default: {
       const _exhaustive: never = action
+
       return _exhaustive
     }
   }
@@ -135,12 +141,14 @@ export function siteRetentionBaseline(result: SiteRetentionResult): SiteRetentio
 
 function adoptResult(state: SiteRetentionState, result: SiteRetentionResult): SiteRetentionState {
   const previous = getResult(state)
+
   const draft =
     state.draft === null ||
     previous === null ||
     !isRetentionDirty(previous.effectivePolicy, state.draft)
       ? draftFromPolicy(result.effectivePolicy)
       : state.draft
+
   return {
     ...state,
     retention: { kind: 'ready', result, refreshing: false },
@@ -157,5 +165,6 @@ function getResult(state: SiteRetentionState): SiteRetentionResult | null {
 
 function beginRefresh(state: SiteRetentionResource): SiteRetentionResource {
   if (state.kind === 'ready' || state.kind === 'stale') return { ...state, refreshing: true }
+
   return state
 }

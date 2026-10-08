@@ -48,16 +48,23 @@ export function reduceCollectionPolicy(
       }
     case 'edit-begun': {
       const result = getResult(state)
+
       if (result === null || state.command.kind === 'submitting') return state
+
       return { ...state, editing: true, draft: draftFromPolicy(collectionBaseline(result)) }
     }
+
     case 'edit-cancelled': {
       const result = getResult(state)
+
       if (result === null || state.command.kind === 'submitting') return state
+
       return { ...state, editing: false, draft: draftFromPolicy(collectionBaseline(result)) }
     }
+
     case 'field-edited':
       if (state.draft === null) return state
+
       return { ...state, draft: applyPatch(state.draft, action.patch) }
     case 'submit-started':
       return {
@@ -83,6 +90,7 @@ export function reduceCollectionPolicy(
       }
     default: {
       const _exhaustive: never = action
+
       return _exhaustive
     }
   }
@@ -97,10 +105,12 @@ function adoptResult(
   result: CollectionPolicyResult,
 ): CollectionPolicyState {
   const previous = getResult(state)
+
   const keepDraft =
     state.draft !== null &&
     previous !== null &&
     isCollectionDraftDirty(collectionBaseline(previous), state.draft)
+
   return {
     ...state,
     policy: { kind: 'ready', result, refreshing: false },
@@ -115,6 +125,7 @@ function adoptCommittedLayer(
   layer: PolicyValues,
 ): CollectionPolicyState {
   const previous = getResult(state)
+
   if (previous === null) return state
 
   const result: CollectionPolicyResult =
@@ -154,6 +165,7 @@ function adoptCommittedLayer(
 
 function provenanceFor(source: 'installation' | 'site'): CollectionPolicyResult['source'] {
   const entries = POLICY_FIELD_ORDER.map((field) => [field, source] as const)
+
   return Object.fromEntries(entries) as CollectionPolicyResult['source']
 }
 
@@ -163,6 +175,8 @@ function getResult(state: CollectionPolicyState): CollectionPolicyResult | null 
 
 function beginRefresh(policy: CollectionPolicyState['policy']): CollectionPolicyState['policy'] {
   if (policy.kind === 'ready') return { ...policy, refreshing: true }
+
   if (policy.kind === 'stale') return { ...policy, refreshing: true }
+
   return policy
 }

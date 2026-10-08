@@ -5,6 +5,7 @@ import type { CollectionPolicyResult } from './collection-policy.types'
 const mocks = vi.hoisted(() => {
   const getCollectionPolicy = vi.fn()
   const updateCollectionPolicy = vi.fn()
+
   return {
     getCollectionPolicy,
     updateCollectionPolicy,
@@ -75,6 +76,7 @@ function siteOverrideResult(): CollectionPolicyResult {
     profileFilterKeys: 'site',
     exclusions: 'site',
   } as const
+
   return policyResult({
     siteOverride: { scope: 'site', siteId: 'ste_1', ...INSTALLATION_VALUES },
     effective: { scope: 'site', siteId: 'ste_1', ...INSTALLATION_VALUES },
@@ -98,11 +100,14 @@ function createController(siteId: ReturnType<typeof ref<string | undefined>> = r
   scope.run(() => {
     controller = useSiteCollectionPolicy({ siteId })
   })
+
   if (controller === undefined) throw new Error('Controller was not created.')
+
   return { controller, scope, siteId }
 }
 
 beforeEach(resetMocks)
+
 afterEach(() => vi.useRealTimers())
 
 describe('useSiteCollectionPolicy', () => {

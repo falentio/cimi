@@ -20,9 +20,13 @@ import type {
 } from './collection-policy.types'
 
 export const MAX_LIST_LENGTH = 128
+
 export const MAX_KEY_LIST_LENGTH = 64
+
 const MAX_SCALAR_KEY_LENGTH = 64
+
 export const MAX_PROPERTIES = 64
+
 export const MAX_VALUE_LENGTH = 512
 
 export const ANONYMOUS_COLLECTION_OPTIONS = [
@@ -265,6 +269,7 @@ export function fieldErrorFor(
   key: CollectionFieldKey,
 ): string | null {
   if (validation.kind !== 'invalid') return null
+
   return validation.validation.fieldErrors[key] ?? null
 }
 
@@ -286,6 +291,7 @@ export function describeEffectiveField(policy: PolicyValues, field: PolicyField)
       return policy.captureQueryStrings ? 'Captured' : 'Never captured'
     case 'urlPolicy': {
       const url = policy.urlPolicy
+
       return [
         url.capturePath ? 'Path captured' : 'Path not captured',
         url.captureReferrer ? 'Referrer captured' : 'Referrer not captured',
@@ -293,9 +299,12 @@ export function describeEffectiveField(policy: PolicyValues, field: PolicyField)
         url.stripSensitiveValues ? 'Sensitive values stripped' : 'Sensitive values kept',
       ].join(' · ')
     }
+
     case 'propertyPolicy': {
       const property = policy.propertyPolicy
+
       if (!property.allowScalarProperties) return 'No custom properties stored'
+
       return [
         `At most ${property.maxProperties} properties`,
         `Values up to ${property.maxValueLength} characters`,
@@ -304,12 +313,14 @@ export function describeEffectiveField(policy: PolicyValues, field: PolicyField)
           : `${property.reservedNames.length} reserved names blocked`,
       ].join(' · ')
     }
+
     case 'profileFilterKeys':
       return policy.profileFilterKeys.length === 0
         ? 'None approved'
         : policy.profileFilterKeys.join(', ')
     case 'exclusions': {
       const exclusions = policy.exclusions
+
       return [
         `${exclusions.hostnames.length} hostnames`,
         `${exclusions.paths.length} paths`,
@@ -317,8 +328,10 @@ export function describeEffectiveField(policy: PolicyValues, field: PolicyField)
         `${exclusions.ipRanges.length} IP ranges`,
       ].join(' · ')
     }
+
     default: {
       const _exhaustive: never = field
+
       return _exhaustive
     }
   }
@@ -385,6 +398,7 @@ export function toPolicyValues(draft: CollectionDraft): ParsedCollectionDraft {
     fieldErrors,
     'propertyPolicy.maxProperties',
   )
+
   const maxValueLength = requireInteger(
     draft.propertyPolicy.maxValueLength,
     'Maximum value length',
@@ -393,26 +407,31 @@ export function toPolicyValues(draft: CollectionDraft): ParsedCollectionDraft {
     fieldErrors,
     'propertyPolicy.maxValueLength',
   )
+
   const reservedNames = normalizeKeys(
     draft.propertyPolicy.reservedNames,
     'Reserved names',
     fieldErrors,
     'propertyPolicy.reservedNames',
   )
+
   const profileFilterKeys = normalizeKeys(
     draft.profileFilterKeys,
     'Profile filter keys',
     fieldErrors,
     'profileFilterKeys',
   )
+
   const hostnames = normalizeHostnames(draft.exclusions.hostnames, fieldErrors)
   const paths = normalizeList(draft.exclusions.paths, 'Paths', fieldErrors, 'exclusions.paths')
+
   const countries = normalizeList(
     draft.exclusions.countries,
     'Countries',
     fieldErrors,
     'exclusions.countries',
   )
+
   const ipRanges = normalizeIpRanges(draft.exclusions.ipRanges, fieldErrors)
 
   if (draft.captureQueryStrings && draft.urlPolicy.stripQueryStrings) {
@@ -468,12 +487,15 @@ export function changedPolicyFields(
 ): readonly CollectionPolicyChange[] {
   const baseline = draftFromPolicy(policy)
   const changes: CollectionPolicyChange[] = []
+
   for (const field of POLICY_FIELD_ORDER) {
     const detail = describeChange(field, baseline[field], draft[field])
+
     if (detail !== null) {
       changes.push({ field, label: POLICY_FIELD_LABELS[field], detail })
     }
   }
+
   return changes
 }
 
@@ -482,6 +504,7 @@ export function summarizeCollectionPolicy(draft: CollectionDraft): CollectionPol
   const urlCapture: string[] = []
   urlCapture.push(draft.urlPolicy.capturePath ? 'Path captured' : 'Path not captured')
   urlCapture.push(draft.urlPolicy.captureReferrer ? 'Referrer captured' : 'Referrer not captured')
+
   if (!draft.captureQueryStrings) {
     urlCapture.push('Query strings never captured')
   } else if (draft.urlPolicy.stripQueryStrings) {
@@ -497,6 +520,7 @@ export function summarizeCollectionPolicy(draft: CollectionDraft): CollectionPol
   const propertyCapture: string[] = [
     property.allowScalarProperties ? 'Scalar properties allowed' : 'Properties never stored',
   ]
+
   if (property.allowScalarProperties) {
     propertyCapture.push(
       property.maxProperties === null
@@ -543,6 +567,7 @@ export function normalizeCollectionPolicyError(
   source: 'read' | 'update',
 ): CollectionPolicyFailure {
   const details = readErrorDetails(error)
+
   if (details.code === 'UNAUTHORIZED' || details.status === 401) {
     return {
       kind: 'authentication',
@@ -552,6 +577,7 @@ export function normalizeCollectionPolicyError(
       action: 'sign-in',
     }
   }
+
   if (details.code === 'FORBIDDEN' || details.status === 403) {
     return {
       kind: 'forbidden',
@@ -561,6 +587,7 @@ export function normalizeCollectionPolicyError(
       action: 'contact-admin',
     }
   }
+
   if (details.code === 'NOT_FOUND' || details.status === 404) {
     return {
       kind: 'not-found',
@@ -570,6 +597,7 @@ export function normalizeCollectionPolicyError(
       action: 'refresh',
     }
   }
+
   if (details.code === 'BAD_REQUEST' || details.status === 400) {
     return {
       kind: 'bad-request',
@@ -582,6 +610,7 @@ export function normalizeCollectionPolicyError(
       action: 'edit',
     }
   }
+
   if (details.code === 'CONFLICT' || details.status === 409) {
     return {
       kind: 'conflict',
@@ -591,6 +620,7 @@ export function normalizeCollectionPolicyError(
       action: 'refresh',
     }
   }
+
   if (details.code === 'INTERNAL_SERVER_ERROR' || details.status === 500) {
     return {
       kind: 'server',
@@ -600,6 +630,7 @@ export function normalizeCollectionPolicyError(
       action: 'refresh',
     }
   }
+
   return {
     kind: 'retryable',
     code: details.code,
@@ -621,6 +652,7 @@ export function toCollectionPolicyView(state: CollectionPolicyState): Collection
     if (state.policy.error.kind === 'authentication' || state.policy.error.kind === 'forbidden') {
       return { kind: 'access-error', error: state.policy.error }
     }
+
     return { kind: 'error', error: state.policy.error }
   }
 
@@ -712,15 +744,19 @@ export const POLICY_FIELD_ORDER: readonly PolicyField[] = [
 
 function consentStanceLabel(mode: PolicyValues['consentMode']): string {
   if (mode === 'required_for_all') return 'Every event requires granted consent.'
+
   if (mode === 'required_for_identity') {
     return 'Identity linking requires granted consent; anonymous events do not.'
   }
+
   return 'Consent signals do not gate collection.'
 }
 
 function botStanceLabel(policy: PolicyValues['botPolicy']): string {
   if (policy === 'exclude') return 'Bot requests are refused.'
+
   if (policy === 'include') return 'Bot requests are collected like other traffic.'
+
   return 'Bot requests are recorded without identity.'
 }
 
@@ -734,12 +770,16 @@ function requireInteger(
 ): number | null {
   if (value === null) {
     errors[key] = `${label} is required.`
+
     return null
   }
+
   if (!Number.isInteger(value) || value < min || value > max) {
     errors[key] = `${label} must be a whole number from ${min} to ${max}.`
+
     return null
   }
+
   return value
 }
 
@@ -751,21 +791,30 @@ function normalizeKeys(
 ): string[] | null {
   if (values.length > MAX_KEY_LIST_LENGTH) {
     errors[key] = `${label} must contain at most ${MAX_KEY_LIST_LENGTH} entries.`
+
     return null
   }
+
   const normalized: string[] = []
+
   for (const value of values) {
     const trimmed = value.trim()
+
     if (trimmed.length === 0 || trimmed.length > MAX_SCALAR_KEY_LENGTH) {
       errors[key] = `${label} entries must be 1 to ${MAX_SCALAR_KEY_LENGTH} characters.`
+
       return null
     }
+
     normalized.push(trimmed)
   }
+
   if (new Set(normalized).size !== normalized.length) {
     errors[key] = `${label} must not contain duplicate values.`
+
     return null
   }
+
   return normalized
 }
 
@@ -775,17 +824,24 @@ function normalizeHostnames(
 ): string[] | null {
   if (values.length > MAX_LIST_LENGTH) {
     errors['exclusions.hostnames'] = `Hostnames must contain at most ${MAX_LIST_LENGTH} entries.`
+
     return null
   }
+
   const normalized: string[] = []
+
   for (const value of values) {
     const parsed = safeParse(SHostname, value.trim())
+
     if (!parsed.success) {
       errors['exclusions.hostnames'] = `"${value.trim()}" is not a valid hostname.`
+
       return null
     }
+
     normalized.push(parsed.output)
   }
+
   return normalized
 }
 
@@ -797,17 +853,24 @@ function normalizeList(
 ): string[] | null {
   if (values.length > MAX_LIST_LENGTH) {
     errors[key] = `${label} must contain at most ${MAX_LIST_LENGTH} entries.`
+
     return null
   }
+
   const normalized: string[] = []
+
   for (const value of values) {
     const trimmed = value.trim()
+
     if (trimmed.length === 0) {
       errors[key] = `${label} entries must not be empty.`
+
       return null
     }
+
     normalized.push(trimmed)
   }
+
   return normalized
 }
 
@@ -817,18 +880,25 @@ function normalizeIpRanges(
 ): string[] | null {
   if (values.length > MAX_LIST_LENGTH) {
     errors['exclusions.ipRanges'] = `IP ranges must contain at most ${MAX_LIST_LENGTH} entries.`
+
     return null
   }
+
   const normalized: string[] = []
+
   for (const value of values) {
     const trimmed = value.trim()
+
     if (parseIpPattern(trimmed) === null) {
       errors['exclusions.ipRanges'] =
         `"${trimmed}" is not a valid IP address, range, or CIDR block.`
+
       return null
     }
+
     normalized.push(trimmed)
   }
+
   return normalized
 }
 
@@ -836,7 +906,9 @@ function describeChange(field: PolicyField, from: unknown, to: unknown): string 
   if (field === 'urlPolicy' || field === 'propertyPolicy' || field === 'exclusions') {
     return describeObjectChange(field, from, to)
   }
+
   if (sameValue(from, to)) return null
+
   return `${describeValue(field, from)} → ${describeValue(field, to)}`
 }
 
@@ -848,20 +920,27 @@ function describeObjectChange(
   if (!isRecord(from) || !isRecord(to)) return null
   const labels = SUBFIELD_LABELS[field]
   const parts: string[] = []
+
   for (const [key, label] of Object.entries(labels)) {
     const before = from[key]
     const after = to[key]
+
     if (sameValue(before, after)) continue
     parts.push(`${label}: ${describeValue(field, before)} → ${describeValue(field, after)}`)
   }
+
   return parts.length === 0 ? null : parts.join('; ')
 }
 
 function describeValue(field: PolicyField, value: unknown): string {
   if (typeof value === 'boolean') return value ? 'On' : 'Off'
+
   if (typeof value === 'number') return String(value)
+
   if (Array.isArray(value)) return `${value.length} entries`
+
   if (typeof value === 'string') return optionLabel(field, value) ?? value
+
   return 'Unknown'
 }
 
@@ -869,12 +948,15 @@ function optionLabel(field: PolicyField, value: string): string | null {
   if (field === 'anonymousCollection') {
     return ANONYMOUS_COLLECTION_OPTIONS.find((option) => option.value === value)?.label ?? null
   }
+
   if (field === 'consentMode') {
     return CONSENT_MODE_OPTIONS.find((option) => option.value === value)?.label ?? null
   }
+
   if (field === 'botPolicy') {
     return BOT_POLICY_OPTIONS.find((option) => option.value === value)?.label ?? null
   }
+
   return null
 }
 
@@ -889,9 +971,13 @@ function getDisabledReason(input: {
   readonly dirty: boolean
 }): string | null {
   if (input.saving) return 'Saving the Site override.'
+
   if (input.stale) return 'The loaded policy is stale. Refresh before saving.'
+
   if (!input.dirty) return null
+
   if (input.validation.kind === 'invalid') return 'Fix the highlighted values before saving.'
+
   return null
 }
 
@@ -901,8 +987,11 @@ function isRefreshing(resource: CollectionPolicyResource): boolean {
 
 function buildAnnouncement(state: CollectionPolicyState): string {
   if (state.notice !== null) return state.notice.message
+
   if (state.command.kind === 'submitting') return 'Saving the Site override.'
+
   if (state.policy.kind === 'stale') return state.policy.error.message
+
   return ''
 }
 
@@ -911,6 +1000,7 @@ function readErrorDetails(error: unknown): {
   readonly status: number | undefined
 } {
   if (!isRecord(error)) return { code: undefined, status: undefined }
+
   return {
     code: typeof error.code === 'string' ? error.code : undefined,
     status: typeof error.status === 'number' ? error.status : undefined,

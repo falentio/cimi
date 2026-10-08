@@ -68,33 +68,43 @@ export function useSiteCollectionPolicy(
 
   async function save(): Promise<void> {
     const current = view.value
+
     if (current.kind !== 'ready' || !current.editor.canSubmit) return
     const validation = toPolicyValues(current.editor.draft)
+
     if (validation.kind === 'invalid') return
     await commit('save', validation.values)
   }
 
   async function clearOverride(): Promise<void> {
     const current = view.value
+
     if (current.kind !== 'ready' || !current.editor.canClear) return
     await commit('clear', null)
   }
 
   async function commit(operation: 'save' | 'clear', values: PolicyValues | null): Promise<void> {
     const siteId = requireSiteId()
+
     if (siteId === null) {
       fail(operation, INVALID_SITE_ID_FAILURE)
+
       return
     }
 
     state.value = reduceCollectionPolicy(state.value, { kind: 'submit-started', operation })
+
     try {
       const response = await callUpdate(siteId, operation, values)
+
       if (disposed) return
+
       if (response === null) {
         fail(operation, normalizeCollectionPolicyError({}, 'update'))
+
         return
       }
+
       state.value = reduceCollectionPolicy(state.value, {
         kind: 'submit-succeeded',
         operation,
@@ -103,12 +113,15 @@ export function useSiteCollectionPolicy(
     } catch (error: unknown) {
       if (disposed) return
       fail(operation, normalizeCollectionPolicyError(error, 'update'))
+
       return
     }
 
     // A silent read so the committed notice survives the provenance refresh.
     const confirmed = await readPolicy({ silent: true })
+
     if (disposed) return
+
     if (confirmed.error !== null) {
       state.value = reduceCollectionPolicy(state.value, {
         kind: 'refresh-warning',
@@ -126,9 +139,12 @@ export function useSiteCollectionPolicy(
       operation === 'clear' || values === null
         ? { scope: 'site', policy: { siteId, clear: true } }
         : { scope: 'site', policy: { siteId, ...values } }
+
     const response = await orpc.collectionPolicy.updateCollectionPolicy.call(input)
+
     if (response.scope !== 'site') return null
     const { scope: _scope, siteId: _siteId, ...layer } = response
+
     return layer
   }
 
@@ -143,34 +159,43 @@ export function useSiteCollectionPolicy(
   async function readPolicy(options: { silent?: boolean } = {}): Promise<ReadOutcome> {
     const version = ++requestVersion
     const siteId = requireSiteId()
+
     if (siteId === null) {
       state.value = reduceCollectionPolicy(state.value, {
         kind: 'policy-failed',
         error: INVALID_SITE_ID_FAILURE,
       })
+
       return { result: null, error: INVALID_SITE_ID_FAILURE }
     }
 
     if (options.silent !== true) {
       state.value = reduceCollectionPolicy(state.value, { kind: 'refresh-started' })
     }
+
     try {
       const result = await orpc.collectionPolicy.getCollectionPolicy.call({ siteId })
+
       if (disposed || version !== requestVersion) {
         return { result: null, error: normalizeCollectionPolicyError({}, 'read') }
       }
+
       state.value = reduceCollectionPolicy(state.value, { kind: 'policy-received', result })
+
       return { result, error: null }
     } catch (error: unknown) {
       const failure = normalizeCollectionPolicyError(error, 'read')
+
       if (disposed || version !== requestVersion) return { result: null, error: failure }
       state.value = reduceCollectionPolicy(state.value, { kind: 'policy-failed', error: failure })
+
       return { result: null, error: failure }
     }
   }
 
   function requireSiteId(): string | null {
     const siteId = toValue(options.siteId)
+
     return typeof siteId === 'string' && siteId.trim() !== '' ? siteId : null
   }
 

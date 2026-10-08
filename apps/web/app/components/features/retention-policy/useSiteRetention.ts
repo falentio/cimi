@@ -36,7 +36,9 @@ import type {
 import { toSiteRetentionView } from './site-retention.utils'
 
 type SiteRetentionGetCall = CimiOrpc['retentionPolicy']['getRetentionPolicy']['call']
+
 type SiteRetentionGetInput = Extract<Parameters<SiteRetentionGetCall>[0], { scope: 'site' }>
+
 type SiteRetentionUpdateCall = CimiOrpc['retentionPolicy']['updateRetentionPolicy']['call']
 
 type SiteRetentionRead =
@@ -70,15 +72,18 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
 
   async function submit(policy: RetentionPolicy): Promise<void> {
     const loaded = getLoadedState()
+
     if (loaded === null || !canSubmit(policy)) return
 
     const proposal: RetentionProposal = { kind: 'policy', policy }
+
     if (isRetentionShortening(loaded.result.effectivePolicy, policy)) {
       state.value = reduceSiteRetention(state.value, {
         kind: 'save-requested',
         proposal,
         impact: retentionShorteningImpact(loaded.result.effectivePolicy, policy),
       })
+
       return
     }
 
@@ -87,15 +92,18 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
 
   async function clear(): Promise<void> {
     const loaded = getLoadedState()
+
     if (loaded === null || loaded.result.siteOverride === null) return
     const installationDefault = loaded.result.installationDefault
     const proposal: RetentionProposal = { kind: 'inherit', installationDefault }
+
     if (isRetentionShortening(loaded.result.effectivePolicy, installationDefault)) {
       state.value = reduceSiteRetention(state.value, {
         kind: 'save-requested',
         proposal,
         impact: retentionShorteningImpact(loaded.result.effectivePolicy, installationDefault),
       })
+
       return
     }
 
@@ -109,12 +117,14 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
 
   async function confirmShortening(confirmation: string): Promise<void> {
     const command = state.value.command
+
     if (command.kind !== 'confirming') return
     state.value = reduceSiteRetention(state.value, {
       kind: 'confirmation-edited',
       value: confirmation,
     })
     const accepted = state.value.command
+
     if (accepted.kind !== 'confirming' || accepted.acknowledgement.kind !== 'accepted') return
     await commit(accepted.proposal, true, command.baseline)
   }
@@ -133,26 +143,32 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
     })
 
     const fresh = await readRetention()
+
     if (fresh.result === null) {
       fail(proposal, shortening, fresh.error)
+
       return
     }
 
     if (!matchesBaseline(fresh.result, baseline)) {
       fail(proposal, shortening, STALE_CONFIRMATION_FAILURE)
+
       return
     }
 
     try {
       const response = await updatePolicy(proposal)
+
       if (response === null) {
         fail(
           proposal,
           shortening,
           normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'update', 'site'),
         )
+
         return
       }
+
       state.value = reduceSiteRetention(state.value, {
         kind: 'save-succeeded',
         result: response,
@@ -174,39 +190,50 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
 
   async function updatePolicy(proposal: RetentionProposal): Promise<SiteRetentionResult | null> {
     const requestSiteId = siteId.value
+
     if (requestSiteId === undefined) return null
+
     const input: Parameters<SiteRetentionUpdateCall>[0] =
       proposal.kind === 'inherit'
         ? { scope: 'site', siteId: requestSiteId, policy: null }
         : { scope: 'site', siteId: requestSiteId, policy: proposedPolicy(proposal) }
+
     const response = await orpc.retentionPolicy.updateRetentionPolicy.call(input)
+
     return response.scope === 'site' ? response : null
   }
 
   async function readRetention(): Promise<SiteRetentionRead> {
     const requestSiteId = siteId.value
+
     if (requestSiteId === undefined) {
       return { result: null, error: normalizeRetentionError({ code: 'NOT_FOUND' }, 'read', 'site') }
     }
+
     const version = ++requestVersion
     state.value = reduceSiteRetention(state.value, { kind: 'refresh-started' })
     const input: SiteRetentionGetInput = { scope: 'site', siteId: requestSiteId }
 
     let result: SiteRetentionResult
+
     try {
       const response = await orpc.retentionPolicy.getRetentionPolicy.call(input)
+
       if (response.scope !== 'site') {
         return discardStaleRead(version, 'read', { code: 'INTERNAL_SERVER_ERROR' })
       }
+
       result = response
     } catch (error: unknown) {
       return discardStaleRead(version, 'read', error)
     }
+
     if (disposed || version !== requestVersion) {
       return { result: null, error: normalizeRetentionError({}, 'read', 'site') }
     }
 
     state.value = reduceSiteRetention(state.value, { kind: 'retention-received', result })
+
     return { result, error: null }
   }
 
@@ -216,20 +243,26 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
     error: unknown,
   ): SiteRetentionRead {
     const failure = normalizeRetentionError(error, source, 'site')
+
     if (disposed || version !== requestVersion) return { result: null, error: failure }
     state.value = reduceSiteRetention(state.value, { kind: 'retention-failed', error: failure })
+
     return { result: null, error: failure }
   }
 
   function getLoadedState(): Extract<SiteRetentionState['retention'], { kind: 'ready' }> | null {
     if (state.value.retention.kind !== 'ready' || state.value.retention.refreshing) return null
+
     return state.value.retention
   }
 
   function canSubmit(policy: RetentionPolicy): boolean {
     const current = view.value
+
     if (current.kind !== 'ready' || current.stale) return false
+
     if (current.command.kind !== 'idle') return false
+
     return current.policy.canSubmit || !samePolicy(current.result.effectivePolicy, policy)
   }
 

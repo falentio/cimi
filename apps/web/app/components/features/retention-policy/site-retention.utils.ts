@@ -37,9 +37,13 @@ export function siteRetentionDisabledReason(input: {
   readonly validation: ParsedRetentionDraft
 }): string | null {
   if (input.saving) return 'Saving retention settings.'
+
   if (input.stale) return 'Retention settings are stale. Refresh before saving.'
+
   if (input.validation.kind === 'invalid') return 'Fix the retention values before saving.'
+
   if (!input.dirty) return 'No changes to save.'
+
   return null
 }
 
@@ -61,6 +65,7 @@ export function toSiteRetentionView(state: SiteRetentionState): SiteRetentionVie
     ) {
       return { kind: 'access-error', error: state.retention.error }
     }
+
     return { kind: 'error', error: state.retention.error }
   }
 
@@ -71,8 +76,10 @@ export function toSiteRetentionView(state: SiteRetentionState): SiteRetentionVie
   const saving = state.command.kind === 'submitting'
   const dirty = isRetentionDirty(result.effectivePolicy, draft)
   const canAttemptSubmit = dirty && !saving && !stale
+
   const shortening =
     validation.kind === 'valid' && isRetentionShortening(result.effectivePolicy, validation.policy)
+
   const clearShortens =
     result.siteOverride !== null &&
     isProposalShortening(result.effectivePolicy, {
@@ -116,10 +123,14 @@ function isRefreshing(resource: SiteRetentionState['retention']): boolean {
 
 function buildAnnouncement(state: SiteRetentionState): string {
   if (state.notice !== null) return state.notice.message
+
   if (state.command.kind === 'submitting') return 'Saving Site retention settings.'
+
   if (state.retention.kind === 'stale') return state.retention.error.message
+
   if (state.retention.kind === 'ready' && state.retention.result.cleanup.pending) {
     return 'Cleanup is pending. Derived cleanup runs before historical backup cleanup.'
   }
+
   return ''
 }

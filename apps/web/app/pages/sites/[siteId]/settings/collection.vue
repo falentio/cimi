@@ -6,9 +6,13 @@ import { parseSiteId } from '@/components/features/site-settings/site-settings.u
 import { useSiteSettings } from '@/components/features/site-settings/useSiteSettings'
 
 const route = useRoute()
+
 const siteId = computed(() => parseSiteId(route.params.siteId))
+
 const { snapshot, retry } = useSiteSettings({ siteId })
+
 const controller = useSiteCollectionPolicy({ siteId })
+
 const resolvedSiteId = computed(() => snapshot.value.siteId)
 </script>
 

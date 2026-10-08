@@ -7,6 +7,7 @@ import CollectionPolicyListField from './CollectionPolicyListField.vue'
 const props = defineProps<{ editor: CollectionPolicyEditorView }>()
 
 const emit = defineEmits<{ patch: [patch: CollectionFieldPatch] }>()
+
 type ExclusionKey = 'hostnames' | 'paths' | 'countries' | 'ipRanges'
 
 const EXCLUSION_SPECS = [

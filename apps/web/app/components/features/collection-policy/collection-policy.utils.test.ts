@@ -61,6 +61,7 @@ function result(overrides: Partial<CollectionPolicyResult> = {}): CollectionPoli
 
 function valuesOf(policy: CollectionPolicyResult['installationDefault']) {
   const { scope: _scope, ...values } = policy
+
   return values
 }
 
@@ -83,6 +84,7 @@ describe('collection-policy.utils', () => {
 
     const parsed = toPolicyValues(draft)
     expect(parsed.kind).toBe('valid')
+
     if (parsed.kind !== 'valid') return
 
     expect(Object.keys(parsed.values).sort()).toEqual(
@@ -113,8 +115,10 @@ describe('collection-policy.utils', () => {
         exclusions: { hostnames: [], paths: [], countries: [], ipRanges: [] },
       }),
     )
+
     const parsed = toPolicyValues(draft)
     expect(parsed.kind).toBe('valid')
+
     if (parsed.kind !== 'valid') return
     expect(parsed.values.profileFilterKeys).toEqual(['zeta', 'alpha'])
   })
@@ -124,6 +128,7 @@ describe('collection-policy.utils', () => {
       ...BASE_DRAFT,
       propertyPolicy: { ...BASE_DRAFT.propertyPolicy, maxProperties: null },
     }
+
     const parsed = toPolicyValues(draft)
     expect(parsed).toMatchObject({
       kind: 'invalid',
@@ -140,6 +145,7 @@ describe('collection-policy.utils', () => {
         reservedNames: ['email', 'email'],
       },
     }
+
     expect(toPolicyValues(duplicatedReserved)).toMatchObject({
       kind: 'invalid',
       validation: { fieldErrors: { 'propertyPolicy.reservedNames': expect.any(String) } },
@@ -156,6 +162,7 @@ describe('collection-policy.utils', () => {
       captureQueryStrings: true,
       urlPolicy: { ...BASE_DRAFT.urlPolicy, stripQueryStrings: true },
     }
+
     expect(toPolicyValues(conflicting)).toMatchObject({
       kind: 'invalid',
       validation: { fieldErrors: { captureQueryStrings: expect.any(String) } },
@@ -165,6 +172,7 @@ describe('collection-policy.utils', () => {
       ...BASE_DRAFT,
       exclusions: { ...BASE_DRAFT.exclusions, ipRanges: ['not-an-ip'] },
     }
+
     expect(toPolicyValues(badIp)).toMatchObject({
       kind: 'invalid',
       validation: { fieldErrors: { 'exclusions.ipRanges': expect.any(String) } },
@@ -227,6 +235,7 @@ describe('collection-policy.utils', () => {
       botPolicy: 'include',
       exclusions: { ...BASE_DRAFT.exclusions, ipRanges: ['192.168.0.0/16'] },
     }
+
     expect(isCollectionDraftDirty(baseline, draft)).toBe(true)
     const changes = changedPolicyFields(baseline, draft)
     expect(changes.map((change) => change.field)).toEqual(['botPolicy', 'exclusions'])
@@ -248,6 +257,7 @@ describe('collection-policy.utils', () => {
         ipRanges: ['10.0.0.0/8'],
       },
     })
+
     expect(summary.consentStance).toBe('Every event requires granted consent.')
     expect(summary.anonymousStance).toBe('Anonymous events are collected.')
     expect(summary.urlCapture).toContain('Query strings captured without sensitive keys')
@@ -272,6 +282,7 @@ describe('collection-policy.utils', () => {
         { code, status: 500, message: '/srv/private SQL secret' },
         'update',
       )
+
       expect(failure.code).toBe(code)
       expect(failure.message).not.toContain('/srv/private')
       expect(failure.message).not.toContain('SQL')
@@ -294,6 +305,7 @@ describe('collection-policy.utils', () => {
       command: { kind: 'idle' },
       notice: null,
     }
+
     expect(toCollectionPolicyView(loading)).toMatchObject({ kind: 'loading' })
 
     const accessError = normalizeCollectionPolicyError({ code: 'FORBIDDEN' }, 'read')
@@ -321,6 +333,7 @@ describe('collection-policy.utils', () => {
       command: { kind: 'idle' },
       notice: null,
     })
+
     expect(ready).toMatchObject({
       kind: 'ready',
       stale: false,
@@ -362,6 +375,7 @@ describe('collection-policy.utils', () => {
       command: { kind: 'idle' },
       notice: null,
     })
+
     expect(view).toMatchObject({
       kind: 'ready',
       editor: { mode: 'edit', hasOverride: true, canClear: true, source: { botPolicy: 'site' } },

@@ -3,13 +3,19 @@ import type { SiteId } from '@/components/features/site-settings/site-settings.t
 import type { CimiOrpc } from '~/plugins/orpc'
 
 type GetCollectionPolicyCall = CimiOrpc['collectionPolicy']['getCollectionPolicy']['call']
+
 type UpdateCollectionPolicyCall = CimiOrpc['collectionPolicy']['updateCollectionPolicy']['call']
 
 export type CollectionPolicyResult = Awaited<ReturnType<GetCollectionPolicyCall>>
+
 export type CollectionPolicyUpdateInput = Parameters<UpdateCollectionPolicyCall>[0]
+
 export type PolicyField = keyof CollectionPolicyResult['source']
+
 export type PolicyProvenance = CollectionPolicyResult['source'][PolicyField]
+
 export type PolicyValues = Omit<CollectionPolicyResult['effective'], 'scope' | 'siteId'>
+
 export type UrlPolicyValues = PolicyValues['urlPolicy']
 
 export type EditablePropertyPolicy = Omit<

@@ -99,9 +99,11 @@ describe('site-retention.utils', () => {
     })
 
     const override: RetentionPolicy = { eventMonths: 24, profileMonths: 24, replayMonths: null }
+
     const overridden = toSiteRetentionView(
       readyState(siteResult({ siteOverride: override, effectivePolicy: override })),
     )
+
     expect(overridden).toMatchObject({
       kind: 'ready',
       provenance: 'site-override',
@@ -117,6 +119,7 @@ describe('site-retention.utils', () => {
 
   it('flags a clear that shortens relative to the current effective policy', () => {
     const longer: RetentionPolicy = { eventMonths: 24, profileMonths: 24, replayMonths: null }
+
     const view = toSiteRetentionView(
       readyState(
         siteResult({
@@ -126,6 +129,7 @@ describe('site-retention.utils', () => {
         }),
       ),
     )
+
     expect(view).toMatchObject({ kind: 'ready', policy: { clearShortens: true } })
   })
 
@@ -180,6 +184,7 @@ describe('site-retention.utils', () => {
       command: { kind: 'idle' },
       notice: null,
     }
+
     expect(toSiteRetentionView(state)).toMatchObject({
       kind: 'ready',
       stale: true,
@@ -197,10 +202,12 @@ describe('site-retention.utils', () => {
 
   it('surfaces the committed notice through the announcement', () => {
     const proposal: RetentionProposal = { kind: 'inherit', installationDefault: twelve }
+
     const view = toSiteRetentionView({
       ...readyState(siteResult()),
       notice: { kind: 'committed', message: siteRetentionNotice(proposal) },
     })
+
     expect(view).toMatchObject({ kind: 'ready', announcement: siteRetentionNotice(proposal) })
   })
 })

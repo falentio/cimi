@@ -94,6 +94,7 @@ export type SiteRetentionAction =
       readonly shortening: boolean
       readonly error: RetentionFailure
     }
+
 export type SiteRetentionEditorView = {
   readonly draft: RetentionDraft
   readonly siteOverride: RetentionPolicy | null

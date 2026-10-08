@@ -31,6 +31,7 @@ const INSTALLATION_DEFAULT = {
 
 function result(overrides: Partial<CollectionPolicyResult> = {}): CollectionPolicyResult {
   const { scope: _scope, ...values } = INSTALLATION_DEFAULT
+
   return {
     installationDefault: { ...INSTALLATION_DEFAULT },
     siteOverride: null,
@@ -60,6 +61,7 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-received',
       result: result(),
     })
+
     expect(next.policy).toMatchObject({ kind: 'ready', refreshing: false })
     expect(next.draft?.propertyPolicy.maxProperties).toBe(64)
     expect(next.draft?.exclusions.ipRanges).toEqual([])
@@ -70,14 +72,17 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-received',
       result: result(),
     })
+
     const edited = reduceCollectionPolicy(loaded, {
       kind: 'field-edited',
       patch: { field: 'botPolicy', value: 'include' },
     })
+
     const refreshed = reduceCollectionPolicy(edited, {
       kind: 'policy-received',
       result: result(),
     })
+
     expect(refreshed.draft?.botPolicy).toBe('include')
 
     const cancelled = reduceCollectionPolicy(refreshed, { kind: 'edit-cancelled' })
@@ -90,6 +95,7 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-received',
       result: result(),
     })
+
     const edited = reduceCollectionPolicy(loaded, {
       kind: 'field-edited',
       patch: {
@@ -102,6 +108,7 @@ describe('collection-policy.reducer', () => {
         },
       },
     })
+
     expect(edited.draft?.exclusions.hostnames).toEqual(['internal.example.com'])
     expect(edited.draft?.propertyPolicy).toEqual(loaded.draft?.propertyPolicy)
     expect(edited.draft?.urlPolicy).toEqual(loaded.draft?.urlPolicy)
@@ -112,16 +119,19 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-received',
       result: result(),
     })
+
     const started = reduceCollectionPolicy(loaded, {
       kind: 'submit-started',
       operation: 'save',
     })
+
     expect(started.command).toEqual({ kind: 'submitting', operation: 'save' })
 
     const layer = {
       ...policyValuesFromEffective(result().effective),
       botPolicy: 'include',
     } as const
+
     const saved = reduceCollectionPolicy(started, {
       kind: 'submit-succeeded',
       operation: 'save',
@@ -131,6 +141,7 @@ describe('collection-policy.reducer', () => {
     expect(saved.command).toEqual({ kind: 'idle' })
     expect(saved.editing).toBe(false)
     expect(saved.notice).toMatchObject({ kind: 'committed', warning: null })
+
     if (saved.policy.kind !== 'ready') throw new Error('expected a ready policy')
     expect(saved.policy.result.source.botPolicy).toBe('site')
     expect(saved.policy.result.siteOverride).not.toBeNull()
@@ -155,6 +166,7 @@ describe('collection-policy.reducer', () => {
         },
       }),
     })
+
     const cleared = reduceCollectionPolicy(loaded, {
       kind: 'submit-succeeded',
       operation: 'clear',
@@ -162,6 +174,7 @@ describe('collection-policy.reducer', () => {
     })
 
     expect(cleared.notice).toMatchObject({ kind: 'cleared' })
+
     if (cleared.policy.kind !== 'ready') throw new Error('expected a ready policy')
     expect(cleared.policy.result.siteOverride).toBeNull()
     expect(cleared.policy.result.source.botPolicy).toBe('installation')
@@ -173,11 +186,14 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-received',
       result: result(),
     })
+
     const editing = reduceCollectionPolicy(loaded, { kind: 'edit-begun' })
+
     const edited = reduceCollectionPolicy(editing, {
       kind: 'field-edited',
       patch: { field: 'captureQueryStrings', value: true },
     })
+
     const failed = reduceCollectionPolicy(edited, {
       kind: 'submit-failed',
       operation: 'save',
@@ -200,10 +216,12 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-received',
       result: result(),
     })
+
     const edited = reduceCollectionPolicy(loaded, {
       kind: 'field-edited',
       patch: { field: 'botPolicy', value: 'record_excluded' },
     })
+
     const failed = reduceCollectionPolicy(edited, {
       kind: 'submit-failed',
       operation: 'clear',
@@ -215,6 +233,7 @@ describe('collection-policy.reducer', () => {
         action: 'refresh',
       },
     })
+
     const refreshed = reduceCollectionPolicy(failed, {
       kind: 'policy-received',
       result: result(),
@@ -229,11 +248,13 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-received',
       result: result(),
     })
+
     const saved = reduceCollectionPolicy(loaded, {
       kind: 'submit-succeeded',
       operation: 'save',
       layer: policyValuesFromEffective(result().effective),
     })
+
     const warned = reduceCollectionPolicy(saved, {
       kind: 'refresh-warning',
       error: {
@@ -247,6 +268,7 @@ describe('collection-policy.reducer', () => {
 
     expect(warned.notice).toMatchObject({ kind: 'committed', warning: { kind: 'server' } })
     expect(warned.policy).toMatchObject({ kind: 'ready', refreshing: false })
+
     if (warned.policy.kind !== 'ready') throw new Error('expected a ready policy')
     expect(warned.policy.result.source.botPolicy).toBe('site')
   })
@@ -264,12 +286,14 @@ describe('collection-policy.reducer', () => {
       kind: 'policy-failed',
       error: failure,
     })
+
     expect(failed.policy).toEqual({ kind: 'failed', error: failure })
 
     const loaded = reduceCollectionPolicy(createInitialCollectionPolicyState(), {
       kind: 'policy-received',
       result: result(),
     })
+
     const stale = reduceCollectionPolicy(loaded, { kind: 'policy-failed', error: failure })
     expect(stale.policy).toMatchObject({ kind: 'stale', refreshing: false, error: failure })
   })

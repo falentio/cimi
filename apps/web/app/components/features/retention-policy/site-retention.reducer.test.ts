@@ -12,6 +12,7 @@ const none = {
 
 function result(overrides: Partial<SiteRetentionResult> = {}): SiteRetentionResult {
   const policy: RetentionPolicy = { eventMonths: 12, profileMonths: 12, replayMonths: null }
+
   return {
     scope: 'site',
     siteId: 'site-1',
@@ -28,20 +29,24 @@ describe('site-retention.reducer', () => {
   it('starts loading and adopts the first snapshot as the draft baseline', () => {
     const initial = createInitialSiteRetentionState()
     expect(initial.retention).toEqual({ kind: 'loading' })
+
     const next = reduceSiteRetention(initial, {
       kind: 'retention-received',
       result: result(),
     })
+
     expect(next.draft).toEqual({ eventMonths: '12', profileMonths: '12', replayMonths: '' })
     expect(next.retention).toMatchObject({ kind: 'ready', refreshing: false })
   })
 
   it('seeds the draft from the effective policy when the Site inherits', () => {
     const installation: RetentionPolicy = { eventMonths: 6, profileMonths: 6, replayMonths: null }
+
     const next = reduceSiteRetention(createInitialSiteRetentionState(), {
       kind: 'retention-received',
       result: result({ installationDefault: installation, effectivePolicy: installation }),
     })
+
     expect(next.draft).toEqual({ eventMonths: '6', profileMonths: '6', replayMonths: '' })
   })
 
@@ -50,26 +55,31 @@ describe('site-retention.reducer', () => {
       kind: 'retention-received',
       result: result(),
     })
+
     const edited = reduceSiteRetention(first, {
       kind: 'field-edited',
       field: 'eventMonths',
       value: '18',
     })
+
     const refreshed = reduceSiteRetention(edited, {
       kind: 'retention-received',
       result: result({ updatedAt: '2026-09-18T11:00:00Z' }),
     })
+
     expect(refreshed.draft?.eventMonths).toBe('18')
 
     const proposal = {
       kind: 'inherit',
       installationDefault: { eventMonths: 6, profileMonths: 6, replayMonths: null },
     } as const
+
     const confirming = reduceSiteRetention(refreshed, {
       kind: 'save-requested',
       proposal,
       impact: { event: { from: 12, to: 6 }, profile: { from: 12, to: 6 }, replay: null },
     })
+
     expect(confirming.command).toMatchObject({
       kind: 'confirming',
       proposal,
@@ -81,12 +91,14 @@ describe('site-retention.reducer', () => {
       kind: 'confirmation-edited',
       value: 'SHORTEN RETENTION',
     })
+
     expect(accepted.command).toMatchObject({ acknowledgement: { kind: 'accepted' } })
 
     const rejected = reduceSiteRetention(confirming, {
       kind: 'confirmation-edited',
       value: 'shorten',
     })
+
     expect(rejected.command).toMatchObject({
       acknowledgement: { kind: 'required', error: expect.stringContaining('SHORTEN RETENTION') },
     })
@@ -110,6 +122,7 @@ describe('site-retention.reducer', () => {
         impact: { event: { from: 12, to: 6 }, profile: { from: 12, to: 6 }, replay: null },
       },
     )
+
     expect(reduceSiteRetention(confirming, { kind: 'save-cancelled' }).command).toEqual({
       kind: 'idle',
     })
@@ -121,20 +134,24 @@ describe('site-retention.reducer', () => {
       effectivePolicy: { eventMonths: 12, profileMonths: 12, replayMonths: null },
       installationDefault: { eventMonths: 12, profileMonths: 12, replayMonths: null },
     } as const
+
     const loaded = reduceSiteRetention(createInitialSiteRetentionState(), {
       kind: 'retention-received',
       result: result(),
     })
+
     const proposal = {
       kind: 'policy',
       policy: { eventMonths: 18, profileMonths: 18, replayMonths: null },
     } as const
+
     const submitting = reduceSiteRetention(loaded, {
       kind: 'save-started',
       baseline,
       proposal,
       shortening: false,
     })
+
     const failed = reduceSiteRetention(submitting, {
       kind: 'save-failed',
       proposal,
@@ -147,6 +164,7 @@ describe('site-retention.reducer', () => {
         action: 'edit',
       },
     })
+
     expect(failed.command).toMatchObject({ kind: 'failed', proposal })
     expect(failed.draft).toEqual({ eventMonths: '12', profileMonths: '12', replayMonths: '' })
 
@@ -155,11 +173,13 @@ describe('site-retention.reducer', () => {
       effectivePolicy: proposal.policy,
       updatedAt: '2026-09-18T12:00:00Z',
     })
+
     const adopted = reduceSiteRetention(failed, {
       kind: 'save-succeeded',
       result: saved,
       proposal,
     })
+
     expect(adopted.command).toEqual({ kind: 'idle' })
     expect(adopted.draft?.eventMonths).toBe('18')
     expect(adopted.notice?.message).toContain('instead of the installation default')
@@ -168,6 +188,7 @@ describe('site-retention.reducer', () => {
   it('explains an inheritance restore when the clear commit succeeds', () => {
     const installation: RetentionPolicy = { eventMonths: 6, profileMonths: 6, replayMonths: null }
     const override: RetentionPolicy = { eventMonths: 24, profileMonths: 24, replayMonths: null }
+
     const loaded = reduceSiteRetention(createInitialSiteRetentionState(), {
       kind: 'retention-received',
       result: result({
@@ -176,11 +197,13 @@ describe('site-retention.reducer', () => {
         effectivePolicy: override,
       }),
     })
+
     const cleared = reduceSiteRetention(loaded, {
       kind: 'save-succeeded',
       result: result({ installationDefault: installation, effectivePolicy: installation }),
       proposal: { kind: 'inherit', installationDefault: installation },
     })
+
     expect(cleared.draft).toEqual({ eventMonths: '6', profileMonths: '6', replayMonths: '' })
     expect(cleared.notice?.message).toContain('inherits the installation default again')
   })
@@ -190,6 +213,7 @@ describe('site-retention.reducer', () => {
       kind: 'retention-received',
       result: result(),
     })
+
     const stale = reduceSiteRetention(loaded, {
       kind: 'retention-failed',
       error: {
@@ -200,6 +224,7 @@ describe('site-retention.reducer', () => {
         action: 'refresh',
       },
     })
+
     expect(stale.retention).toMatchObject({ kind: 'stale', refreshing: false })
     expect(stale.draft?.eventMonths).toBe('12')
 
@@ -213,6 +238,7 @@ describe('site-retention.reducer', () => {
         action: 'refresh',
       },
     })
+
     expect(failed.retention).toMatchObject({ kind: 'failed' })
   })
 })

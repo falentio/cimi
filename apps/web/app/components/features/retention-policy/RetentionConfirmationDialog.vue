@@ -46,9 +46,13 @@ const acknowledgement = computed(() =>
 )
 
 const canConfirm = computed(() => props.command.kind === 'confirming')
+
 const currentRows = computed(() => retentionPolicyRows(props.command.current))
+
 const proposedRows = computed(() => retentionPolicyRows(proposedPolicy(props.command.proposal)))
+
 const inherits = computed(() => props.command.proposal.kind === 'inherit')
+
 const impactCopy = computed(() =>
   props.subject === 'installation'
     ? 'This change affects installation-wide retention.'

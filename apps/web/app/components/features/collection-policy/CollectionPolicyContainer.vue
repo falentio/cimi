@@ -16,6 +16,7 @@ const props = defineProps<{
 }>()
 
 const view = computed(() => props.controller.view.value)
+
 const refreshing = computed(() => (view.value.kind === 'ready' ? view.value.refreshing : false))
 
 async function refresh(): Promise<void> {

@@ -6,6 +6,7 @@ import type { SiteRetentionResult } from './site-retention.types'
 const mocks = vi.hoisted(() => {
   const getRetentionPolicy = vi.fn()
   const updateRetentionPolicy = vi.fn()
+
   return {
     getRetentionPolicy,
     updateRetentionPolicy,
@@ -56,7 +57,9 @@ function createController(siteId: string | undefined = 'site-1') {
   scope.run(() => {
     controller = useSiteRetention({ siteId: id })
   })
+
   if (controller === undefined) throw new Error('Controller was not created.')
+
   return { controller, scope, id }
 }
 
@@ -66,11 +69,14 @@ function createControllerWithoutSite() {
   scope.run(() => {
     controller = useSiteRetention({ siteId: undefined })
   })
+
   if (controller === undefined) throw new Error('Controller was not created.')
+
   return { controller, scope }
 }
 
 beforeEach(resetMocks)
+
 afterEach(() => vi.useRealTimers())
 
 describe('useSiteRetention', () => {

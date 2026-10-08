@@ -36,6 +36,7 @@ function focusFirstInvalid(): void {
   if (props.policy.validation.kind !== 'invalid') return
   const { fieldErrors } = props.policy.validation.validation
   const firstInvalid = RETENTION_MONTH_FIELDS.find((def) => fieldErrors[def.field] !== undefined)
+
   if (firstInvalid !== undefined) {
     void nextTick(() => document.getElementById(firstInvalid.id)?.focus())
   }
@@ -44,8 +45,10 @@ function focusFirstInvalid(): void {
 function submit(): void {
   if (props.policy.validation.kind === 'invalid') {
     focusFirstInvalid()
+
     return
   }
+
   if (!props.policy.canAttemptSubmit) return
   editing.value = false
   emit('submit', props.policy.validation.policy)

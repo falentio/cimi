@@ -32,6 +32,7 @@ const emit = defineEmits<{
 const clearRequested = shallowRef(false)
 
 const editing = computed(() => props.editor.mode === 'edit')
+
 const busy = computed(() => props.editor.saving)
 
 function startEdit(): void {
@@ -59,9 +60,12 @@ function confirmClear(): void {
 function submit(): void {
   if (props.editor.validation.kind !== 'invalid') {
     emit('save')
+
     return
   }
+
   const firstInvalid = Object.keys(props.editor.validation.validation.fieldErrors)[0]
+
   if (firstInvalid === undefined) return
   void nextTick(() => document.getElementById(focusTargetId(firstInvalid))?.focus())
 }

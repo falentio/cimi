@@ -33,16 +33,22 @@ const emit = defineEmits<{
 const clearing = shallowRef(false)
 
 const ready = computed(() => (props.view.kind === 'ready' ? props.view : null))
+
 const refreshing = computed(() => ready.value?.refreshing ?? false)
+
 const clearDialogOpen = computed(() => clearing.value && ready.value?.command.kind === 'idle')
 
 function beginClear(): void {
   const current = ready.value
+
   if (current === null || !current.policy.canClear) return
+
   if (current.policy.clearShortens) {
     emit('clear')
+
     return
   }
+
   clearing.value = true
 }
 

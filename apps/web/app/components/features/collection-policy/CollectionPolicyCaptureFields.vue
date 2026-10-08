@@ -28,6 +28,7 @@ const props = defineProps<{ editor: CollectionPolicyEditorView }>()
 const emit = defineEmits<{ patch: [patch: CollectionFieldPatch] }>()
 
 type SelectSpec = (typeof CAPTURE_SELECT_SPECS)[number]
+
 type SwitchSpec = (typeof CAPTURE_SWITCH_SPECS)[number]
 
 function selectValue(field: SelectSpec['field']): string {
@@ -41,15 +42,21 @@ function selectError(field: SelectSpec['field']): string | null {
 function handleSelect(field: SelectSpec['field'], value: unknown): void {
   if (typeof value !== 'string') return
   const spec = CAPTURE_SELECT_SPECS.find((candidate) => candidate.field === field)
+
   if (spec === undefined || !spec.options.some((option) => option.value === value)) return
+
   if (field === 'anonymousCollection') {
     emit('patch', { field, value: value as PolicyValues['anonymousCollection'] })
+
     return
   }
+
   if (field === 'consentMode') {
     emit('patch', { field, value: value as PolicyValues['consentMode'] })
+
     return
   }
+
   emit('patch', { field, value: value as PolicyValues['botPolicy'] })
 }
 
