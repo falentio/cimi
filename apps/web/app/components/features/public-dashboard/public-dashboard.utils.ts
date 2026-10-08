@@ -3,6 +3,7 @@ import type {
   PublicDashboardConfig,
   PublicDashboardConfiguration,
   PublicDashboardFailure,
+  PublicDashboardNotice,
   PublicDashboardOperation,
   PublicDashboardOperationCopy,
   PublicDashboardState,
@@ -199,7 +200,7 @@ export function normalizePublicDashboardError(
 export function publicDashboardNotice(
   operation: PublicDashboardOperation,
   warning: PublicDashboardFailure | null,
-): PublicDashboardState['notice'] {
+): PublicDashboardNotice {
   const message =
     operation === 'enable'
       ? 'The public dashboard is enabled and a new identifier was issued. Any identifier issued earlier no longer resolves.'
