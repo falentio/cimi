@@ -7,14 +7,11 @@
 - Wait for the server with `curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-connrefused http://localhost:3000/api/system/health >/dev/null`.
 - The server is ready for authenticated work only when the health check succeeds, `/signup` renders the Cimi form, and a signup or login followed by `GET /api/auth/get-session` returns the expected session. Read and follow [docs/DEV-LOGIN.md](../../docs/DEV-LOGIN.md) for credentials and session verification.
 - If the API reports `Control migration history is incompatible`, stop the server. If the local data is disposable, move `.cimi` to a private backup location, rerun `bash scripts/setup-dev-env.sh`, and restart the server. Preserve `.cimi` and ask before resetting it when local accounts or data matter.
-- If inside herdr worktree, then always make dev server running at tab named "web dev" and inside worktree of workspace
 - If not in main or not working with frontend related work, then dont spawn dev server unless requested
-- If not in main, assign random port to dev server, append it to tab name to "web dev (8080)"
+- If not in main, assign a random port to the dev server and include it in the dev server label, e.g. "web dev (8080)"
 - If machine has active tailscale, then also listen to tailscale address
   - Wait dev server ready using curl with interval 3s
-- Manage the tab to only has 1 dev server run-ed per worktree
-- Only 1 dev server per herdr worktree
-- Only create dev server tab/pane at the herder worktree for that branch
+- Run only 1 dev server per worktree
 
 ## Rules
 
