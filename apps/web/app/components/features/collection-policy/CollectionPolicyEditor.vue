@@ -16,6 +16,7 @@ import CollectionPolicyExclusionFields from './CollectionPolicyExclusionFields.v
 import CollectionPolicyPrivacySummary from './CollectionPolicyPrivacySummary.vue'
 import CollectionPolicyPropertyFields from './CollectionPolicyPropertyFields.vue'
 import CollectionPolicySummary from './CollectionPolicySummary.vue'
+import EffectiveVariantHost from './effective-variants/EffectiveVariantHost.vue'
 import type {
   CollectionFieldKey,
   CollectionFieldPatch,
@@ -34,6 +35,11 @@ const emit = defineEmits<{
 }>()
 
 const clearRequested = shallowRef(false)
+
+const route = useRoute()
+
+// Temporary variant harness: delete this wiring with effective-variants/ once a variant is chosen.
+const variantActive = computed(() => route.query.variant !== undefined)
 
 const editing = computed(() => props.editor.mode === 'edit')
 
@@ -90,7 +96,8 @@ function submit(): void {
         </CardAction>
       </CardHeader>
       <CardContent class="min-w-0">
-        <CollectionPolicySummary v-if="!editing" :editor="editor" />
+        <CollectionPolicySummary v-if="!editing && !variantActive" :editor="editor" />
+        <EffectiveVariantHost v-else-if="!editing" :editor="editor" />
         <p v-else class="text-muted-foreground text-sm">
           Each section below is its own card. The Site override replaces the whole Site layer, so a
           save writes every section at once.
