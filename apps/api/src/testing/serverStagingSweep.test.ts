@@ -16,7 +16,7 @@ describe('createApiServerApp restore staging sweep', () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  it('removes orphaned restore staging files before serving', async () => {
+  it('sweeps orphaned staging files before serving and keeps a recovery copy', async () => {
     const dataDir = join(dir, 'data')
     mkdirSync(dataDir, { recursive: true })
     const controlDbPath = join(dataDir, 'control.sqlite')
@@ -24,10 +24,13 @@ describe('createApiServerApp restore staging sweep', () => {
     const staging = [
       'control.sqlite.tmp.0123456789abcdef',
       'control.sqlite.tmp.0123456789abcdef-wal',
-      'control.sqlite.previous.fedcba9876543210',
+      'control.sqlite.tmp.0123456789abcdef-shm',
     ]
 
     for (const name of staging) writeFileSync(join(dataDir, name), 'x')
+
+    const recovery = 'control.sqlite.previous.fedcba9876543210'
+    writeFileSync(join(dataDir, recovery), 'x')
 
     const app = await createApiServerApp({
       env: {
@@ -38,11 +41,8 @@ describe('createApiServerApp restore staging sweep', () => {
     })
 
     try {
-      expect(
-        readdirSync(dataDir).filter(
-          (name) => name.includes('.tmp.') || name.includes('.previous.'),
-        ),
-      ).toEqual([])
+      expect(readdirSync(dataDir).filter((name) => name.includes('.tmp.'))).toEqual([])
+      expect(existsSync(join(dataDir, recovery))).toBe(true)
       expect(existsSync(controlDbPath)).toBe(true)
     } finally {
       await app.close()

@@ -58,6 +58,48 @@ describe('sweepRestoreStagingFiles', () => {
     expect(readdirSync(dir).sort()).toEqual([...kept].sort())
   })
 
+  it('keeps a previous copy when the control database is absent', () => {
+    const previous = [
+      'control.sqlite.previous.fedcba9876543210',
+      'control.sqlite.previous.fedcba9876543210-wal',
+      'control.sqlite.previous.fedcba9876543210-shm',
+    ]
+
+    for (const name of previous) write(name)
+
+    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
+
+    expect(readdirSync(dir).sort()).toEqual([...previous].sort())
+  })
+
+  it('removes tmp staging files even when the control database is absent', () => {
+    const staging = [
+      'control.sqlite.tmp.0123456789abcdef',
+      'control.sqlite.tmp.0123456789abcdef-wal',
+      'control.sqlite.tmp.0123456789abcdef-shm',
+    ]
+
+    for (const name of staging) write(name)
+
+    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
+
+    expect(readdirSync(dir)).toEqual([])
+  })
+
+  it('removes a previous copy once the control database is back', () => {
+    const previous = [
+      'control.sqlite.previous.fedcba9876543210',
+      'control.sqlite.previous.fedcba9876543210-wal',
+      'control.sqlite.previous.fedcba9876543210-shm',
+    ]
+
+    for (const name of [...previous, 'control.sqlite']) write(name)
+
+    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
+
+    expect(readdirSync(dir)).toEqual(['control.sqlite'])
+  })
+
   it('is a no-op when no staging file exists', () => {
     sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
     sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
