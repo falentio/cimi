@@ -67,7 +67,7 @@ async function confirmShortening(confirmation: string): Promise<void> {
 </script>
 
 <template>
-  <main aria-labelledby="retention-admin-title" class="flex min-w-0 w-full flex-col gap-6">
+  <section aria-labelledby="retention-admin-title" class="flex min-w-0 w-full flex-col gap-6">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div class="min-w-0">
         <p class="text-muted-foreground text-sm font-medium tracking-wide uppercase">
@@ -202,13 +202,13 @@ async function confirmShortening(confirmation: string): Promise<void> {
       <VariantPicker v-if="route.query.variant !== undefined" :variants="PICKER_VARIANTS" />
 
       <component :is="cleanupSection" :cleanup="view.cleanup" />
-
       <RetentionConfirmationDialog
         v-if="view.command.kind === 'confirming' || view.command.kind === 'submitting'"
+        subject="installation"
         :command="view.command"
         @cancel="controller.cancelConfirmation"
         @confirm="confirmShortening"
       />
     </template>
-  </main>
+  </section>
 </template>

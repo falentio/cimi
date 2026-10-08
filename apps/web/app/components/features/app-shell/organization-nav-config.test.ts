@@ -4,7 +4,9 @@ import {
   createOrganizationNav,
   organizationHomePath,
   organizationSettingsPath,
+  siteCollectionSettingsPath,
   siteOverviewPath,
+  siteRetentionSettingsPath,
   siteSettingsPath,
 } from './organization-nav-config'
 
@@ -14,6 +16,8 @@ describe('organization navigation', () => {
     expect(organizationSettingsPath('org_1')).toBe('/org/org_1/settings')
     expect(siteOverviewPath('site_1')).toBe('/sites/site_1')
     expect(siteSettingsPath('site_1')).toBe('/sites/site_1/settings')
+    expect(siteCollectionSettingsPath('site_1')).toBe('/sites/site_1/settings/collection')
+    expect(siteRetentionSettingsPath('site_1')).toBe('/sites/site_1/settings/retention')
   })
 
   it('creates Home and Settings entries with precise active matching', () => {

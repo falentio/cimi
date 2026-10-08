@@ -18,6 +18,7 @@
     "@cimi/config": "workspace:*",
     "@cimi/contract": "workspace:*",
     "@cimi/logging": "workspace:*",
+    "@cimi/utils": "workspace:*",
     "@hugeicons/core-free-icons": "^4.3.0",
     "@hugeicons/vue": "^1.0.8",
     "@internationalized/date": "^3.12.4",

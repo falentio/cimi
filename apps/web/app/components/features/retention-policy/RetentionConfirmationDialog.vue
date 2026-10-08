@@ -13,11 +13,16 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import type { RetentionCommand } from './retention-policy.types'
-import { SHORTEN_RETENTION_CONFIRMATION } from './retention-policy.utils'
+import type { RetentionPolicy, ShorteningConfirmationCommand } from './retention-policy.types'
+import {
+  SHORTEN_RETENTION_CONFIRMATION,
+  proposedPolicy,
+  retentionPolicyRows,
+} from './retention-policy.utils'
 
 const props = defineProps<{
-  command: Extract<RetentionCommand, { kind: 'confirming' | 'submitting' }>
+  subject: 'installation' | 'site'
+  command: ShorteningConfirmationCommand
 }>()
 
 const emit = defineEmits<{
@@ -42,8 +47,20 @@ const acknowledgement = computed(() =>
 
 const canConfirm = computed(() => props.command.kind === 'confirming')
 
+const currentRows = computed(() => retentionPolicyRows(props.command.current))
+
+const proposedRows = computed(() => retentionPolicyRows(proposedPolicy(props.command.proposal)))
+
+const inherits = computed(() => props.command.proposal.kind === 'inherit')
+
+const impactCopy = computed(() =>
+  props.subject === 'installation'
+    ? 'This change affects installation-wide retention.'
+    : 'This change affects retention for this Site.',
+)
+
 watch(
-  () => (props.command.kind === 'confirming' ? props.command.baselineUpdatedAt : null),
+  () => (props.command.kind === 'confirming' ? confirmationKey(props.command) : null),
   (next, previous) => {
     if (next !== previous) confirmation.value = ''
   },
@@ -68,8 +85,20 @@ function submit(): void {
   }
 }
 
-function months(value: number | null): string {
-  return value === null ? 'Disabled' : `${value} months`
+function confirmationKey(
+  command: Extract<ShorteningConfirmationCommand, { kind: 'confirming' }>,
+): string {
+  return `${policyKey(command.current)}|${proposalKey(command.proposal)}`
+}
+
+function policyKey(policy: RetentionPolicy): string {
+  return `${policy.eventMonths}/${policy.profileMonths}/${policy.replayMonths ?? 'off'}`
+}
+
+function proposalKey(proposal: ShorteningConfirmationCommand['proposal']): string {
+  return proposal.kind === 'inherit'
+    ? `inherit:${policyKey(proposal.installationDefault)}`
+    : `policy:${policyKey(proposal.policy)}`
 }
 </script>
 
@@ -79,35 +108,28 @@ function months(value: number | null): string {
       <AlertDialogHeader>
         <AlertDialogTitle>Confirm shorter retention</AlertDialogTitle>
         <AlertDialogDescription>
-          This change affects installation-wide retention. Affected data hides immediately from
-          queries. Physical cleanup is asynchronous. Derived cleanup runs before historical-backup
-          cleanup. Extending retention later does not resurrect data that physical cleanup purged.
+          {{ impactCopy }} Affected data hides immediately from queries. Physical cleanup is
+          asynchronous. Derived cleanup runs before historical-backup cleanup. Extending retention
+          later does not resurrect data that physical cleanup purged.
         </AlertDialogDescription>
       </AlertDialogHeader>
 
-      <dl class="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2">
+      <div class="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2">
         <div class="font-medium sm:col-span-2">Current versus proposed</div>
-        <div class="flex flex-wrap justify-between gap-2 sm:col-span-2">
-          <dt class="text-muted-foreground">Events</dt>
-          <dd>
-            {{ months(command.current.eventMonths) }} → {{ months(command.candidate.eventMonths) }}
-          </dd>
-        </div>
-        <div class="flex flex-wrap justify-between gap-2 sm:col-span-2">
-          <dt class="text-muted-foreground">Profiles</dt>
-          <dd>
-            {{ months(command.current.profileMonths) }} →
-            {{ months(command.candidate.profileMonths) }}
-          </dd>
-        </div>
-        <div class="flex flex-wrap justify-between gap-2 sm:col-span-2">
-          <dt class="text-muted-foreground">Replay</dt>
-          <dd>
-            {{ months(command.current.replayMonths) }} →
-            {{ months(command.candidate.replayMonths) }}
-          </dd>
-        </div>
-      </dl>
+        <dl class="grid gap-3 sm:col-span-2">
+          <div
+            v-for="(row, index) in currentRows"
+            :key="row.label"
+            class="flex flex-wrap justify-between gap-2"
+          >
+            <dt class="text-muted-foreground">{{ row.label }}</dt>
+            <dd class="tabular-nums">{{ row.value }} → {{ proposedRows[index]?.value }}</dd>
+          </div>
+        </dl>
+        <p v-if="inherits" class="text-muted-foreground sm:col-span-2">
+          Inherited installation default
+        </p>
+      </div>
 
       <form class="grid gap-4" @submit.prevent="submit">
         <Field

@@ -13,7 +13,7 @@ useHead(() => ({
 <template>
   <div class="flex flex-col gap-6">
     <header class="flex flex-wrap items-center gap-3">
-      <h1 class="text-2xl font-semibold tracking-tight">{{ siteId }}</h1>
+      <h1 class="text-2xl font-semibold tracking-tight break-words min-w-0">{{ siteId }}</h1>
       <Badge
         variant="outline"
         class="border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400"

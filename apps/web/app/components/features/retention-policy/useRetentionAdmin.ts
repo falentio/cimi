@@ -9,6 +9,7 @@ import type {
   RetentionFailure,
   RetentionField,
   RetentionPolicy,
+  RetentionProposal,
   RetentionResult,
   RetentionState,
 } from './retention-policy.types'
@@ -16,6 +17,7 @@ import {
   deriveRetentionLock,
   isRetentionShortening,
   normalizeRetentionError,
+  proposedPolicy,
   retentionShorteningImpact,
   toRetentionAdminView,
 } from './retention-policy.utils'
@@ -57,19 +59,20 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
 
     if (current === null || !canSubmit(policy)) return
 
+    const proposal: RetentionProposal = { kind: 'policy', policy }
     const shortening = isRetentionShortening(current.result.installationDefault, policy)
 
     if (shortening) {
       state.value = reduceRetention(state.value, {
         kind: 'save-requested',
-        candidate: policy,
+        proposal,
         impact: retentionShorteningImpact(current.result.installationDefault, policy),
       })
 
       return
     }
 
-    await commit(policy, false, {
+    await commit(proposal, false, {
       updatedAt: current.result.updatedAt,
       installationDefault: current.result.installationDefault,
     })
@@ -97,27 +100,29 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
       installationDefault: command.current,
     }
 
-    await commit(accepted.candidate, true, baseline)
+    await commit(accepted.proposal, true, baseline)
   }
 
   async function commit(
-    candidate: RetentionPolicy,
+    proposal: RetentionProposal,
     shortening: boolean,
     baseline: RetentionBaseline,
   ): Promise<void> {
     state.value = reduceRetention(state.value, {
       kind: 'save-started',
       baselineUpdatedAt: baseline.updatedAt,
-      candidate,
+      proposal,
       shortening,
     })
     const fresh = await readResources()
 
     if (fresh.retention === null || fresh.installation === null) {
       const error =
-        fresh.retentionError ?? fresh.installationError ?? normalizeRetentionError({}, 'status')
+        fresh.retentionError ??
+        fresh.installationError ??
+        normalizeRetentionError({}, 'status', 'installation')
 
-      fail(candidate, shortening, error)
+      fail(proposal, shortening, error)
 
       return
     }
@@ -126,7 +131,7 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
       fresh.retention.updatedAt !== baseline.updatedAt ||
       !samePolicy(fresh.retention.installationDefault, baseline.installationDefault)
     ) {
-      fail(candidate, shortening, STALE_CONFIRMATION_FAILURE)
+      fail(proposal, shortening, STALE_CONFIRMATION_FAILURE)
 
       return
     }
@@ -139,7 +144,7 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
 
     if (lock.kind !== 'available') {
       fail(
-        candidate,
+        proposal,
         shortening,
         lockFailure(lock.kind === 'held' || lock.kind === 'cleanup-pending'),
       )
@@ -150,14 +155,14 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
     try {
       const response = await orpc.retentionPolicy.updateRetentionPolicy.call({
         scope: 'installation',
-        policy: candidate,
+        policy: proposedPolicy(proposal),
       })
 
       if (response.scope !== 'installation') {
         fail(
-          candidate,
+          proposal,
           shortening,
-          normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'update'),
+          normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'update', 'installation'),
         )
 
         return
@@ -165,14 +170,14 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
 
       state.value = reduceRetention(state.value, { kind: 'save-succeeded', result: response })
     } catch (error: unknown) {
-      fail(candidate, shortening, normalizeRetentionError(error, 'update'))
+      fail(proposal, shortening, normalizeRetentionError(error, 'update', 'installation'))
     }
   }
 
-  function fail(candidate: RetentionPolicy, shortening: boolean, error: RetentionFailure): void {
+  function fail(proposal: RetentionProposal, shortening: boolean, error: RetentionFailure): void {
     state.value = reduceRetention(state.value, {
       kind: 'save-failed',
-      candidate,
+      proposal,
       shortening,
       error,
     })
@@ -191,8 +196,8 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
       return {
         retention: null,
         installation: null,
-        retentionError: normalizeRetentionError({}, 'read'),
-        installationError: normalizeRetentionError({}, 'status'),
+        retentionError: normalizeRetentionError({}, 'read', 'installation'),
+        installationError: normalizeRetentionError({}, 'status', 'installation'),
       }
     }
 
@@ -262,22 +267,25 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
 
 function resolveRetentionResult(result: PromiseSettledResult<RetentionResult>) {
   if (result.status === 'rejected')
-    return { result: null, error: normalizeRetentionError(result.reason, 'read') }
+    return { result: null, error: normalizeRetentionError(result.reason, 'read', 'installation') }
 
   if (result.value.scope === 'installation')
-    return { result: result.value, error: normalizeRetentionError({}, 'read') }
+    return { result: result.value, error: normalizeRetentionError({}, 'read', 'installation') }
 
   return {
     result: null,
-    error: normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'read'),
+    error: normalizeRetentionError({ code: 'INTERNAL_SERVER_ERROR' }, 'read', 'installation'),
   }
 }
 
 function resolveInstallationResult(result: PromiseSettledResult<Installation>) {
   if (result.status === 'fulfilled')
-    return { result: result.value, error: normalizeRetentionError({}, 'status') }
+    return { result: result.value, error: normalizeRetentionError({}, 'status', 'installation') }
 
-  return { result: null, error: normalizeRetentionError(result.reason, 'status') }
+  return {
+    result: null,
+    error: normalizeRetentionError(result.reason, 'status', 'installation'),
+  }
 }
 
 function samePolicy(left: RetentionPolicy, right: RetentionPolicy): boolean {
@@ -290,6 +298,6 @@ function samePolicy(left: RetentionPolicy, right: RetentionPolicy): boolean {
 
 function lockFailure(held: boolean): RetentionFailure {
   return held
-    ? normalizeRetentionError({ code: 'CONFLICT' }, 'update')
-    : normalizeRetentionError({}, 'status')
+    ? normalizeRetentionError({ code: 'CONFLICT' }, 'update', 'installation')
+    : normalizeRetentionError({}, 'status', 'installation')
 }

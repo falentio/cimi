@@ -58,7 +58,10 @@ describe('retention-policy.reducer', () => {
 
     const confirming = reduceRetention(refreshed, {
       kind: 'save-requested',
-      candidate: { eventMonths: 6, profileMonths: 6, replayMonths: null },
+      proposal: {
+        kind: 'policy',
+        policy: { eventMonths: 6, profileMonths: 6, replayMonths: null },
+      },
       impact: { event: { from: 9, to: 6 }, profile: { from: 9, to: 6 }, replay: null },
     })
 
@@ -84,18 +87,21 @@ describe('retention-policy.reducer', () => {
       result: result(12, '2026-09-18T10:00:00Z'),
     })
 
-    const candidate = { eventMonths: 18, profileMonths: 18, replayMonths: null } as const
+    const proposal = {
+      kind: 'policy',
+      policy: { eventMonths: 18, profileMonths: 18, replayMonths: null },
+    } as const
 
     const submitting = reduceRetention(initial, {
       kind: 'save-started',
       baselineUpdatedAt: '2026-09-18T10:00:00Z',
-      candidate,
+      proposal,
       shortening: false,
     })
 
     const failed = reduceRetention(submitting, {
       kind: 'save-failed',
-      candidate,
+      proposal,
       shortening: false,
       error: {
         kind: 'bad-request',
@@ -106,7 +112,7 @@ describe('retention-policy.reducer', () => {
       },
     })
 
-    expect(failed.command).toMatchObject({ kind: 'failed', candidate })
+    expect(failed.command).toMatchObject({ kind: 'failed', proposal })
     expect(failed.draft).toEqual({ eventMonths: '12', profileMonths: '12', replayMonths: '' })
 
     const saved = result(18, '2026-09-18T12:00:00Z')

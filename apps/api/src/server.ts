@@ -1,5 +1,6 @@
 import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { DEVELOPMENT_TRUSTED_ORIGINS } from '@cimi/auth'
 import { createAuth } from '@cimi/auth/server'
 import { loadConfig } from '@cimi/config'
 import { reportLogEvent, type LoggingConfig } from '@cimi/logging'
@@ -66,7 +67,7 @@ export async function createApiServerApp(
         schema: schema.betterAuthSchema,
         baseURL: cfg.baseUrl,
         secret: cfg.authSecret,
-        ...(cfg.isDev && { trustedOrigins: ['http://localhost:*', 'http://*.localhost:*'] }),
+        ...(cfg.isDev && { trustedOrigins: DEVELOPMENT_TRUSTED_ORIGINS }),
       })
 
       const app = createApiApp({

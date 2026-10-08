@@ -7,6 +7,13 @@ type UpdateRetentionPolicyCall = CimiOrpc['retentionPolicy']['updateRetentionPol
 
 type GetInstallationStatusCall = CimiOrpc['installation']['getInstallationStatus']['call']
 
+export interface SiteRetentionClient {
+  readonly retentionPolicy: {
+    readonly getRetentionPolicy: { readonly call: GetRetentionPolicyCall }
+    readonly updateRetentionPolicy: { readonly call: UpdateRetentionPolicyCall }
+  }
+}
+
 export interface RetentionAdminClient {
   readonly retentionPolicy: {
     readonly getRetentionPolicy: { readonly call: GetRetentionPolicyCall }
@@ -21,7 +28,16 @@ export type RetentionResult = Awaited<ReturnType<GetRetentionPolicyCall>>
 
 export type InstallationRetentionResult = Extract<RetentionResult, { scope: 'installation' }>
 
+export type SiteRetentionResult = Extract<RetentionResult, { scope: 'site' }>
+
 export type RetentionPolicy = InstallationRetentionResult['installationDefault']
+
+export type RetentionPolicyRow = {
+  readonly label: string
+  readonly value: string
+}
+
+export type RetentionPolicyCardFooter = RetentionPolicyRow & { readonly datetime: string }
 
 export type RetentionField = keyof RetentionPolicy
 
@@ -180,13 +196,30 @@ export type ConfirmationState =
   | { readonly kind: 'required'; readonly value: string; readonly error: string | null }
   | { readonly kind: 'accepted'; readonly value: 'SHORTEN RETENTION' }
 
+export type RetentionProposal =
+  | { readonly kind: 'policy'; readonly policy: RetentionPolicy }
+  | { readonly kind: 'inherit'; readonly installationDefault: RetentionPolicy }
+
+export type ShorteningConfirmationCommand =
+  | {
+      readonly kind: 'confirming'
+      readonly current: RetentionPolicy
+      readonly proposal: RetentionProposal
+      readonly acknowledgement: ConfirmationState
+    }
+  | {
+      readonly kind: 'submitting'
+      readonly current: RetentionPolicy
+      readonly proposal: RetentionProposal
+    }
+
 export type RetentionCommand =
   | { readonly kind: 'idle' }
   | {
       readonly kind: 'confirming'
       readonly baselineUpdatedAt: InstallationRetentionResult['updatedAt']
       readonly current: RetentionPolicy
-      readonly candidate: RetentionPolicy
+      readonly proposal: RetentionProposal
       readonly impact: ShorteningImpact
       readonly acknowledgement: ConfirmationState
     }
@@ -194,12 +227,12 @@ export type RetentionCommand =
       readonly kind: 'submitting'
       readonly baselineUpdatedAt: InstallationRetentionResult['updatedAt']
       readonly current: RetentionPolicy
-      readonly candidate: RetentionPolicy
+      readonly proposal: RetentionProposal
       readonly shortening: boolean
     }
   | {
       readonly kind: 'failed'
-      readonly candidate: RetentionPolicy
+      readonly proposal: RetentionProposal
       readonly shortening: boolean
       readonly error: RetentionFailure
     }
@@ -226,7 +259,7 @@ export type RetentionAction =
   | { readonly kind: 'field-edited'; readonly field: RetentionField; readonly value: string }
   | {
       readonly kind: 'save-requested'
-      readonly candidate: RetentionPolicy
+      readonly proposal: RetentionProposal
       readonly impact: ShorteningImpact
     }
   | { readonly kind: 'save-cancelled' }
@@ -234,13 +267,13 @@ export type RetentionAction =
   | {
       readonly kind: 'save-started'
       readonly baselineUpdatedAt: InstallationRetentionResult['updatedAt']
-      readonly candidate: RetentionPolicy
+      readonly proposal: RetentionProposal
       readonly shortening: boolean
     }
   | { readonly kind: 'save-succeeded'; readonly result: InstallationRetentionResult }
   | {
       readonly kind: 'save-failed'
-      readonly candidate: RetentionPolicy
+      readonly proposal: RetentionProposal
       readonly shortening: boolean
       readonly error: RetentionFailure
     }

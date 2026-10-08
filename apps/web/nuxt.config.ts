@@ -23,6 +23,11 @@ export default defineNuxtConfig({
     resolve: {
       dedupe: ['valibot'],
     },
+    // Wildcard dev hostnames (*.falentio resolve to loopback via systemd-resolved).
+    // A leading dot allows the apex and every subdomain.
+    server: {
+      allowedHosts: ['.falentio'],
+    },
   },
 
   modules: ['@pinia/nuxt', '@pinia/colada-nuxt', 'shadcn-nuxt', '@nuxtjs/i18n'],
