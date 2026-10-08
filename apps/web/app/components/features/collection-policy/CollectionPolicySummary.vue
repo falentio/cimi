@@ -34,7 +34,7 @@ const rows = computed<readonly SummaryRow[]>(() =>
 <template>
   <div class="min-w-0 rounded-lg border p-4">
     <div class="flex flex-wrap items-start justify-between gap-2">
-      <h3 class="font-medium">Effective collection policy</h3>
+      <h4 class="font-medium">Effective collection policy</h4>
       <Badge :variant="editor.hasOverride ? 'secondary' : 'outline'">
         {{ editor.hasOverride ? 'Site override' : 'Inherited from installation' }}
       </Badge>

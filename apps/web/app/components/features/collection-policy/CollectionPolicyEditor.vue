@@ -68,55 +68,78 @@ function submit(): void {
 </script>
 
 <template>
-  <Card>
-    <CardHeader>
-      <CardTitle><h2>Site collection policy</h2></CardTitle>
-      <CardAction v-if="!editing">
-        <Button type="button" :disabled="!editor.canEdit" @click="startEdit">
-          Edit Site override
-        </Button>
-      </CardAction>
-    </CardHeader>
-    <CardContent class="grid min-w-0 gap-6">
-      <CollectionPolicySummary v-if="!editing" :editor="editor" />
+  <div class="grid min-w-0 gap-6">
+    <Card>
+      <CardHeader>
+        <CardTitle><h3>Site collection policy</h3></CardTitle>
+        <CardAction v-if="!editing">
+          <Button type="button" :disabled="!editor.canEdit" @click="startEdit">
+            Edit Site override
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent class="min-w-0">
+        <CollectionPolicySummary v-if="!editing" :editor="editor" />
+        <p v-else class="text-muted-foreground text-sm">
+          Each section below is its own card. The Site override replaces the whole Site layer, so a
+          save writes every section at once.
+        </p>
+      </CardContent>
+    </Card>
 
-      <form v-else class="grid min-w-0 gap-6" novalidate @submit.prevent="submit">
-        <CollectionPolicyCaptureFields :editor="editor" @patch="emit('patch', $event)" />
-        <CollectionPolicyPropertyFields :editor="editor" @patch="emit('patch', $event)" />
-        <CollectionPolicyExclusionFields :editor="editor" @patch="emit('patch', $event)" />
+    <template v-if="editing">
+      <form class="grid min-w-0 gap-6" novalidate @submit.prevent="submit">
+        <Card>
+          <CardContent class="min-w-0 pt-6">
+            <CollectionPolicyCaptureFields :editor="editor" @patch="emit('patch', $event)" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent class="min-w-0 pt-6">
+            <CollectionPolicyPropertyFields :editor="editor" @patch="emit('patch', $event)" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent class="min-w-0 pt-6">
+            <CollectionPolicyExclusionFields :editor="editor" @patch="emit('patch', $event)" />
+          </CardContent>
+        </Card>
       </form>
+    </template>
 
-      <CollectionPolicyPrivacySummary :editor="editor" />
-    </CardContent>
-    <CardFooter class="flex-col items-start gap-3">
-      <p v-if="editor.disabledReason" class="text-muted-foreground text-sm" role="status">
-        {{ editor.disabledReason }}
-      </p>
-      <p v-else-if="editing && editor.dirty" class="text-muted-foreground text-sm" role="status">
-        Review the privacy summary before saving.
-      </p>
-      <p v-else-if="editing" class="text-muted-foreground text-sm" role="status">
-        No changes to save yet.
-      </p>
+    <CollectionPolicyPrivacySummary :editor="editor" />
 
-      <div v-if="editing" class="flex flex-wrap gap-2">
-        <Button type="button" :disabled="!editor.canSubmit" @click="submit">
-          <Spinner v-if="busy && editor.operation === 'save'" aria-hidden="true" />
-          {{ busy && editor.operation === 'save' ? 'Saving…' : 'Save Site override' }}
-        </Button>
-        <Button type="button" variant="outline" :disabled="busy" @click="cancel">Cancel</Button>
-        <Button
-          v-if="editor.hasOverride"
-          type="button"
-          variant="destructive"
-          :disabled="!editor.canClear"
-          @click="requestClear"
-        >
-          Clear override
-        </Button>
-      </div>
-    </CardFooter>
-  </Card>
+    <Card>
+      <CardFooter class="flex-col items-start gap-3">
+        <p v-if="editor.disabledReason" class="text-muted-foreground text-sm" role="status">
+          {{ editor.disabledReason }}
+        </p>
+        <p v-else-if="editing && editor.dirty" class="text-muted-foreground text-sm" role="status">
+          Review the privacy summary before saving.
+        </p>
+        <p v-else-if="editing" class="text-muted-foreground text-sm" role="status">
+          No changes to save yet.
+        </p>
+
+        <div v-if="editing" class="flex flex-wrap gap-2">
+          <Button type="button" :disabled="busy" @click="submit">
+            <Spinner v-if="busy && editor.operation === 'save'" aria-hidden="true" />
+            {{ busy && editor.operation === 'save' ? 'Saving…' : 'Save Site override' }}
+          </Button>
+          <Button type="button" variant="outline" :disabled="busy" @click="cancel">Cancel</Button>
+          <Button
+            v-if="editor.hasOverride"
+            type="button"
+            variant="destructive"
+            :disabled="!editor.canClear"
+            @click="requestClear"
+          >
+            Clear override
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+  </div>
 
   <CollectionClearOverrideDialog
     :busy="busy && editor.operation === 'clear'"

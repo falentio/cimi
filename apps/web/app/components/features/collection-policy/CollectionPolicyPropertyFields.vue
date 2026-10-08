@@ -76,6 +76,7 @@ function handleReservedNames(value: string[]): void {
             :id="spec.id"
             :model-value="propertyValue().allowScalarProperties"
             :disabled="editor.saving"
+            :aria-describedby="`${spec.id}-help`"
             @update:model-value="handleAllowProperties"
           />
           <span class="text-muted-foreground text-sm">
@@ -98,16 +99,18 @@ function handleReservedNames(value: string[]): void {
           :min="0"
           :max="MAX_PROPERTIES"
           :disabled="editor.saving || !propertyValue().allowScalarProperties"
-          :aria-describedby="
-            propertyError('maxProperties') === null
-              ? 'collection-property-max-help'
-              : 'collection-property-max-help collection-property-max-error'
-          "
           @update:model-value="handleMaxProperties"
         >
           <UINumberFieldContent>
             <UINumberFieldDecrement />
-            <UINumberFieldInput />
+            <UINumberFieldInput
+              :aria-describedby="
+                propertyError('maxProperties') === null
+                  ? 'collection-property-max-help'
+                  : 'collection-property-max-help collection-property-max-error'
+              "
+              :aria-invalid="propertyError('maxProperties') !== null"
+            />
             <UINumberFieldIncrement />
           </UINumberFieldContent>
         </UINumberField>
@@ -131,16 +134,18 @@ function handleReservedNames(value: string[]): void {
           :min="1"
           :max="MAX_VALUE_LENGTH"
           :disabled="editor.saving || !propertyValue().allowScalarProperties"
-          :aria-describedby="
-            propertyError('maxValueLength') === null
-              ? 'collection-property-value-length-help'
-              : 'collection-property-value-length-help collection-property-value-length-error'
-          "
           @update:model-value="handleMaxValueLength"
         >
           <UINumberFieldContent>
             <UINumberFieldDecrement />
-            <UINumberFieldInput />
+            <UINumberFieldInput
+              :aria-describedby="
+                propertyError('maxValueLength') === null
+                  ? 'collection-property-value-length-help'
+                  : 'collection-property-value-length-help collection-property-value-length-error'
+              "
+              :aria-invalid="propertyError('maxValueLength') !== null"
+            />
             <UINumberFieldIncrement />
           </UINumberFieldContent>
         </UINumberField>

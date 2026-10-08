@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { AcceptableInputValue } from 'reka-ui'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
+import { cn } from '@/lib/utils'
 
 const props = defineProps<{
   id: string
@@ -38,18 +39,23 @@ function handleUpdate(value: AcceptableInputValue[]): void {
       :model-value="[...modelValue]"
       :max="max"
       :disabled="disabled"
-      :aria-describedby="describedBy"
-      :aria-invalid="error !== null"
-      class="w-full"
+      :class="cn('w-full', error !== null && 'border-destructive')"
       @update:model-value="handleUpdate"
     >
       <UITagsInputItem v-for="(tag, index) in modelValue" :key="`${tag}-${index}`" :value="tag">
         <UITagsInputItemText />
         <UITagsInputItemDelete />
       </UITagsInputItem>
-      <UITagsInputInput :placeholder="overLimit ? `Limit of ${max} reached` : placeholder" />
+      <UITagsInputInput
+        :placeholder="overLimit ? `Limit of ${max} reached` : placeholder"
+        :aria-describedby="describedBy"
+        :aria-invalid="error !== null"
+      />
     </UITagsInput>
     <FieldDescription :id="`${id}-help`">{{ description }}</FieldDescription>
+    <p v-if="overLimit" class="text-muted-foreground text-sm" role="status">
+      Limit of {{ max }} reached. Remove an entry to add another.
+    </p>
     <FieldError v-if="error" :id="`${id}-error`">{{ error }}</FieldError>
   </Field>
 </template>

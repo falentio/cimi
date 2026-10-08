@@ -136,6 +136,7 @@ function handleSwitch(field: SwitchSpec['field'], value: unknown): void {
                 ? `${spec.id}-help`
                 : `${spec.id}-help ${spec.id}-error`
             "
+            :aria-invalid="switchError(spec.field) !== null"
             @update:model-value="(value) => handleSwitch(spec.field, value)"
           />
           <span class="text-muted-foreground text-sm">
