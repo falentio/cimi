@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "db:check": "pnpm --filter @cimi/db run db:check",
-    "db:generate": "pnpm --filter @cimi/db run db:generate",
-    "db:push": "pnpm --filter @cimi/db run db:push",
-    "db:studio": "pnpm --filter @cimi/db run db:studio",
+    "db:check": "vp run --filter @cimi/db db:check",
+    "db:generate": "vp run --filter @cimi/db db:generate",
+    "db:push": "vp run --filter @cimi/db db:push",
+    "db:studio": "vp run --filter @cimi/db db:studio",
     "opencode": "node --env-file-if-exists=.env scripts/opencode/cli.ts",
     "opencode:typecheck": "tsc --project scripts/opencode/tsconfig.json",
     "prepare": "vp config --no-agent"
