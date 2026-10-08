@@ -1,4 +1,5 @@
 import { effectScope, ref } from 'vue'
+import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PublicDashboardClient, PublicDashboardConfig } from './public-dashboard.types'
 import { useSitePublicDashboard } from './useSitePublicDashboard'
@@ -62,7 +63,12 @@ function createController(siteId: string = 'ste_1') {
   return { controller, scope, id }
 }
 
-beforeEach(resetMocks)
+beforeEach(() => {
+  resetMocks()
+  vi.restoreAllMocks()
+  vi.spyOn(toast, 'success')
+  vi.spyOn(toast, 'error')
+})
 
 afterEach(() => vi.useRealTimers())
 
@@ -249,6 +255,82 @@ describe('useSitePublicDashboard', () => {
 
     expect(mocks.getPublicDashboardConfig).toHaveBeenCalledTimes(2)
     expect(mocks.getPublicDashboardConfig).toHaveBeenLastCalledWith({ siteId: 'ste_2' })
+    scope.stop()
+  })
+
+  it('announces a rotated identifier as a Sonner success toast', async () => {
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('rotate')
+    await controller.confirm()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'A new identifier was issued. The previous public URL no longer resolves.',
+    )
+    scope.stop()
+  })
+
+  it('announces disabled public access as a Sonner success toast', async () => {
+    mocks.getPublicDashboardConfig
+      .mockResolvedValueOnce(config())
+      .mockResolvedValue(config({ enabled: false }))
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('disable')
+    await controller.confirm()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'The public dashboard is disabled and its identifier was revoked. The server authorizes no new public request.',
+    )
+    scope.stop()
+  })
+
+  it('keeps a failed command inline and raises no Sonner toast', async () => {
+    mocks.disablePublicDashboard.mockRejectedValue({ code: 'CONFLICT', status: 409 })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('disable')
+    await controller.confirm()
+
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(controller.view.value).toMatchObject({
+      kind: 'ready',
+      command: { kind: 'failed', operation: 'disable', error: { kind: 'conflict' } },
+    })
+    scope.stop()
+  })
+
+  it('raises no Sonner toast once the scope is disposed before the command settles', async () => {
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('rotate')
+    const pending = controller.confirm()
+    scope.stop()
+    await pending
+
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('keeps one success toast when the follow-up reconcile read fails', async () => {
+    mocks.getPublicDashboardConfig
+      .mockResolvedValueOnce(config())
+      .mockRejectedValueOnce({ code: 'INTERNAL_SERVER_ERROR' })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.request('rotate')
+    await controller.confirm()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'A new identifier was issued. The previous public URL no longer resolves.',
+    )
+    expect(controller.view.value).toMatchObject({
+      kind: 'ready',
+      notice: { operation: 'rotate', warning: { kind: 'server' } },
+    })
     scope.stop()
   })
 

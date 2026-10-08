@@ -20,7 +20,12 @@ import type {
   SitePublicDashboardController,
   SitePublicDashboardOptions,
 } from './public-dashboard.types'
-import { normalizePublicDashboardError, toPublicDashboardView } from './public-dashboard.utils'
+import { toast } from 'vue-sonner'
+import {
+  normalizePublicDashboardError,
+  publicDashboardNotice,
+  toPublicDashboardView,
+} from './public-dashboard.utils'
 
 type ReadIntent = 'refresh' | 'reconcile'
 
@@ -47,6 +52,12 @@ export function useSitePublicDashboard(
 
   async function refresh(): Promise<void> {
     await readConfig('refresh')
+  }
+
+  function announceSuccess(operation: PublicDashboardOperation): void {
+    const notice = publicDashboardNotice(operation, null)
+
+    toast.success(notice.message)
   }
 
   function request(operation: PublicDashboardOperation): void {
@@ -84,6 +95,7 @@ export function useSitePublicDashboard(
 
         if (disposed) return
         state.value = reducePublicDashboard(state.value, { kind: 'access-revoked' })
+        announceSuccess('disable')
       } else {
         const config =
           command.operation === 'enable'
@@ -96,6 +108,7 @@ export function useSitePublicDashboard(
           operation: command.operation,
           config,
         })
+        announceSuccess(command.operation)
       }
     } catch (error: unknown) {
       if (disposed) return
