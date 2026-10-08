@@ -338,11 +338,12 @@ function discardSqliteFile(path: string): void {
   }
 }
 
-const RESTORE_STAGING_FILE_NAME = /^(.+)\.(?:tmp|previous)\.[0-9a-f]{16}(?:-wal|-shm)?$/
+const RESTORE_STAGING_FILE_NAME = /^(.+)\.(tmp|previous)\.[0-9a-f]{16}(?:-wal|-shm)?$/
 
 /**
- * Removes restore staging files left by a crash between the staging write and the install rename.
- * Only names this module creates are matched; a partial file the sweep cannot attribute is kept.
+ * Removes restore staging files from the control database directory. A .tmp file is a partial write
+ * that was never installed, so it is always garbage. A .previous file is the only copy of the
+ * database while a replace is mid-rename, so it is removed only once the destination is back.
  */
 export function sweepRestoreStagingFiles(input: { controlDatabasePath: string }): void {
   const directory = dirname(input.controlDatabasePath)
@@ -356,8 +357,15 @@ export function sweepRestoreStagingFiles(input: { controlDatabasePath: string })
     throw error
   }
 
+  const destinationPresent = existsSync(input.controlDatabasePath)
+
   for (const name of entries) {
-    if (RESTORE_STAGING_FILE_NAME.exec(name)?.[1] !== controlDatabaseName) continue
+    const match = RESTORE_STAGING_FILE_NAME.exec(name)
+
+    if (match?.[1] !== controlDatabaseName) continue
+
+    if (match[2] === 'previous' && !destinationPresent) continue
+
     discardSqliteFile(join(directory, name))
   }
 }
