@@ -6,6 +6,7 @@ import { isStringValue } from '../../../../utils/type-guards'
 import EffectiveBrief from './EffectiveBrief.vue'
 import EffectiveBriefs from './EffectiveBriefs.vue'
 import EffectiveDiff from './EffectiveDiff.vue'
+import EffectiveDiffV2 from './EffectiveDiffV2.vue'
 import EffectiveLedger from './EffectiveLedger.vue'
 import EffectiveMatrix from './EffectiveMatrix.vue'
 import VariantPicker from './VariantPicker.vue'
@@ -25,6 +26,7 @@ const VARIANTS = [
   { id: 'briefs', label: 'Briefs', component: EffectiveBriefs },
   { id: 'ledger', label: 'Ledger', component: EffectiveLedger },
   { id: 'diff', label: 'Diff', component: EffectiveDiff },
+  { id: 'diff-2', label: 'Diff 2', component: EffectiveDiffV2 },
 ] as const satisfies ReadonlyArray<EffectiveVariant>
 
 const pickerVariants = VARIANTS.map((variant) => ({ id: variant.id, label: variant.label }))
