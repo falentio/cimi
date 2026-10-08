@@ -1,4 +1,11 @@
-import { copyFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -189,6 +196,62 @@ describe('restoreDbFromBackup', () => {
       expect(reopened.$client.pragma('integrity_check', { simple: true })).toBe('ok')
     } finally {
       closeDb(reopened)
+    }
+  })
+  it('leaves no sidecars next to the backup source', async () => {
+    const { db, destinationPath, backupPath } = seedDestination()
+
+    try {
+      await db.$client.backup(backupPath)
+
+      expect(existsSync(`${backupPath}-wal`)).toBe(false)
+      expect(existsSync(`${backupPath}-shm`)).toBe(false)
+
+      await restoreDbFromBackup({ backupPath, destinationPath, db })
+
+      expect(existsSync(`${backupPath}-wal`)).toBe(false)
+      expect(existsSync(`${backupPath}-shm`)).toBe(false)
+    } finally {
+      closeDb(db)
+    }
+  })
+
+  it('keeps a pre-existing backup source wal with its frames', async () => {
+    const { db, destinationPath } = seedDestination()
+    const sourcePath = join(dir, 'safety.sqlite')
+
+    try {
+      db.$client.pragma('wal_autocheckpoint = 0')
+      db.$client.prepare('INSERT INTO marker (id, v) VALUES (?, ?)').run(2, 'uncheckpointed')
+      copyFileSync(destinationPath, sourcePath)
+      copyFileSync(`${destinationPath}-wal`, `${sourcePath}-wal`)
+      const walBefore = readFileSync(`${sourcePath}-wal`)
+
+      await restoreDbFromBackup({ backupPath: sourcePath, destinationPath, db })
+
+      expect(existsSync(`${sourcePath}-wal`)).toBe(true)
+      expect(readFileSync(`${sourcePath}-wal`)).toEqual(walBefore)
+    } finally {
+      closeDb(db)
+    }
+  })
+
+  it('is idempotent on the backup source across repeated restores', async () => {
+    const { db, destinationPath, backupPath } = seedDestination()
+
+    try {
+      await db.$client.backup(backupPath)
+      const sourceEntries = readdirSync(dir).filter((name) => name.startsWith('backup.sqlite'))
+
+      await restoreDbFromBackup({ backupPath, destinationPath, db })
+      await restoreDbFromBackup({ backupPath, destinationPath, db })
+
+      expect(readdirSync(dir).filter((name) => name.startsWith('backup.sqlite'))).toEqual(
+        sourceEntries,
+      )
+      expect(statSync(backupPath).size).toBeGreaterThan(0)
+    } finally {
+      closeDb(db)
     }
   })
 })
