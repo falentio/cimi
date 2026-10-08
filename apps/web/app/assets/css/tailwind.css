@@ -127,3 +127,21 @@
     @apply font-sans;
   }
 }
+
+/*
+ * `motion-reduce:animate-none` on the ui primitives loses to the `data-open:animate-in`
+ * utility, because both land in the same layer at equal specificity and the animate rule is
+ * emitted later. This override wins on `!important`, so dialogs, sheets, popovers and menus
+ * stop animating when the reader asks for reduced motion.
+ * `0.01ms` rather than `none` keeps `animationend` and `transitionend` firing.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
