@@ -8,6 +8,8 @@ export {
 
 export { createOrganizationAuthority } from './organization-authority.ts'
 
+export { DEVELOPMENT_TRUSTED_ORIGINS } from './server.ts'
+
 export type { Auth, AuthUser, CreateAuthDependencies } from './server.ts'
 
 export { createTestUser } from './server.ts'

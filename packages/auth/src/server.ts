@@ -4,6 +4,17 @@ import type { DB, DrizzleAdapterConfig } from 'better-auth/adapters/drizzle'
 import { admin, organization } from 'better-auth/plugins'
 import { firstUserAdmin } from './first-user-admin.ts'
 
+/**
+ * Origins accepted in development. `localhost` and `*.localhost` cover local
+ * ports; `*.falentio` covers the wildcard dev hostnames that systemd-resolved
+ * points at loopback (see /etc/systemd/resolved.conf.d/falentio-tld.conf).
+ */
+export const DEVELOPMENT_TRUSTED_ORIGINS = [
+  'http://localhost:*',
+  'http://*.localhost:*',
+  'http://*.falentio:*',
+] as const
+
 export interface CreateAuthDependencies {
   db: DB
   schema?: DrizzleAdapterConfig['schema'] | undefined
