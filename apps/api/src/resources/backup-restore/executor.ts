@@ -3,6 +3,7 @@ import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve } from 'node:path'
 import { and, asc, eq, inArray, ne } from 'drizzle-orm'
 import {
+  ControlDatabaseBusyError,
   ControlMigrationIncompatibilityError,
   closeDb,
   createDb,
@@ -14,7 +15,7 @@ import {
   schema,
 } from '@cimi/db'
 import type { SafetyManifest, SourceManifest } from './repository.ts'
-import { BackupIncompatibilityError } from './errors.ts'
+import { BackupIncompatibilityError, ControlDatabaseBusyBackupError } from './errors.ts'
 import {
   encodeRetentionManifest,
   type RetentionManifest,
@@ -28,7 +29,7 @@ import {
 } from './safety-artifacts.ts'
 import { isStringValue } from '@cimi/utils'
 
-export { BackupIncompatibilityError } from './errors.ts'
+export { BackupIncompatibilityError, ControlDatabaseBusyBackupError } from './errors.ts'
 
 export class InsufficientStorageError extends Error {}
 
@@ -190,10 +191,8 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
     const siteLifecycle = this.captureSiteLifecycle()
     const lifecycle = this.captureRestoreLifecycle(input.operationId)
     const path = this.resolveStoragePath(input.source.storageKey, 'backups')
-    await restoreDbFromBackup({
+    await this.restoreWithBusyGuard({
       backupPath: path,
-      destinationPath: this.controlDatabasePath,
-      db: this.db,
       prepare: async (stagedDb) => {
         try {
           migrateControlDb(stagedDb, { migrationsFolder: this.migrationsFolder })
@@ -217,6 +216,26 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
         this.restoreSiteLifecycle(stagedDb, siteLifecycle, input.operationId)
       },
     })
+  }
+
+  private async restoreWithBusyGuard(input: {
+    readonly backupPath: string
+    readonly prepare: (db: Db) => void | Promise<void>
+  }): Promise<void> {
+    try {
+      await restoreDbFromBackup({
+        backupPath: input.backupPath,
+        destinationPath: this.controlDatabasePath,
+        db: this.db,
+        prepare: input.prepare,
+      })
+    } catch (error) {
+      if (error instanceof ControlDatabaseBusyError) {
+        throw new ControlDatabaseBusyBackupError(error)
+      }
+
+      throw error
+    }
   }
 
   async migrate(_input: { readonly operationId: string }): Promise<void> {
@@ -264,11 +283,9 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
       throw new SafetyArtifactChecksumMismatchError('Pre-restore safety artifact checksum failed')
     }
 
-    await restoreDbFromBackup({
+    await this.restoreWithBusyGuard({
       backupPath: path,
-      destinationPath: this.controlDatabasePath,
       prepare: (stagedDb) => this.restoreSafetyMetadata(stagedDb, input.operationId, input.safety),
-      db: this.db,
     })
     await this.analyticsRebuild({ operationId: input.operationId })
   }
