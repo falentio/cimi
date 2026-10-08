@@ -1,9 +1,9 @@
-import { existsSync, readdirSync, writeFileSync } from 'node:fs'
+import { readdirSync, writeFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { closeDb, createDb, sweepRestoreStagingFiles } from '../../client.ts'
+import { sweepRestoreStagingFiles } from '../../client.ts'
 
 describe('sweepRestoreStagingFiles', () => {
   let dir: string
@@ -90,24 +90,21 @@ describe('sweepRestoreStagingFiles', () => {
     expect(readdirSync(dir).sort()).toEqual(['control.sqlite', ...previous].sort())
   })
 
-  it('keeps a previous copy across two boots that recreate an empty control database', () => {
-    const previous = 'control.sqlite.previous.fedcba9876543210'
-    writeFileSync(join(dir, previous), 'the only copy of the database')
+  it('removes uppercase tmp staging files', () => {
+    const staging = ['control.sqlite.tmp.ABCDEF0123456789']
 
-    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
-    const firstBoot = createDb({ path: controlPath })
-    firstBoot.$client.exec('CREATE TABLE marker (id INTEGER PRIMARY KEY)')
-    closeDb(firstBoot)
+    for (const name of staging) write(name)
 
-    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
-
-    expect(existsSync(join(dir, previous))).toBe(true)
-  })
-
-  it('is a no-op when no staging file exists', () => {
-    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
     sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
 
     expect(readdirSync(dir)).toEqual([])
+  })
+
+  it('ignores an existing control database', () => {
+    write('control.sqlite')
+
+    sweepRestoreStagingFiles({ controlDatabasePath: controlPath })
+
+    expect(readdirSync(dir)).toEqual(['control.sqlite'])
   })
 })

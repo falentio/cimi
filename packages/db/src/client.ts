@@ -311,7 +311,7 @@ function removeSqliteFile(path: string): void {
   removeSidecars(path)
 }
 
-/** A readonly open of a WAL-mode artifact creates -wal and -shm next to it. */
+/** Reading a WAL-mode artifact through a readonly handle creates -wal and -shm next to it. */
 function sidecarPresence(path: string): ReadonlyArray<{ path: string; existed: boolean }> {
   return [`${path}-wal`, `${path}-shm`].map((sidecarPath) => ({
     path: sidecarPath,
@@ -338,7 +338,7 @@ function discardSqliteFile(path: string): void {
   }
 }
 
-const RESTORE_STAGING_FILE_NAME = /^(.+)\.tmp\.[0-9a-f]{16}(?:-wal|-shm)?$/
+const RESTORE_STAGING_FILE_NAME = /^(.+)\.tmp\.[0-9a-fA-F]{16}(?:-wal|-shm)?$/
 
 /**
  * Removes .tmp restore staging files from the control database directory. A staging file is a
