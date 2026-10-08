@@ -222,6 +222,19 @@ export type CollectionPolicyChange = {
   readonly detail: string
 }
 
+export type EffectiveCollectionPolicyRow = {
+  readonly field: PolicyField
+  readonly label: string
+  readonly value: string
+  readonly source: PolicyProvenance
+}
+
+export type EffectiveCollectionPolicyGroup = {
+  readonly id: string
+  readonly title: string
+  readonly rows: ReadonlyArray<EffectiveCollectionPolicyRow>
+}
+
 export type CollectionPolicyEditorView = {
   readonly mode: 'view' | 'edit'
   readonly draft: CollectionDraft

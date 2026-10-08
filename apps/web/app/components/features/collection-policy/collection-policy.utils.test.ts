@@ -8,6 +8,7 @@ import {
   changedPolicyFields,
   collectionBaseline,
   draftFromPolicy,
+  effectiveCollectionPolicyGroups,
   isCollectionDraftDirty,
   normalizeCollectionPolicyError,
   policyValuesFromEffective,
@@ -379,6 +380,37 @@ describe('collection-policy.utils', () => {
     expect(view).toMatchObject({
       kind: 'ready',
       editor: { mode: 'edit', hasOverride: true, canClear: true, source: { botPolicy: 'site' } },
+    })
+  })
+
+  it('groups the nine effective fields into collected, stored, and refused sections', () => {
+    const fixture = result()
+
+    const groups = effectiveCollectionPolicyGroups({
+      effective: policyValuesFromEffective(fixture.effective),
+      source: fixture.source,
+    })
+
+    expect(groups.map((group) => group.id)).toEqual(['collected', 'stored', 'refused'])
+    expect(groups.flatMap((group) => group.rows.map((row) => row.field))).toEqual([
+      'anonymousCollection',
+      'honorGpcDnt',
+      'consentMode',
+      'botPolicy',
+      'captureQueryStrings',
+      'urlPolicy',
+      'propertyPolicy',
+      'profileFilterKeys',
+      'exclusions',
+    ])
+    expect(groups[0]).toMatchObject({
+      title: 'What is collected',
+    })
+    expect(groups[0]?.rows[0]).toEqual({
+      field: 'anonymousCollection',
+      label: 'Anonymous collection',
+      value: 'Collect anonymous events',
+      source: 'installation',
     })
   })
 })

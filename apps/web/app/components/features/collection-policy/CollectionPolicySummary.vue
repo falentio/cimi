@@ -1,43 +1,35 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Badge } from '@/components/ui/badge'
-import type {
-  CollectionPolicyEditorView,
-  PolicyField,
-  PolicyProvenance,
-} from './collection-policy.types'
-import {
-  describeEffectiveField,
-  POLICY_FIELD_LABELS,
-  POLICY_FIELD_META,
-} from './collection-policy.utils'
+import type { CollectionPolicyEditorView, PolicyProvenance } from './collection-policy.types'
+import { effectiveCollectionPolicyGroups } from './collection-policy.utils'
 
 const props = defineProps<{ editor: CollectionPolicyEditorView }>()
 
-type SummaryRow = {
-  readonly field: PolicyField
-  readonly label: string
-  readonly value: string
-  readonly source: PolicyProvenance
-}
-
-const rows = computed<readonly SummaryRow[]>(() =>
-  POLICY_FIELD_META.map((meta) => ({
-    field: meta.field,
-    label: POLICY_FIELD_LABELS[meta.field],
-    value: describeEffectiveField(props.editor.effective, meta.field),
-    source: props.editor.source[meta.field],
-  })),
+const groups = computed(() =>
+  effectiveCollectionPolicyGroups({
+    effective: props.editor.effective,
+    source: props.editor.source,
+  }),
 )
+
+const siteCount = computed(
+  () => groups.value.flatMap((group) => group.rows).filter((row) => row.source === 'site').length,
+)
+
+const totalCount = computed(() => groups.value.flatMap((group) => group.rows).length)
+
+function sourceLabel(source: PolicyProvenance): string {
+  return source === 'site' ? 'Site' : 'Inherited'
+}
 </script>
 
 <template>
   <div class="min-w-0 rounded-lg border p-4">
-    <div class="flex flex-wrap items-start justify-between gap-2">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h4 class="font-medium">Effective collection policy</h4>
-      <Badge :variant="editor.hasOverride ? 'secondary' : 'outline'">
-        {{ editor.hasOverride ? 'Site override' : 'Inherited from installation' }}
-      </Badge>
+      <p class="text-muted-foreground text-sm">
+        {{ siteCount }} of {{ totalCount }} fields set here
+      </p>
     </div>
     <p class="text-muted-foreground mt-1 text-sm">
       This is what the server resolves for this Site right now.
@@ -48,22 +40,25 @@ const rows = computed<readonly SummaryRow[]>(() =>
         No Site override is stored, so every field comes from the installation default.
       </template>
     </p>
-    <dl class="mt-4 grid gap-3 text-sm">
-      <div
-        v-for="row in rows"
-        :key="row.field"
-        class="flex flex-wrap items-start justify-between gap-2 border-b pb-3 last:border-b-0 last:pb-0"
-      >
-        <dt class="text-muted-foreground min-w-0">
-          {{ row.label }}
-          <Badge class="ms-2 align-middle" variant="outline">
-            {{ row.source === 'site' ? 'Site' : 'Installation' }}
-          </Badge>
-        </dt>
-        <dd class="min-w-0 max-w-full text-end font-medium break-words sm:max-w-[60%]">
-          {{ row.value }}
-        </dd>
-      </div>
-    </dl>
+
+    <div v-for="group in groups" :key="group.id" class="mt-4 min-w-0">
+      <h5 class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        {{ group.title }}
+      </h5>
+      <ul class="mt-2 grid gap-2">
+        <li
+          v-for="row in group.rows"
+          :key="row.field"
+          class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5"
+          :class="row.source === 'site' ? 'text-foreground' : 'text-muted-foreground'"
+        >
+          <span class="min-w-0 font-medium">{{ row.label }}</span>
+          <span class="min-w-0 text-end break-words">
+            {{ row.value
+            }}<span class="text-muted-foreground"> · {{ sourceLabel(row.source) }}</span>
+          </span>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
