@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createAuth, type Auth, type AuthUser } from '@cimi/auth/server'
@@ -177,6 +177,9 @@ export interface FixtureStateTools {
     readonly sourceBackupId: string
   }): Promise<{ readonly backupId: string }>
   createIncompatibleManifestVariant(input: {
+    readonly sourceBackupId: string
+  }): Promise<{ readonly backupId: string }>
+  createUnreadableBackupVariant(input: {
     readonly sourceBackupId: string
   }): Promise<{ readonly backupId: string }>
 }
@@ -759,13 +762,16 @@ export async function createApiE2eFixture(
     async createIncompatibleManifestVariant(input) {
       return createBackupVariant(input.sourceBackupId, 'manifest')
     },
+    async createUnreadableBackupVariant(input) {
+      return createBackupVariant(input.sourceBackupId, 'unreadable')
+    },
   }
 
   current = await open(true)
 
   async function createBackupVariant(
     sourceBackupId: string,
-    variant: 'future-history' | 'manifest',
+    variant: 'future-history' | 'manifest' | 'unreadable',
   ): Promise<{ readonly backupId: string }> {
     const generation = requireOpenForMutation()
 
@@ -802,6 +808,8 @@ export async function createApiE2eFixture(
     await copyFile(sourcePath, variantPath)
 
     if (variant === 'future-history') await appendFutureMigrationToArtifact(variantPath)
+
+    if (variant === 'unreadable') await wipeArtifactHeader(variantPath)
     const contents = await readFile(variantPath)
     const now = new Date()
     generation.db.transaction((tx) => {
@@ -885,6 +893,12 @@ export async function createApiE2eFixture(
     } finally {
       closeDb(db)
     }
+  }
+
+  async function wipeArtifactHeader(path: string): Promise<void> {
+    const bytes = Buffer.from(await readFile(path))
+    bytes.fill(0, 0, 4)
+    await writeFile(path, bytes)
   }
 
   async function withStateDb<T>(callback: (db: Db) => Promise<T>): Promise<T> {

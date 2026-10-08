@@ -1001,6 +1001,15 @@ export function classifyStorageExhausted(cause: unknown): boolean {
   return /database or disk is full|disk full|out of space|ENOSPC/i.test(message)
 }
 
+export function unreadableSqliteCode(cause: unknown): string | undefined {
+  if (!(cause instanceof Error) || !('code' in cause)) return undefined
+  const code = cause.code
+
+  if (!isStringValue(code)) return undefined
+
+  return code === 'SQLITE_NOTADB' || code.startsWith('SQLITE_CORRUPT') ? code : undefined
+}
+
 function assertSafeOperationId(id: string): void {
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id))
     throw new BackupIncompatibilityError('Backup operation id is invalid')
@@ -1036,9 +1045,11 @@ async function verifyArtifact(
 }
 
 function verifySqliteIntegrity(path: string, requireRetentionTable = false): void {
-  const database = createDb({ path })
+  let database: Db | undefined
 
   try {
+    database = createDb({ path })
+
     // SAFETY: better-sqlite3 returns any; single integrity_check column selected below.
     const rows = database.$client.prepare('PRAGMA integrity_check').all() as Array<{
       integrity_check: string
@@ -1058,8 +1069,16 @@ function verifySqliteIntegrity(path: string, requireRetentionTable = false): voi
     ) {
       throw new BackupIncompatibilityError('Backup SQLite retention table is missing')
     }
+  } catch (error) {
+    const code = unreadableSqliteCode(error)
+
+    if (code !== undefined) {
+      throw new BackupIncompatibilityError(`Backup SQLite is unreadable (${code})`)
+    }
+
+    throw error
   } finally {
-    closeDb(database)
+    if (database !== undefined) closeDb(database)
   }
 }
 

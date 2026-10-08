@@ -700,6 +700,37 @@ test('reports backup failure, retries, lists pages, and preserves the source acr
   expect(afterRestart).toMatchObject({ id: firstTrace.terminal.id, status: 'available' })
 })
 
+test('rejects a backup artifact whose SQLite header is unreadable', async () => {
+  await using fixture = await createApiE2eFixture()
+  const admin = await fixture.createUser('corrupt-backup-admin@example.com', 'Corrupt Backup Admin')
+  await call(
+    fixture.router.installation.initializeInstallation,
+    {},
+    { context: await admin.context() },
+  )
+
+  const started = await call(
+    fixture.router.backupRestore.createBackup,
+    {},
+    { context: await admin.context() },
+  )
+
+  const backup = await waitForBackupTrace(fixture, admin, started.id)
+  assertAvailableBackup(backup.terminal)
+
+  const unreadable = await fixture.state.createUnreadableBackupVariant({
+    sourceBackupId: backup.terminal.id,
+  })
+
+  await expect(
+    call(
+      fixture.router.backupRestore.restoreBackup,
+      { backupId: unreadable.backupId, confirmation: 'RESTORE' },
+      { context: await admin.context() },
+    ),
+  ).rejects.toMatchObject({ code: 'INCOMPATIBLE_BACKUP', status: 422 })
+})
+
 test('detects a corrupted backup artifact after restart', async () => {
   await using fixture = await createApiE2eFixture()
   const admin = await fixture.createUser('corrupt-backup-admin@example.com', 'Corrupt Backup Admin')
