@@ -62,6 +62,8 @@ export {
 
 export { SMembershipListInput, SMembershipListOutput } from './contract/membership/query/list.ts'
 
+export { MAX_PENDING_INVITATIONS_PER_ORGANIZATION } from './contract/invitation/schema.ts'
+
 export { SSystemHealthOutput } from './contract/health/query/health.ts'
 
 export {

@@ -1,6 +1,8 @@
 import * as v from 'valibot'
 import { SCreated, SDateTime, SId } from '../../schema/index.ts'
 
+export const MAX_PENDING_INVITATIONS_PER_ORGANIZATION = 5
+
 export const SInvitationStatus = v.picklist(['pending', 'accepted', 'expired', 'revoked'])
 
 export const SInvitationRole = v.picklist(['admin', 'member'])
