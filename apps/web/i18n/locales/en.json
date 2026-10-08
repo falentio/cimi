@@ -182,6 +182,7 @@
     "ORGANIZATION_NOT_EMPTY": "The organization still owns Sites or memberships.",
     "PERSONAL_ORGANIZATION_PROTECTED": "The Personal Organization cannot be removed.",
     "INVITATION_CONSUMED": "The invitation has already been consumed.",
+    "INVITATION_LIMIT_REACHED": "This organization already has the maximum of five pending invitations. Revoke one or wait for one to expire.",
     "QUERY_LIMIT_EXCEEDED": "The requested query exceeds the available data or work budget.",
     "INCOMPATIBLE_BACKUP": "The backup is not compatible with this installation.",
     "BACKUP_FAILED": "The backup operation failed safely.",

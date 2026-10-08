@@ -182,6 +182,7 @@
     "ORGANIZATION_NOT_EMPTY": "L'organisation possède encore des sites ou des membres.",
     "PERSONAL_ORGANIZATION_PROTECTED": "L'organisation personnelle ne peut pas être supprimée.",
     "INVITATION_CONSUMED": "L'invitation a déjà été utilisée.",
+    "INVITATION_LIMIT_REACHED": "Cette organisation a déjà atteint le maximum de cinq invitations en attente. Révoquez-en une ou attendez son expiration.",
     "QUERY_LIMIT_EXCEEDED": "La requête demandée dépasse les ressources disponibles.",
     "INCOMPATIBLE_BACKUP": "La sauvegarde n'est pas compatible avec cette installation.",
     "BACKUP_FAILED": "L'opération de sauvegarde a échoué sans risque.",
