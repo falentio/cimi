@@ -13,6 +13,7 @@ import {
   migrateControlDb,
   resolveControlDbPath,
   schema,
+  sweepRestoreStagingFiles,
 } from '@cimi/db'
 import type { ApiApp } from './index.ts'
 import { createApiApp } from './index.ts'
@@ -46,6 +47,7 @@ export async function createApiServerApp(
 
     controlDbPath = resolveControlDbPath(env, process.cwd())
     mkdirSync(dirname(controlDbPath), { recursive: true })
+    sweepOrphanedRestoreStagingFiles(controlDbPath)
     db = createDb({ path: controlDbPath })
   } catch (error) {
     reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
@@ -126,6 +128,14 @@ export async function createApiServerApp(
     reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
     closeDb(db)
     throw error
+  }
+}
+
+function sweepOrphanedRestoreStagingFiles(controlDbPath: string): void {
+  try {
+    sweepRestoreStagingFiles({ controlDatabasePath: controlDbPath })
+  } catch (error) {
+    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'reclaim', error })
   }
 }
 
