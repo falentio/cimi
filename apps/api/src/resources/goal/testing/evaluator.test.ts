@@ -5,11 +5,13 @@ import { event, inputFor, session, snapshot } from '../../reporting/testing/eval
 describe('evaluateGoal', () => {
   it('keeps visitor and identified-user populations separate', () => {
     const visitorSession = session({ sessionId: 'ses-v', visitorId: 'vis-1' })
+
     const userSession = session({
       sessionId: 'ses-u',
       visitorId: 'vis-2',
       identifiedUserId: 'usr-1',
     })
+
     const events = [
       event({
         eventId: 'evt-v',
@@ -27,6 +29,7 @@ describe('evaluateGoal', () => {
         identifiedUserId: 'usr-1',
       }),
     ]
+
     const profiles = new Map([['usr-1', { identifiedUserId: 'usr-1', traits: {} }]])
     const visitorSnapshot = snapshot([visitorSession, userSession], events, profiles)
     const action = { kind: 'custom_event' as const, name: 'signup' }
@@ -47,11 +50,13 @@ describe('evaluateGoal', () => {
 
   it('applies active profile trait filters and leaves missing traits unmatched', () => {
     const first = session({ sessionId: 'ses-pro', visitorId: 'vis-1', identifiedUserId: 'usr-1' })
+
     const second = session({
       sessionId: 'ses-redacted',
       visitorId: 'vis-2',
       identifiedUserId: 'usr-2',
     })
+
     const current = snapshot(
       [first, second],
       [

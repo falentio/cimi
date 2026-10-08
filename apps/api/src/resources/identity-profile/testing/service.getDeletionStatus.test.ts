@@ -12,6 +12,7 @@ import type { IdentityProfileRepository } from '../repository.ts'
 import { IdentityProfileService } from '../service.ts'
 
 const now = new Date('2026-09-10T06:00:00.000Z')
+
 const profileActivityCutoff = new Date('2026-09-10T06:01:00.000Z')
 
 function createFixture(
@@ -25,6 +26,7 @@ function createFixture(
   siteRepository.findByIngestionIdentifier.mockResolvedValue(createSiteRecord())
   const policyFixture = createCollectionPolicyFixture({ clock: () => now, ...options })
   const projectionDebt = { mark: vi.fn() }
+
   const service = new IdentityProfileService({
     repository,
     siteRepository,
@@ -32,9 +34,10 @@ function createFixture(
     scope: { siteScope: policyFixture.scope, membership: policyFixture.scope },
     profileActivityCutoff: async () => profileActivityCutoff,
     projectionDebt,
-    ...(options.lifecycleLock === undefined ? {} : { lifecycleLock: options.lifecycleLock }),
+    ...(options.lifecycleLock !== undefined && { lifecycleLock: options.lifecycleLock }),
     clock: () => now,
   })
+
   return { repository, siteRepository, policyFixture, projectionDebt, service }
 }
 
@@ -43,6 +46,7 @@ describe('IdentityProfileService.getDeletionStatus', () => {
     const { repository, service } = createFixture({
       memberships: [{ organizationId: 'org_1', userId: 'user_2', role: 'member' }],
     })
+
     repository.getDeletionStatus.mockResolvedValue({
       status: 'deletion-requested',
       updatedAt: now.toISOString(),

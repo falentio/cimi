@@ -4,6 +4,7 @@ import type { InferOutput } from 'valibot'
 import type { ApiE2eFixture, E2eUser } from './fixture.ts'
 
 export type InstallationSnapshot = InferOutput<typeof schema.SInstallation>
+
 export type BackupSnapshot = InferOutput<typeof schema.SBackup>
 
 export type AvailableBackup = BackupSnapshot & {
@@ -69,12 +70,15 @@ export async function waitForBackupTrace(
       { backupId },
       { context: await admin.context() },
     )
+
   const initial = await read()
   const observed: BackupSnapshot[] = [initial]
+
   const terminal = await fixture.waitFor({
     read: async () => {
       const value = await read()
       observed.push(value)
+
       return value
     },
     done: (value) =>
@@ -83,26 +87,32 @@ export async function waitForBackupTrace(
     operationId: backupId,
     label: `backup or restore ${backupId}`,
   })
+
   return { initial, observed, terminal }
 }
 
 export function assertCheckpointMonotonic(trace: BackupTrace): void {
   let previous = -1
+
   for (const snapshot of trace.observed) {
     const rank = CHECKPOINT_RANK[snapshot.checkpoint]
+
     if (rank < previous) {
       throw new Error(`Backup checkpoint regressed for ${snapshot.id}`)
     }
+
     previous = rank
   }
 }
 
 export function assertProgressMonotonic(trace: BackupTrace): void {
   let previous = 0
+
   for (const snapshot of trace.observed) {
     if (snapshot.progress < previous) {
       throw new Error(`Backup progress regressed for ${snapshot.id}`)
     }
+
     previous = snapshot.progress
   }
 }
@@ -127,6 +137,7 @@ export function assertAvailableBackup(
 
 export function assertCleanupSettled(snapshot: AvailableBackup): void {
   if (snapshot.cleanupPending) throw new Error(`Backup ${snapshot.id} still has pending cleanup`)
+
   if (
     !['not_applicable', 'completed'].includes(snapshot.derivedCleanup.status) ||
     !['not_applicable', 'completed'].includes(snapshot.backupCleanup.status)

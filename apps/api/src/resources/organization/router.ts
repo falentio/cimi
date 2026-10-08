@@ -2,6 +2,7 @@ import { api, authenticatedApi } from '../../orpc.ts'
 import type { OrganizationService } from './service.ts'
 
 const organizationApi = api.organization
+
 const authenticatedOrganizationApi = authenticatedApi.organization
 
 export function organizationRouter(service: OrganizationService) {

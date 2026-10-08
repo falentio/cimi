@@ -1,4 +1,4 @@
-import { isRecord } from '@cimi/utils'
+import { isStringValue, isRecord } from '@cimi/utils'
 import { BackupIncompatibilityError } from './errors.ts'
 
 export interface RetentionManifestBoundary {
@@ -45,20 +45,22 @@ interface RetentionMetadataManifest extends JsonObject {
   boundaries: RetentionMetadataBoundary[]
 }
 
-interface RetentionMetadataShape extends JsonObject {
+interface RetentionMetadataDocument extends JsonObject {
   retentionManifest: RetentionMetadataManifest
 }
 
-export type RetentionMetadata = RetentionMetadataShape
+export type RetentionMetadata = RetentionMetadataDocument
 
 export function encodeRetentionManifest(manifest: RetentionManifest): RetentionMetadata {
   if (manifest.version !== 1) throw incompatible('Retention manifest version is unsupported')
   const siteIds = new Set<string>()
+
   const boundaries = manifest.boundaries.map((boundary) => {
     assertUniqueSite(siteIds, boundary.siteId)
     assertBoundaryStrings(boundary)
     assertValidLocalDay(boundary.localDay)
     assertValidTimezone(boundary.reportingTimezone)
+
     return {
       siteId: boundary.siteId,
       installationId: boundary.installationId,
@@ -74,30 +76,42 @@ export function encodeRetentionManifest(manifest: RetentionManifest): RetentionM
       updatedAt: encodeDate(boundary.updatedAt),
     }
   })
+
   return { retentionManifest: { version: 1, boundaries } }
 }
 
-export function decodeRetentionManifest(metadata: unknown): RetentionManifest | null {
+export function decodeRetentionManifest(
+  metadata: JsonObject | null | undefined,
+): RetentionManifest | null {
   if (metadata === null || metadata === undefined) return null
+
   if (!isRecord(metadata)) throw incompatible('Retention metadata is malformed')
+
   if (!('retentionManifest' in metadata)) return null
-  return decodeManifest(metadata['retentionManifest'])
+
+  // SAFETY: decodeManifest validates the manifest shape and throws incompatible on malformed input.
+  return decodeManifest(metadata['retentionManifest'] as JsonObject)
 }
 
-function decodeManifest(value: unknown): RetentionManifest {
+function decodeManifest(value: JsonObject): RetentionManifest {
   if (!isRecord(value) || value['version'] !== 1 || !isUnknownArray(value['boundaries'])) {
     throw incompatible('Retention manifest version or shape is unsupported')
   }
+
   const siteIds = new Set<string>()
+
   const boundaries = value['boundaries'].map((boundary) => {
-    const decoded = decodeBoundary(boundary)
+    // SAFETY: decodeBoundary validates the element shape and throws incompatible on malformed input.
+    const decoded = decodeBoundary(boundary as JsonObject)
     assertUniqueSite(siteIds, decoded.siteId)
+
     return decoded
   })
+
   return { version: 1, boundaries }
 }
 
-function decodeBoundary(value: unknown): RetentionManifestBoundary {
+function decodeBoundary(value: JsonObject): RetentionManifestBoundary {
   if (!isRecord(value)) throw incompatible('Retention boundary is malformed')
   const siteId = readString(value, 'siteId')
   const installationId = readString(value, 'installationId')
@@ -106,6 +120,7 @@ function decodeBoundary(value: unknown): RetentionManifestBoundary {
   const localDay = readString(value, 'localDay')
   assertValidLocalDay(localDay)
   assertValidTimezone(reportingTimezone)
+
   return {
     siteId,
     installationId,
@@ -139,11 +154,13 @@ function assertUniqueSite(siteIds: Set<string>, siteId: string): void {
   siteIds.add(siteId)
 }
 
-function readString(value: Record<string, unknown>, name: string): string {
+function readString(value: JsonObject, name: string): string {
   const field = value[name]
-  if (typeof field !== 'string' || field.length === 0) {
+
+  if (!isStringValue(field) || field.length === 0) {
     throw incompatible(`Retention boundary ${name} is invalid`)
   }
+
   return field
 }
 
@@ -151,27 +168,34 @@ function encodeDate(value: Date): string {
   if (!(value instanceof Date) || !Number.isFinite(value.getTime())) {
     throw incompatible('Retention manifest contains an invalid date')
   }
+
   return value.toISOString()
 }
 
-function decodeDate(value: Record<string, unknown>, name: string): Date {
+function decodeDate(value: JsonObject, name: string): Date {
+  if (!isRecord(value)) throw incompatible(`Retention boundary ${name} is invalid`)
   const field = value[name]
-  if (typeof field !== 'string') throw incompatible(`Retention boundary ${name} is invalid`)
+
+  if (!isStringValue(field)) throw incompatible(`Retention boundary ${name} is invalid`)
   const date = new Date(field)
+
   if (!Number.isFinite(date.getTime()) || date.toISOString() !== field) {
     throw incompatible(`Retention boundary ${name} is an invalid date`)
   }
+
   return date
 }
 
 function assertValidLocalDay(value: string): void {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+
   if (match === null) throw incompatible('Retention boundary local day is invalid')
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
   const date = new Date(0)
   date.setUTCFullYear(year, month - 1, day)
+
   if (
     date.getUTCFullYear() !== year ||
     date.getUTCMonth() !== month - 1 ||

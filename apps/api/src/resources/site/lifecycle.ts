@@ -9,7 +9,7 @@ export interface SiteLifecycleWorkerDependencies {
   repository: SiteRepository
   lock: LifecycleLock
   intervalMs?: number
-  onError?: (error: unknown, context?: LogOperationContext) => unknown
+  onError?: (cause: unknown, context?: LogOperationContext) => void
   onPurgedSite?: (input: { siteId: string; now: Date }) => Promise<void>
 }
 
@@ -17,7 +17,7 @@ export class SiteLifecycleWorker {
   private readonly repository: SiteRepository
   private readonly lock: LifecycleLock
   private readonly intervalMs: number
-  private readonly onError: ((error: unknown, context?: LogOperationContext) => unknown) | undefined
+  private readonly onError: ((cause: unknown, context?: LogOperationContext) => void) | undefined
   private readonly onPurgedSite:
     | ((input: { siteId: string; now: Date }) => Promise<void>)
     | undefined
@@ -42,12 +42,13 @@ export class SiteLifecycleWorker {
   runOnce(now = new Date()): Promise<void> {
     if (this.runPromise !== undefined) return this.runPromise
     this.runPromise = this.process(now)
-      .catch((error: unknown) =>
-        this.reportError(error, { operation: 'site.lifecycle', stage: 'scan' }),
+      .catch((cause: unknown) =>
+        this.reportError(cause, { operation: 'site.lifecycle', stage: 'scan' }),
       )
       .finally(() => {
         this.runPromise = undefined
       })
+
     return this.runPromise
   }
 
@@ -68,11 +69,13 @@ export class SiteLifecycleWorker {
       this.timer = undefined
       this.timerGeneration += 1
     }
+
     await this.runPromise
   }
 
   private async process(now: Date): Promise<void> {
     const operations = await this.repository.findPendingLifecycleOperations()
+
     for (const operation of operations) {
       await this.withLease(
         operation.operationType === 'delete' ? 'site_deletion' : 'site_recovery',
@@ -96,14 +99,17 @@ export class SiteLifecycleWorker {
     }
 
     const duePurges = await this.repository.findDuePurges(now)
+
     for (const { siteId } of duePurges) {
       let operationId: string
+
       try {
         operationId = generateId('sop')
       } catch (error) {
         this.reportError(error, { operation: 'site.lifecycle', stage: 'site-purge', siteId })
         continue
       }
+
       await this.withLease(
         'site_purge',
         async () => {
@@ -112,6 +118,7 @@ export class SiteLifecycleWorker {
             operationId,
             requestedAt: now,
           })
+
           if (result.status !== 'completed') return
           await this.onPurgedSite?.({ siteId, now })
         },
@@ -126,13 +133,17 @@ export class SiteLifecycleWorker {
     context: { operationId?: string; siteId?: string } = {},
   ): Promise<void> {
     let lease: Awaited<ReturnType<LifecycleLock['acquire']>> | undefined
+
     try {
       lease = await this.lock.acquire(kind)
     } catch (error) {
       this.reportError(error, { operation: 'site.lifecycle', stage: 'acquire', ...context })
+
       return
     }
+
     if (lease === undefined) return
+
     try {
       await work()
     } catch (error) {
@@ -155,13 +166,15 @@ export class SiteLifecycleWorker {
     }
   }
 
-  private reportError(error: unknown, context: LogOperationContext): void {
+  private reportError(cause: unknown, context: LogOperationContext): void {
     if (this.onError === undefined) {
-      reportLogEvent({ kind: 'operation.failure', ...context, error })
+      reportLogEvent({ kind: 'operation.failure', ...context, error: cause })
+
       return
     }
+
     try {
-      void Promise.resolve(this.onError(error, context)).catch(() => undefined)
+      void Promise.resolve(this.onError(cause, context)).catch(() => undefined)
     } catch {}
   }
 }

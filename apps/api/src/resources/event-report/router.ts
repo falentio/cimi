@@ -3,6 +3,7 @@ import { toOrpcReportingError } from '../../errors.ts'
 import type { EventReportService } from './service.ts'
 
 const eventReportApi = api.eventReport
+
 const authenticatedEventReportApi = authenticatedApi.eventReport
 
 async function mapped<T>(work: () => Promise<T>): Promise<T> {

@@ -13,28 +13,34 @@ test('takes a backup while continuous ingestion holds ingestion leases', async (
     {},
     { context: await admin.context() },
   )
+
   const organization = await call(
     fixture.router.organization.createOrganization,
     { name: 'Lease Organization' },
     { context: await admin.context() },
   )
+
   const site = await call(
     fixture.router.site.createSite,
     { organizationId: organization.id, name: 'Lease Site', hostname: 'lease.example.com' },
     { context: await admin.context() },
   )
+
   const anonymous = fixture.unauthenticatedContext()
 
   let stopped = false
   let batch = 0
+
   const ingestContinuously = async (): Promise<void> => {
     while (!stopped) {
       batch += 1
+
       const events = Array.from({ length: 50 }, (_, index) => ({
         eventId: `evt_lease_${batch}_${index}`,
         kind: 'custom_event' as const,
         name: 'lease_probe',
       }))
+
       await call(
         fixture.router.eventIngestion.collectEvents,
         { ingestionIdentifier: site.ingestionIdentifier, events },
@@ -49,7 +55,9 @@ test('takes a backup while continuous ingestion holds ingestion leases', async (
     ingestContinuously(),
     ingestContinuously(),
   ]
+
   let started: { readonly id: string }
+
   try {
     await sleep(250)
     started = await call(

@@ -12,6 +12,7 @@ const authorityOrganization = createAuthorityOrganization({
   name: "Ada's Organization",
   slug: 'personal-user_1',
 })
+
 const members = [
   createAuthorityMember({ organizationId: authorityOrganization.id }),
   createAuthorityMember({
@@ -21,6 +22,7 @@ const members = [
     createdAt: new Date('2026-08-31T00:00:01.000Z'),
   }),
 ]
+
 const winner = createOrganizationRecord({
   name: "Ada's Organization",
   authorityOrganizationId: authorityOrganization.id,
@@ -79,6 +81,7 @@ describe('OrganizationService.ensurePersonal', () => {
 
   it('creates a personal organization with a new authority organization', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const personal = createOrganizationRecord({
       name: "Ada's Organization",
       authorityOrganizationId: authorityOrganization.id,

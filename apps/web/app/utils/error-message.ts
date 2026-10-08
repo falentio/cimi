@@ -129,10 +129,10 @@ export const authErrorMessageKeys = {
   VALIDATION_ERROR: 'authErrors.VALIDATION_ERROR',
 } satisfies Record<AuthErrorCode, string>
 
-const errorMessageKeys: Record<string, string> = {
+const errorMessageKeys = {
   ...contractErrorMessageKeys,
   ...authErrorMessageKeys,
-}
+} satisfies Record<string, string>
 
 /**
  * Statuses whose response carries no error code, mapped onto the contract code
@@ -157,14 +157,17 @@ const statusFallbackCodes = {
 
 function errorMessageKey(error: LocalizableError): string | undefined {
   if (error.code !== undefined && Object.hasOwn(errorMessageKeys, error.code)) {
-    return errorMessageKeys[error.code]
+    // SAFETY: hasOwn above proves the code is a known key.
+    return errorMessageKeys[error.code as keyof typeof errorMessageKeys]
   }
 
   if (error.status === undefined) return undefined
 
   if (!Object.hasOwn(statusFallbackCodes, error.status)) return undefined
 
+  // SAFETY: hasOwn above proves the status is a known key.
   const fallbackCode = statusFallbackCodes[error.status as keyof typeof statusFallbackCodes]
+
   return contractErrorMessageKeys[fallbackCode]
 }
 
@@ -182,5 +185,6 @@ export function localizeErrorMessage(
   translate: (key: string) => string,
 ): string {
   const key = errorMessageKey(error)
+
   return key === undefined ? error.message : translate(key)
 }

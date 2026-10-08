@@ -8,11 +8,14 @@ import { goalRouter } from './router.ts'
 import { GoalService } from './service.ts'
 
 export { goalRouter }
+
 export { GoalService, type GoalServiceDependencies } from './service.ts'
+
 export {
   GoalRepositoryDrizzle,
   type GoalRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export type { GoalRepository } from './repository.ts'
 
 export interface CreateGoalDependencies {
@@ -37,17 +40,19 @@ export function createGoal({
   ids,
 }: CreateGoalDependencies) {
   const repository = new GoalRepositoryDrizzle({ db })
+
   const service = new GoalService({
     repository,
     analytics,
     db,
     admission,
     lifecycleLock,
-    ...(query === undefined ? {} : { query }),
+    ...(query !== undefined && { query }),
     scope: scope ?? createSiteScopeDependencies({ db }),
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
   })
+
   return { repository, service, router: goalRouter(service) }
 }
 

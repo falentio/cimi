@@ -4,10 +4,13 @@ import { SOffsetPage, SOffsetPaginationInput, SPageItems } from '../../../schema
 import { SBackup } from '../schema.ts'
 
 export const SBackupListInput = SOffsetPaginationInput
+
 export type SBackupListInput = v.InferOutput<typeof SBackupListInput>
+
 export const SBackupListOutput = v.strictObject(
   v.entriesFromObjects([v.strictObject({ items: SPageItems(SBackup) }), SOffsetPage]),
 )
+
 export type SBackupListOutput = v.InferOutput<typeof SBackupListOutput>
 
 export const listBackups = oc

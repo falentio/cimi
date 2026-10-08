@@ -1,4 +1,4 @@
-export function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord<T>(value: T): value is T & Record<string, JsonValue> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
@@ -6,10 +6,22 @@ export interface SortedRecordOptions {
   readonly excludeKeys?: ReadonlySet<string> | undefined
 }
 
-export function sortedRecord(value: unknown, options: SortedRecordOptions = {}): unknown {
+export type JsonValue = string | number | boolean | null | undefined | JsonObject | JsonValue[]
+
+export interface JsonObject {
+  [key: string]: JsonValue
+}
+
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function sortedRecord(value: JsonValue, options: SortedRecordOptions = {}): JsonValue {
   if (Array.isArray(value)) return value.map((entry) => sortedRecord(entry, options))
-  if (!isRecord(value)) return value
+
+  if (!isJsonObject(value)) return value
   const { excludeKeys } = options
+
   return Object.fromEntries(
     Object.entries(value)
       .filter(([key]) => excludeKeys === undefined || !excludeKeys.has(key))
@@ -18,6 +30,6 @@ export function sortedRecord(value: unknown, options: SortedRecordOptions = {}):
   )
 }
 
-export function canonicalJsonString(value: unknown, options: SortedRecordOptions = {}): string {
+export function canonicalJsonString(value: JsonValue, options: SortedRecordOptions = {}): string {
   return JSON.stringify(sortedRecord(value, options))
 }

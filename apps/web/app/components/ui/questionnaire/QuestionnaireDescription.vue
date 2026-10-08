@@ -21,7 +21,9 @@ const props = withDefaults(
 const item = injectQuestionnaireItemContext()
 
 const primitiveRef = ref<ComponentPublicInstance | null>(null)
+
 const fallbackId = props.id ?? useId()
+
 const descriptionId = ref(fallbackId)
 
 let unregisterDescription = item.registerDescription(descriptionId.value)
@@ -29,6 +31,7 @@ let unregisterDescription = item.registerDescription(descriptionId.value)
 onMounted(() => {
   // With `as-child` the rendered child can bring its own id, for example a
   // DialogDescription. Adopt it so both descriptions point at one element.
+  // SAFETY: reka primitives always render a single element root.
   const element = primitiveRef.value?.$el as HTMLElement | undefined
   const renderedId = element?.id
 

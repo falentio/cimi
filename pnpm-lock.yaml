@@ -39,6 +39,9 @@ catalogs:
     '@orpc/valibot':
       specifier: ^1.14.8
       version: 1.15.0
+    '@oxlint/plugins':
+      specifier: 1.81.0
+      version: 1.81.0
     '@tailwindcss/vite':
       specifier: ^4.3.3
       version: 4.3.3
@@ -116,6 +119,9 @@ importers:
         specifier: 1.18.30
         version: 1.18.30
     devDependencies:
+      '@oxlint/plugins':
+        specifier: 'catalog:'
+        version: 1.81.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.4
@@ -495,6 +501,9 @@ importers:
 
   packages/maxmindb:
     dependencies:
+      '@cimi/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@maxmind/geoip2-node':
         specifier: 'catalog:'
         version: 6.1.0
@@ -511,6 +520,9 @@ importers:
 
   packages/testing:
     dependencies:
+      '@cimi/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@orpc/server':
         specifier: 'catalog:'
         version: 1.15.0(crossws@0.3.5)(ws@8.21.3)
@@ -2543,6 +2555,10 @@ packages:
 
   '@oxlint/plugins@1.79.0':
     resolution: {integrity: sha512-S0uyoxakDINJ4DPgqxGlEEvrdSMeQb7Z2lKVjxoY2gwsbZbfg2Xr8Klfeo5ZeraHmmdBCELFUHkSe6KEmBpMvg==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+
+  '@oxlint/plugins@1.81.0':
+    resolution: {integrity: sha512-HhD8kd3r6XpelZkhxhRty/po8V6yK1VV63Eq4kSsOS2IoHUywG3DV2EX+z/ZHw46aLI74Y6aA604NRiAqLKW9w==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
   '@parcel/watcher-wasm@2.6.0':
@@ -9976,6 +9992,8 @@ snapshots:
     optional: true
 
   '@oxlint/plugins@1.79.0': {}
+
+  '@oxlint/plugins@1.81.0': {}
 
   '@parcel/watcher-wasm@2.6.0':
     dependencies:

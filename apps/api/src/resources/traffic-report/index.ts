@@ -14,11 +14,17 @@ import { trafficReportRouter } from './router.ts'
 import { TrafficReportService } from './service.ts'
 
 export { trafficReportRouter }
+
 export { TrafficReportService, type TrafficReportServiceDependencies } from './service.ts'
+
 export { ReportingEvidenceDrizzleDuckDb } from './evidence.drizzle-duckdb.ts'
+
 export { ReportingMetadataDrizzle } from './metadata.drizzle.ts'
+
 export { createReportingReadinessPort } from './readiness.ts'
+
 export { toOrpcReportingError } from '../../errors.ts'
+
 export type {
   TrafficBreakdownsInput,
   TrafficBreakdownsOutput,
@@ -48,6 +54,7 @@ export function createTrafficReport({
   const metadata = new ReportingMetadataDrizzle({ db })
   const evidence = new ReportingEvidenceDrizzleDuckDb({ db, analytics })
   const query = new DuckDbReportingQuery({ analytics })
+
   const admission = new ReportingAdmissionService({
     metadata,
     evidence,
@@ -56,6 +63,7 @@ export function createTrafficReport({
       lifecycle,
     }),
   })
+
   const service = new TrafficReportService({
     admission,
     query,
@@ -63,6 +71,7 @@ export function createTrafficReport({
     scope: scope ?? createSiteScopeDependencies({ db }),
     lifecycleLock,
   })
+
   return { metadata, evidence, admission, query, service, router: trafficReportRouter(service) }
 }
 

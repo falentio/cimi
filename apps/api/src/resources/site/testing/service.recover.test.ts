@@ -6,6 +6,7 @@ describe('SiteService.recover', () => {
     const { repository, service } = createSiteFixture({
       memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'admin' }],
     })
+
     repository.beginRecover.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
 
     await expect(

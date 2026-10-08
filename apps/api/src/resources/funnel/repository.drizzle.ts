@@ -36,7 +36,9 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
         ),
       )
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toFunnel(row.funnel, row.version)
   }
 
@@ -46,6 +48,7 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
     if ((await this.findById({ siteId: input.siteId, funnelId: input.funnelId })) === undefined) {
       return undefined
     }
+
     const rows = await this.deps.db
       .select({ funnel: schema.TFunnel, version: schema.TFunnelVersion })
       .from(schema.TFunnel)
@@ -65,12 +68,15 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
       )
       .orderBy(desc(schema.TFunnelVersion.effectiveAt), desc(schema.TFunnelVersion.version))
       .limit(1)
+
     const row = rows[0]
+
     return row === undefined ? undefined : toFunnel(row.funnel, row.version)
   }
 
   async findMany(input: FunnelRepository.ListInput): Promise<FunnelRepository.ListResult> {
     const where = and(eq(schema.TFunnel.siteId, input.siteId), liveSite(this.deps.db))
+
     const [countRow] = await this.deps.db
       .select({ count: count() })
       .from(schema.TFunnel)
@@ -82,6 +88,7 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
         ),
       )
       .where(where)
+
     const rows = await this.deps.db
       .select({ funnel: schema.TFunnel, version: schema.TFunnelVersion })
       .from(schema.TFunnel)
@@ -96,7 +103,9 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
       .orderBy(asc(schema.TFunnel.createdAt), asc(schema.TFunnel.id))
       .limit(input.limit + 1)
       .offset(input.offset)
+
     const hasMore = rows.length > input.limit
+
     return {
       items: rows.slice(0, input.limit).map((row) => toFunnel(row.funnel, row.version)),
       nextOffset: hasMore ? input.offset + input.limit : null,
@@ -133,7 +142,9 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
         })
         .run()
       const row = selectCurrent(tx, input.siteId, input.id)
+
       if (row === undefined) throw new Error('Funnel insert returned no row')
+
       return toFunnel(row.funnel, row.version)
     })
   }
@@ -142,11 +153,13 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectCurrent(tx, input.siteId, input.funnelId)
+
       if (current === undefined) {
         return rawExists(tx, input.siteId, input.funnelId)
           ? { status: 'conflict' }
           : { status: 'not-found' }
       }
+
       if (current.funnel.status !== 'active') return { status: 'conflict' }
       const version = current.funnel.currentVersion + 1
       tx.insert(schema.TFunnelVersion)
@@ -171,7 +184,9 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
         .where(and(eq(schema.TFunnel.id, input.funnelId), eq(schema.TFunnel.siteId, input.siteId)))
         .run()
       const row = selectCurrent(tx, input.siteId, input.funnelId)
+
       if (row === undefined) throw new Error('Funnel update returned no row')
+
       return { status: 'updated', funnel: toFunnel(row.funnel, row.version) }
     })
   }
@@ -180,18 +195,22 @@ export class FunnelRepositoryDrizzle implements FunnelRepository {
     return this.deps.db.transaction((tx) => {
       assertActiveSite(tx, input.siteId)
       const current = selectCurrent(tx, input.siteId, input.funnelId)
+
       if (current === undefined) {
         return rawExists(tx, input.siteId, input.funnelId)
           ? { status: 'conflict' }
           : { status: 'not-found' }
       }
+
       if (current.funnel.status !== 'active') return { status: 'conflict' }
       tx.update(schema.TFunnel)
         .set({ status: 'archived', updatedAt: input.now })
         .where(and(eq(schema.TFunnel.id, input.funnelId), eq(schema.TFunnel.siteId, input.siteId)))
         .run()
       const row = selectCurrent(tx, input.siteId, input.funnelId)
+
       if (row === undefined) throw new Error('Funnel archive returned no row')
+
       return { status: 'updated', funnel: toFunnel(row.funnel, row.version) }
     })
   }
@@ -232,6 +251,7 @@ function assertActiveSite(tx: SqliteTransaction, siteId: string): void {
     )
     .limit(1)
     .all()
+
   if (rows.length === 0) throw new ORPCError('NOT_FOUND')
 }
 
@@ -271,6 +291,7 @@ function toFunnel(
     steps: version.stepsJson,
     identityKind: version.identityKind,
   })
+
   return {
     id: row.id,
     siteId: row.siteId,

@@ -6,10 +6,15 @@ import {
 } from '../fixture.ts'
 
 const organizationId = 'org_1'
+
 const ownerUserId = 'user_owner'
+
 const memberUserId = 'user_member'
+
 const currentMember = createMembershipRecord({ userId: memberUserId, role: 'member' })
+
 const owner = createMembershipRecord({ userId: ownerUserId, role: 'owner' })
+
 const targetMember = createMembershipRecord({ userId: 'user_target', role: 'member' })
 
 describe('MembershipService.list', () => {

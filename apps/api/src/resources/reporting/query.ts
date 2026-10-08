@@ -23,6 +23,7 @@ import type { ReportEvaluationInput } from './evaluation.ts'
 import { toOrpcReportingError } from './errors.ts'
 
 export type ReportWindow = InferOutput<typeof contractSchema.SReportFieldsSchema>
+
 export type ReportIdentityKind = 'visitor' | 'identified_user'
 
 export interface ReportDataPort {
@@ -120,11 +121,14 @@ export function createReportQueryKernel(
   return {
     run: async <T, TResult>(input: ReportQueryInput<T, TResult>): Promise<TResult> => {
       let lease: LifecycleLease | undefined
+
       let outcome:
         | { readonly kind: 'success'; readonly value: TResult }
         | { readonly kind: 'failure'; readonly error: unknown }
+
       try {
         lease = await dependencies.lifecycleLock.acquire('analytics-read')
+
         if (lease === undefined) throw serviceUnavailable('lifecycle-locked')
 
         const planning = {
@@ -133,23 +137,30 @@ export function createReportQueryKernel(
               createPreparationInput(input.siteId, input.window, options.periodization),
             ),
         }
+
         const plan = await input.plan(planning)
+
         const ticket = await dependencies.admission.admitPrepared(plan.preparation, {
           coverage: plan.coverage,
           work: createAdmissionWork(input.window.filters, plan.work),
         })
+
         const snapshot = await dependencies.data.read({
           siteId: input.siteId,
           from: ticket.evaluation.interval.start,
           toExclusive: ticket.evaluation.interval.endExclusive,
         })
+
         const identityKindForPeriod = plan.identityKindForPeriod
+
         const createIdentityForPeriod = (period: ReportEvaluationPeriod) =>
           identityKindForPeriod === undefined
             ? undefined
             : (nestedPeriod: ResolvedPeriod) =>
                 createIdentityScope(identityKindForPeriod(period, nestedPeriod), snapshot)
+
         const currentIdentityForPeriod = createIdentityForPeriod(ticket.evaluation.current)
+
         const current = await evaluatePeriod({
           ticket,
           snapshot,
@@ -159,7 +170,9 @@ export function createReportQueryKernel(
           evaluate: plan.evaluate,
           period: ticket.evaluation.current,
         })
+
         const comparisonPeriod = ticket.evaluation.comparison
+
         const comparison =
           comparisonPeriod === null
             ? null
@@ -172,16 +185,20 @@ export function createReportQueryKernel(
                 evaluate: plan.evaluate,
                 period: comparisonPeriod,
               })
+
         outcome = { kind: 'success', value: await input.render({ current, comparison }) }
       } catch (error) {
         outcome = { kind: 'failure', error }
       }
+
       try {
         await lease?.release()
       } catch (error) {
         throw toOrpcReportingError(error)
       }
+
       if (outcome.kind === 'failure') throw toOrpcReportingError(outcome.error)
+
       return outcome.value
     },
   }
@@ -192,7 +209,9 @@ export function historicalDefinitionFor<T>(
   key: PeriodKey,
 ): HistoricalDefinition<T> {
   if (key === 'current') return plan.current
+
   if (plan.comparison === null) throw new Error('Comparison definition is not planned')
+
   return plan.comparison
 }
 
@@ -224,9 +243,7 @@ async function evaluatePeriod<T>(input: {
       period: input.period,
       snapshot: input.snapshot,
       identity: input.identity,
-      ...(input.identityForPeriod === undefined
-        ? {}
-        : { identityForPeriod: input.identityForPeriod }),
+      ...(input.identityForPeriod !== undefined && { identityForPeriod: input.identityForPeriod }),
       filters: input.filters,
     }),
     freshness:
@@ -242,21 +259,20 @@ function createPreparationInput(
   periodization: PeriodizationByKey | undefined,
 ): ReportAdmissionPreparationInput {
   const comparison = window.comparison
+
   return {
     siteId: createSiteId(siteId),
     current: {
       fromDate: createCalendarDate(window.fromDate),
       toDate: createCalendarDate(window.toDate),
     },
-    ...(comparison === undefined
-      ? {}
-      : {
-          comparison: {
-            fromDate: createCalendarDate(comparison.fromDate),
-            toDate: createCalendarDate(comparison.toDate),
-          },
-        }),
-    ...(periodization === undefined ? {} : { periodization }),
+    ...(comparison !== undefined && {
+      comparison: {
+        fromDate: createCalendarDate(comparison.fromDate),
+        toDate: createCalendarDate(comparison.toDate),
+      },
+    }),
+    ...(periodization !== undefined && { periodization }),
   }
 }
 
@@ -276,12 +292,16 @@ function createAdmissionWork(
 function createIdentityScope(kind: ReportIdentityKind, snapshot: ReportSnapshot): IdentityScope {
   const identifiedSubject = (identifiedUserId: string | null): string | null => {
     if (identifiedUserId === null || !snapshot.activeProfiles.has(identifiedUserId)) return null
+
     return identifiedUserId
   }
+
   const subjectOfEvent = (event: ReportSnapshot['events'][number]): string | null =>
     kind === 'visitor' ? event.visitorId : identifiedSubject(event.identifiedUserId)
+
   const subjectOfSession = (session: ReportSnapshot['sessions'][number]): string | null =>
     kind === 'visitor' ? session.visitorId : identifiedSubject(session.identifiedUserId)
+
   return {
     kind,
     subjectOfEvent,

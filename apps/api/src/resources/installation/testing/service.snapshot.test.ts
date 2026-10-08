@@ -204,6 +204,7 @@ describe('InstallationService.snapshotForHealth', () => {
   ] as const)('cleanup $status implies pending $pending', async ({ status, pending }) => {
     const { repository, service } = createInstallationFixture()
     const stamp = '2026-09-01T00:00:00.000Z'
+
     const stage =
       status === 'not_applicable' || status === 'not_started' || status === 'pending'
         ? { status, startedAt: null, completedAt: null, errorCode: null }
@@ -212,6 +213,7 @@ describe('InstallationService.snapshotForHealth', () => {
           : status === 'completed'
             ? { status, startedAt: stamp, completedAt: stamp, errorCode: null }
             : { status, startedAt: stamp, completedAt: stamp, errorCode: 'CLEANUP_FAILED' as const }
+
     repository.find.mockResolvedValue(
       createInstallationRecord({
         cleanupPending: pending,

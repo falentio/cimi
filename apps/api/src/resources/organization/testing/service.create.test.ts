@@ -8,7 +8,9 @@ import {
 } from '../fixture.ts'
 
 const organization = createOrganizationRecord()
+
 const updatedOrganization = createOrganizationRecord({ name: 'Renamed Analytics' })
+
 const repair = createRepairOperation({
   organizationId: organization.id,
   localOrganizationId: organization.id,
@@ -17,11 +19,13 @@ const repair = createRepairOperation({
   previousName: organization.name,
   desiredName: updatedOrganization.name,
 })
+
 const newAuthoritySlug = 'org_new-user_1'
 
 describe('OrganizationService.create', () => {
   it('rejects a pending create with a different requested name', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const pendingCreate = createRepairOperation({
       id: 'orp_create_mismatched_name',
       organizationId: null,
@@ -32,6 +36,7 @@ describe('OrganizationService.create', () => {
       previousName: null,
       desiredName: 'Existing Request',
     })
+
     repository.findPendingCreateRepair.mockResolvedValue(pendingCreate)
 
     await expect(
@@ -44,6 +49,7 @@ describe('OrganizationService.create', () => {
 
   it('deletes an authority Organization after local persistence fails', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const createRepair = createRepairOperation({
       ...repair,
       id: 'orp_create_1',
@@ -90,6 +96,7 @@ describe('OrganizationService.create', () => {
 
   it('compensates when Better Auth returns an invalid owner response', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const createRepair = createRepairOperation({
       ...repair,
       id: 'orp_create_invalid_owner',
@@ -135,6 +142,7 @@ describe('OrganizationService.create', () => {
 
   it('does not delete a pre-existing authority Organization discovered during retry', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const createRepair = createRepairOperation({
       ...repair,
       id: 'orp_create_existing_authority',
@@ -182,6 +190,7 @@ describe('OrganizationService.create', () => {
 
   it('retries cleanup for an operation-owned authority Organization', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const createRepair = createRepairOperation({
       ...repair,
       id: 'orp_create_retry_cleanup',
@@ -224,6 +233,7 @@ describe('OrganizationService.create', () => {
 
   it('keeps the repair pending when authority compensation fails', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const createRepair = createRepairOperation({
       ...repair,
       id: 'orp_create_2',
@@ -267,6 +277,7 @@ describe('OrganizationService.create', () => {
 
   it('creates an organization through a fresh repair', async () => {
     const { repository, authority, service } = createOrganizationFixture()
+
     const createRepair = createRepairOperation({
       ...repair,
       id: 'orp_create_happy',
@@ -278,6 +289,7 @@ describe('OrganizationService.create', () => {
       previousName: null,
       desiredName: 'New Organization',
     })
+
     const created = createOrganizationRecord({ id: 'org_new', name: 'New Organization' })
 
     repository.findPendingCreateRepair.mockResolvedValue(undefined)

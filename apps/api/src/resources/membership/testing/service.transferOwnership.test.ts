@@ -7,29 +7,36 @@ import {
 } from '../fixture.ts'
 
 const organizationId = 'org_1'
+
 const ownerUserId = 'user_1'
+
 const adminUserId = 'user_admin'
+
 const targetUserId = 'user_2'
 
 const pendingTransfer = createTransfer()
+
 const previousOwner = createAuthorityMember({
   id: 'member_1',
   userId: ownerUserId,
   role: 'admin',
   createdAt: new Date('2026-08-31T00:00:00.000Z'),
 })
+
 const target = createMembershipRecord({
   userId: targetUserId,
   role: 'owner',
   createdAt: new Date('2026-08-31T00:00:01.000Z'),
   updatedAt: new Date('2026-08-31T00:00:02.000Z'),
 })
+
 const targetAuthorityMember = createAuthorityMember({
   id: 'member_2',
   userId: targetUserId,
   role: 'owner',
   createdAt: target.createdAt,
 })
+
 const previousOwnerMembership = createMembershipRecord({
   userId: pendingTransfer.previousOwnerUserId,
   role: 'owner',
@@ -160,21 +167,26 @@ describe('MembershipService.transferOwnership', () => {
     const { repository, authority, service } = createMembershipFixture([previousOwnerMembership])
     let pendingReads = 0
     let resolvePendingReads: (() => void) | undefined
+
     const bothPendingReads = new Promise<void>((resolve) => {
       resolvePendingReads = resolve
     })
+
     let completionCalls = 0
 
     repository.findPendingTransfer.mockImplementation(async () => {
       pendingReads += 1
+
       if (pendingReads === 2) resolvePendingReads?.()
       await bothPendingReads
+
       return pendingTransfer
     })
     repository.isOwnerInvariantValid.mockResolvedValue(true)
     repository.markTransferAttempt.mockResolvedValue()
     repository.completeTransfer.mockImplementation(async () => {
       completionCalls += 1
+
       if (completionCalls === 1) return target
       throw new Error('Pending ownership transfer is no longer valid')
     })
@@ -208,6 +220,7 @@ describe('MembershipService.transferOwnership', () => {
     const { repository, authority, service } = createMembershipFixture([
       createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
     ])
+
     repository.findPendingTransfer.mockResolvedValue(pendingTransfer)
 
     await expect(
@@ -226,6 +239,7 @@ describe('MembershipService.transferOwnership', () => {
       createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
       createMembershipRecord({ userId: targetUserId, role: 'member' }),
     ])
+
     repository.findPendingTransfer.mockResolvedValue(undefined)
     repository.findCompletedTransfer.mockResolvedValue(target)
 
@@ -245,6 +259,7 @@ describe('MembershipService.transferOwnership', () => {
       createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
       createMembershipRecord({ userId: targetUserId, role: 'member' }),
     ])
+
     repository.findPendingTransfer.mockResolvedValue(undefined)
     repository.findCompletedTransfer.mockResolvedValue(undefined)
     repository.createTransfer.mockResolvedValue({ kind: 'invalid' })
@@ -264,6 +279,7 @@ describe('MembershipService.transferOwnership', () => {
       createMembershipRecord({ userId: 'user_owner', role: 'owner' }),
       createMembershipRecord({ userId: targetUserId, role: 'member' }),
     ])
+
     repository.findPendingTransfer.mockResolvedValue(undefined)
     repository.findCompletedTransfer.mockResolvedValue(undefined)
     repository.createTransfer.mockResolvedValue({

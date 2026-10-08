@@ -32,6 +32,7 @@ const emits = defineEmits<{
 const root = injectQuestionnaireRootContext()
 
 const visible = computed(() => root.total.value > 1 && !root.last.value)
+
 const shortcut = computed(() => (visible.value && !props.disabled ? 'Enter' : null))
 
 function handleClick(event: MouseEvent) {
@@ -41,6 +42,7 @@ function handleClick(event: MouseEvent) {
   // other than a button.
   if (props.disabled) {
     event.preventDefault()
+
     return
   }
 

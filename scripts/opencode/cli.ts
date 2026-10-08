@@ -18,8 +18,12 @@ const usage = `Usage:
   pnpm opencode create
   pnpm opencode chat --session <id> --text <message> [--model-id <id>] [--provider-id <id>]`
 
-function requiredOption(value: unknown, option: string): string {
-  if (typeof value !== 'string' || value.length === 0 || value.startsWith('--')) {
+function isStringValue<T>(value: T): value is T & string {
+  return typeof value === 'string'
+}
+
+function requiredOption(value: string | undefined, option: string): string {
+  if (!isStringValue(value) || value.length === 0 || value.startsWith('--')) {
     throw new UsageError(`Missing value for ${option}.\n${usage}`)
   }
 
@@ -27,7 +31,7 @@ function requiredOption(value: unknown, option: string): string {
 }
 
 function parseChat(
-  args: readonly unknown[],
+  args: readonly string[],
   environment: Readonly<Record<string, string | undefined>>,
 ): Command {
   let sessionId: string | undefined
@@ -37,7 +41,8 @@ function parseChat(
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
-    if (typeof argument !== 'string') {
+
+    if (!isStringValue(argument)) {
       throw new UsageError(`Invalid argument.\n${usage}`)
     }
 
@@ -54,8 +59,11 @@ function parseChat(
     index += 1
 
     if (argument === '--session') sessionId = value
+
     if (argument === '--text') text = value
+
     if (argument === '--model-id') modelId = value
+
     if (argument === '--provider-id') providerId = value
   }
 
@@ -67,12 +75,15 @@ function parseChat(
   if (resolvedSessionId === undefined) {
     throw new UsageError(`Missing required option: --session.\n${usage}`)
   }
+
   if (resolvedText === undefined) {
     throw new UsageError(`Missing required option: --text.\n${usage}`)
   }
+
   if (resolvedModelId === undefined || resolvedModelId.length === 0) {
     throw new UsageError(`Missing model ID. Pass --model-id or set OPENCODE_MODEL_ID.\n${usage}`)
   }
+
   if (resolvedProviderId === undefined || resolvedProviderId.length === 0) {
     throw new UsageError(
       `Missing provider ID. Pass --provider-id or set OPENCODE_PROVIDER_ID.\n${usage}`,
@@ -89,18 +100,22 @@ function parseChat(
 }
 
 function parseArgs(
-  args: readonly unknown[],
+  args: readonly string[],
   environment: Readonly<Record<string, string | undefined>>,
 ): Command {
   const command = args[0]
+
   if (command === 'list' && args.length === 1) return { kind: 'list' }
+
   if (command === 'create' && args.length === 1) return { kind: 'create' }
+
   if (command === 'chat') return parseChat(args.slice(1), environment)
   throw new UsageError(`Unknown or missing command.\n${usage}`)
 }
 
 async function run(command: Command): Promise<void> {
   const directory = process.cwd()
+
   const client = createOpencodeClient({
     baseUrl: process.env['OPENCODE_BASE_URL'] ?? 'http://localhost:54321',
     directory,

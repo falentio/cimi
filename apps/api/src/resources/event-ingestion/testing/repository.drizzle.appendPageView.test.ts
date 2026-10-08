@@ -50,6 +50,7 @@ function pageViewCandidate(
   overrides: Parameters<typeof candidate>[2] & { pageViewId?: string } = {},
 ) {
   const base = candidate(siteId, policyRevisionId, overrides)
+
   return {
     ...base,
     event: {
@@ -67,29 +68,38 @@ describe('AcceptanceRepositoryDrizzle.appendPageView', () => {
     await using fixture = await createApiTestFixture()
     const { app, db } = fixture
     const owner = await signUpTestUser(app, 'pageview-owner@example.com', 'Pageview Owner')
+
     const initialized = await apiTestRequest(
       app,
       '/installation/initializeInstallation',
       owner.cookie,
       {},
     )
+
     expect(initialized.status).toBe(201)
+
     const organizationResponse = await apiTestRequest(
       app,
       '/organization/createOrganization',
       owner.cookie,
       { name: 'Pageview Org' },
     )
+
     const organization = parse(SOrganizationCreateOutput, await organizationResponse.json())
+
     const siteResponse = await apiTestRequest(app, '/site/createSite', owner.cookie, {
       organizationId: organization.id,
       name: 'Pageview',
       hostname: 'pageview.example.com',
     })
+
     const site = parse(schema.SSiteCreateOutput, await siteResponse.json())
+
+    // SAFETY: better-sqlite3 returns any; single id column selected below.
     const revision = db.$client
       .prepare('SELECT id FROM collection_policy_revision LIMIT 1')
       .get() as { id: string }
+
     const repository = new AcceptanceRepositoryDrizzle({ db })
 
     expect(

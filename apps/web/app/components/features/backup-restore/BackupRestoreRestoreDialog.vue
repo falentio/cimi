@@ -24,12 +24,14 @@ const emit = defineEmits<{
 }>()
 
 const confirmation = shallowRef('')
+
 const open = computed({
   get: () => props.section.kind === 'confirming' || props.section.kind === 'submitting',
   set: (value: boolean) => {
     if (!value) emit('cancel')
   },
 })
+
 const selectedId = computed(() => {
   if (
     props.section.kind === 'confirming' ||
@@ -38,12 +40,16 @@ const selectedId = computed(() => {
   ) {
     return props.section.selected.id
   }
+
   return null
 })
+
 const confirmationBlocked = computed(() => {
   if (props.section.kind !== 'confirming' && props.section.kind !== 'submitting') return false
+
   return !props.section.confirmation.canConfirm
 })
+
 const confirmationDescribedBy = computed(() =>
   [
     'backup-restore-confirmation-description',

@@ -2,29 +2,39 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { parseLoggingConfig } from '@cimi/config/logging'
+import type { LoggingConfig } from '@cimi/logging/level'
 import { createApiServerApp, type ApiServerApp } from '@cimi/api/server'
+import { isStringValue } from '../../app/utils/type-guards'
 
 let apiAppPromise: Promise<ApiServerApp> | undefined
+
 let migrationsFolder: string | undefined
+
 let closePromise: Promise<void> | undefined
 
 export function getWebApiApp(): Promise<ApiServerApp> {
   apiAppPromise ??= createWebApiApp()
+
   return apiAppPromise
 }
 
 export function closeWebApiApp(): Promise<void> {
   closePromise ??= closeWebApiAppOnce()
+
   return closePromise
 }
 
 async function createWebApiApp(): Promise<ApiServerApp> {
   const folder = await materializeMigrations()
   migrationsFolder = folder
+
   try {
+    // SAFETY: nitro-serialized runtime config built by loadLoggingConfig; parseLoggingConfig validates or throws.
+    const logging = useRuntimeConfig().public.logging as LoggingConfig
+
     return await createApiServerApp({
       migrationsFolder: folder,
-      logging: parseLoggingConfig(useRuntimeConfig().public.logging),
+      logging: parseLoggingConfig(logging),
     })
   } catch (error) {
     await rm(folder, { recursive: true, force: true })
@@ -47,19 +57,24 @@ async function closeWebApiAppOnce(): Promise<void> {
 async function materializeMigrations(): Promise<string> {
   const storage = useStorage('assets:control-migrations')
   const keys = await storage.getKeys()
+
   if (keys.length === 0) throw new Error('Control migration assets are missing')
 
   const folder = await mkdtemp(join(tmpdir(), 'cimi-control-migrations-'))
+
   try {
     for (const key of keys) {
       const content: unknown = await storage.getItem(key)
+
       if (content === null) throw new Error(`Control migration asset is missing: ${key}`)
-      const serialized = typeof content === 'string' ? content : JSON.stringify(content)
+      const serialized = isStringValue(content) ? content : JSON.stringify(content)
+
       if (serialized === undefined) throw new Error(`Control migration asset is invalid: ${key}`)
       const path = join(folder, key.replaceAll(':', '/'))
       await mkdir(dirname(path), { recursive: true })
       await writeFile(path, serialized, 'utf8')
     }
+
     return folder
   } catch (error) {
     await rm(folder, { recursive: true, force: true })

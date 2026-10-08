@@ -11,6 +11,7 @@ describe('BackupRestoreRepositoryDrizzle.restoreLifecycle', () => {
     using fixture = createBackupDrizzleFixture()
     await fixture.insertInstallation()
     const source = await fixture.repository.beginBackup(createBackupInsertInput())
+
     if (source === undefined) throw new Error('expected source operation')
     await fixture.repository.recordBackupArtifact({
       operationId: source.id,
@@ -30,6 +31,7 @@ describe('BackupRestoreRepositoryDrizzle.restoreLifecycle', () => {
       sourceBackupId: source.id,
       now: new Date('2026-09-01T00:00:03.000Z'),
     })
+
     if (restore === undefined) throw new Error('expected restore operation')
     expect(restore.restoreSourceBackupId).toBe(source.id)
     expect(restore.preRestoreSafetyArtifact).toBeNull()
@@ -67,6 +69,7 @@ describe('BackupRestoreRepositoryDrizzle.restoreLifecycle', () => {
       lastSafeSequence: 42,
       now: new Date('2026-09-01T00:00:07.000Z'),
     })
+
     const completed = await fixture.repository.complete({
       operationId: restore.id,
       ownerToken: 'owner_restore',

@@ -11,7 +11,9 @@ import {
 } from '../schema.ts'
 
 export const SPublicDashboardQueryInput = SPublicDashboardQueryFields
+
 export type SPublicDashboardQueryInput = v.InferOutput<typeof SPublicDashboardQueryInput>
+
 export const SPublicDashboardQueryOutput = v.strictObject(
   v.entriesFromObjects([
     v.strictObject({
@@ -31,6 +33,7 @@ export const SPublicDashboardQueryOutput = v.strictObject(
     SReportFreshness,
   ]),
 )
+
 export type SPublicDashboardQueryOutput = v.InferOutput<typeof SPublicDashboardQueryOutput>
 
 export const queryPublicDashboard = oc

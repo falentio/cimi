@@ -6,10 +6,13 @@ import { SMembership, SMembershipOrganizationFields } from '../schema.ts'
 export const SMembershipListInput = v.strictObject(
   v.entriesFromObjects([SMembershipOrganizationFields, SOffsetPaginationInput]),
 )
+
 export type SMembershipListInput = v.InferOutput<typeof SMembershipListInput>
+
 export const SMembershipListOutput = v.strictObject(
   v.entriesFromObjects([v.strictObject({ items: SPageItems(SMembership) }), SOffsetPage]),
 )
+
 export type SMembershipListOutput = v.InferOutput<typeof SMembershipListOutput>
 
 export const listMembers = oc

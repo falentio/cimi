@@ -11,10 +11,13 @@ describe('createSingleton', () => {
 
   it('calls create exactly once across repeated invocations', () => {
     let calls = 0
+
     const get = createSingleton(() => {
       calls += 1
+
       return { calls }
     })
+
     get()
     get()
     get()

@@ -46,22 +46,33 @@ const emits = defineEmits<{
 }>()
 
 const attrs = useAttrs()
+
 const root = injectQuestionnaireRootContext()
 
 const itemElement = ref<HTMLFieldSetElement | null>(null)
+
 const answerControls = shallowRef<AnswerControlRegistration[]>([])
+
 const selectedAnswerIds = ref<string[]>([])
+
 const validationAttempted = ref(false)
+
 const skipped = ref(false)
+
 const resetVersion = ref(0)
+
 const controlSyncVersion = ref(0)
+
 const descriptionIds = ref<string[]>([])
+
 const errorIds = ref<string[]>([])
+
 const titleIds = ref<string[]>([])
 
 let defaultSelectedAnswerIds: string[] = []
 
 const active = computed(() => !props.disabled && root.activeItemName.value === props.name)
+
 const orderedAnswerControls = computed(() => {
   // Re-sort whenever answers are added to or removed from the DOM.
   void root.domVersion.value
@@ -70,10 +81,13 @@ const orderedAnswerControls = computed(() => {
     compareDocumentOrder(first.element, second.element),
   )
 })
+
 const answers = computed(() => orderedAnswerControls.value.filter((answer) => !answer.disabled))
+
 const answered = computed(() =>
   answers.value.some((answer) => selectedAnswerIds.value.includes(answer.id)),
 )
+
 const status = computed<QuestionnaireItemStatus>(() => {
   if (skipped.value) {
     return 'skipped'
@@ -81,24 +95,31 @@ const status = computed<QuestionnaireItemStatus>(() => {
 
   return answered.value ? 'answered' : 'unanswered'
 })
+
 const intentionallySkipped = computed(() => status.value === 'skipped' && !props.required)
+
 const valid = computed(
   () =>
     props.disabled || intentionallySkipped.value || (!props.invalid && status.value === 'answered'),
 )
+
 const invalid = computed(
   () =>
     !props.disabled &&
     !intentionallySkipped.value &&
     (props.invalid || (validationAttempted.value && !valid.value)),
 )
+
 const hasInputAnswer = computed(() => answers.value.some((answer) => answer.type === 'input'))
+
 const itemDefinition = computed(() => root.itemDefinitionByName.value?.get(props.name))
+
 const shortcutByChoiceValue = computed(() =>
   root.itemDefinitionByName.value
     ? getShortcutByChoiceValue(itemDefinition.value, root.shortcuts.value)
     : null,
 )
+
 const shortcutByAnswerId = computed(() => {
   // Choice values from `items` take precedence, so shortcuts stay stable.
   if (shortcutByChoiceValue.value) {
@@ -114,17 +135,20 @@ const shortcutByAnswerId = computed(() => {
       .flatMap((answer, index) => (keys[index] ? [[answer.id, keys[index]!] as const] : [])),
   )
 })
+
 // Only set when the title does not render as the legend, which already names
 // the fieldset on its own.
 const labelledBy = computed(
   () => [...titleIds.value, attrs['aria-labelledby']].filter(Boolean).join(' ') || undefined,
 )
+
 const describedBy = computed(
   () =>
     [...descriptionIds.value, ...(invalid.value ? errorIds.value : []), attrs['aria-describedby']]
       .filter(Boolean)
       .join(' ') || undefined,
 )
+
 const keyShortcuts = computed(
   () =>
     [
@@ -141,11 +165,13 @@ const keyShortcuts = computed(
 function updateAnswerSelected(answerId: string, selected: boolean) {
   if (!selected) {
     selectedAnswerIds.value = selectedAnswerIds.value.filter((current) => current !== answerId)
+
     return
   }
 
   if (!props.multiple) {
     selectedAnswerIds.value = [answerId]
+
     return
   }
 
@@ -287,6 +313,7 @@ function focusInvalid() {
   const selectedInput = itemElement.value?.querySelector<HTMLInputElement>(
     'input[data-filled][name]:not(:disabled)',
   )
+
   const firstControl = itemElement.value?.querySelector<HTMLElement>(
     'input:not([type=hidden]):not(:disabled), textarea:not(:disabled)',
   )

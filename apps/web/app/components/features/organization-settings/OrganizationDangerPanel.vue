@@ -19,11 +19,14 @@ const emit = defineEmits<{
 }>()
 
 const confirmationOpen = shallowRef(false)
+
 const action = computed(() => (props.snapshot.isOwner ? 'delete' : 'leave'))
+
 const localizeError = useLocalizedErrorMessage()
 
 function confirmAction(): void {
   confirmationOpen.value = false
+
   if (action.value === 'delete') emit('deleteOrganization')
   else emit('leaveOrganization')
 }

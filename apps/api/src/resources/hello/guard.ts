@@ -16,6 +16,7 @@ export class HelloGuard {
 
   async assertCanRemove(user: Pick<AuthUser, 'id'>, id: string): Promise<void> {
     const ownerId = await this.repository.findOwnerId(id)
+
     if (ownerId === undefined) throw new ORPCError('NOT_FOUND')
     assertOwner(user, ownerId, { code: 'NOT_FOUND' })
   }

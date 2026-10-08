@@ -30,10 +30,15 @@ const emit = defineEmits<{
 }>()
 
 const name = shallowRef('')
+
 const hostname = shallowRef('')
+
 const reportingTimezone = shallowRef<SiteSettingsDraft['reportingTimezone']>('UTC')
+
 const weekStartsOn = shallowRef<SiteSettingsDraft['weekStartsOn']>('monday')
+
 const hasSubmitted = shallowRef(false)
+
 const localizeError = useLocalizedErrorMessage()
 
 const draft = computed<SiteSettingsDraft>(() => ({
@@ -42,15 +47,21 @@ const draft = computed<SiteSettingsDraft>(() => ({
   reportingTimezone: reportingTimezone.value,
   weekStartsOn: weekStartsOn.value,
 }))
+
 const timezoneOptions = computed(() => getTimezoneOptions(props.site.reportingTimezone))
+
 const isSaving = computed(() => props.saveState.status === 'saving')
+
 const nameError = computed(() => getSiteSettingsFieldError('name', draft.value, hasSubmitted.value))
+
 const hostnameError = computed(() =>
   getSiteSettingsFieldError('hostname', draft.value, hasSubmitted.value),
 )
+
 const timezoneError = computed(() =>
   getSiteSettingsFieldError('reportingTimezone', draft.value, hasSubmitted.value),
 )
+
 const weekStartError = computed(() =>
   getSiteSettingsFieldError('weekStartsOn', draft.value, hasSubmitted.value),
 )
@@ -76,12 +87,14 @@ watch(
 async function submit(): Promise<void> {
   hasSubmitted.value = true
   const normalizedDraft = normalizeSiteSettingsDraft(draft.value)
+
   const hasError = [
     nameError.value,
     hostnameError.value,
     timezoneError.value,
     weekStartError.value,
   ].some((error) => error !== null)
+
   if (hasError) {
     await nextTick()
     document
@@ -95,6 +108,7 @@ async function submit(): Promise<void> {
               : 'site-settings-week-start',
       )
       ?.focus()
+
     return
   }
 

@@ -23,15 +23,20 @@ const props = defineProps<{
 }>()
 
 const retrying = shallowRef(false)
+
 const createSiteOpen = shallowRef(false)
+
 const { isMobile, setOpen, setOpenMobile } = useSidebar()
+
 const router = useRouter()
+
 const localizeError = useLocalizedErrorMessage()
 
 const readyState = computed(() => (props.state.kind === 'ready' ? props.state : undefined))
 
 async function retry(): Promise<void> {
   retrying.value = true
+
   try {
     await props.refresh()
   } catch {
@@ -44,8 +49,10 @@ async function retry(): Promise<void> {
 function switchOrganization(): void {
   if (isMobile.value) {
     setOpenMobile(true)
+
     return
   }
+
   setOpen(true)
 }
 

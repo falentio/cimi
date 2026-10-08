@@ -9,6 +9,7 @@ import {
 import { hashInvitationToken } from '../token.ts'
 
 const token = 'bearer-token-1'
+
 const tokenHash = hashInvitationToken(token)
 
 function pendingRecord() {
@@ -20,6 +21,7 @@ describe('InvitationService.accept', () => {
     const { repository, authority, service } = createInvitationFixture({
       memberships: [{ organizationId: 'org_1', userId: 'user_1', role: 'owner' }],
     })
+
     repository.findByTokenHash.mockResolvedValue(pendingRecord())
     const membership = createInvitationMembership({ userId: 'user_2', role: 'member' })
     repository.consume.mockResolvedValue({
@@ -48,6 +50,7 @@ describe('InvitationService.accept', () => {
       ],
       authorityMembers: [createAuthorityMember({ userId: 'user_2', role: 'member' })],
     })
+
     repository.findByTokenHash.mockResolvedValue(pendingRecord())
     const membership = createInvitationMembership({ userId: 'user_2', role: 'member' })
     repository.consume.mockResolvedValue({
@@ -73,6 +76,7 @@ describe('InvitationService.accept', () => {
         { organizationId: 'org_1', userId: 'user_2', role: 'admin' },
       ],
     })
+
     repository.findByTokenHash.mockResolvedValue(pendingRecord())
 
     await expect(service.accept({ token }, { id: 'user_2' }, new Headers())).rejects.toMatchObject({
@@ -87,7 +91,9 @@ describe('InvitationService.accept', () => {
     'maps an %s token to indistinguishable not found without consuming',
     async (kind) => {
       const { repository, authority, service } = createInvitationFixture()
+
       if (kind === 'missing') repository.findByTokenHash.mockResolvedValue(undefined)
+
       if (kind === 'expired')
         repository.findByTokenHash.mockResolvedValue(
           createInvitationRecord({
@@ -96,10 +102,12 @@ describe('InvitationService.accept', () => {
             expiresAt: new Date('2026-01-01T00:00:00.000Z'),
           }),
         )
+
       if (kind === 'revoked')
         repository.findByTokenHash.mockResolvedValue(
           createInvitationRecord({ tokenHash, status: 'revoked' }),
         )
+
       if (kind === 'accepted')
         repository.findByTokenHash.mockResolvedValue(
           createInvitationRecord({ tokenHash, status: 'accepted' }),
@@ -119,6 +127,7 @@ describe('InvitationService.accept', () => {
     const { repository, authority, service } = createInvitationFixture({
       authorityMembers: [createAuthorityMember({ userId: 'user_2', role: 'owner' })],
     })
+
     repository.findByTokenHash.mockResolvedValue(pendingRecord())
 
     await expect(service.accept({ token }, { id: 'user_2' }, new Headers())).rejects.toMatchObject({
@@ -147,15 +156,18 @@ describe('InvitationService.accept', () => {
     const { repository, authority, service } = createInvitationFixture({
       authorityMembers: [createAuthorityMember({ userId: 'user_2', role: 'admin' })],
     })
+
     repository.findByTokenHash.mockResolvedValue(pendingRecord())
     repository.consume.mockResolvedValue({ status: 'conflict', currentRole: 'admin' })
     let admitted = false
     authority.getMember.mockImplementation(async ({ userId }) => {
       if (userId !== 'user_2') return undefined
+
       return createAuthorityMember({ userId: 'user_2', role: admitted ? 'member' : 'admin' })
     })
     authority.admitMember.mockImplementation(async ({ organizationId, userId, role }) => {
       admitted = true
+
       return createAuthorityMember({ organizationId, userId, role })
     })
 

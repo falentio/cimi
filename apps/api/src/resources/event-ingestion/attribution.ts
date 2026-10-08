@@ -9,6 +9,7 @@ export function deriveAttribution(
   country?: string,
 ): DerivedAttribution {
   const device = userAgent === undefined ? null : parseUserAgent(userAgent)
+
   return {
     utmSource: input.utmSource ?? null,
     utmMedium: input.utmMedium ?? null,
@@ -23,6 +24,8 @@ export function deriveAttribution(
 function bound(value: string | undefined, max: number): string | null {
   if (value === undefined) return null
   const trimmed = value.trim()
+
   if (trimmed === '') return null
+
   return trimmed.length <= max ? trimmed : trimmed.slice(0, max)
 }

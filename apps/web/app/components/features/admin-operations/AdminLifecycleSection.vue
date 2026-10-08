@@ -22,11 +22,14 @@ const report = computed(() =>
     ? props.installation
     : undefined,
 )
+
 const operation = computed(() =>
   report.value?.lifecycle.kind === 'idle' ? undefined : report.value?.lifecycle.operation,
 )
+
 const progressPercent = computed(() => {
   if (operation.value?.progress === null || operation.value?.progress === undefined) return null
+
   return Math.round(operation.value.progress * 100)
 })
 </script>

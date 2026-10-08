@@ -11,6 +11,7 @@ export function firstUserAdmin(): BetterAuthPlugin {
               create: {
                 after: async (user) => {
                   const count = await ctx.adapter.count({ model: 'user' })
+
                   if (count === 1) {
                     await ctx.adapter.update({
                       model: 'user',

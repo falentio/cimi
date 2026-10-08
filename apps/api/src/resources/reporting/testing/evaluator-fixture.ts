@@ -106,5 +106,6 @@ export function inputFor(
         ? value.visitorId !== null
         : value.identifiedUserId !== null && current.activeProfiles.has(value.identifiedUserId),
   }
+
   return { snapshot: current, identity, filters, period: evaluationPeriod }
 }

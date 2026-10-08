@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest'
+import type { JsonValue } from '@cimi/utils'
 import { apiTestRequest, createApiTestFixture, signUpTestUser } from './fixture.ts'
 
 test('correlates a supplied request ID in API responses and errors', async () => {
@@ -18,14 +19,17 @@ test('correlates a supplied request ID in API responses and errors', async () =>
     expect(response.headers.get('x-request-id')).toBe(requestId)
 
     const records = parseRecords(infoOutput.mock.calls)
+
     const errorRecords = records.filter(
       (entry) =>
         entry.logger === 'cimi.api' &&
         entry.properties?.['code'] === 'UNAUTHORIZED' &&
         entry.properties?.['status'] === 401,
     )
+
     expect(errorRecords).toHaveLength(1)
     const [record] = errorRecords
+
     if (record === undefined) throw new Error('API error record was not emitted')
     expect(record).toEqual(
       expect.objectContaining({
@@ -60,6 +64,7 @@ test('omits the authenticated user ID from request and error records', async () 
       'logging-user@example.com',
       'Logging User',
     )
+
     infoOutput.mockClear()
     warningOutput.mockClear()
 
@@ -73,9 +78,11 @@ test('omits the authenticated user ID from request and error records', async () 
     expect(response.status).toBe(200)
 
     const httpRecords = parseRecords(infoOutput.mock.calls)
+
     const matchingHttpRecords = httpRecords.filter(
       (entry) => entry.logger === 'cimi.api.http' && entry.properties?.['status'] === 200,
     )
+
     expect(matchingHttpRecords).toHaveLength(1)
     const [httpRecord] = matchingHttpRecords
     expect(httpRecord?.properties).not.toHaveProperty('userId')
@@ -87,12 +94,15 @@ test('omits the authenticated user ID from request and error records', async () 
       cookie,
       {},
     )
+
     expect(invalidResponse.status).toBe(400)
 
     const errorRecords = parseRecords(warningOutput.mock.calls)
+
     const matchingErrorRecords = errorRecords.filter(
       (entry) => entry.logger === 'cimi.api' && entry.properties?.['status'] === 400,
     )
+
     expect(matchingErrorRecords).toHaveLength(1)
     const [errorRecord] = matchingErrorRecords
     expect(errorRecord?.properties).not.toHaveProperty('userId')
@@ -117,9 +127,11 @@ test('records malformed request bodies as client errors matching the response', 
     )
 
     expect(response.status).toBe(400)
+
     const errorRecords = parseRecords(warningOutput.mock.calls).filter(
       (entry) => entry.logger === 'cimi.api' && entry.properties?.['code'] === 'BAD_REQUEST',
     )
+
     expect(errorRecords).toHaveLength(1)
     expect(errorRecords[0]?.properties?.['status']).toBe(400)
   } finally {
@@ -147,6 +159,7 @@ test('normalizes request IDs before they reach responses or records', async () =
     const httpRecords = parseRecords(infoOutput.mock.calls).filter(
       (entry) => entry.logger === 'cimi.api.http',
     )
+
     expect(httpRecords).toHaveLength(1)
     expect(httpRecords[0]?.properties?.['requestId']).toBe(responseRequestId)
   } finally {
@@ -156,6 +169,7 @@ test('normalizes request IDs before they reach responses or records', async () =
 
 test('reports health fallbacks without changing the health response', async () => {
   const errorOutput = vi.spyOn(console, 'error').mockImplementation(() => {})
+
   await using fixture = await createApiTestFixture({
     logging: { lowestLevel: 'info' },
     lifecycle: {
@@ -170,10 +184,12 @@ test('reports health fallbacks without changing the health response', async () =
 
     expect(response.status).toBe(200)
     const records = parseRecords(errorOutput.mock.calls)
+
     const healthRecords = records.filter(
       (entry) =>
         entry.logger === 'cimi.api.health' && entry.properties?.['operation'] === 'lifecycle',
     )
+
     expect(healthRecords).toHaveLength(1)
     expect(healthRecords).toContainEqual(
       expect.objectContaining({
@@ -192,7 +208,7 @@ test('reports health fallbacks without changing the health response', async () =
 
 type LogRecord = {
   logger?: string
-  properties?: Record<string, unknown>
+  properties?: Record<string, JsonValue>
 }
 
 function parseRecords(calls: readonly unknown[][]): LogRecord[] {
@@ -200,6 +216,7 @@ function parseRecords(calls: readonly unknown[][]): LogRecord[] {
     args.flatMap((value) => {
       try {
         const parsed: unknown = JSON.parse(String(value))
+
         return isLogRecord(parsed) ? [parsed] : []
       } catch {
         return []
@@ -210,6 +227,7 @@ function parseRecords(calls: readonly unknown[][]): LogRecord[] {
 
 function isLogRecord(value: unknown): value is LogRecord {
   if (typeof value !== 'object' || value === null) return false
-  const properties = Reflect.get(value, 'properties')
+  const properties = 'properties' in value ? value.properties : undefined
+
   return properties === undefined || (typeof properties === 'object' && properties !== null)
 }

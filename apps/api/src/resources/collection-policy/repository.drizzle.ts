@@ -36,6 +36,7 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
         )
         .limit(1)
         .all()[0]
+
       if (activeSite === undefined) throw new ORPCError('NOT_FOUND')
 
       const installation = tx
@@ -44,7 +45,9 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (installation === undefined) throw new ORPCError('NOT_FOUND')
+
       return selectLayers(tx, installation.id, siteId)
     })
   }
@@ -59,10 +62,12 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
         .where(eq(schema.TInstallation.singletonKey, 'default'))
         .limit(1)
         .all()[0]
+
       if (installation === undefined) throw new ORPCError('NOT_FOUND')
 
       const values =
         input.values === null ? null : parse(contractSchema.SPolicyValues, input.values)
+
       if (input.target.scope === 'site') {
         const site = tx
           .select({ id: schema.TSite.id })
@@ -81,18 +86,22 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
           )
           .limit(1)
           .all()[0]
+
         if (site === undefined) throw new ORPCError('NOT_FOUND')
       }
 
       const current = selectCurrentRevision(tx, installation.id, input.target)
       const latest = selectLatestEffectiveBoundary(tx, installation.id, input.target)
       const latestBoundary = latest?.effectiveTo ?? latest?.effectiveFrom
+
       const minimumEffectiveFrom =
         current === undefined ? latestBoundary?.getTime() : current.effectiveFrom.getTime() + 1
+
       const effectiveFrom =
         minimumEffectiveFrom === undefined || input.now.getTime() >= minimumEffectiveFrom
           ? input.now
           : new Date(minimumEffectiveFrom)
+
       if (current !== undefined) {
         tx.update(schema.TCollectionPolicyRevision)
           .set({ effectiveTo: effectiveFrom })
@@ -129,6 +138,7 @@ export class CollectionPolicyRepositoryDrizzle implements CollectionPolicyReposi
         installation.id,
         input.target.scope === 'site' ? input.target.siteId : null,
       )
+
       return {
         layers,
         resolution:
@@ -184,6 +194,7 @@ function selectNextVersion(
     .orderBy(desc(schema.TCollectionPolicyRevision.version))
     .limit(1)
     .all()
+
   return (rows[0]?.version ?? 0) + 1
 }
 
@@ -229,7 +240,9 @@ function selectLayers(
     )
     .limit(1)
     .all()[0]
+
   if (installation === undefined) throw new ORPCError('NOT_FOUND')
+
   const site =
     siteId === null
       ? undefined
@@ -246,6 +259,7 @@ function selectLayers(
           )
           .limit(1)
           .all()[0]
+
   return {
     installation: toRevision(installation),
     site: site === undefined ? null : toRevision(site),
@@ -255,6 +269,7 @@ function selectLayers(
 function toRevision(row: typeof schema.TCollectionPolicyRevision.$inferSelect): PolicyRevision {
   if (row.scope === 'site') {
     if (row.siteId === null) throw new Error('Site collection policy revision has no Site ID')
+
     return {
       id: row.id,
       version: row.version,
@@ -262,6 +277,7 @@ function toRevision(row: typeof schema.TCollectionPolicyRevision.$inferSelect): 
       values: parse(contractSchema.SPolicyValues, row.policyJson),
     }
   }
+
   return {
     id: row.id,
     version: row.version,

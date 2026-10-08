@@ -52,6 +52,7 @@ const changeClasses: Readonly<Record<ChangeKind, string>> = {
 
 function formatValue(value: number | undefined): string {
   if (value === undefined) return '—'
+
   return props.unit === 'percent' ? `${value.toLocaleString()}%` : value.toLocaleString()
 }
 

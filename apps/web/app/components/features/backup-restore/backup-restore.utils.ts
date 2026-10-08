@@ -14,6 +14,7 @@ import type {
   PollingState,
   RestoreConfirmationAvailability,
 } from './backup-restore.types'
+import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 
 const STATUS_LABELS: Record<Backup['status'], string> = {
   creating: 'Creating',
@@ -80,17 +81,19 @@ export function isExactRestoreConfirmation(value: string): value is 'RESTORE' {
 
 export function formatBackupDate(value: string): string {
   const date = new Date(value)
+
   if (Number.isNaN(date.getTime())) return 'Unknown date'
+
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
     date,
   )
 }
 
 export function normalizeBackupRestoreError(
-  error: unknown,
+  cause: unknown,
   source: ErrorSource,
 ): BackupRestoreFailure {
-  const details = readErrorDetails(error)
+  const details = readErrorDetails(cause)
   const code = details.code
   const status = details.status
 
@@ -103,6 +106,7 @@ export function normalizeBackupRestoreError(
       action: 'sign-in',
     }
   }
+
   if (code === 'FORBIDDEN' || status === 403) {
     return {
       kind: 'forbidden',
@@ -113,6 +117,7 @@ export function normalizeBackupRestoreError(
       action: 'contact-admin',
     }
   }
+
   if (code === 'NOT_FOUND' || status === 404) {
     return {
       kind: 'not-found',
@@ -122,6 +127,7 @@ export function normalizeBackupRestoreError(
       action: 'refresh',
     }
   }
+
   if (code === 'BAD_REQUEST' || status === 400) {
     return {
       kind: 'bad-request',
@@ -131,6 +137,7 @@ export function normalizeBackupRestoreError(
       action: 'retry',
     }
   }
+
   if (code === 'CONFLICT' || status === 409) {
     return {
       kind: 'conflict',
@@ -140,6 +147,7 @@ export function normalizeBackupRestoreError(
       action: 'refresh',
     }
   }
+
   if (code === 'INCOMPATIBLE_BACKUP' || status === 422) {
     return {
       kind: 'incompatible',
@@ -149,6 +157,7 @@ export function normalizeBackupRestoreError(
       action: 'choose-another-backup',
     }
   }
+
   if (code === 'INSUFFICIENT_STORAGE' || status === 507) {
     return {
       kind: 'storage',
@@ -158,6 +167,7 @@ export function normalizeBackupRestoreError(
       action: 'resolve-and-retry',
     }
   }
+
   if (code === 'BACKUP_FAILED') {
     return {
       kind: 'backup-failed',
@@ -167,6 +177,7 @@ export function normalizeBackupRestoreError(
       action: 'retry',
     }
   }
+
   if (code === 'INTERNAL_SERVER_ERROR' || status === 500) {
     return {
       kind: 'server',
@@ -176,6 +187,7 @@ export function normalizeBackupRestoreError(
       action: 'retry',
     }
   }
+
   if (code === 'POLL_TIMEOUT' || code === 'POLL_UNAVAILABLE') {
     return {
       kind: 'polling',
@@ -199,18 +211,21 @@ export function deriveLifecycleLock(input: {
   readonly installation: InstallationSignal
 }): LockSectionView {
   if (input.installation.kind === 'loading') return { kind: 'loading' }
+
   if (input.installation.kind === 'failed') {
     return {
       kind: 'unknown',
       message: 'Installation status is unavailable. Refresh before acting.',
     }
   }
+
   if (input.installation.kind === 'stale') {
     return { kind: 'unknown', message: 'Installation status is stale. Refresh before acting.' }
   }
 
   const installation = input.installation.installation
   const operation = installation.activeOperation
+
   if (operation !== null && operation.errorCode === null) {
     return {
       kind: 'held',
@@ -219,18 +234,21 @@ export function deriveLifecycleLock(input: {
       operationLabel: OPERATION_LABELS[operation.kind],
     }
   }
+
   if (installation.cleanupPending) {
     return {
       kind: 'cleanup-pending',
       message: 'Installation cleanup is pending. Refresh before acting.',
     }
   }
+
   if (installation.status !== 'ready' || !installation.dataDirectoryReady) {
     return {
       kind: 'not-ready',
       message: 'The installation must be ready before this action can run.',
     }
   }
+
   return { kind: 'available' }
 }
 
@@ -240,6 +258,7 @@ export function deriveBackupRestoreActions(input: {
   readonly trackedOperation: Backup | null
 }): BackupRestoreActions {
   const trackedOperation = input.trackedOperation
+
   const operationActive =
     trackedOperation !== null &&
     (trackedOperation.status === 'creating' ||
@@ -253,6 +272,7 @@ export function deriveBackupRestoreActions(input: {
       disabledReason: getLockReason(input.lock),
     }
   }
+
   if (input.command.kind === 'creating' || input.command.kind === 'restoring' || operationActive) {
     return {
       canCreate: false,
@@ -262,16 +282,19 @@ export function deriveBackupRestoreActions(input: {
         : 'A backup or restore operation is being submitted.',
     }
   }
+
   return { canCreate: true, canRestore: true, disabledReason: null }
 }
 
 export function toBackupRowView(backup: Backup, lock: LockSectionView): BackupRowView {
   const restorable = isRestorableSource(backup)
+
   const restore = !restorable
     ? 'not-available'
     : lock.kind === 'available'
       ? 'available'
       : 'blocked-by-lock'
+
   return {
     id: backup.id,
     createdAt: backup.createdAt,
@@ -311,6 +334,7 @@ export function toBackupOperationSection(
       cleanupPending: backup.cleanupPending,
     }
   }
+
   if (backup.status === 'failed') {
     return {
       kind: 'failed',
@@ -320,6 +344,7 @@ export function toBackupOperationSection(
       safetyArtifact: operation === 'restore' ? toSafetyArtifact(backup) : null,
     }
   }
+
   if (sourceBackupId === null) {
     return {
       kind: 'active',
@@ -359,11 +384,14 @@ export function toCleanupSection(
     : installation?.cleanupPending
       ? installation
       : null
+
   if (source === null) return { kind: 'hidden' }
+
   const stages = [
     toCleanupStage('derived', source.derivedCleanup, null),
     toCleanupStage('backup', source.backupCleanup, source.derivedCleanup.status),
   ] as const
+
   return { kind: 'visible', pending: source.cleanupPending, stages }
 }
 
@@ -379,23 +407,30 @@ export function toBackupRestoreViewModel(
   }
 
   const lock = deriveLifecycleLock({ installation: input.installation })
+
   const actions = deriveBackupRestoreActions({
     lock,
     command: input.command,
     trackedOperation: input.data.trackedOperation,
   })
+
   const list = toListSection(input, lock)
+
   const operation =
     input.data.trackedOperation === null
       ? { kind: 'none' as const }
       : toBackupOperationSection(input.data.trackedOperation, input.polling)
+
   const installation = getInstallation(input.installation)
   const cleanup = toCleanupSection(input.data.trackedOperation, installation)
   const rows = new Map<string, Backup>()
+
   for (const id of input.data.order) {
     const backup = input.data.records.get(id)
+
     if (backup !== undefined) rows.set(id, backup)
   }
+
   const restore = toRestoreSection(input, actions, lock, rows)
 
   return {
@@ -418,15 +453,20 @@ function toListSection(
 ): BackupListSectionView {
   const rows = input.data.order.flatMap((id) => {
     const backup = input.data.records.get(id)
+
     return backup === undefined ? [] : [toBackupRowView(backup, lock)]
   })
+
   if (input.list.kind === 'loading' && rows.length === 0) return { kind: 'loading' }
+
   if (input.list.kind === 'failed') {
     return rows.length === 0
       ? { kind: 'error', message: input.list.error.message }
       : { kind: 'stale', rows, message: input.list.error.message, refreshing: false }
   }
+
   if (input.data.totalCount === 0 && rows.length === 0) return { kind: 'empty', totalCount: 0 }
+
   return {
     kind: 'ready',
     rows,
@@ -443,10 +483,13 @@ function toCreateSection(
   trackedOperation: Backup | null,
 ) {
   if (command.kind === 'creating') return { kind: 'submitting' as const }
+
   if (command.kind === 'failed' && command.command === 'create') {
     return { kind: 'failed' as const, error: command.error }
   }
+
   if (actions.canCreate) return { kind: 'available' as const }
+
   if (
     trackedOperation !== null &&
     trackedOperation.restoreSourceBackupId === null &&
@@ -456,6 +499,7 @@ function toCreateSection(
   ) {
     return { kind: 'tracking' as const, operationId: trackedOperation.id }
   }
+
   return { kind: 'blocked' as const, reason: actions.disabledReason ?? 'Action unavailable.' }
 }
 
@@ -467,6 +511,7 @@ function toRestoreSection(
 ) {
   const blockedReason = actions.disabledReason ?? getLockReason(lock)
   const dialog = input.restoreDialog
+
   if (dialog.kind === 'closed') {
     return actions.canRestore
       ? { kind: 'available' as const, selected: null }
@@ -475,20 +520,25 @@ function toRestoreSection(
 
   const source = records.get(dialog.backupId)
   const row = source === undefined ? null : toBackupRowView(source, lock)
+
   if (row === null || source === undefined || !isRestorableSource(source)) {
     return { kind: 'blocked' as const, reason: 'This backup is no longer available for restore.' }
   }
+
   if (dialog.kind === 'tracking') {
     return { kind: 'tracking' as const, selected: row, operationId: dialog.operationId }
   }
+
   const confirmation = toRestoreConfirmationAvailability({
     actions,
     lock,
     submitted: dialog.kind === 'submitting',
   })
+
   if (dialog.kind === 'submitting') {
     return { kind: 'submitting' as const, selected: row, confirmation }
   }
+
   return {
     kind: 'confirming' as const,
     selected: row,
@@ -509,12 +559,14 @@ function toRestoreConfirmationAvailability(input: {
       confirmDisabledReason: input.actions.disabledReason ?? getLockReason(input.lock),
     }
   }
+
   if (input.submitted) {
     return {
       canConfirm: false,
       confirmDisabledReason: 'Restore is being submitted.',
     }
   }
+
   return { canConfirm: true, confirmDisabledReason: null }
 }
 
@@ -522,8 +574,11 @@ function toRecoverySection(input: BackupRestoreProjectionInput) {
   if (input.polling.kind === 'idle' || !input.polling.resumedAfterReload) {
     return { kind: 'none' as const }
   }
+
   const operation = input.data.trackedOperation
+
   if (operation === null) return { kind: 'none' as const }
+
   return {
     kind: 'resumed' as const,
     operation:
@@ -541,15 +596,20 @@ function toAnnouncement(
   if (cleanup.kind === 'visible' && cleanup.pending) {
     return 'Installation cleanup is pending. Backup and restore actions are locked.'
   }
+
   if (operation.kind === 'active') {
     return `${operation.operation === 'backup' ? 'Backup' : 'Restore'} is ${stageAnnouncement(operation.stage)}. Lifecycle actions are locked.`
   }
+
   if (operation.kind === 'failed') return operation.error.message
+
   if (lock.kind === 'unknown' || lock.kind === 'loading') {
     return 'Installation lock status is not ready. Backup and restore actions are disabled.'
   }
+
   if (lock.kind === 'held')
     return `Lifecycle actions are locked while ${lock.operationLabel} is running.`
+
   return ''
 }
 
@@ -571,6 +631,7 @@ function stageAnnouncement(
       return 'waiting for cleanup'
     default: {
       const _exhaustive: never = stage
+
       return _exhaustive
     }
   }
@@ -580,6 +641,7 @@ function resolveRestoreStage(
   backup: Backup,
 ): Extract<OperationSectionView, { kind: 'active'; operation: 'restore' }>['stage'] {
   if (backup.status === 'creating') return 'preparing-safety-artifact'
+
   switch (backup.phase) {
     case 'restoring_sqlite':
       return 'restoring-sqlite'
@@ -604,14 +666,19 @@ function toPollingIndicator(polling: PollingState) {
       maxAttempts: polling.maxAttempts,
     }
   }
+
   if (polling.kind === 'manual') return { kind: 'manual' as const, reason: polling.reason }
+
   return { kind: 'manual' as const, reason: 'Status checks are paused.' }
 }
 
 function toSafetyArtifact(backup: Backup) {
   const artifact = backup.preRestoreSafetyArtifact
+
   if (artifact === null) return { kind: 'not-created' as const }
+
   if (artifact.status === 'creating') return { kind: 'creating' as const }
+
   if (artifact.status === 'ready') {
     return {
       kind: 'ready' as const,
@@ -619,6 +686,7 @@ function toSafetyArtifact(backup: Backup) {
       lastSafeSequence: artifact.lastSafeSequence,
     }
   }
+
   return {
     kind: 'failed' as const,
     error: normalizeBackupRestoreError({ code: artifact.errorCode }, 'restore'),
@@ -636,6 +704,7 @@ function toCleanupStage(
   derivedStatus: Backup['derivedCleanup']['status'] | null,
 ) {
   const blockedByDerivedCleanup = kind === 'backup' && derivedStatus !== 'completed'
+
   return {
     kind,
     label: kind === 'derived' ? ('Derived cleanup' as const) : ('Backup cleanup' as const),
@@ -677,39 +746,62 @@ function getLockReason(lock: LockSectionView): string {
       return 'Action unavailable.'
     default: {
       const _exhaustive: never = lock
+
       return _exhaustive
     }
   }
 }
 
-function toErrorRecord(error: unknown): Record<string, unknown> | null {
-  return isRecord(error) ? error : null
+interface ErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
+  readonly code?: unknown
+  readonly status?: unknown
+  readonly statusCode?: unknown
 }
 
-function readErrorDetails(error: unknown): {
-  readonly code: string | undefined
-  readonly status: number | undefined
-} {
-  const candidates: unknown[] = [error]
-  const record = toErrorRecord(error)
+function toErrorRecord(cause: unknown): ErrorDetails | null {
+  return isRecord(cause) ? cause : null
+}
+
+function readErrorDetails(cause: unknown) {
+  const candidates: unknown[] = [cause]
+  const record = toErrorRecord(cause)
+
   if (record !== null) {
     candidates.push(record.data, record.error, record.cause, record.response)
   }
+
   let code: string | undefined
   let status: number | undefined
+
   for (const candidate of candidates) {
     const candidateRecord = toErrorRecord(candidate)
+
     if (candidateRecord === null) continue
-    if (code === undefined && typeof candidateRecord.code === 'string') code = candidateRecord.code
-    if (status === undefined && typeof candidateRecord.status === 'number')
+
+    if (code === undefined && isStringValue(candidateRecord.code)) code = candidateRecord.code
+
+    if (status === undefined && isNumberValue(candidateRecord.status))
       status = candidateRecord.status
-    if (status === undefined && typeof candidateRecord.statusCode === 'number') {
+
+    if (status === undefined && isNumberValue(candidateRecord.statusCode)) {
       status = candidateRecord.statusCode
     }
   }
+
   return { code, status }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface ErrorDetails {
+  readonly data?: unknown
+  readonly error?: unknown
+  readonly cause?: unknown
+  readonly response?: unknown
+}
+
+function isRecord(value: unknown): value is ErrorDetails {
   return typeof value === 'object' && value !== null
 }

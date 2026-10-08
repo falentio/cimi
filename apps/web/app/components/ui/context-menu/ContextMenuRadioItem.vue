@@ -9,6 +9,7 @@ import { ContextMenuItemIndicator, ContextMenuRadioItem, useForwardPropsEmits } 
 import { cn } from '@/lib/utils'
 
 const props = defineProps<ContextMenuRadioItemProps & { class?: HTMLAttributes['class'] }>()
+
 const emits = defineEmits<ContextMenuRadioItemEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

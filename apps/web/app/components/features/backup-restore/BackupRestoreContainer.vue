@@ -12,17 +12,24 @@ import BackupRestoreRestoreDialog from './BackupRestoreRestoreDialog.vue'
 import { useBackupRestore } from './useBackupRestore'
 
 const controller = useBackupRestore()
+
 const view = controller.view
+
 const refreshing = shallowRef(false)
+
 const readyView = computed(() => (view.value.kind === 'ready' ? view.value : null))
+
 const statusAnnouncement = computed(() => {
   if (view.value.kind === 'loading') return view.value.message
+
   if (view.value.kind === 'access-error') return view.value.error.message
+
   return view.value.announcement
 })
 
 async function refresh(): Promise<void> {
   refreshing.value = true
+
   try {
     await controller.refresh()
   } finally {

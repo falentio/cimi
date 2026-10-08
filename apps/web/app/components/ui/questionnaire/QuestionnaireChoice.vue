@@ -35,12 +35,17 @@ const emits = defineEmits<{
 const item = injectQuestionnaireItemContext()
 
 const answerId = useId()
+
 const inputElement = ref<HTMLInputElement | null>(null)
+
 const initialDefaultChecked = props.defaultChecked
 
 const controlled = computed(() => props.checked !== undefined)
+
 const disabled = computed(() => item.disabled.value || props.disabled)
+
 const selected = computed(() => item.selectedAnswerIds.value.includes(answerId))
+
 const checked = computed(() => {
   if (!controlled.value) {
     return selected.value
@@ -49,7 +54,9 @@ const checked = computed(() => {
   // A skipped item clears every answer, including controlled ones.
   return item.status.value === 'skipped' ? false : props.checked!
 })
+
 const type = computed(() => (item.multiple.value ? 'checkbox' : 'radio'))
+
 const shortcut = computed(
   () =>
     item.shortcutByChoiceValue.value?.get(props.value) ??
@@ -68,15 +75,18 @@ function handleChange(event: Event) {
 
   if (event.defaultPrevented) {
     syncCheckedElement()
+
     return
   }
 
-  const nextChecked = (event.target as HTMLInputElement).checked
+  if (!(event.target instanceof HTMLInputElement)) return
+  const nextChecked = event.target.checked
 
   emits('update:checked', nextChecked)
 
   if (!controlled.value) {
     item.setAnswerSelectionFromInteraction(answerId, nextChecked)
+
     return
   }
 

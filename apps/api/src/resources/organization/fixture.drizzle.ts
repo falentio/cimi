@@ -4,6 +4,7 @@ import { createMigratedTestDb } from '@cimi/db/testing'
 const createdAt = new Date('2026-08-31T00:00:00.000Z')
 
 export type UserRow = typeof schema.TUser.$inferSelect
+
 export type OrganizationRow = Omit<
   typeof schema.TOrganization.$inferInsert,
   'authorityOrganizationId' | 'isPersonal'
@@ -11,9 +12,12 @@ export type OrganizationRow = Omit<
   authorityOrganizationId: string | null
   isPersonal: boolean
 }
+
 export type OrganizationRepairOperationRow = typeof schema.TOrganizationRepairOperation.$inferSelect
+
 export type OrganizationGovernanceOperationRow =
   typeof schema.TOrganizationGovernanceOperation.$inferSelect
+
 export function createOrganizationUserRow(overrides: Partial<UserRow> = {}): UserRow {
   return {
     id: 'user_1',
@@ -112,6 +116,7 @@ export async function seedOrganizationDrizzle(
 ): Promise<void> {
   const organization = createOrganizationRow(options.organization)
   const members = options.members ?? [{ userId: organization.ownerUserId, role: 'owner' as const }]
+
   for (const member of members) {
     if (member.userId === 'user_1') continue
     await db.insert(schema.TUser).values(
@@ -122,6 +127,7 @@ export async function seedOrganizationDrizzle(
       }),
     )
   }
+
   await db.insert(schema.TOrganization).values(organization)
   await db.insert(schema.TMembership).values(
     members.map((member) => ({
@@ -136,8 +142,10 @@ export async function seedOrganizationDrizzle(
 
 export async function createOrganizationDrizzleFixture(): Promise<OrganizationDrizzleFixture> {
   const db = createMigratedTestDb()
+
   try {
     await db.insert(schema.TUser).values(createOrganizationUserRow())
+
     return {
       db,
       [Symbol.dispose]() {

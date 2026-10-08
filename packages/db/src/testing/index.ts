@@ -8,8 +8,10 @@ import { migrateControlDb } from '../migrate.ts'
 
 export function createMigratedTestDb(): Db {
   const db = createDb({ path: ':memory:' })
+
   try {
     migrateControlDb(db)
+
     return db
   } catch (error) {
     closeDb(db)
@@ -25,6 +27,7 @@ export async function createTestAnalyticsDb(): Promise<AnalyticsDb> {
       path: ':memory:',
       tempDirectory: join(tempDirectory, 'spill'),
     })
+
     let closed = false
 
     return {
@@ -38,6 +41,7 @@ export async function createTestAnalyticsDb(): Promise<AnalyticsDb> {
       async close() {
         if (closed) return
         closed = true
+
         try {
           await analytics.close()
         } finally {
@@ -52,16 +56,19 @@ export async function createTestAnalyticsDb(): Promise<AnalyticsDb> {
 }
 
 const PROBE_MIGRATION_TAG = '9999_migration_probe'
+
 export const PROBE_MIGRATION_TABLE = 'migration_probe'
 
 const SOURCE_MIGRATIONS_FOLDER = fileURLToPath(new URL('../migrations', import.meta.url))
 
 export async function createProbeMigrationsFolder(): Promise<string> {
   const folder = await mkdtemp(join(tmpdir(), 'cimi-probe-migrations-'))
+
   try {
     await cp(SOURCE_MIGRATIONS_FOLDER, folder, { recursive: true })
     const journalPath = join(folder, 'meta', '_journal.json')
-    const journal = JSON.parse(await readFile(journalPath, 'utf8')) as {
+
+    const journal: {
       entries: Array<{
         idx: number
         version: string
@@ -69,8 +76,10 @@ export async function createProbeMigrationsFolder(): Promise<string> {
         tag: string
         breakpoints: boolean
       }>
-    }
+    } = JSON.parse(await readFile(journalPath, 'utf8'))
+
     const last = journal.entries[journal.entries.length - 1]
+
     if (last === undefined) throw new Error('Control migration journal is invalid')
     journal.entries.push({
       idx: last.idx + 1,
@@ -85,6 +94,7 @@ export async function createProbeMigrationsFolder(): Promise<string> {
       `CREATE TABLE ${PROBE_MIGRATION_TABLE} (id TEXT);\n`,
       'utf8',
     )
+
     return folder
   } catch (error) {
     await rm(folder, { recursive: true, force: true })

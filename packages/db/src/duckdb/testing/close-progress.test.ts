@@ -3,6 +3,7 @@ import { createDuckDbCloseController, type DuckDbCloseOperations } from '../clos
 
 function createOperations(overrides: Partial<DuckDbCloseOperations> = {}) {
   const events: string[] = []
+
   const operations: DuckDbCloseOperations = {
     checkpoint: async () => {
       events.push('checkpoint')
@@ -15,19 +16,23 @@ function createOperations(overrides: Partial<DuckDbCloseOperations> = {}) {
     },
     ...overrides,
   }
+
   return { events, operations }
 }
 
 describe('createDuckDbCloseController', () => {
   it('retries a failed checkpoint before closing native resources', async () => {
     let attempts = 0
+
     const { events, operations } = createOperations({
       checkpoint: async () => {
         events.push('checkpoint')
         attempts += 1
+
         if (attempts === 1) throw new Error('checkpoint failed')
       },
     })
+
     const controller = createDuckDbCloseController({
       operations,
       schedule: (work) => work(),
@@ -44,13 +49,16 @@ describe('createDuckDbCloseController', () => {
 
   it('retries only the native resource that failed to close', async () => {
     let attempts = 0
+
     const { events, operations } = createOperations({
       closeConnection: () => {
         events.push('connection')
         attempts += 1
+
         if (attempts === 1) throw new Error('connection close failed')
       },
     })
+
     const controller = createDuckDbCloseController({
       operations,
       schedule: (work) => work(),
@@ -65,6 +73,7 @@ describe('createDuckDbCloseController', () => {
   it('shares one in-flight close attempt', async () => {
     let run: (() => void) | undefined
     const { events, operations } = createOperations()
+
     const controller = createDuckDbCloseController({
       operations,
       schedule: <T>(work: () => Promise<T>) =>

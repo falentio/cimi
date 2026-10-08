@@ -5,15 +5,20 @@ import type {
   JsonObject,
 } from '@cimi/db'
 import type { InferOutput } from 'valibot'
+import type { JsonValue as CanonicalJsonValue } from '@cimi/utils'
 import { schema as contractSchema } from '@cimi/contract'
 import type { ResolvedPeriod } from '@cimi/kernel'
 import { readProfileTrait, type ReportingProfileTraits } from './profiles.ts'
+import { isBooleanValue, isNumberValue, isRecord, isStringValue } from '@cimi/utils'
 
 export type PropertyFilter = InferOutput<typeof contractSchema.SPropertyFilter>
+
 export type ReportFilter = NonNullable<
   InferOutput<typeof contractSchema.SReportFieldsSchema>['filters']
 >[number]
+
 export type ActionMatcher = InferOutput<typeof contractSchema.SFunnelAction>
+
 export type EventKind = InferOutput<typeof contractSchema.SEventKind>
 
 export type ReportEvent = Omit<AnalyticsReportEvent, 'eventKind'> & {
@@ -51,12 +56,15 @@ export function matchesAction(
   propertyFilters: readonly PropertyFilter[] | undefined = action.propertyFilters,
 ): boolean {
   if (event.eventKind !== action.kind) return false
+
   if (action.kind !== 'page_view' && action.kind !== 'outbound' && event.name !== action.name) {
     return false
   }
+
   if (action.kind === 'outbound' && action.name !== undefined && event.name !== action.name) {
     return false
   }
+
   return matchesPropertyFilters(event.properties, propertyFilters)
 }
 
@@ -67,6 +75,7 @@ export function matchesPropertyFilters(
   return (
     filters?.every((filter) => {
       const value = properties[filter.field]
+
       return filter.values.some((expected) => matchesValue(value, filter.operator, expected))
     }) ?? true
   )
@@ -80,18 +89,23 @@ export function matchesReportFilters(input: {
   readonly profileTraits: ReportingProfileTraits
 }): boolean {
   const events = input.events.filter((event) => eventInPeriod(event, input.period))
+
   return (
     input.filters?.every((filter) => {
       if (filter.operator === 'has_done' || filter.operator === 'has_not_done') {
         const matched = events.some((event) => matchesAction(event, filter.action))
+
         return filter.operator === 'has_done' ? matched : !matched
       }
+
       if (!('values' in filter)) return false
+
       if (filter.scope === 'event') {
         return events.some((event) =>
           matchesValue(eventField(event, filter.field), filter.operator, filter.values),
         )
       }
+
       if (filter.scope === 'session') {
         return matchesValue(
           sessionField(input.session, filter.field),
@@ -99,6 +113,7 @@ export function matchesReportFilters(input: {
           filter.values,
         )
       }
+
       if (filter.scope === 'visitor') {
         return matchesValue(
           input.session.identifiedUserId !== null &&
@@ -109,10 +124,14 @@ export function matchesReportFilters(input: {
           filter.values,
         )
       }
+
       const identifiedUserId = input.session.identifiedUserId
+
       const profile =
         identifiedUserId === null ? undefined : input.profileTraits.get(identifiedUserId)
+
       if (profile === undefined) return false
+
       return matchesValue(readProfileTrait(profile, filter.field), filter.operator, filter.values)
     }) ?? true
   )
@@ -120,11 +139,13 @@ export function matchesReportFilters(input: {
 
 export function eventInPeriod(event: ReportEvent, period: ResolvedPeriod): boolean {
   const occurrence = event.occurrenceTime.getTime()
+
   return occurrence >= period.interval.start && occurrence < period.interval.endExclusive
 }
 
 export function sessionInPeriod(session: ReportSession, period: ResolvedPeriod): boolean {
   const end = session.endedAt?.getTime() ?? session.startedAt.getTime()
+
   return end >= period.interval.start && session.startedAt.getTime() < period.interval.endExclusive
 }
 
@@ -188,33 +209,46 @@ function matchesValue(
   if (Array.isArray(expected)) {
     return expected.some((value) => matchesValue(actual, operator, value))
   }
+
   if (actual === undefined) return false
+
   if (operator === 'equals') return actual === expected
+
   if (operator === 'not_equals') return actual !== expected
+
   if (operator === 'contains') {
-    return typeof actual === 'string' && typeof expected === 'string' && actual.includes(expected)
+    return isStringValue(actual) && isStringValue(expected) && actual.includes(expected)
   }
-  if (typeof actual !== 'number' || typeof expected !== 'number') return false
+
+  if (!isNumberValue(actual) || !isNumberValue(expected)) return false
+
   return operator === 'greater_than' ? actual > expected : actual < expected
 }
 
-export function toJsonObject(value: unknown): JsonObject {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+export function toJsonObject(value: CanonicalJsonValue): JsonObject {
+  if (!isRecord(value)) {
     throw new TypeError('Expected a JSON object')
   }
+
   const object: JsonObject = {}
+
   for (const [key, child] of Object.entries(value)) {
     if (child !== undefined) object[key] = toJsonValue(child)
   }
+
   return object
 }
 
-export function toJsonValue(value: unknown): import('@cimi/db').JsonValue {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
-  if (typeof value === 'number') {
+export function toJsonValue(value: CanonicalJsonValue): import('@cimi/db').JsonValue {
+  if (value === null || isStringValue(value) || isBooleanValue(value)) return value
+
+  if (isNumberValue(value)) {
     if (!Number.isFinite(value)) throw new TypeError('Expected a finite JSON number')
+
     return value
   }
+
   if (Array.isArray(value)) return value.map(toJsonValue)
+
   return toJsonObject(value)
 }

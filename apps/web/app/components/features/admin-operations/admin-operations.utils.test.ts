@@ -120,7 +120,9 @@ describe('admin-operations.utils', () => {
           health: toHealthResource({ data: report, error: undefined, isLoading: false }),
         }),
       )
+
       expect(projection.health.kind).toBe('report')
+
       if (projection.health.kind !== 'report') continue
       expect(projection.health.report.matrix).toHaveLength(5)
       expect(projection.health.report.title.toLowerCase()).toBe(report.status)
@@ -135,6 +137,7 @@ describe('admin-operations.utils', () => {
         }),
       }),
     )
+
     expect(degraded.health).toMatchObject({
       kind: 'report',
       report: { status: 'degraded', controlStore: 'ready', analyticsStore: 'unavailable' },
@@ -151,6 +154,7 @@ describe('admin-operations.utils', () => {
         }),
       }),
     )
+
     expect(staleHealth.health.kind).toBe('stale-report')
     expect(staleHealth.installation.kind).toBe('report')
     expect(JSON.stringify(staleHealth)).not.toContain('provider path')
@@ -165,6 +169,7 @@ describe('admin-operations.utils', () => {
         }),
       }),
     )
+
     expect(installationFailure.installation).toMatchObject({ kind: 'failure' })
     expect(installationFailure.health).toMatchObject({ kind: 'report' })
     expect(JSON.stringify(installationFailure)).not.toContain('provider path')
@@ -184,6 +189,7 @@ describe('admin-operations.utils', () => {
         }),
       }),
     )
+
     expect(staleInstallationAndHealthFailure.installation.kind).toBe('stale-report')
     expect(staleInstallationAndHealthFailure.health.kind).toBe('failure')
     expect(JSON.stringify(staleInstallationAndHealthFailure)).not.toContain('filesystem path')
@@ -192,6 +198,7 @@ describe('admin-operations.utils', () => {
 
   it('keeps the documented matrix visible while health data loads or fails', () => {
     const loading = toAdminOperationsView(setupView({ health: { kind: 'loading' } }))
+
     const failed = toAdminOperationsView(
       setupView({
         health: toHealthResource({
@@ -204,6 +211,7 @@ describe('admin-operations.utils', () => {
 
     expect(loading.health).toMatchObject({ kind: 'loading', matrix: HEALTH_MATRIX })
     expect(failed.health).toMatchObject({ kind: 'failure', matrix: expect.any(Array) })
+
     if (failed.health.kind === 'failure') expect(failed.health.matrix).toHaveLength(5)
   })
 
@@ -217,11 +225,13 @@ describe('admin-operations.utils', () => {
       lastSafeSequence: 42,
       errorCode: null,
     } satisfies SetupOperation
+
     const activeInstallation = {
       ...installation,
       status: 'maintenance',
       activeOperation: operation,
     } satisfies Installation
+
     const projection = toAdminOperationsView(
       setupView({
         installation: toInstallationResource({
@@ -267,6 +277,7 @@ describe('admin-operations.utils', () => {
         errorCode: null,
       },
     } satisfies Installation
+
     const projection = toAdminOperationsView(
       setupView({
         installation: toInstallationResource({

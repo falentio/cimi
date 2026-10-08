@@ -22,19 +22,24 @@ const report = computed(() =>
     ? props.health.report
     : undefined,
 )
+
 const matrix = computed(() => {
   if (props.health.kind === 'loading' || props.health.kind === 'failure') {
     return props.health.matrix
   }
+
   return props.health.report.matrix
 })
+
 const notice = computed(() => {
   if (props.health.kind === 'failure') {
     return { title: 'Health status is unavailable', message: props.health.message }
   }
+
   if (props.health.kind === 'stale-report') {
     return { title: 'Showing the last known health report', message: props.health.message }
   }
+
   return undefined
 })
 </script>

@@ -8,8 +8,11 @@ export {
   type EventFilterInput,
   type TrafficFilterInput,
 } from './compile-filter.ts'
+
 export { fillBuckets, type BucketCount, type FilledBucket } from './bucket-fill.ts'
+
 export type { ReportingQueryPort } from './ports.ts'
+
 export type {
   PublicDashboardAggregateQuery,
   PublicDashboardAggregateRow,
@@ -17,6 +20,7 @@ export type {
   PublicDashboardMetric,
   PublicDashboardQueryPort,
 } from './public-types.ts'
+
 export type {
   EventBreakdownField,
   EventBreakdownQuery,
@@ -30,6 +34,7 @@ export type {
   EventRowsQuery,
   EventRowsResult,
 } from './event-types.ts'
+
 export type {
   TrafficAggregateQuery,
   TrafficAggregateResult,
@@ -41,6 +46,7 @@ export type {
   TrafficMetricsFacts,
   TrafficTrendBucket,
 } from './traffic-types.ts'
+
 export {
   TRAFFIC_METRIC_CATALOG,
   trafficMetricDenominator,
@@ -52,7 +58,9 @@ export {
   type TrafficMetricGrain,
   type TrafficMetricUnit,
 } from './metric-catalog.ts'
+
 export { ReportingQueryUnsupportedError } from './types.ts'
+
 export type {
   EventKind,
   Predicate,

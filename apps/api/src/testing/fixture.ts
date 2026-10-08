@@ -5,12 +5,14 @@ import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 import { createAuth } from '@cimi/auth/server'
 import type { LoggingConfig } from '@cimi/logging'
 import type { LifecycleLock } from '@cimi/kernel'
+import type { JsonValue } from '@cimi/utils'
 import { createApiApp } from '../index.ts'
 import type { HealthLifecycle } from '../health.ts'
 import { createFakeUpgradeExecutor } from '../resources/installation/fixture.ts'
 import type { UpgradeExecutor } from '../resources/installation/service.ts'
 import type { IngestionProtection } from '../resources/event-ingestion/index.ts'
 import type { BackupRestoreExecutor } from '../resources/backup-restore/index.ts'
+import { isFunctionValue } from '@cimi/utils'
 
 /**
  * Wraps a live AnalyticsDb so only the readiness probe is overridden. The store stays usable for
@@ -21,8 +23,10 @@ function withAnalyticsReady(analytics: AnalyticsDb, ready: () => boolean): Analy
   return new Proxy(analytics, {
     get(target, property, receiver) {
       if (property === 'ready') return async () => ready()
-      const value = Reflect.get(target, property, receiver) as unknown
-      return typeof value === 'function' ? value.bind(target) : value
+      // SAFETY: Proxy trap scopes dynamic keys to the wrapped database's own keys.
+      const value: unknown = target[property as keyof AnalyticsDb]
+
+      return isFunctionValue(value) ? value.bind(target) : value
     },
   })
 }
@@ -40,8 +44,10 @@ export async function createApiTestFixture(
   } = {},
 ) {
   const db = createMigratedTestDb()
+
   try {
     const analytics = await createTestAnalyticsDb()
+
     try {
       const auth = createAuth({
         db,
@@ -49,6 +55,7 @@ export async function createApiTestFixture(
         secret: 'test-secret-1234567890',
         baseURL: 'http://localhost',
       })
+
       const app = createApiApp({
         db,
         auth,
@@ -60,19 +67,20 @@ export async function createApiTestFixture(
         dataDirectoryReady: true,
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
-        ...(options.logging === undefined ? {} : { logging: options.logging }),
+        ...(options.logging !== undefined && { logging: options.logging }),
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
         eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
         startRetentionCleanupWorker: false,
-        ...(options.lifecycle === undefined ? {} : { lifecycle: options.lifecycle }),
-        ...(options.lock === undefined ? {} : { lock: options.lock }),
-        ...(options.eventIngestionProtection === undefined
-          ? {}
-          : { eventIngestionProtection: options.eventIngestionProtection }),
-        ...(options.backupRestoreExecutor === undefined
-          ? {}
-          : { backupRestoreExecutor: options.backupRestoreExecutor }),
+        ...(options.lifecycle !== undefined && { lifecycle: options.lifecycle }),
+        ...(options.lock !== undefined && { lock: options.lock }),
+        ...(options.eventIngestionProtection !== undefined && {
+          eventIngestionProtection: options.eventIngestionProtection,
+        }),
+        ...(options.backupRestoreExecutor !== undefined && {
+          backupRestoreExecutor: options.backupRestoreExecutor,
+        }),
       })
+
       return {
         app,
         auth,
@@ -112,10 +120,12 @@ export async function signUpTestUser(
       body: JSON.stringify({ name, email, password: 'password123' }),
     }),
   )
+
   expect(response.status).toBe(200)
-  const body = (await response.json()) as { user: { id: string } }
+  const body = await response.json()
   const setCookie = response.headers.get('set-cookie')
   expect(setCookie).toBeTruthy()
+
   return { cookie: setCookie!.split(';', 1)[0]!, userId: body.user.id }
 }
 
@@ -123,14 +133,15 @@ export async function apiTestRequest(
   app: ReturnType<typeof createApiApp>,
   path: string,
   cookie: string,
-  body?: object,
+  body?: JsonValue,
 ): Promise<Response> {
   const headers = body === undefined ? { cookie } : { 'content-type': 'application/json', cookie }
+
   return app.fetch(
     new Request(`http://localhost/api${path}`, {
       method: body === undefined ? 'GET' : 'POST',
       headers,
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body !== undefined && { body: JSON.stringify(body) }),
     }),
   )
 }

@@ -23,6 +23,7 @@ const props = defineProps<
 const context = inject<ToggleGroupVariants>('toggleGroup')
 
 const delegatedProps = reactiveOmit(props, 'class', 'size', 'variant')
+
 const forwardedProps = useForwardProps(delegatedProps)
 </script>
 

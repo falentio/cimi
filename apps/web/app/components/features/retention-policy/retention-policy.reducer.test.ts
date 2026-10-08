@@ -24,10 +24,12 @@ describe('retention-policy.reducer', () => {
   it('initializes a loading state and adopts the first server snapshot', () => {
     const initial = createInitialRetentionState()
     expect(initial.retention).toEqual({ kind: 'loading' })
+
     const next = reduceRetention(initial, {
       kind: 'retention-received',
       result: result(12, '2026-09-18T10:00:00Z'),
     })
+
     expect(next.draft).toEqual({ eventMonths: '12', profileMonths: '12', replayMonths: '' })
     expect(next.retention).toMatchObject({
       kind: 'ready',
@@ -40,15 +42,18 @@ describe('retention-policy.reducer', () => {
       kind: 'retention-received',
       result: result(12, '2026-09-18T10:00:00Z'),
     })
+
     const edited = reduceRetention(initial, {
       kind: 'field-edited',
       field: 'eventMonths',
       value: '18',
     })
+
     const refreshed = reduceRetention(edited, {
       kind: 'retention-received',
       result: result(9, '2026-09-18T11:00:00Z'),
     })
+
     expect(refreshed.draft?.eventMonths).toBe('18')
 
     const confirming = reduceRetention(refreshed, {
@@ -56,14 +61,17 @@ describe('retention-policy.reducer', () => {
       candidate: { eventMonths: 6, profileMonths: 6, replayMonths: null },
       impact: { event: { from: 9, to: 6 }, profile: { from: 9, to: 6 }, replay: null },
     })
+
     expect(confirming.command).toMatchObject({
       kind: 'confirming',
       acknowledgement: { kind: 'required' },
     })
+
     const accepted = reduceRetention(confirming, {
       kind: 'confirmation-edited',
       value: 'SHORTEN RETENTION',
     })
+
     expect(accepted.command).toMatchObject({
       kind: 'confirming',
       acknowledgement: { kind: 'accepted' },
@@ -75,13 +83,16 @@ describe('retention-policy.reducer', () => {
       kind: 'retention-received',
       result: result(12, '2026-09-18T10:00:00Z'),
     })
+
     const candidate = { eventMonths: 18, profileMonths: 18, replayMonths: null } as const
+
     const submitting = reduceRetention(initial, {
       kind: 'save-started',
       baselineUpdatedAt: '2026-09-18T10:00:00Z',
       candidate,
       shortening: false,
     })
+
     const failed = reduceRetention(submitting, {
       kind: 'save-failed',
       candidate,
@@ -94,6 +105,7 @@ describe('retention-policy.reducer', () => {
         action: 'edit',
       },
     })
+
     expect(failed.command).toMatchObject({ kind: 'failed', candidate })
     expect(failed.draft).toEqual({ eventMonths: '12', profileMonths: '12', replayMonths: '' })
 

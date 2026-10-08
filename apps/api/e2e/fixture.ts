@@ -14,7 +14,7 @@ import {
   type Db,
 } from '@cimi/db'
 import { eq } from 'drizzle-orm'
-import { generateId, isRecord } from '@cimi/utils'
+import { isStringValue, generateId, isRecord } from '@cimi/utils'
 import {
   createApiComposition,
   type ApiComposition,
@@ -269,12 +269,14 @@ interface ActiveGate {
 }
 
 const FUTURE_MIGRATION_MARKER = 'cimi-e2e-future-migration'
+
 export async function createApiE2eFixture(
   options: DatabaseManagementFixtureOptions = {},
 ): Promise<ApiE2eFixture> {
   const defaultTimeoutMs = options.timeoutMs ?? 30_000
   const defaultIntervalMs = options.intervalMs ?? 50
   const rootDirectory = await mkdtemp(join(tmpdir(), 'cimi-api-e2e-'))
+
   const paths: FileBackedPaths = {
     rootDirectory,
     controlDatabasePath: join(rootDirectory, 'control.sqlite'),
@@ -282,6 +284,7 @@ export async function createApiE2eFixture(
     analyticsDatabasePath: join(rootDirectory, 'data', 'analytics.duckdb'),
     analyticsTempDirectoryPath: join(rootDirectory, 'data', 'analytics-temp'),
   }
+
   await mkdir(paths.dataDirectoryPath, { recursive: true })
   const faults = new E2eFaultController()
 
@@ -297,21 +300,26 @@ export async function createApiE2eFixture(
   const open = async (removeRootOnFailure: boolean): Promise<FixtureGeneration> => {
     const faultGeneration = faults.beginGeneration()
     const ownership = createGenerationOwnership()
+
     try {
       const openedDb = createDb({ path: paths.controlDatabasePath })
       ownership.db = openedDb
       migrateControlDb(openedDb)
+
       const openedAnalytics = await createAnalyticsDb({
         path: paths.analyticsDatabasePath,
         tempDirectory: paths.analyticsTempDirectoryPath,
       })
+
       ownership.analytics = openedAnalytics
+
       const auth = createAuth({
         db: openedDb,
         schema: schema.betterAuthSchema,
         secret: 'test-secret-1234567890',
         baseURL: 'http://localhost',
       })
+
       const realUpgradeExecutor = new SqliteUpgradeExecutor({
         db: openedDb,
         controlDatabasePath: paths.controlDatabasePath,
@@ -319,6 +327,7 @@ export async function createApiE2eFixture(
         migrationsFolder: options.migrationsFolder,
         analyticsRebuild: () => openedAnalytics.rebuild({ controlDb: openedDb }),
       })
+
       const realBackupRestoreExecutor = new ConfiguredSqliteExecutor({
         db: openedDb,
         analytics: openedAnalytics,
@@ -326,6 +335,7 @@ export async function createApiE2eFixture(
         dataDirectoryPath: paths.dataDirectoryPath,
         migrationsFolder: options.migrationsFolder,
       })
+
       const deps: CreateApiAppDependencies = {
         db: openedDb,
         auth,
@@ -336,9 +346,9 @@ export async function createApiE2eFixture(
         dataDirectoryPath: paths.dataDirectoryPath,
         startRetentionCleanupWorker: options.startRetentionCleanupWorker ?? false,
         retentionCleanupIntervalMs: options.retentionCleanupIntervalMs,
-        ...(options.backupLeaseAcquisitionTimeoutMs === undefined
-          ? {}
-          : { backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs }),
+        ...(options.backupLeaseAcquisitionTimeoutMs !== undefined && {
+          backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs,
+        }),
         upgradeExecutor: new FaultingUpgradeExecutor(realUpgradeExecutor, faults, faultGeneration),
         backupRestoreExecutor: new FaultingBackupRestoreExecutor(
           realBackupRestoreExecutor,
@@ -350,12 +360,14 @@ export async function createApiE2eFixture(
         wrapRetentionCleanup: (cleanup) =>
           new FaultingRetentionCleanup(cleanup, faults, faultGeneration),
       }
+
       const composition = createApiComposition(deps)
       const ownedComposition = options.wrapCompositionClose?.(composition) ?? composition
       ownership.composition = ownedComposition
       const app = createApiHttpApp(deps, ownedComposition)
       await ownedComposition.ready
       generationNumber += 1
+
       return {
         number: generationNumber,
         db: openedDb,
@@ -368,12 +380,14 @@ export async function createApiE2eFixture(
       }
     } catch (error) {
       let cleanupError: unknown
+
       try {
         await faults.cancelHeldGates(faultGeneration)
         await closeGeneration(ownership)
       } catch (closeError) {
         cleanupError = closeError
       }
+
       if (cleanupError === undefined && removeRootOnFailure) {
         try {
           await rm(rootDirectory, { recursive: true, force: true })
@@ -381,7 +395,13 @@ export async function createApiE2eFixture(
           cleanupError = rootError
         }
       }
-      throw constructionFailure(error, cleanupError)
+
+      throw cleanupError === undefined
+        ? error
+        : new AggregateError(
+            [error, cleanupError],
+            'E2E fixture construction and cleanup both failed',
+          )
     }
   }
 
@@ -394,6 +414,7 @@ export async function createApiE2eFixture(
       label: 'E2E generation',
       close: async () => {
         const generation = current
+
         if (generation === undefined) return
         await closeGeneration(generation.ownership)
         current = undefined
@@ -407,11 +428,13 @@ export async function createApiE2eFixture(
 
   const requireGeneration = (): FixtureGeneration => {
     if (current === undefined) throw new Error('The E2E fixture is stopped')
+
     return current
   }
 
   const requireOpenForMutation = (): FixtureGeneration => {
     if (closed || closing) throw new Error('The E2E fixture is closed')
+
     return requireGeneration()
   }
 
@@ -419,6 +442,7 @@ export async function createApiE2eFixture(
     return lifecycleQueue.run(async () => {
       requireOpenForMutation()
       const generation = current
+
       if (generation === undefined) return
       await drainGeneration(generation)
       current = undefined
@@ -428,19 +452,23 @@ export async function createApiE2eFixture(
   const restart = async (): Promise<void> => {
     return lifecycleQueue.run(async () => {
       if (closed || closing) throw new Error('The E2E fixture is closed')
+
       if (current !== undefined) {
         await drainGeneration(current)
         current = undefined
       }
+
       current = await open(false)
     })
   }
 
   const close = (): Promise<void> => {
     if (closePromise !== undefined) return closePromise
+
     const pending = lifecycleQueue.run(async () => {
       if (closed) return
       closing = true
+
       try {
         await fixtureShutdown.close()
         closed = true
@@ -448,10 +476,12 @@ export async function createApiE2eFixture(
         closing = false
       }
     })
-    closePromise = pending.catch((error: unknown) => {
+
+    closePromise = pending.catch((cause: unknown) => {
       closePromise = undefined
-      throw error
+      throw cause
     })
+
     return closePromise
   }
 
@@ -465,13 +495,16 @@ export async function createApiE2eFixture(
     done?: (value: T) => boolean,
   ): Promise<T> => {
     const options: PollOptions<T> =
+      // eslint-disable-next-line anti-slop/no-runtime-typeof -- discriminates a closed union; the result is immediately called.
       typeof optionsOrRead === 'function'
         ? { read: optionsOrRead, done: done ?? (() => false) }
         : optionsOrRead
+
     const timeoutMs = options.timeoutMs ?? defaultTimeoutMs
     const intervalMs = options.intervalMs ?? defaultIntervalMs
     const deadline = Date.now() + timeoutMs
     let value = await options.read()
+
     while (!options.done(value)) {
       if (Date.now() >= deadline) {
         throw new E2ePollingTimeoutError({
@@ -480,9 +513,11 @@ export async function createApiE2eFixture(
           lastState: value,
         })
       }
+
       await new Promise((resolve) => setTimeout(resolve, intervalMs))
       value = await options.read()
     }
+
     return value
   }
 
@@ -490,20 +525,26 @@ export async function createApiE2eFixture(
     get interruptedOperationId() {
       if (interruptedOperationId === undefined)
         throw new Error('No interrupted operation is seeded')
+
       return interruptedOperationId
     },
     async seedInterrupted(input) {
       if (current !== undefined) throw new Error('seedInterrupted requires a stopped fixture')
+
       if (closed || closing) throw new Error('The E2E fixture is closed')
       const operationId = generateId('bop')
       await withStateDb(async (db) => {
         const installation = db.select().from(schema.TInstallation).limit(1).all()[0]
+
         if (installation === undefined)
           throw new Error('Initialize the installation before seeding recovery')
+
         if (installation.activeOperationId !== null) {
           throw new Error('Cannot seed recovery over an active installation operation')
         }
+
         const now = new Date()
+
         const artifact =
           input.kind === 'upgrade' && input.checkpoint !== 'none'
             ? await captureArtifact(db, paths, {
@@ -521,6 +562,7 @@ export async function createApiE2eFixture(
                     kind: 'pre_restore_sqlite',
                   })
                 : undefined
+
         if (input.kind === 'restore') {
           const source = db
             .select({ id: schema.TBackupOperation.id })
@@ -528,8 +570,10 @@ export async function createApiE2eFixture(
             .where(eq(schema.TBackupOperation.id, input.sourceBackupId))
             .limit(1)
             .all()[0]
+
           if (source === undefined) throw new Error('The restore source backup does not exist')
         }
+
         const state = interruptedOperationState(input)
         db.transaction((tx) => {
           tx.insert(schema.TBackupOperation)
@@ -575,6 +619,7 @@ export async function createApiE2eFixture(
               errorCode: null,
             })
             .run()
+
           if (artifact !== undefined) {
             tx.insert(schema.TBackupArtifact)
               .values({
@@ -594,6 +639,7 @@ export async function createApiE2eFixture(
               })
               .run()
           }
+
           if (input.kind === 'restore') {
             tx.insert(schema.TBackupRestoreReference)
               .values({
@@ -604,6 +650,7 @@ export async function createApiE2eFixture(
               })
               .run()
           }
+
           tx.update(schema.TInstallation)
             .set({
               status: state.installationStatus,
@@ -626,8 +673,10 @@ export async function createApiE2eFixture(
     async seedInterruptedRetentionCleanup({ kind }) {
       if (current !== undefined)
         throw new Error('seedInterruptedRetentionCleanup requires a stopped fixture')
+
       if (closed || closing) throw new Error('The E2E fixture is closed')
       await withStateDb(async (db) => {
+        // SAFETY: better-sqlite3 returns any; single id column selected below.
         const run = db.$client
           .prepare(
             `SELECT id FROM retention_cleanup_run
@@ -635,6 +684,7 @@ export async function createApiE2eFixture(
              ORDER BY created_at LIMIT 1`,
           )
           .get(kind) as { readonly id: string } | undefined
+
         if (run === undefined) throw new Error('No queued retention cleanup run exists')
         const now = Date.now()
         db.$client.transaction(() => {
@@ -657,9 +707,12 @@ export async function createApiE2eFixture(
     },
     backdateAcceptedEvent({ eventId, at }) {
       const db = requireOpenForMutation().db
+
+      // SAFETY: better-sqlite3 returns any; single eventPk column selected below.
       const event = db.$client
         .prepare('SELECT event_pk AS eventPk FROM accepted_event WHERE event_id = ?')
         .get(eventId) as { readonly eventPk: number } | undefined
+
       if (event === undefined) throw new Error(`Accepted event ${eventId} does not exist`)
 
       db.$client.pragma('defer_foreign_keys = ON')
@@ -676,9 +729,12 @@ export async function createApiE2eFixture(
     },
     appendFutureMigrationHistory() {
       const db = requireOpenForMutation().db
+
+      // SAFETY: better-sqlite3 returns any; single coalesced createdAt column selected below.
       const row = db.$client
         .prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations')
         .get() as { readonly createdAt: number | null } | undefined
+
       const createdAt = (row?.createdAt ?? Date.now()) + 1
       db.$client
         .prepare('INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)')
@@ -718,18 +774,21 @@ export async function createApiE2eFixture(
     variant: 'future-history' | 'manifest' | 'unreadable',
   ): Promise<{ readonly backupId: string }> {
     const generation = requireOpenForMutation()
+
     const sourceOperation = generation.db
       .select()
       .from(schema.TBackupOperation)
       .where(eq(schema.TBackupOperation.id, sourceBackupId))
       .limit(1)
       .all()[0]
+
     const sourceArtifact = generation.db
       .select()
       .from(schema.TBackupArtifact)
       .where(eq(schema.TBackupArtifact.operationId, sourceBackupId))
       .limit(1)
       .all()[0]
+
     if (
       sourceOperation === undefined ||
       sourceOperation.operationType !== 'backup' ||
@@ -739,6 +798,7 @@ export async function createApiE2eFixture(
     ) {
       throw new Error('The source backup is not available')
     }
+
     const backupId = generateId('bop')
     const artifactId = generateId('bar')
     const storageKey = `backups/${backupId}.sqlite`
@@ -746,7 +806,9 @@ export async function createApiE2eFixture(
     const variantPath = join(paths.dataDirectoryPath, storageKey)
     await mkdir(dirname(variantPath), { recursive: true })
     await copyFile(sourcePath, variantPath)
+
     if (variant === 'future-history') await appendFutureMigrationToArtifact(variantPath)
+
     if (variant === 'unreadable') await wipeArtifactHeader(variantPath)
     const contents = await readFile(variantPath)
     const now = new Date()
@@ -812,15 +874,19 @@ export async function createApiE2eFixture(
         })
         .run()
     })
+
     return { backupId }
   }
 
   async function appendFutureMigrationToArtifact(path: string): Promise<void> {
     const db = createDb({ path })
+
     try {
+      // SAFETY: better-sqlite3 returns any; single coalesced createdAt column selected below.
       const row = db.$client
         .prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations')
         .get() as { readonly createdAt: number | null } | undefined
+
       db.$client
         .prepare('INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)')
         .run(FUTURE_MIGRATION_MARKER, (row?.createdAt ?? Date.now()) + 1)
@@ -837,6 +903,7 @@ export async function createApiE2eFixture(
 
   async function withStateDb<T>(callback: (db: Db) => Promise<T>): Promise<T> {
     const db = createDb({ path: paths.controlDatabasePath })
+
     try {
       return await callback(db)
     } finally {
@@ -872,6 +939,7 @@ export async function createApiE2eFixture(
     async createUser(email, name) {
       const generation = requireGeneration()
       const signedUp = await signUpTestUser(generation.app, email, name)
+
       return {
         ...signedUp,
         context: () => createUserContext(signedUp.cookie),
@@ -886,18 +954,22 @@ export async function createApiE2eFixture(
     close,
     [Symbol.asyncDispose]: close,
   }
+
   return fixture
 
   async function createUserContext(cookie: string): Promise<ApiContext> {
     const auth = requireGeneration().auth
     const headers = new Headers({ cookie })
     const session = await auth.api.getSession({ headers })
+
     if (session?.user === undefined) throw new Error('Expected the E2E user session')
     const sessionUser: AuthUser = session.user
+
     const user: AuthUser = {
       ...sessionUser,
       installationGrant: sessionUser.installationGrant ?? sessionUser.role === 'admin',
     }
+
     return { user, headers, requestId: '', method: '', path: '' }
   }
 }
@@ -910,6 +982,7 @@ class E2eFaultController implements FaultController {
 
   beginGeneration(): number {
     this.generation += 1
+
     return this.generation
   }
 
@@ -929,17 +1002,21 @@ class E2eFaultController implements FaultController {
     let enter: () => void = () => undefined
     let settleOutcome: (outcome: GateOutcome) => void = () => undefined
     let settled = false
+
     const entered = new Promise<void>((resolve) => {
       enter = resolve
     })
+
     const outcome = new Promise<GateOutcome>((resolve) => {
       settleOutcome = resolve
     })
+
     const finish = (next: GateOutcome): void => {
       if (settled) return
       settled = true
       settleOutcome(next)
     }
+
     this.actions.set(keyOf(point), {
       kind: 'hold',
       generation: this.generation,
@@ -947,6 +1024,7 @@ class E2eFaultController implements FaultController {
       outcome,
       cancel: (reason) => finish({ kind: 'cancelled', reason }),
     })
+
     return { entered, release: () => finish({ kind: 'released' }) }
   }
 
@@ -958,13 +1036,17 @@ class E2eFaultController implements FaultController {
     if (this.cancelledGenerations.has(generation)) throw faultGateCancelledError()
     const key = keyOf(point)
     const action = this.actions.get(key)
+
     if (action === undefined) return
+
     if (action.kind === 'throw') {
       if (action.once) this.actions.delete(key)
       throw faultError(point, action.error)
     }
+
     this.actions.delete(key)
     let settleActive: () => void = () => undefined
+
     const active: ActiveGate = {
       generation,
       action,
@@ -973,10 +1055,13 @@ class E2eFaultController implements FaultController {
       }),
       settle: () => settleActive(),
     }
+
     this.activeGates.add(active)
     action.entered()
+
     try {
       const result = await action.outcome
+
       if (result.kind === 'cancelled') throw result.reason
     } finally {
       this.activeGates.delete(active)
@@ -987,13 +1072,16 @@ class E2eFaultController implements FaultController {
   async cancelHeldGates(generation: number): Promise<void> {
     const reason = faultGateCancelledError()
     this.cancelledGenerations.add(generation)
+
     for (const [key, action] of this.actions) {
       if (action.kind === 'hold' && action.generation === generation) {
         this.actions.delete(key)
         action.cancel(reason)
       }
     }
+
     const active = [...this.activeGates].filter((gate) => gate.generation === generation)
+
     for (const gate of active) gate.action.cancel(reason)
     await Promise.allSettled(active.map((gate) => gate.settled))
   }
@@ -1012,21 +1100,25 @@ class FaultingUpgradeExecutor implements UpgradeExecutor {
 
   async createSafetyArtifact(input: Parameters<UpgradeExecutor['createSafetyArtifact']>[0]) {
     await this.faults.before({ domain: 'upgrade', stage: 'createSafetyArtifact' }, this.generation)
+
     return this.real.createSafetyArtifact(input)
   }
 
   async migrate(input: Parameters<UpgradeExecutor['migrate']>[0]) {
     await this.faults.before({ domain: 'upgrade', stage: 'migrate' }, this.generation)
+
     return this.real.migrate(input)
   }
 
   async rebuildAnalytics(input: Parameters<UpgradeExecutor['rebuildAnalytics']>[0]) {
     await this.faults.before({ domain: 'upgrade', stage: 'rebuildAnalytics' }, this.generation)
+
     return this.real.rebuildAnalytics(input)
   }
 
   async rollback(input: Parameters<UpgradeExecutor['rollback']>[0]) {
     await this.faults.before({ domain: 'upgrade', stage: 'rollback' }, this.generation)
+
     return this.real.rollback(input)
   }
 }
@@ -1040,6 +1132,7 @@ class FaultingBackupRestoreExecutor implements BackupRestoreExecutor {
 
   async captureBackup(input: Parameters<BackupRestoreExecutor['captureBackup']>[0]) {
     await this.faults.before({ domain: 'backup', stage: 'captureBackup' }, this.generation)
+
     return this.real.captureBackup(input)
   }
 
@@ -1050,26 +1143,31 @@ class FaultingBackupRestoreExecutor implements BackupRestoreExecutor {
       { domain: 'restore', stage: 'createPreRestoreSafety' },
       this.generation,
     )
+
     return this.real.createPreRestoreSafety(input)
   }
 
   async validateManifest(input: Parameters<BackupRestoreExecutor['validateManifest']>[0]) {
     await this.faults.before({ domain: 'restore', stage: 'validateManifest' }, this.generation)
+
     return this.real.validateManifest(input)
   }
 
   async restoreSqlite(input: Parameters<BackupRestoreExecutor['restoreSqlite']>[0]) {
     await this.faults.before({ domain: 'restore', stage: 'restoreSqlite' }, this.generation)
+
     return this.real.restoreSqlite(input)
   }
 
   async migrate(input: Parameters<BackupRestoreExecutor['migrate']>[0]) {
     await this.faults.before({ domain: 'restore', stage: 'migrate' }, this.generation)
+
     return this.real.migrate(input)
   }
 
   async rebuildAnalytics(input: Parameters<BackupRestoreExecutor['rebuildAnalytics']>[0]) {
     await this.faults.before({ domain: 'restore', stage: 'rebuildAnalytics' }, this.generation)
+
     return this.real.rebuildAnalytics(input)
   }
 
@@ -1080,11 +1178,13 @@ class FaultingBackupRestoreExecutor implements BackupRestoreExecutor {
       { domain: 'restore', stage: 'verifyStructuralReadiness' },
       this.generation,
     )
+
     return this.real.verifyStructuralReadiness(input)
   }
 
   async rollback(input: Parameters<BackupRestoreExecutor['rollback']>[0]) {
     await this.faults.before({ domain: 'restore', stage: 'rollback' }, this.generation)
+
     return this.real.rollback(input)
   }
 }
@@ -1098,11 +1198,13 @@ class FaultingCleanup implements BackupRestoreCleanupPort {
 
   async runDerived(input: Parameters<BackupRestoreCleanupPort['runDerived']>[0]) {
     await this.faults.before({ domain: 'cleanup', stage: 'derivedCleanup' }, this.generation)
+
     return this.real.runDerived(input)
   }
 
   async runBackup(input: Parameters<BackupRestoreCleanupPort['runBackup']>[0]) {
     await this.faults.before({ domain: 'cleanup', stage: 'backupCleanup' }, this.generation)
+
     return this.real.runBackup(input)
   }
 }
@@ -1116,11 +1218,13 @@ class FaultingRetentionCleanup implements RetentionCleanupPort {
 
   async runDerived(input: Parameters<RetentionCleanupPort['runDerived']>[0]) {
     await this.faults.before({ domain: 'retentionCleanup', stage: 'derived' }, this.generation)
+
     return this.real.runDerived(input)
   }
 
   async runBackup(input: Parameters<RetentionCleanupPort['runBackup']>[0]) {
     await this.faults.before({ domain: 'retentionCleanup', stage: 'backup' }, this.generation)
+
     return this.real.runBackup(input)
   }
 }
@@ -1133,19 +1237,23 @@ function faultError(point: FaultPoint, error: FaultError): Error {
   if (error === 'incompatible' && point.domain === 'upgrade') {
     return new UpgradeIncompatibilityError(`E2E fault at ${keyOf(point)}`)
   }
+
   if (error === 'incompatible' && point.domain === 'restore') {
     return new BackupIncompatibilityError(`E2E fault at ${keyOf(point)}`)
   }
+
   if (error === 'insufficientStorage' && point.domain === 'upgrade') {
     return new UpgradeInsufficientStorageError(`E2E fault at ${keyOf(point)}`)
   }
+
   if (error === 'insufficientStorage' && point.domain === 'restore') {
     return new BackupInsufficientStorageError(`E2E fault at ${keyOf(point)}`)
   }
+
   return new Error(`E2E fault at ${keyOf(point)}: ${error}`)
 }
 
-function interruptedOperationState(input: InterruptedState): {
+interface InterruptedOperationStateOutput {
   readonly status: 'creating' | 'restoring'
   readonly phase: 'capturing_sqlite' | 'restoring_sqlite' | 'rebuilding_duckdb'
   readonly progress: number
@@ -1157,9 +1265,12 @@ function interruptedOperationState(input: InterruptedState): {
   readonly installationStatus: 'maintenance' | 'recovering'
   readonly installationPhase: 'pre_upgrade_safety' | 'lifecycle_transition'
   readonly installationCheckpoint: 'none' | 'sqlite_captured' | 'duckdb_rebuilt'
-} {
+}
+
+function interruptedOperationState(input: InterruptedState): InterruptedOperationStateOutput {
   if (input.kind === 'upgrade') {
     const duckdbRebuilt = input.checkpoint === 'duckdb_rebuilt'
+
     return {
       status: 'creating',
       phase: duckdbRebuilt ? 'rebuilding_duckdb' : 'capturing_sqlite',
@@ -1175,6 +1286,7 @@ function interruptedOperationState(input: InterruptedState): {
         input.checkpoint === 'duckdb_rebuilt' ? 'duckdb_rebuilt' : input.checkpoint,
     }
   }
+
   if (input.kind === 'backup') {
     return {
       status: 'creating',
@@ -1190,6 +1302,7 @@ function interruptedOperationState(input: InterruptedState): {
       installationCheckpoint: input.checkpoint,
     }
   }
+
   if (input.checkpoint === 'none') {
     return {
       status: 'creating',
@@ -1205,7 +1318,9 @@ function interruptedOperationState(input: InterruptedState): {
       installationCheckpoint: 'none',
     }
   }
+
   const duckdbRebuilt = input.checkpoint === 'duckdb_rebuilt'
+
   return {
     status: 'restoring',
     phase: duckdbRebuilt ? 'rebuilding_duckdb' : 'restoring_sqlite',
@@ -1237,6 +1352,7 @@ async function captureArtifact(
   await db.$client.backup(path)
   const contents = await readFile(path)
   const file = await stat(path)
+
   return {
     kind: input.kind,
     id,
@@ -1256,11 +1372,13 @@ function createGenerationOwnership(): GenerationOwnership {
     analytics: undefined,
     db: undefined,
   }
+
   const shutdown = createShutdownCoordinator([
     {
       label: 'API composition',
       close: async () => {
         const value = resources.composition
+
         if (value === undefined) return
         await value.close()
         resources.composition = undefined
@@ -1270,6 +1388,7 @@ function createGenerationOwnership(): GenerationOwnership {
       label: 'DuckDB analytics database',
       close: async () => {
         const value = resources.analytics
+
         if (value === undefined) return
         await value.close()
         resources.analytics = undefined
@@ -1279,34 +1398,31 @@ function createGenerationOwnership(): GenerationOwnership {
       label: 'SQLite control database',
       close: () => {
         const value = resources.db
+
         if (value === undefined) return
         closeDb(value)
         resources.db = undefined
       },
     },
   ])
+
   return Object.assign(resources, { close: () => shutdown.close() })
 }
 
-function constructionFailure(error: unknown, cleanupError: unknown): unknown {
-  if (cleanupError === undefined) return error
-  return new AggregateError(
-    [error, cleanupError],
-    'E2E fixture construction and cleanup both failed',
-  )
-}
-
-function operationIdOf(value: unknown): string | undefined {
+function operationIdOf<T>(value: T): string | undefined {
   if (!isRecord(value)) return undefined
-  if (typeof value['id'] === 'string') return value['id']
+
+  if (isStringValue(value['id'])) return value['id']
   const activeOperation = value['activeOperation']
-  if (isRecord(activeOperation) && typeof activeOperation['operationId'] === 'string') {
+
+  if (isRecord(activeOperation) && isStringValue(activeOperation['operationId'])) {
     return activeOperation['operationId']
   }
+
   return undefined
 }
 
-function formatState(value: unknown): string {
+function formatState<T>(value: T): string {
   try {
     return JSON.stringify(value)
   } catch {

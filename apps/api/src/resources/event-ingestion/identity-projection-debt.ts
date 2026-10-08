@@ -46,10 +46,12 @@ class SqliteIdentityProjectionDebt implements IdentityProjectionDebt {
 
   isStale(projectedAt: Date): boolean {
     const debtThrough = this.debtThrough()
+
     return debtThrough !== null && debtThrough > projectedAt.getTime()
   }
 
   private debtThrough(): number | null {
+    // SAFETY: better-sqlite3 returns any; single debtThrough column selected below.
     const row = this.db.$client
       .prepare(
         `SELECT debt_through AS debtThrough
@@ -57,6 +59,7 @@ class SqliteIdentityProjectionDebt implements IdentityProjectionDebt {
          WHERE singleton_key = 'default'`,
       )
       .get() as { readonly debtThrough: number | null } | undefined
+
     return row?.debtThrough ?? null
   }
 }

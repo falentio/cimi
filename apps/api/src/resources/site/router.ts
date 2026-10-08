@@ -2,6 +2,7 @@ import { api, authenticatedApi } from '../../orpc.ts'
 import type { SiteService } from './service.ts'
 
 const siteApi = api.site
+
 const authenticatedSiteApi = authenticatedApi.site
 
 export function siteRouter(service: SiteService) {

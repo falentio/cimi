@@ -19,6 +19,7 @@ describe('SiteService.rotateIngestionIdentifier states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleting' }],
     })
+
     repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleting' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('deleting'))
@@ -33,6 +34,7 @@ describe('SiteService.rotateIngestionIdentifier states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'deleted' }],
     })
+
     repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'deleted' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('deleted'))
@@ -47,6 +49,7 @@ describe('SiteService.rotateIngestionIdentifier states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'recovering' }],
     })
+
     repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'recovering' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('recovering'))
@@ -61,6 +64,7 @@ describe('SiteService.rotateIngestionIdentifier states', () => {
     const { repository, service } = createSiteFixture({
       sites: [{ siteId: 'ste_1', organizationId: 'org_1', status: 'purged' }],
     })
+
     repository.rotateIngestionIdentifier.mockResolvedValue(undefined)
     repository.findById.mockResolvedValue(createSiteRecord({ status: 'purged' }))
     repository.getDeletionStatus.mockResolvedValue(createDeletionStatus('purged'))

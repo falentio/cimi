@@ -14,22 +14,26 @@ type Corruption = 'header-magic' | 'zeroed-page'
 function corruptArtifactBytes(bytes: Buffer, corruption: Corruption): Buffer {
   const copy = Buffer.from(bytes)
   const pageSize = copy.readUInt16BE(16) === 1 ? 65536 : copy.readUInt16BE(16)
+
   switch (corruption) {
     case 'header-magic':
       copy.fill(0, 0, 4)
+
       return copy
     case 'zeroed-page':
       copy.fill(0, pageSize * 4, Math.min(pageSize * 5, copy.length))
+
       return copy
   }
 }
 
-async function validateCorruptedArtifact(corruption: Corruption): Promise<unknown> {
+async function validateCorruptedArtifact(corruption: Corruption): Promise<Error> {
   const directory = await mkdtemp(join(tmpdir(), 'cimi-unreadable-executor-'))
   const controlDatabasePath = join(directory, 'control.sqlite')
   const db = createDb({ path: controlDatabasePath })
   migrateControlDb(db)
   const analytics = await createTestAnalyticsDb()
+
   try {
     const executor = new ConfiguredSqliteExecutor({
       db,
@@ -37,16 +41,19 @@ async function validateCorruptedArtifact(corruption: Corruption): Promise<unknow
       controlDatabasePath,
       dataDirectoryPath: directory,
     })
+
     const source = await executor.captureBackup({
       operationId: 'bop_1',
       artifactId: 'bar_1',
       lastSafeSequence: 9,
     })
+
     const artifactPath = join(directory, source.storageKey)
     const corrupted = corruptArtifactBytes(await readFile(artifactPath), corruption)
     await writeFile(artifactPath, corrupted)
-    return await executor
-      .validateManifest({
+
+    try {
+      await executor.validateManifest({
         operationId: 'bop_1',
         source: {
           ...source,
@@ -54,10 +61,13 @@ async function validateCorruptedArtifact(corruption: Corruption): Promise<unknow
           checksumValue: createHash('sha256').update(corrupted).digest('hex'),
         },
       })
-      .then(
-        () => undefined,
-        (error: unknown) => error,
-      )
+    } catch (cause) {
+      if (cause instanceof Error) return cause
+
+      throw cause
+    }
+
+    throw new Error('validateManifest resolved without throwing')
   } finally {
     await analytics.close()
     closeDb(db)
@@ -70,14 +80,14 @@ describe('ConfiguredSqliteExecutor.unreadableArtifact', () => {
     const error = await validateCorruptedArtifact('header-magic')
 
     expect(error).toBeInstanceOf(BackupIncompatibilityError)
-    expect((error as Error).message).toContain('SQLITE_NOTADB')
+    expect(error.message).toContain('SQLITE_NOTADB')
   })
 
   it('reports the SQLite code when the integrity check finds damage', async () => {
     const error = await validateCorruptedArtifact('zeroed-page')
 
     expect(error).toBeInstanceOf(BackupIncompatibilityError)
-    expect((error as Error).message).toContain('SQLITE_CORRUPT')
+    expect(error.message).toContain('SQLITE_CORRUPT')
   })
 
   it('carries the SQLite code into the operation log payload', async () => {

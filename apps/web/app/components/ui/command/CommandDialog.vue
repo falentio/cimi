@@ -27,6 +27,7 @@ const props = withDefaults(
     showCloseButton: false,
   },
 )
+
 const emits = defineEmits<DialogRootEmits>()
 
 const forwarded = useForwardPropsEmits(props, emits)

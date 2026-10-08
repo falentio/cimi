@@ -18,8 +18,10 @@ describe('SqliteUpgradeExecutor', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
+
     try {
       migrateControlDb(db)
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
@@ -30,6 +32,7 @@ describe('SqliteUpgradeExecutor', () => {
         operationId: 'bop_1',
         artifactId: 'bar_1',
       })
+
       const contents = await readFile(join(directory, artifact.storageKey))
 
       expect(artifact.sizeBytes).toBeGreaterThan(0)
@@ -46,19 +49,23 @@ describe('SqliteUpgradeExecutor', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
+
     try {
       migrateControlDb(db)
       const analyticsRebuild = vi.fn().mockResolvedValue(undefined)
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
         dataDirectoryPath: directory,
         analyticsRebuild,
       })
+
       const artifact = await executor.createSafetyArtifact({
         operationId: 'bop_1',
         artifactId: 'bar_1',
       })
+
       db.$client.prepare('CREATE TABLE upgrade_marker (id TEXT PRIMARY KEY)').run()
 
       await executor.rollback({ operationId: 'bop_1', artifact })
@@ -78,6 +85,7 @@ describe('SqliteUpgradeExecutor', () => {
       try {
         closeDb(db)
       } catch {}
+
       await rm(directory, { recursive: true, force: true })
     }
   })
@@ -86,8 +94,10 @@ describe('SqliteUpgradeExecutor', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
+
     try {
       migrateControlDb(db)
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
@@ -107,8 +117,10 @@ describe('SqliteUpgradeExecutor', () => {
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
     const migrationsFolder = await createProbeMigrationsFolder()
+
     try {
       migrateControlDb(db)
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
@@ -134,11 +146,13 @@ describe('SqliteUpgradeExecutor', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
+
     try {
       migrateControlDb(db)
       db.$client
         .prepare('INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)')
         .run('future-migration', Date.now())
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
@@ -158,17 +172,21 @@ describe('SqliteUpgradeExecutor', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
+
     try {
       migrateControlDb(db)
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
         dataDirectoryPath: directory,
       })
+
       const artifact = await executor.createSafetyArtifact({
         operationId: 'bop_1',
         artifactId: 'bar_1',
       })
+
       await rm(join(directory, artifact.storageKey))
 
       await expect(executor.rollback({ operationId: 'bop_1', artifact })).rejects.toBeInstanceOf(
@@ -184,13 +202,16 @@ describe('SqliteUpgradeExecutor', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
+
     try {
       migrateControlDb(db)
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
         dataDirectoryPath: directory,
       })
+
       const artifact = await executor.createSafetyArtifact({
         operationId: 'bop_1',
         artifactId: 'bar_1',
@@ -218,13 +239,16 @@ describe('SqliteUpgradeExecutor', () => {
     const directory = await mkdtemp(join(tmpdir(), 'cimi-upgrade-executor-'))
     const controlDatabasePath = join(directory, 'control.sqlite')
     const db = createDb({ path: controlDatabasePath })
+
     try {
       migrateControlDb(db)
+
       const executor = new SqliteUpgradeExecutor({
         db,
         controlDatabasePath,
         dataDirectoryPath: directory,
       })
+
       const artifact = await executor.createSafetyArtifact({
         operationId: 'bop_1',
         artifactId: 'bar_1',

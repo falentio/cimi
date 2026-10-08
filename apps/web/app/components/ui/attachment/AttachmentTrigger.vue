@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 interface Props extends PrimitiveProps {
   class?: HTMLAttributes['class']
 }
+
 const props = withDefaults(defineProps<Props>(), {
   as: 'button',
 })

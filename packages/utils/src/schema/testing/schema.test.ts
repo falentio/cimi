@@ -27,6 +27,7 @@ describe('shared utility schemas', () => {
     const result = v.safeParse(SIanaTimezone, 'not/a-timezone')
 
     expect(result.success).toBe(false)
+
     if (result.success) return
 
     expect(VALIDATION_KEYS.shared.ianaTimezone).toBe('validation.shared.ianaTimezone')

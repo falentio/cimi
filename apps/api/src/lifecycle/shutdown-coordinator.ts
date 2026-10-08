@@ -15,10 +15,11 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
     close() {
       if (closePromise !== undefined) return closePromise
       const attempt = closePending()
-      closePromise = attempt.catch((error: unknown) => {
+      closePromise = attempt.catch((cause: unknown) => {
         closePromise = undefined
-        throw error
+        throw cause
       })
+
       return closePromise
     },
   }
@@ -26,6 +27,7 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
   async function closePending(): Promise<void> {
     const unresolved: ShutdownPhase[] = []
     const failures: ShutdownPhaseError[] = []
+
     for (const phase of pending) {
       try {
         await phase.close()
@@ -34,7 +36,9 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
         failures.push(new ShutdownPhaseError(phase.label, error))
       }
     }
+
     pending = unresolved
+
     if (failures.length > 0) {
       throw new AggregateError(failures, 'Lifecycle shutdown failed')
     }
@@ -44,13 +48,13 @@ export function createShutdownCoordinator(phases: readonly ShutdownPhase[]): Shu
 class ShutdownPhaseError extends Error {
   constructor(
     readonly label: string,
-    readonly original: unknown,
+    cause: unknown,
   ) {
-    super(`${label}: ${errorMessage(original)}`, { cause: original })
+    super(`${label}: ${errorMessage(cause)}`, { cause })
     this.name = 'ShutdownPhaseError'
   }
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
 }

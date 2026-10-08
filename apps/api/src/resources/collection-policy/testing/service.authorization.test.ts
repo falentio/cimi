@@ -3,6 +3,7 @@ import { schema } from '@cimi/contract'
 import { createCollectionPolicyFixture, createTestAuthUser } from '../fixture.ts'
 
 const member = createTestAuthUser({ id: 'user_2', role: 'member' })
+
 const policy = schema.DEFAULT_COLLECTION_POLICY
 
 describe('CollectionPolicyService.authorization', () => {

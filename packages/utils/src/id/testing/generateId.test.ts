@@ -57,6 +57,7 @@ describe('createIdGenerator', () => {
   it('combines the day fragment and entropy into one fixed-width Base32 value', () => {
     let randomCalls = 0
     const now = Date.UTC(2026, 7, 24)
+
     const generate = createIdGenerator({
       now: () => now,
       getRandomValues: (bytes) => {
@@ -73,6 +74,7 @@ describe('createIdGenerator', () => {
 
   it('uses one random pool fill until the pool cannot satisfy an id', () => {
     let randomCalls = 0
+
     const generate = createIdGenerator({
       getRandomValues: (bytes) => {
         randomCalls += 1
@@ -83,6 +85,7 @@ describe('createIdGenerator', () => {
     for (let index = 0; index < 4_681; index += 1) {
       generate('ste')
     }
+
     expect(randomCalls).toBe(1)
 
     generate('ste')

@@ -8,19 +8,25 @@ import { SqliteUpgradeExecutor } from './upgrade-executor.ts'
 import type { DataDirectoryReadiness, InstallationIdFactory, UpgradeExecutor } from './service.ts'
 
 export { installationRouter }
+
 export {
   InstallationService,
   type DataDirectoryReadiness,
   type InstallationServiceDependencies,
   type UpgradeExecutor,
 } from './service.ts'
+
 export type { InstallationIdFactory } from './service.ts'
+
 export {
   InstallationRepositoryDrizzle,
   type InstallationRepositoryDrizzleDependencies,
 } from './repository.drizzle.ts'
+
 export { SqliteUpgradeExecutor } from './upgrade-executor.ts'
+
 export type { SqliteUpgradeExecutorDependencies } from './upgrade-executor.ts'
+
 export type { InstallationRepository } from './repository.ts'
 
 export interface CreateInstallationDependencies {
@@ -53,6 +59,7 @@ export function createInstallation({
   upgradeExecutor,
 }: CreateInstallationDependencies) {
   const repository = new InstallationRepositoryDrizzle({ db })
+
   const executor =
     upgradeExecutor ??
     new SqliteUpgradeExecutor({
@@ -62,18 +69,21 @@ export function createInstallation({
       migrationsFolder,
       analyticsRebuild: () => analytics.rebuild({ controlDb: db }),
     })
+
   const service = new InstallationService({
     repository,
     lock,
     journal: journal ?? new InMemoryAcceptanceJournalPort(),
-    ...(acceptance === undefined ? {} : { acceptance }),
+    ...(acceptance !== undefined && { acceptance }),
     analyticsProjectionReady: () => isAnalyticsProjectionReady({ db, analytics }),
     dataDirectoryReady,
-    ...(clock === undefined ? {} : { clock }),
-    ...(ids === undefined ? {} : { ids }),
+    ...(clock !== undefined && { clock }),
+    ...(ids !== undefined && { ids }),
     upgradeExecutor: executor,
   })
+
   const router = installationRouter(service)
+
   return { service, router }
 }
 
@@ -85,10 +95,14 @@ async function isAnalyticsProjectionReady(input: {
 }): Promise<boolean> {
   if (!(await input.analytics.ready())) return false
   const sites = input.db.select({ id: schema.TSite.id }).from(schema.TSite).all()
+
   for (const site of sites) {
     const snapshot = await input.analytics.readProjectionSnapshot({ siteId: site.id })
+
     if (snapshot.checkpoint === null) return false
+
     if (snapshot.checkpoint.projectedFactCardinality !== snapshot.factCardinality) return false
   }
+
   return true
 }

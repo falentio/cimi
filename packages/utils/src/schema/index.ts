@@ -11,6 +11,7 @@ export const VALIDATION_KEYS = {
 }
 
 export const SId = v.pipe(v.string(), v.minLength(1), v.maxLength(128))
+
 export const SName = v.pipe(v.string(), v.minLength(1), v.maxLength(256))
 
 export const canonicalizeHostname = (hostname: string) => hostname.toLowerCase().replace(/\.$/, '')
@@ -32,6 +33,7 @@ export const SIanaTimezone = v.pipe(
   v.check((value) => {
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
+
       return true
     } catch {
       return false
@@ -50,7 +52,11 @@ export const SWeekStart = v.picklist([
 ])
 
 export type Id = v.InferOutput<typeof SId>
+
 export type Name = v.InferOutput<typeof SName>
+
 export type Hostname = v.InferOutput<typeof SHostname>
+
 export type IanaTimezone = v.InferOutput<typeof SIanaTimezone>
+
 export type WeekStart = v.InferOutput<typeof SWeekStart>

@@ -40,6 +40,7 @@ test('first signed-up user becomes admin, later users keep non-admin role', asyn
     .select()
     .from(schema.TUser)
     .where(eq(schema.TUser.email, 'admin@example.com'))
+
   const first = firstRows[0]
   expect(first?.role).toBe('admin')
 
@@ -61,6 +62,7 @@ test('first signed-up user becomes admin, later users keep non-admin role', asyn
     .select()
     .from(schema.TUser)
     .where(eq(schema.TUser.email, 'member@example.com'))
+
   const second = secondRows[0]
   expect(second?.role).not.toBe('admin')
 })

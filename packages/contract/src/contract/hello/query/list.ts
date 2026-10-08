@@ -7,12 +7,14 @@ export const SHelloListInput = v.strictObject({
   ...SOffsetPaginationInput.entries,
   name: v.optional(SHelloBase.entries.name),
 })
+
 export type SHelloListInput = v.InferOutput<typeof SHelloListInput>
 
 export const SHelloListOutput = v.strictObject({
   items: SPageItems(SHelloBase),
   ...SOffsetPage.entries,
 })
+
 export type SHelloListOutput = v.InferOutput<typeof SHelloListOutput>
 
 /**

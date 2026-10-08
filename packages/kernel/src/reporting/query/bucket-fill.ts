@@ -32,6 +32,7 @@ export function fillBuckets<T>(input: {
   if (input.bucketStarts.length === 0) return []
 
   const rowsByStart = new Map<InstantMs, BucketCount>()
+
   for (const row of input.rows) {
     rowsByStart.set(row.at, row)
   }
@@ -41,6 +42,7 @@ export function fillBuckets<T>(input: {
     const end = next === undefined ? input.interval.endExclusive : next.at
     const row = rowsByStart.get(bucket.at) ?? { at: bucket.at, count: 0 }
     const complete = input.completeThrough !== null && end <= input.completeThrough
+
     return { at: bucket.at, value: input.toValue(row), complete }
   })
 }
