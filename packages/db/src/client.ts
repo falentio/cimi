@@ -1,5 +1,15 @@
 import { randomBytes } from 'node:crypto'
-import { closeSync, fsyncSync, linkSync, openSync, renameSync, unlinkSync } from 'node:fs'
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  linkSync,
+  openSync,
+  readdirSync,
+  renameSync,
+  unlinkSync,
+} from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema/index.ts'
@@ -170,6 +180,7 @@ export async function restoreDbFromBackup(input: {
   prepare?: ((db: Db) => void | Promise<void>) | undefined
 }): Promise<void> {
   const tmpPath = `${input.destinationPath}.tmp.${randomBytes(8).toString('hex')}`
+  const backupSidecars = sidecarPresence(input.backupPath)
 
   try {
     const backup = new Database(input.backupPath, { fileMustExist: true, readonly: true })
@@ -224,6 +235,7 @@ export async function restoreDbFromBackup(input: {
     }
   } finally {
     discardSqliteFile(tmpPath)
+    discardCreatedSidecars(backupSidecars)
   }
 }
 
@@ -299,10 +311,56 @@ function removeSqliteFile(path: string): void {
   removeSidecars(path)
 }
 
+/** Reading a WAL-mode artifact through a readonly handle creates -wal and -shm next to it. */
+function sidecarPresence(path: string): ReadonlyArray<{ path: string; existed: boolean }> {
+  return [`${path}-wal`, `${path}-shm`].map((sidecarPath) => ({
+    path: sidecarPath,
+    existed: existsSync(sidecarPath),
+  }))
+}
+
+/** A pre-existing WAL can hold uncommitted frames, so this leaves it in place. */
+function discardCreatedSidecars(sidecars: ReadonlyArray<{ path: string; existed: boolean }>): void {
+  for (const sidecar of sidecars) {
+    if (sidecar.existed) continue
+
+    try {
+      unlinkSync(sidecar.path)
+    } catch {}
+  }
+}
+
 function discardSqliteFile(path: string): void {
   for (const candidate of [path, `${path}-wal`, `${path}-shm`]) {
     try {
       unlinkSync(candidate)
     } catch {}
+  }
+}
+
+const RESTORE_STAGING_FILE_NAME = /^(.+)\.tmp\.[0-9a-fA-F]{16}(?:-wal|-shm)?$/
+
+/**
+ * Removes .tmp restore staging files from the control database directory. A staging file is a
+ * partial write that was never renamed into place, so the destination always predates it and
+ * deleting it cannot lose the only copy. The .previous and .recovery copies that a crash between
+ * replaceFromFile's two renames leaves behind are recovery artifacts and are never swept here.
+ */
+export function sweepRestoreStagingFiles(input: { controlDatabasePath: string }): void {
+  const directory = dirname(input.controlDatabasePath)
+  const controlDatabaseName = basename(input.controlDatabasePath)
+  let entries: string[]
+
+  try {
+    entries = readdirSync(directory)
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
+    throw error
+  }
+
+  for (const name of entries) {
+    if (RESTORE_STAGING_FILE_NAME.exec(name)?.[1] !== controlDatabaseName) continue
+
+    discardSqliteFile(join(directory, name))
   }
 }
