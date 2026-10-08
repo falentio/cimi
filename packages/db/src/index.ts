@@ -1,5 +1,6 @@
 export {
   CONTROL_DB_FILENAME,
+  ControlDatabaseBusyError,
   closeDb,
   createDb,
   restoreDbFromBackup,
