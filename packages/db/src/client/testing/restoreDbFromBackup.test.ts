@@ -3,6 +3,7 @@ import {
   existsSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
@@ -201,6 +202,31 @@ describe('restoreDbFromBackup', () => {
       closeDb(reopened)
     }
   })
+
+  it('installs over an absent destination without a db handle', async () => {
+    const { db, destinationPath, backupPath } = seedDestination()
+    await db.$client.backup(backupPath)
+    closeDb(db)
+    rmSync(destinationPath, { force: true })
+    rmSync(`${destinationPath}-wal`, { force: true })
+    rmSync(`${destinationPath}-shm`, { force: true })
+    expect(existsSync(destinationPath)).toBe(false)
+
+    await restoreDbFromBackup({ backupPath, destinationPath })
+
+    expect(restoreLeftovers()).toEqual([])
+    const reopened = createDb({ path: destinationPath })
+
+    try {
+      expect(reopened.$client.prepare('SELECT v FROM marker WHERE id = 1').get()).toEqual({
+        v: 'live',
+      })
+      expect(reopened.$client.pragma('integrity_check', { simple: true })).toBe('ok')
+    } finally {
+      closeDb(reopened)
+    }
+  })
+
   it('leaves no sidecars next to the backup source', async () => {
     const { db, destinationPath, backupPath } = seedDestination()
 
