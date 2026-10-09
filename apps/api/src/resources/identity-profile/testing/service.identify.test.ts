@@ -7,12 +7,17 @@ import {
   createCollectionPolicyFixture,
   createPolicyLayers,
 } from '../../collection-policy/fixture.ts'
-import { createSiteRecord } from '../../site/fixture.ts'
-import type { SiteRepository } from '../../site/repository.ts'
+import type { IngestionSite, SiteIngestionPort } from '@cimi/guard'
 import type { IdentityProfileRepository } from '../repository.ts'
 import { IdentityProfileService } from '../service.ts'
 
 const now = new Date('2026-09-10T06:00:00.000Z')
+
+const ingestionSite: IngestionSite = {
+  id: 'ste_1',
+  hostname: 'example.com',
+  reportingTimezone: 'UTC',
+}
 
 const profileActivityCutoff = new Date('2026-09-10T06:01:00.000Z')
 
@@ -23,14 +28,14 @@ function createFixture(
   } = {},
 ) {
   const repository = mock<IdentityProfileRepository>()
-  const siteRepository = mock<SiteRepository>()
-  siteRepository.findByIngestionIdentifier.mockResolvedValue(createSiteRecord())
+  const sites = mock<SiteIngestionPort>()
+  sites.findActiveByIngestionIdentifier.mockResolvedValue(ingestionSite)
   const policyFixture = createCollectionPolicyFixture({ clock: () => now, ...options })
   const projectionDebt = { mark: vi.fn() }
 
   const service = new IdentityProfileService({
     repository,
-    siteRepository,
+    sites,
     collectionPolicy: policyFixture.service,
     scope: { siteScope: policyFixture.scope, membership: policyFixture.scope },
     profileActivityCutoff: async () => profileActivityCutoff,
@@ -39,7 +44,7 @@ function createFixture(
     clock: () => now,
   })
 
-  return { repository, siteRepository, policyFixture, projectionDebt, service }
+  return { repository, sites, policyFixture, projectionDebt, service }
 }
 
 describe('IdentityProfileService.identify', () => {

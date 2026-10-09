@@ -5,8 +5,6 @@ import type { SiteScopeGuardDependencies } from '@cimi/guard'
 import type { LifecycleLock } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
-import { SiteRepositoryDrizzle } from '../site/repository.drizzle.ts'
-import type { SiteRepository } from '../site/repository.ts'
 import { IdentityProfileRepositoryDrizzle } from './repository.drizzle.ts'
 import type { IdentityProfileIdFactory } from './repository.ts'
 import { identityProfileRouter, type IdentityProfileRouterOptions } from './router.ts'
@@ -16,6 +14,7 @@ import {
   type IdentityProjectionDebtMarker,
 } from './service.ts'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
+import type { SiteIngestionPort } from '@cimi/guard'
 
 export { identityProfileRouter }
 
@@ -47,7 +46,7 @@ export type {
 export interface CreateIdentityProfileDependencies {
   readonly db: Db
   readonly collectionPolicy: CollectionPolicyService
-  readonly siteRepository?: SiteRepository | undefined
+  readonly sites: SiteIngestionPort
   readonly scope?: SiteScopeGuardDependencies | undefined
   readonly projectionDebt?: IdentityProjectionDebtMarker | undefined
   readonly membership?: OrganizationMembershipReconciler | undefined
@@ -61,7 +60,7 @@ export interface CreateIdentityProfileDependencies {
 export function createIdentityProfile({
   db,
   collectionPolicy,
-  siteRepository,
+  sites,
   scope,
   projectionDebt,
   membership,
@@ -78,7 +77,7 @@ export function createIdentityProfile({
 
   const service = new IdentityProfileService({
     repository,
-    siteRepository: siteRepository ?? new SiteRepositoryDrizzle({ db }),
+    sites,
     collectionPolicy,
     scope: scope ?? createSiteScopeDependencies({ db }),
     profileActivityCutoff: async (siteId) => {
