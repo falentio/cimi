@@ -1,7 +1,7 @@
 import { computed, getCurrentInstance, type ComputedRef, type Ref } from 'vue'
 import type { createCimiAuthClient } from '@cimi/auth/client'
 import { isNumberValue, isStringValue } from '../utils/type-guards'
-import { isAuthUser } from '@/utils/auth-session'
+import { isAuthUser } from '../utils/auth-session'
 
 type AuthClient = ReturnType<typeof createCimiAuthClient>
 
