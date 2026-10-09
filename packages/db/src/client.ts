@@ -106,7 +106,7 @@ export function createDb(options: CreateDbOptions) {
     },
     replaceFromFile: (sourcePath, destinationPath) => {
       if (closed) {
-        renameSync(sourcePath, destinationPath)
+        installStagedFileWithoutHandle({ destinationPath, stagedPath: sourcePath })
 
         return
       }
@@ -231,8 +231,10 @@ export async function restoreDbFromBackup(input: {
     if (handle?.isOpen()) {
       handle.replaceFromFile(tmpPath, input.destinationPath)
     } else {
-      removeSidecars(input.destinationPath)
-      renameSync(tmpPath, input.destinationPath)
+      installStagedFileWithoutHandle({
+        destinationPath: input.destinationPath,
+        stagedPath: tmpPath,
+      })
     }
   } finally {
     discardSqliteFile(tmpPath)
@@ -367,15 +369,10 @@ function fsyncDirectory(path: string): void {
 }
 
 /**
- * Installs a staged database over the live one. The destination is parked at a .recovery sibling by
- * hard link, or by copy when the filesystem refuses a link, then one atomic rename replaces it.
  * POSIX rename swaps the destination in a single step, so no reader observes a missing control
- * database. The caller has already checkpointed the live handle, closed it, and removed its sidecars.
+ * database. Any open handle has already been checkpointed, closed, and its sidecars removed.
  */
-function swapStagedFileIntoPlace(input: {
-  destinationPath: string
-  stagedPath: string
-}): Database.Database {
+function swapFileIntoPlace(input: { destinationPath: string; stagedPath: string }): void {
   const directory = dirname(input.destinationPath)
   const recoveryPath = `${input.destinationPath}.recovery.${randomBytes(8).toString('hex')}`
   let recoveryHoldsOriginal = false
@@ -392,8 +389,6 @@ function swapStagedFileIntoPlace(input: {
     try {
       renameSync(input.stagedPath, input.destinationPath)
       fsyncDirectory(directory)
-
-      return openConfiguredDatabase(input.destinationPath)
     } catch (error) {
       removeSqliteFile(input.destinationPath)
       renameSync(recoveryPath, input.destinationPath)
@@ -404,6 +399,28 @@ function swapStagedFileIntoPlace(input: {
   } finally {
     if (recoveryHoldsOriginal) discardSqliteFile(recoveryPath)
   }
+}
+
+function swapStagedFileIntoPlace(input: {
+  destinationPath: string
+  stagedPath: string
+}): Database.Database {
+  swapFileIntoPlace(input)
+
+  return openConfiguredDatabase(input.destinationPath)
+}
+
+/**
+ * Installs a staged file over a destination no handle holds open. The destination sidecars go
+ * first, because a stale -wal that survived the rename would be replayed over the staged schema
+ * and silently revert the install.
+ */
+export function installStagedFileWithoutHandle(input: {
+  destinationPath: string
+  stagedPath: string
+}): void {
+  removeSidecars(input.destinationPath)
+  swapFileIntoPlace(input)
 }
 
 /** Reading a WAL-mode artifact through a readonly handle creates -wal and -shm next to it. */
