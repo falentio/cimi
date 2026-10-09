@@ -1,9 +1,12 @@
-import type { OrganizationRole } from '../organization/repository.ts'
+import { schema } from '@cimi/contract'
+import type { InferOutput } from 'valibot'
+
+export type MembershipRole = InferOutput<typeof schema.SMembershipRole>
 
 export interface MembershipRecord {
   readonly organizationId: string
   readonly userId: string
-  readonly role: OrganizationRole
+  readonly role: MembershipRole
   readonly createdAt: Date
   readonly updatedAt: Date
 }
@@ -35,7 +38,7 @@ export interface MembershipRepository {
   updateRole(options: {
     organizationId: string
     userId: string
-    role: OrganizationRole
+    role: MembershipRole
     updatedAt: Date
   }): Promise<MembershipRecord | undefined>
   delete(options: { organizationId: string; userId: string }): Promise<boolean>

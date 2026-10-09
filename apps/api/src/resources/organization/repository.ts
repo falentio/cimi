@@ -1,4 +1,7 @@
-export type OrganizationRole = 'owner' | 'admin' | 'member'
+import { schema } from '@cimi/contract'
+import type { InferOutput } from 'valibot'
+
+export type OrganizationRole = InferOutput<typeof schema.SMembershipRole>
 
 export interface OrganizationRecord {
   readonly id: string
