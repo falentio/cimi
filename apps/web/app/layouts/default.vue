@@ -49,7 +49,6 @@ const breadcrumbs = computed(() => resolveBreadcrumbs(route.path))
           <slot />
         </div>
       </div>
-      <UIToaster position="top-center" />
     </SidebarInset>
   </SidebarProvider>
 </template>
