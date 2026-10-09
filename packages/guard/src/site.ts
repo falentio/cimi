@@ -20,6 +20,24 @@ export interface SiteScopeGuardDependencies {
   readonly membership: SiteMembershipPort
 }
 
+/**
+ * Read-only view of the Sites that may accept ingestion traffic. Implementations
+ * exclude Sites that are missing, not active, or tombstoned, so `undefined` is the
+ * single answer for every not-ingestible case. Callers cannot re-check lifecycle
+ * status, which keeps the active-and-live rule in one implementation.
+ */
+export interface SiteIngestionPort {
+  findActiveByIngestionIdentifier(
+    ingestionIdentifier: string,
+  ): PortResult<IngestionSite | undefined>
+}
+
+export interface IngestionSite {
+  readonly id: string
+  readonly hostname: string
+  readonly reportingTimezone: string
+}
+
 export interface SiteScopeGuardOptions {
   readonly requiredRole?: SiteMembershipRole
 }
