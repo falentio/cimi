@@ -23,6 +23,18 @@ export interface CreateDbOptions {
   path: string
 }
 
+/**
+ * A TRUNCATE checkpoint could not fold every committed frame into the main database file,
+ * because another connection holds a read snapshot or an open write transaction. The frames it
+ * left behind live only in the -wal sidecar, so unlinking it would silently drop committed rows.
+ */
+export class ControlDatabaseBusyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ControlDatabaseBusyError'
+  }
+}
+
 export function createDb(options: CreateDbOptions) {
   const location: DbStorageLocation =
     options.path === ':memory:' ? { kind: 'memory' } : { kind: 'file', path: options.path }
@@ -62,7 +74,7 @@ export function createDb(options: CreateDbOptions) {
       }
 
       const destinationPath = location.path
-      current.pragma('wal_checkpoint(TRUNCATE)')
+      checkpointTruncateOrThrow(current, destinationPath)
       current.close()
       removeSidecars(destinationPath)
       const recoveryPath = `${destinationPath}.recovery.${randomBytes(8).toString('hex')}`
@@ -100,7 +112,7 @@ export function createDb(options: CreateDbOptions) {
 
       const previousPath = `${destinationPath}.previous.${randomBytes(8).toString('hex')}`
       let previousMoved = false
-      current.pragma('wal_checkpoint(TRUNCATE)')
+      checkpointTruncateOrThrow(current, destinationPath)
       current.close()
       removeSidecars(destinationPath)
 
@@ -219,7 +231,7 @@ export async function restoreDbFromBackup(input: {
 
       try {
         await input.prepare(stagedDb)
-        stagedDb.$client.pragma('wal_checkpoint(TRUNCATE)')
+        checkpointTruncateOrThrow(stagedDb.$client, tmpPath)
       } finally {
         closeDb(stagedDb)
       }
@@ -257,7 +269,7 @@ function openMemoryDatabaseFromStagedFile(stagedPath: string): Database.Database
   let serialized: Buffer
 
   try {
-    staged.pragma('wal_checkpoint(TRUNCATE)')
+    checkpointTruncateOrThrow(staged, stagedPath)
     staged.pragma('journal_mode = DELETE')
     serialized = staged.serialize()
   } finally {
@@ -281,6 +293,32 @@ function openMemoryDatabaseFromStagedFile(stagedPath: string): Database.Database
   } catch (error) {
     candidate.close()
     throw error
+  }
+}
+
+type CheckpointTruncateResult = { busy: number; log: number; checkpointed: number }
+
+/**
+ * Folds the write-ahead log into the main database file and refuses to continue when it cannot.
+ *
+ * wal_checkpoint(TRUNCATE) is authoritative about the frames it left behind: `busy` marks an
+ * unfinished pass and `checkpointed < log` means committed frames survive only in the -wal
+ * sidecar. A caller that removes that sidecar after this returns would drop those rows, so a
+ * partial result throws instead of letting the unlink happen.
+ */
+function checkpointTruncateOrThrow(sqlite: Database.Database, path: string): void {
+  // SAFETY: better-sqlite3 pragma() returns unknown; wal_checkpoint returns one fixed-shape row.
+  const rows = sqlite.pragma('wal_checkpoint(TRUNCATE)') as CheckpointTruncateResult[]
+  const result = rows[0]
+
+  if (result === undefined) return
+
+  if (result.busy !== 0 || result.checkpointed !== result.log) {
+    throw new ControlDatabaseBusyError(
+      `Could not checkpoint ${basename(path)} before replacing it. Another connection holds ` +
+        `the database open, leaving ${result.log - result.checkpointed} committed frame(s) only ` +
+        `in the write-ahead log. Retry once that connection closes.`,
+    )
   }
 }
 

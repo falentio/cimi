@@ -15,6 +15,7 @@ import type { InferOutput } from 'valibot'
 import { reportLogEvent, type LogOperationContext } from '@cimi/logging'
 import {
   BackupIncompatibilityError,
+  ControlDatabaseBusyBackupError,
   InsufficientStorageError,
   SafetyArtifactChecksumMismatchError,
   SafetyArtifactUnavailableError,
@@ -958,6 +959,8 @@ function errorCodeFor(
 
   if (cause instanceof SafetyArtifactChecksumMismatchError) return 'INTERNAL_SERVER_ERROR'
 
+  if (cause instanceof ControlDatabaseBusyBackupError) return 'CONFLICT'
+
   if (cause instanceof ORPCError && cause.code === 'CONFLICT') return 'CONFLICT'
 
   return fallback
@@ -985,6 +988,10 @@ function toCommandError(cause: unknown): ORPCError<string, unknown> {
 
   if (cause instanceof SafetyArtifactUnavailableError) {
     return new ORPCError('INSUFFICIENT_STORAGE', { status: 507 })
+  }
+
+  if (cause instanceof ControlDatabaseBusyBackupError) {
+    return new ORPCError('CONFLICT', { status: 409, message: cause.message })
   }
 
   return new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 })
