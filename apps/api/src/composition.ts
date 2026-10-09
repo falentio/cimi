@@ -186,8 +186,9 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
 
   const eventIngestion = createEventIngestion({
     db: deps.db,
+    sites: site.ingestionPort,
     collectionPolicy: collectionPolicy.service,
-    retention: retentionPolicy.repository,
+    retention: retentionPolicy.resolver,
     lifecycleLock: lock,
     protection: eventIngestionProtection,
     identitySession: deps.eventIdentitySession,

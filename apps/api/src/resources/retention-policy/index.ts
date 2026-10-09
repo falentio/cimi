@@ -3,6 +3,7 @@ import type { SiteScopeGuardDependencies } from '@cimi/guard'
 import type { LifecycleLock, LifecycleOperationStatusReader } from '@cimi/kernel'
 import { createSiteScopeDependencies } from '../site/scope.ts'
 import { RetentionPolicyRepositoryDrizzle } from './repository.drizzle.ts'
+import { createRetentionResolver } from './resolver.ts'
 import { retentionPolicyRouter } from './router.ts'
 import { RetentionPolicyService, type RetentionPolicyIdFactory } from './service.ts'
 import {
@@ -76,7 +77,9 @@ export function createRetentionPolicy({
 
   const worker = new RetentionCleanupWorker(workerDependencies)
 
-  return { repository, service, router, worker }
+  const resolver = createRetentionResolver({ repository })
+
+  return { repository, service, router, worker, resolver }
 }
 
 export type RetentionPolicyModule = ReturnType<typeof createRetentionPolicy>

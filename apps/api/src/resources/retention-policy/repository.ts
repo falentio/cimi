@@ -1,5 +1,6 @@
 import type { schema } from '@cimi/contract'
 import type { InferOutput } from 'valibot'
+import type { CleanupCheckpoint, CleanupKind, SiteRetentionBoundary } from './cleanup-payload.ts'
 
 export interface RetentionPolicyRepository {
   commitPolicyChange(
@@ -39,36 +40,10 @@ export declare namespace RetentionPolicyRepository {
 
   export type PolicyTarget = { scope: 'installation' } | { scope: 'site'; siteId: string }
 
-  export interface SiteRetentionBoundary {
-    siteId: string
-    installationId: string
-    policyId: string
-    reportingTimezone: string
-    localDay: string
-    eventOccurrenceCutoffAt: Date
-    rawReceiptCutoffAt: Date
-    profileActivityCutoffAt: Date
-    replayReceiptCutoffAt: Date | null
-    effectiveAt: Date
-    updatedAt: Date
-  }
-
   export interface PolicyCommit {
     resolution: StoredResolution
     affectedBoundaries: readonly SiteRetentionBoundary[]
     queuedRunIds: readonly string[]
-  }
-
-  export type CleanupKind = 'derived' | 'backup'
-
-  export interface CleanupCheckpoint {
-    id: string
-    dataClass: string
-    stage: CleanupKind
-    cursor: string | null
-    processedThrough: Date | null
-    status: 'pending' | 'running' | 'completed' | 'failed'
-    updatedAt: Date
   }
 
   export interface CleanupWork {

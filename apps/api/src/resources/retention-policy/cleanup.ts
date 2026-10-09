@@ -1,5 +1,6 @@
 import type { LifecycleLock } from '@cimi/kernel'
 import { reportLogEvent, type LogOperationContext } from '@cimi/logging'
+import type { CleanupCheckpoint, SiteRetentionBoundary } from './cleanup-payload.ts'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 const DEFAULT_INTERVAL_MS = 1_000
@@ -17,15 +18,15 @@ export interface RetentionCleanupPort {
     runId: string
     siteId: string
     now: Date
-    boundary: RetentionPolicyRepository.SiteRetentionBoundary
-    checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
+    boundary: SiteRetentionBoundary
+    checkpoints: readonly CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult>
   runBackup(input: {
     runId: string
     siteId: string
     now: Date
-    boundary: RetentionPolicyRepository.SiteRetentionBoundary
-    checkpoints: readonly RetentionPolicyRepository.CleanupCheckpoint[]
+    boundary: SiteRetentionBoundary
+    checkpoints: readonly CleanupCheckpoint[]
   }): Promise<RetentionCleanupBatchResult>
 }
 

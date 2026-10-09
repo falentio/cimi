@@ -5,10 +5,14 @@ import { schema as contractSchema } from '@cimi/contract'
 import { mock } from 'vitest-mock-extended'
 import type { CollectionPolicyRepository } from '../../collection-policy/repository.ts'
 import { CollectionPolicyService } from '../../collection-policy/service.ts'
-import { InMemoryLifecycleLock, InMemoryLifecycleOperationStatusReader } from '@cimi/kernel'
+import {
+  InMemoryLifecycleLock,
+  InMemoryLifecycleOperationStatusReader,
+  InMemoryRetentionResolver,
+} from '@cimi/kernel'
 import { InMemorySiteScopePort } from '@cimi/guard'
+import { createSiteIngestionPort } from '../../site/ingestion-port.ts'
 import type { PolicyLayers } from '../../collection-policy/model.ts'
-import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
 import { createSiteDrizzleFixture } from '../../site/fixture.drizzle.ts'
 import { SiteRepositoryDrizzle } from '../../site/repository.drizzle.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
@@ -58,23 +62,15 @@ function createFixture() {
     clock: () => now,
   })
 
-  const retention = mock<RetentionPolicyRepository>()
-  retention.findResolved.mockResolvedValue({
-    installationId: 'ins_1',
-    installationDefault: { eventMonths: 12, profileMonths: 12, replayMonths: null },
-    siteOverride: null,
-    effectivePolicy: { eventMonths: 12, profileMonths: 12, replayMonths: null },
-    cleanup: {
-      pending: false,
-      derived: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
-      backup: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
-    },
-    updatedAt: now.toISOString(),
+  const retention = new InMemoryRetentionResolver({
+    eventMonths: 12,
+    profileMonths: 12,
+    replayMonths: null,
   })
 
   const ingestion = createEventIngestion({
     db,
-    siteRepository: new SiteRepositoryDrizzle({ db }),
+    sites: createSiteIngestionPort({ repository: new SiteRepositoryDrizzle({ db }) }),
     collectionPolicy: service,
     retention,
   })

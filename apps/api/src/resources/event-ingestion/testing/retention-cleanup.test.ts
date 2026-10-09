@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
 import { createTestAnalyticsDb } from '@cimi/db/testing'
 import { mock } from 'vitest-mock-extended'
+import type { SiteRetentionBoundary } from '../../retention-policy/cleanup-payload.ts'
 import type { AcceptanceRepository } from '../repository.ts'
 import {
   AcceptanceBackupRestoreCleanup,
@@ -18,7 +19,6 @@ import {
   createSiteRow,
   createSiteUserRow,
 } from '../../site/fixture.drizzle.ts'
-import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
 import { InstallationRepositoryDrizzle } from '../../installation/repository.drizzle.ts'
 import { createInstallationInsertInput } from '../../installation/fixture.drizzle.ts'
 import { createIdentityProjectionDebt } from '../identity-projection-debt.ts'
@@ -36,7 +36,7 @@ async function createAnalyticsFixture() {
   }
 }
 
-function boundary(): RetentionPolicyRepository.SiteRetentionBoundary {
+function boundary(): SiteRetentionBoundary {
   return {
     siteId: 'ste_1',
     installationId: 'ins_1',
