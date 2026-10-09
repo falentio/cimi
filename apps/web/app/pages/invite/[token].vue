@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { toast } from 'vue-sonner'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
@@ -94,6 +95,7 @@ async function acceptInvitation(): Promise<void> {
   try {
     const membership = await orpc.invitation.acceptInvitation.call({ token: token.value })
     state.value = { status: 'accepted', membership }
+    toast.success(t('invite.acceptedTitle'))
     await navigateTo(`/org/${membership.organizationId}/settings/members`)
   } catch (error: unknown) {
     state.value = {
@@ -145,10 +147,10 @@ async function acceptInvitation(): Promise<void> {
           <AlertDescription>{{ errorMessage }}</AlertDescription>
         </Alert>
 
-        <Alert v-else-if="render.view === 'accepted'">
+        <div v-else-if="render.view === 'accepted'" :class="alertVariants()">
           <AlertTitle>{{ t('invite.acceptedTitle') }}</AlertTitle>
           <AlertDescription>{{ t('invite.acceptedDescription') }}</AlertDescription>
-        </Alert>
+        </div>
       </CardContent>
     </Card>
   </main>
