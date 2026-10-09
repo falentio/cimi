@@ -61,6 +61,22 @@ export function createDb(options: CreateDbOptions) {
   let current = openConfiguredDatabase(options.path)
   let closed = false
 
+  const installIntoCurrent = (sourcePath: string, destinationPath: string): void => {
+    checkpointTruncateOrThrow(current, destinationPath)
+    current.close()
+
+    try {
+      current = swapStagedFileIntoPlace({
+        destinationPath,
+        stagedPath: sourcePath,
+        openInstalled: openConfiguredDatabase,
+      })
+    } catch (error) {
+      current = openConfiguredDatabase(destinationPath)
+      throw error
+    }
+  }
+
   const client = new Proxy(current, {
     get(_target, property) {
       // SAFETY: Proxy trap scopes dynamic keys to the current client's own keys.
@@ -92,36 +108,9 @@ export function createDb(options: CreateDbOptions) {
         return
       }
 
-      const destinationPath = location.path
-      checkpointTruncateOrThrow(current, destinationPath)
-      current.close()
-      removeSidecars(destinationPath)
-
-      try {
-        current = swapStagedFileIntoPlace({ destinationPath, stagedPath })
-      } catch (error) {
-        current = openConfiguredDatabase(destinationPath)
-        throw error
-      }
+      installIntoCurrent(stagedPath, location.path)
     },
-    replaceFromFile: (sourcePath, destinationPath) => {
-      if (closed) {
-        renameSync(sourcePath, destinationPath)
-
-        return
-      }
-
-      checkpointTruncateOrThrow(current, destinationPath)
-      current.close()
-      removeSidecars(destinationPath)
-
-      try {
-        current = swapStagedFileIntoPlace({ destinationPath, stagedPath: sourcePath })
-      } catch (error) {
-        current = openConfiguredDatabase(destinationPath)
-        throw error
-      }
-    },
+    replaceFromFile: installIntoCurrent,
   })
 
   return db
@@ -231,8 +220,11 @@ export async function restoreDbFromBackup(input: {
     if (handle?.isOpen()) {
       handle.replaceFromFile(tmpPath, input.destinationPath)
     } else {
-      removeSidecars(input.destinationPath)
-      renameSync(tmpPath, input.destinationPath)
+      swapStagedFileIntoPlace({
+        destinationPath: input.destinationPath,
+        stagedPath: tmpPath,
+        openInstalled: () => undefined,
+      })
     }
   } finally {
     discardSqliteFile(tmpPath)
@@ -367,38 +359,48 @@ function fsyncDirectory(path: string): void {
 }
 
 /**
- * Installs a staged database over the live one. The destination is parked at a .recovery sibling by
- * hard link, or by copy when the filesystem refuses a link, then one atomic rename replaces it.
- * POSIX rename swaps the destination in a single step, so no reader observes a missing control
- * database. The caller has already checkpointed the live handle, closed it, and removed its sidecars.
+ * Installs a staged database over the live one as one atomic, rollback-safe transaction: the
+ * destination is parked at a .recovery sibling, then one POSIX rename replaces it, so no reader
+ * observes a missing control database. The destination's sidecars are removed first, so a stale
+ * -wal can never replay over the installed artifact. `openInstalled` runs inside the rollback
+ * window, so a failed open restores the original.
  */
-function swapStagedFileIntoPlace(input: {
+function swapStagedFileIntoPlace<T>(input: {
   destinationPath: string
   stagedPath: string
-}): Database.Database {
+  openInstalled: (installedPath: string) => T
+}): T {
   const directory = dirname(input.destinationPath)
   const recoveryPath = `${input.destinationPath}.recovery.${randomBytes(8).toString('hex')}`
+  const hadDestination = existsSync(input.destinationPath)
   let recoveryHoldsOriginal = false
 
-  try {
-    try {
-      linkSync(input.destinationPath, recoveryPath)
-    } catch {
-      copyFileSync(input.destinationPath, recoveryPath)
-    }
+  removeSidecars(input.destinationPath)
 
-    recoveryHoldsOriginal = true
+  try {
+    if (hadDestination) {
+      try {
+        linkSync(input.destinationPath, recoveryPath)
+      } catch {
+        copyFileSync(input.destinationPath, recoveryPath)
+      }
+
+      recoveryHoldsOriginal = true
+    }
 
     try {
       renameSync(input.stagedPath, input.destinationPath)
       fsyncDirectory(directory)
 
-      return openConfiguredDatabase(input.destinationPath)
+      return input.openInstalled(input.destinationPath)
     } catch (error) {
-      removeSqliteFile(input.destinationPath)
-      renameSync(recoveryPath, input.destinationPath)
-      fsyncDirectory(directory)
-      recoveryHoldsOriginal = false
+      if (recoveryHoldsOriginal) {
+        removeSqliteFile(input.destinationPath)
+        renameSync(recoveryPath, input.destinationPath)
+        fsyncDirectory(directory)
+        recoveryHoldsOriginal = false
+      }
+
       throw error
     }
   } finally {
