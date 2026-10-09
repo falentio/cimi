@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
@@ -167,10 +167,10 @@ async function confirmShortening(confirmation: string): Promise<void> {
         </Button>
       </Alert>
 
-      <Alert v-if="view.notice" role="status">
+      <div v-if="view.notice" :class="alertVariants()">
         <AlertTitle>Retention settings saved</AlertTitle>
         <AlertDescription>{{ view.notice.message }}</AlertDescription>
-      </Alert>
+      </div>
 
       <RetentionPolicyForm
         :section="view.policy"

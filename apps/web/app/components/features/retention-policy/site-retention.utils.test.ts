@@ -200,7 +200,7 @@ describe('site-retention.utils', () => {
     })
   })
 
-  it('surfaces the committed notice through the announcement', () => {
+  it('keeps the committed notice on the view without announcing it', () => {
     const proposal: RetentionProposal = { kind: 'inherit', installationDefault: twelve }
 
     const view = toSiteRetentionView({
@@ -208,6 +208,10 @@ describe('site-retention.utils', () => {
       notice: { kind: 'committed', message: siteRetentionNotice(proposal) },
     })
 
-    expect(view).toMatchObject({ kind: 'ready', announcement: siteRetentionNotice(proposal) })
+    expect(view).toMatchObject({
+      kind: 'ready',
+      notice: { kind: 'committed', message: siteRetentionNotice(proposal) },
+      announcement: '',
+    })
   })
 })

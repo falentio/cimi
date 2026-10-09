@@ -7,6 +7,7 @@ import {
   toValue,
   watch,
 } from 'vue'
+import { toast } from 'vue-sonner'
 import { useOrpc } from '../../../composables/useOrpc'
 import type { CimiOrpc } from '~/plugins/orpc'
 import type {
@@ -65,6 +66,14 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
 
   async function refresh(): Promise<void> {
     await readRetention()
+  }
+
+  function announceSuccess(): void {
+    const notice = state.value.notice
+
+    if (notice === null) return
+
+    toast.success(notice.message)
   }
 
   function edit(field: RetentionField, value: string): void {
@@ -160,6 +169,8 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
     try {
       const response = await updatePolicy(proposal)
 
+      if (disposed) return
+
       if (response === null) {
         fail(
           proposal,
@@ -175,7 +186,9 @@ export function useSiteRetention(options: SiteRetentionOptions): SiteRetentionCo
         result: response,
         proposal,
       })
+      announceSuccess()
     } catch (error: unknown) {
+      if (disposed) return
       fail(proposal, shortening, normalizeRetentionError(error, 'update', 'site'))
     }
   }

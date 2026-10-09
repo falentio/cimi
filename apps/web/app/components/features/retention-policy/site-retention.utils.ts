@@ -122,8 +122,6 @@ function isRefreshing(resource: SiteRetentionState['retention']): boolean {
 }
 
 function buildAnnouncement(state: SiteRetentionState): string {
-  if (state.notice !== null) return state.notice.message
-
   if (state.command.kind === 'submitting') return 'Saving Site retention settings.'
 
   if (state.retention.kind === 'stale') return state.retention.error.message

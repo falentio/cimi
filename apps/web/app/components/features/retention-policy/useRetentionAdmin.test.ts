@@ -1,4 +1,5 @@
 import { effectScope } from 'vue'
+import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   Installation,
@@ -81,7 +82,11 @@ function createController() {
   return { controller, scope }
 }
 
-beforeEach(resetMocks)
+beforeEach(() => {
+  resetMocks()
+  vi.restoreAllMocks()
+  vi.spyOn(toast, 'success')
+})
 
 afterEach(() => vi.useRealTimers())
 
@@ -263,6 +268,54 @@ describe('useRetentionAdmin', () => {
       policy: { draft: { eventMonths: '18', profileMonths: '18' } },
     })
     scope.stop()
+  })
+
+  it('raises one success toast on a committed save', async () => {
+    mocks.updateRetentionPolicy.mockResolvedValue(
+      retentionResult(
+        { eventMonths: 18, profileMonths: 18, replayMonths: null },
+        { updatedAt: '2026-09-18T12:00:00Z' },
+      ),
+    )
+    const { controller, scope } = createController()
+    await controller.refresh()
+    await controller.submit({ eventMonths: 18, profileMonths: 18, replayMonths: null })
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'Retention settings saved. Cleanup status below reflects the server response.',
+    )
+    expect(controller.view.value).toMatchObject({ kind: 'ready', announcement: '' })
+    scope.stop()
+  })
+
+  it('raises no toast when the save fails', async () => {
+    mocks.updateRetentionPolicy.mockRejectedValue({ code: 'CONFLICT' })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    await controller.submit({ eventMonths: 18, profileMonths: 18, replayMonths: null })
+
+    expect(toast.success).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('raises no toast once the scope is disposed before the save settles', async () => {
+    let resolveSave: (result: InstallationRetentionResult) => void = () => {}
+
+    mocks.updateRetentionPolicy.mockReturnValue(
+      new Promise<InstallationRetentionResult>((resolve) => {
+        resolveSave = resolve
+      }),
+    )
+    const { controller, scope } = createController()
+    await controller.refresh()
+    const pending = controller.submit({ eventMonths: 18, profileMonths: 18, replayMonths: null })
+    await vi.waitFor(() => expect(mocks.updateRetentionPolicy).toHaveBeenCalledTimes(1))
+    scope.stop()
+    resolveSave(retentionResult({ eventMonths: 18, profileMonths: 18, replayMonths: null }))
+    await pending
+
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('clears a failed save after a successful refresh', async () => {

@@ -1,4 +1,5 @@
 import { computed, getCurrentInstance, onMounted, onScopeDispose, shallowRef } from 'vue'
+import { toast } from 'vue-sonner'
 import { useOrpc } from '../../../composables/useOrpc'
 import type { RetentionAdminClient } from './retention-policy.types'
 import { createInitialRetentionState, reduceRetention } from './retention-policy.reducer'
@@ -48,6 +49,14 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
 
   async function refresh(): Promise<void> {
     await readResources()
+  }
+
+  function announceSuccess(): void {
+    const notice = state.value.notice
+
+    if (notice === null) return
+
+    toast.success(notice.message)
   }
 
   function edit(field: RetentionField, value: string): void {
@@ -158,6 +167,8 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
         policy: proposedPolicy(proposal),
       })
 
+      if (disposed) return
+
       if (response.scope !== 'installation') {
         fail(
           proposal,
@@ -169,7 +180,9 @@ export function useRetentionAdmin(client?: RetentionAdminClient): RetentionContr
       }
 
       state.value = reduceRetention(state.value, { kind: 'save-succeeded', result: response })
+      announceSuccess()
     } catch (error: unknown) {
+      if (disposed) return
       fail(proposal, shortening, normalizeRetentionError(error, 'update', 'installation'))
     }
   }
