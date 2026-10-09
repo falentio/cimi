@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -125,14 +125,14 @@ function cancel(): void {
     <AlertDescription>Preparing the safe lifecycle operation.</AlertDescription>
   </Alert>
 
-  <Alert v-else-if="upgrade.kind === 'completed'">
+  <div v-else-if="upgrade.kind === 'completed'" :class="alertVariants()">
     <AlertTitle>Upgrade complete</AlertTitle>
     <AlertDescription>Refresh the health report to confirm both stores are ready.</AlertDescription>
     <Button class="mt-3" size="sm" variant="outline" :disabled="retrying" @click="refreshStatus">
       <Spinner v-if="retrying" aria-hidden="true" />
       {{ retrying ? 'Refreshing...' : 'Refresh health' }}
     </Button>
-  </Alert>
+  </div>
 
   <Alert v-else-if="upgrade.kind === 'failure'" variant="destructive">
     <AlertTitle>Upgrade needs attention</AlertTitle>

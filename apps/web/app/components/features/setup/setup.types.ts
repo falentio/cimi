@@ -252,6 +252,26 @@ export interface DeriveSetupViewInput {
   readonly notice: SetupNotice | undefined
 }
 
+export interface SetupClient {
+  readonly installation: {
+    readonly getInstallationStatus: Pick<
+      CimiOrpc['installation']['getInstallationStatus'],
+      'queryOptions'
+    >
+    readonly initializeInstallation: Pick<
+      CimiOrpc['installation']['initializeInstallation'],
+      'mutationOptions'
+    >
+    readonly upgradeInstallation: Pick<
+      CimiOrpc['installation']['upgradeInstallation'],
+      'mutationOptions'
+    >
+  }
+  readonly health: {
+    readonly health: Pick<CimiOrpc['health']['health'], 'queryOptions'>
+  }
+}
+
 export interface SetupController {
   readonly view: Readonly<ComputedRef<SetupViewModel>>
   refresh(): Promise<void>

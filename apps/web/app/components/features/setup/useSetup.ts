@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@pinia/colada'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
-import { useOrpc } from '@/composables/useOrpc'
+import { toast } from 'vue-sonner'
+import { useOrpc } from '../../../composables/useOrpc'
 import {
   canStartUpgrade,
   deriveSetupView,
@@ -9,11 +10,14 @@ import {
   mapSetupError,
   toHealthResource,
   toInstallationResource,
+  UPGRADE_COMPLETE_MESSAGE,
+  UPGRADE_STARTED_MESSAGE,
 } from './setup.utils'
 import type {
   InitializationOutcome,
   InitializationView,
   PollingView,
+  SetupClient,
   SetupController,
   SetupFailure,
   SetupNotice,
@@ -25,8 +29,8 @@ import { MAX_POLL_ATTEMPTS } from './setup.types'
 
 const POLL_INTERVAL_MS = 1_500
 
-export function useSetup(): SetupController {
-  const orpc = useOrpc()
+export function useSetup(client?: SetupClient): SetupController {
+  const orpc: SetupClient = client ?? useOrpc()
 
   const installationQuery = useQuery({
     ...orpc.installation.getInstallationStatus.queryOptions({ input: {} }),
@@ -70,6 +74,26 @@ export function useSetup(): SetupController {
     }),
   )
 
+  function announceInitialization(): void {
+    const message = notice.value?.message
+
+    if (disposed || message === undefined) return
+
+    toast.success(message)
+  }
+
+  function announceUpgrade(): void {
+    if (disposed) return
+
+    if (upgrade.value.kind === 'polling') {
+      toast.success(UPGRADE_STARTED_MESSAGE)
+
+      return
+    }
+
+    if (upgrade.value.kind === 'completed') toast.success(UPGRADE_COMPLETE_MESSAGE)
+  }
+
   async function refresh(): Promise<void> {
     const results = await Promise.allSettled([installationQuery.refetch(), healthQuery.refetch()])
 
@@ -104,6 +128,7 @@ export function useSetup(): SetupController {
               httpStatus: 200,
               message: 'Existing installation reused; no data was overwritten.',
             }
+      announceInitialization()
       await refresh().catch(() => undefined)
 
       return outcome
@@ -162,10 +187,13 @@ export function useSetup(): SetupController {
             ? { kind: 'completed' }
             : { kind: 'failure', error: mapSetupError({ code: operation.errorCode }, 'upgrade') }
 
+        announceUpgrade()
+
         return
       }
 
       startPolling(operation)
+      announceUpgrade()
     } catch (error: unknown) {
       upgrade.value = { kind: 'failure', error: mapSetupError(error, 'upgrade') }
       throw error
