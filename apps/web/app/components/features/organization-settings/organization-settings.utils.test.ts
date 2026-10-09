@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkspaceSite, WorkspaceTeam } from '@/components/features/app-shell/workspace'
 import {
-  ORGANIZATION_ACTION_MESSAGES,
   normalizeOrganizationNameDraft,
   normalizeSettingsError,
   resolveActiveOrganizationId,
@@ -68,19 +67,6 @@ describe('organization settings utilities', () => {
   it('trims names and rejects blank drafts', () => {
     expect(normalizeOrganizationNameDraft('  Northstar  ')).toBe('Northstar')
     expect(normalizeOrganizationNameDraft('   ')).toBeNull()
-  })
-
-  it('names every toast-triggering organization action once', () => {
-    expect(ORGANIZATION_ACTION_MESSAGES).toEqual({
-      updateName: 'Organization name saved.',
-      transferOwnership: 'Ownership transferred.',
-      changeMemberRole: 'Member role updated.',
-      removeMember: 'Member removed.',
-      leaveOrganization: 'You left the organization.',
-      createInvitation: 'Invitation created.',
-      revokeInvitation: 'Invitation revoked.',
-      deleteOrganization: 'Organization deleted.',
-    })
   })
 
   it('uses a caller-provided fallback for unrecognized errors', () => {

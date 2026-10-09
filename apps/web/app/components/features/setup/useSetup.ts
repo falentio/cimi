@@ -25,7 +25,7 @@ import type {
   SetupViewModel,
   UpgradeView,
 } from './setup.types'
-import { MAX_POLL_ATTEMPTS } from './setup.types'
+import { MAX_POLL_ATTEMPTS, SETUP_INITIALIZED_MESSAGE, SETUP_REUSED_MESSAGE } from './setup.types'
 
 const POLL_INTERVAL_MS = 1_500
 
@@ -118,16 +118,8 @@ export function useSetup(client?: SetupClient): SetupController {
       initialization.value = { kind: 'success', outcome }
       notice.value =
         outcome.kind === 'created'
-          ? {
-              kind: 'initialized',
-              httpStatus: 201,
-              message: 'Installation initialized.',
-            }
-          : {
-              kind: 'reused',
-              httpStatus: 200,
-              message: 'Existing installation reused; no data was overwritten.',
-            }
+          ? { kind: 'initialized', httpStatus: 201, message: SETUP_INITIALIZED_MESSAGE }
+          : { kind: 'reused', httpStatus: 200, message: SETUP_REUSED_MESSAGE }
       announceInitialization()
       await refresh().catch(() => undefined)
 

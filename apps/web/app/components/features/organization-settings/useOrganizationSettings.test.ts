@@ -4,7 +4,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createApp, effectScope, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { OrganizationSettingsContainer } from './organization-settings.types'
+import type {
+  OrganizationCreationContainer,
+  OrganizationSettingsContainer,
+} from './organization-settings.types'
 import { ORGANIZATION_ACTION_MESSAGES } from './organization-settings.utils'
 import { useOrganizationSettings } from './useOrganizationSettings'
 
@@ -97,6 +100,20 @@ function createController(section: 'general' | 'members' | 'danger' = 'members')
   return { controller, scope }
 }
 
+function createCreationController() {
+  const scope = effectScope()
+  let controller: OrganizationCreationContainer | undefined
+  app.runWithContext(() => {
+    scope.run(() => {
+      controller = useOrganizationSettings({ section: 'create' })
+    })
+  })
+
+  if (controller === undefined) throw new Error('Controller was not created.')
+
+  return { controller, scope }
+}
+
 describe('useOrganizationSettings success toasts', () => {
   it('raises one toast with the shared copy when the organization name is saved', async () => {
     const { controller, scope } = createController('general')
@@ -169,6 +186,15 @@ describe('useOrganizationSettings success toasts', () => {
     expect(toast.success).toHaveBeenCalledTimes(1)
     expect(toast.success).toHaveBeenCalledWith(ORGANIZATION_ACTION_MESSAGES.deleteOrganization)
     expect(routerPush).toHaveBeenCalledWith('/')
+    scope.stop()
+  })
+
+  it('raises one toast when an organization is created', async () => {
+    const { controller, scope } = createCreationController()
+    await controller.createOrganization({ name: 'Northstar' })
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(ORGANIZATION_ACTION_MESSAGES.createOrganization)
     scope.stop()
   })
 

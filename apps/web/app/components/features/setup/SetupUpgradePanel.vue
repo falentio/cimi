@@ -7,6 +7,7 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import type { SetupController, UpgradeView } from './setup.types'
+import { UPGRADE_COMPLETE_MESSAGE } from './setup.utils'
 
 const props = defineProps<{
   upgrade: UpgradeView
@@ -126,7 +127,7 @@ function cancel(): void {
   </Alert>
 
   <div v-else-if="upgrade.kind === 'completed'" :class="alertVariants()">
-    <AlertTitle>Upgrade complete</AlertTitle>
+    <AlertTitle>{{ UPGRADE_COMPLETE_MESSAGE }}</AlertTitle>
     <AlertDescription>Refresh the health report to confirm both stores are ready.</AlertDescription>
     <Button class="mt-3" size="sm" variant="outline" :disabled="retrying" @click="refreshStatus">
       <Spinner v-if="retrying" aria-hidden="true" />

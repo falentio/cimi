@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, shallowRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,12 @@ const state = shallowRef<InvitationState>({ status: 'idle' })
 
 const hydrated = ref(false)
 
+let disposed = false
+
+onScopeDispose(() => {
+  disposed = true
+})
+
 const render = computed(() =>
   invitationRenderFor({
     hydrated: hydrated.value,
@@ -95,7 +101,8 @@ async function acceptInvitation(): Promise<void> {
   try {
     const membership = await orpc.invitation.acceptInvitation.call({ token: token.value })
     state.value = { status: 'accepted', membership }
-    toast.success(t('invite.acceptedTitle'))
+
+    if (!disposed) toast.success(t('invite.acceptedTitle'))
     await navigateTo(`/org/${membership.organizationId}/settings/members`)
   } catch (error: unknown) {
     state.value = {

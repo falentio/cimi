@@ -4,6 +4,7 @@ import { PiniaColada } from '@pinia/colada'
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UPGRADE_COMPLETE_MESSAGE, UPGRADE_STARTED_MESSAGE } from './setup.utils'
+import { SETUP_INITIALIZED_MESSAGE, SETUP_REUSED_MESSAGE } from './setup.types'
 import type { Health, Installation, SetupClient } from './setup.types'
 import { useSetup } from './useSetup'
 
@@ -131,7 +132,7 @@ describe('useSetup', () => {
     await controller.initialize()
 
     expect(toast.success).toHaveBeenCalledTimes(1)
-    expect(toast.success).toHaveBeenCalledWith('Installation initialized.')
+    expect(toast.success).toHaveBeenCalledWith(SETUP_INITIALIZED_MESSAGE)
     scope.stop()
   })
 
@@ -142,9 +143,7 @@ describe('useSetup', () => {
     await controller.initialize()
 
     expect(toast.success).toHaveBeenCalledTimes(1)
-    expect(toast.success).toHaveBeenCalledWith(
-      'Existing installation reused; no data was overwritten.',
-    )
+    expect(toast.success).toHaveBeenCalledWith(SETUP_REUSED_MESSAGE)
     scope.stop()
   })
 

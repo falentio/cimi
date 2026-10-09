@@ -370,6 +370,9 @@ export function useOrganizationSettings(
 
     resetMutationErrors()
     const organization = await createOrganizationMutation.mutateAsync({ name })
+
+    announceSuccess('createOrganization')
+
     await queryCache.invalidateQueries({ key: WORKSPACE_QUERY_KEY })
 
     return organization

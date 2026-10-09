@@ -13,6 +13,7 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import SetupHealthPanel from './SetupHealthPanel.vue'
 import SetupLifecyclePanel from './SetupLifecyclePanel.vue'
+import { SETUP_INITIALIZED_MESSAGE, SETUP_REUSED_MESSAGE } from './setup.types'
 import { useSetup } from './useSetup'
 
 const setup = useSetup()
@@ -104,8 +105,8 @@ async function refresh(): Promise<void> {
           <AlertTitle>
             {{
               view.initialization.outcome.kind === 'created'
-                ? 'Installation initialized.'
-                : 'Existing installation reused.'
+                ? SETUP_INITIALIZED_MESSAGE
+                : SETUP_REUSED_MESSAGE
             }}
           </AlertTitle>
           <AlertDescription>

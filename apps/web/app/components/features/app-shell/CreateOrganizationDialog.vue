@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onScopeDispose, shallowRef, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { computed, nextTick, shallowRef, watch } from 'vue'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,8 +17,6 @@ import { useOrganizationSettings } from '@/components/features/organization-sett
 import { normalizeOrganizationNameDraft } from '@/components/features/organization-settings/organization-settings.utils'
 import type { Organization } from '@/components/features/organization-settings/organization-settings.types'
 
-const ORGANIZATION_CREATED_MESSAGE = 'Organization created.'
-
 const isOpen = defineModel<boolean>('open', { default: false })
 
 const emit = defineEmits<{
@@ -33,12 +30,6 @@ const hasSubmitted = shallowRef(false)
 const feedback = shallowRef<string | null>(null)
 
 const { isCreating, error, createOrganization } = useOrganizationSettings({ section: 'create' })
-
-let disposed = false
-
-onScopeDispose(() => {
-  disposed = true
-})
 
 const nameError = computed(() => {
   if (!hasSubmitted.value || organizationName.value.trim().length > 0) return null
@@ -66,8 +57,6 @@ async function submit(): Promise<void> {
 
   try {
     const organization = await createOrganization({ name })
-
-    if (!disposed) toast.success(ORGANIZATION_CREATED_MESSAGE)
 
     emit('created', organization)
     isOpen.value = false

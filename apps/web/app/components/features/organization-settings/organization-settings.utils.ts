@@ -14,6 +14,7 @@ export const ORGANIZATION_ACTION_MESSAGES = {
   createInvitation: 'Invitation created.',
   revokeInvitation: 'Invitation revoked.',
   deleteOrganization: 'Organization deleted.',
+  createOrganization: 'Organization created.',
 } as const
 
 export function normalizeSettingsError(
