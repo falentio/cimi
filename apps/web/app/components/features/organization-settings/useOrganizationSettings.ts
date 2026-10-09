@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryCache, type EntryKey } from '@pinia/colada'
-import { computed, toValue } from 'vue'
-import { useAuth } from '@/composables/useAuth'
-import { useOrpc } from '@/composables/useOrpc'
+import { computed, onScopeDispose, toValue } from 'vue'
+import { toast } from 'vue-sonner'
+import { useAuth } from '../../../composables/useAuth'
+import { useOrpc } from '../../../composables/useOrpc'
 import {
+  ORGANIZATION_ACTION_MESSAGES,
   normalizeOrganizationNameDraft,
   normalizeSettingsError,
 } from './organization-settings.utils'
@@ -47,6 +49,7 @@ export function useOrganizationSettings(
   const router = useRouter()
   const workspaceSelection = options.section === 'create' ? undefined : useWorkspaceSelection()
   const authenticated = computed(() => session.value.status === 'authenticated')
+  let disposed = false
 
   const currentUserId = computed(() => {
     const state = session.value
@@ -230,6 +233,8 @@ export function useOrganizationSettings(
       name,
     })
 
+    announceSuccess('updateName')
+
     await Promise.all([
       queryCache.invalidateQueries({ key: organizationKeyValue, exact: true }),
       queryCache.invalidateQueries({ key: WORKSPACE_QUERY_KEY }),
@@ -253,6 +258,8 @@ export function useOrganizationSettings(
       role: input.role,
     })
 
+    announceSuccess('changeMemberRole')
+
     await invalidateSettingsQueries(queryCache, {
       membersKey: membersKeyValue,
       invitationsKey: invitationsKeyValue,
@@ -270,6 +277,9 @@ export function useOrganizationSettings(
       organizationId,
       userId,
     })
+
+    announceSuccess('removeMember')
+
     await invalidateSettingsQueries(queryCache, {
       membersKey: membersKeyValue,
       invitationsKey: invitationsKeyValue,
@@ -290,6 +300,8 @@ export function useOrganizationSettings(
       userId,
     })
 
+    announceSuccess('transferOwnership')
+
     await invalidateSettingsQueries(queryCache, {
       organizationKey: organizationKeyValue,
       membersKey: membersKeyValue,
@@ -304,6 +316,9 @@ export function useOrganizationSettings(
     const organizationId = requireOrganizationId(activeOrganizationId.value)
     resetMutationErrors()
     await leaveOrganizationMutation.mutateAsync({ organizationId })
+
+    announceSuccess('leaveOrganization')
+
     workspaceSelection?.clearOrganization(organizationId)
     await invalidateSettingsQueries(queryCache, { workspaceKey: WORKSPACE_QUERY_KEY })
     await router.push('/')
@@ -319,6 +334,8 @@ export function useOrganizationSettings(
       role,
     })
 
+    announceSuccess('createInvitation')
+
     await invalidateSettingsQueries(queryCache, { invitationsKey: invitationsKeyValue })
 
     return invitation
@@ -328,6 +345,9 @@ export function useOrganizationSettings(
     const invitationsKeyValue = invitationsKey.value
     resetMutationErrors()
     await revokeInvitationMutation.mutateAsync({ invitationId })
+
+    announceSuccess('revokeInvitation')
+
     await invalidateSettingsQueries(queryCache, { invitationsKey: invitationsKeyValue })
   }
 
@@ -335,6 +355,9 @@ export function useOrganizationSettings(
     const organizationId = requireOrganizationId(activeOrganizationId.value)
     resetMutationErrors()
     await deleteOrganizationMutation.mutateAsync({ organizationId })
+
+    announceSuccess('deleteOrganization')
+
     workspaceSelection?.clearOrganization(organizationId)
     await invalidateSettingsQueries(queryCache, { workspaceKey: WORKSPACE_QUERY_KEY })
     await router.push('/')
@@ -351,6 +374,16 @@ export function useOrganizationSettings(
 
     return organization
   }
+
+  function announceSuccess(action: keyof typeof ORGANIZATION_ACTION_MESSAGES): void {
+    if (disposed) return
+
+    toast.success(ORGANIZATION_ACTION_MESSAGES[action])
+  }
+
+  onScopeDispose(() => {
+    disposed = true
+  })
 
   function resetMutationErrors(): void {
     updateNameMutation.reset()

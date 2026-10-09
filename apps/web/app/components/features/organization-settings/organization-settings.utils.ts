@@ -5,6 +5,17 @@ import {
 } from '../../../utils/settings-error'
 import type { SettingsError } from './organization-settings.types'
 
+export const ORGANIZATION_ACTION_MESSAGES = {
+  updateName: 'Organization name saved.',
+  transferOwnership: 'Ownership transferred.',
+  changeMemberRole: 'Member role updated.',
+  removeMember: 'Member removed.',
+  leaveOrganization: 'You left the organization.',
+  createInvitation: 'Invitation created.',
+  revokeInvitation: 'Invitation revoked.',
+  deleteOrganization: 'Organization deleted.',
+} as const
+
 export function normalizeSettingsError(
   cause: unknown,
   fallbackMessage = 'Organization settings request failed',
