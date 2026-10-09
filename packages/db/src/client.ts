@@ -368,11 +368,13 @@ function fsyncDirectory(path: string): void {
   }
 }
 
+type StagedFileInstall = { destinationPath: string; stagedPath: string }
+
 /**
  * POSIX rename swaps the destination in a single step, so no reader observes a missing control
  * database. Any open handle has already been checkpointed, closed, and its sidecars removed.
  */
-function swapFileIntoPlace(input: { destinationPath: string; stagedPath: string }): void {
+function swapFileIntoPlace(input: StagedFileInstall): void {
   const directory = dirname(input.destinationPath)
   const recoveryPath = `${input.destinationPath}.recovery.${randomBytes(8).toString('hex')}`
   let recoveryHoldsOriginal = false
@@ -401,10 +403,7 @@ function swapFileIntoPlace(input: { destinationPath: string; stagedPath: string 
   }
 }
 
-function swapStagedFileIntoPlace(input: {
-  destinationPath: string
-  stagedPath: string
-}): Database.Database {
+function swapStagedFileIntoPlace(input: StagedFileInstall): Database.Database {
   swapFileIntoPlace(input)
 
   return openConfiguredDatabase(input.destinationPath)
@@ -415,10 +414,7 @@ function swapStagedFileIntoPlace(input: {
  * first, because a stale -wal that survived the rename would be replayed over the staged schema
  * and silently revert the install.
  */
-export function installStagedFileWithoutHandle(input: {
-  destinationPath: string
-  stagedPath: string
-}): void {
+export function installStagedFileWithoutHandle(input: StagedFileInstall): void {
   removeSidecars(input.destinationPath)
   swapFileIntoPlace(input)
 }
