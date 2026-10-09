@@ -8,6 +8,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Spinner } from '@/components/ui/spinner'
 import {
   siteCollectionSettingsPath,
+  sitePublicDashboardSettingsPath,
   siteRetentionSettingsPath,
   siteSettingsPath,
 } from '@/components/features/app-shell/organization-nav-config'
@@ -25,7 +26,7 @@ const retrying = shallowRef(false)
 
 const localizeError = useLocalizedErrorMessage()
 
-type SettingsSection = 'general' | 'collection' | 'retention' | 'danger'
+type SettingsSection = 'general' | 'collection' | 'retention' | 'public-dashboard' | 'danger'
 
 const sectionLinks = computed(() => {
   const siteId = props.snapshot.siteId
@@ -36,6 +37,11 @@ const sectionLinks = computed(() => {
     { label: 'General', section: 'general' as const, to: `${siteSettingsPath(siteId)}/general` },
     { label: 'Collection', section: 'collection' as const, to: siteCollectionSettingsPath(siteId) },
     { label: 'Retention', section: 'retention' as const, to: siteRetentionSettingsPath(siteId) },
+    {
+      label: 'Public dashboard',
+      section: 'public-dashboard' as const,
+      to: sitePublicDashboardSettingsPath(siteId),
+    },
     { label: 'Danger zone', section: 'danger' as const, to: `${siteSettingsPath(siteId)}/danger` },
   ]
 })
