@@ -98,7 +98,7 @@ export function createDb(options: CreateDbOptions) {
       removeSidecars(destinationPath)
 
       try {
-        current = swapStagedFileIntoPlace({ destinationPath, stagedPath })
+        current = swapStagedFileAndReopen({ destinationPath, stagedPath })
       } catch (error) {
         current = openConfiguredDatabase(destinationPath)
         throw error
@@ -116,7 +116,7 @@ export function createDb(options: CreateDbOptions) {
       removeSidecars(destinationPath)
 
       try {
-        current = swapStagedFileIntoPlace({ destinationPath, stagedPath: sourcePath })
+        current = swapStagedFileAndReopen({ destinationPath, stagedPath: sourcePath })
       } catch (error) {
         current = openConfiguredDatabase(destinationPath)
         throw error
@@ -374,7 +374,7 @@ type StagedFileInstall = { destinationPath: string; stagedPath: string }
  * POSIX rename swaps the destination in a single step, so no reader observes a missing control
  * database. Any open handle has already been checkpointed, closed, and its sidecars removed.
  */
-function swapFileIntoPlace(input: StagedFileInstall): void {
+function renameStagedFileIntoPlace(input: StagedFileInstall): void {
   const directory = dirname(input.destinationPath)
   const recoveryPath = `${input.destinationPath}.recovery.${randomBytes(8).toString('hex')}`
   let recoveryHoldsOriginal = false
@@ -403,8 +403,8 @@ function swapFileIntoPlace(input: StagedFileInstall): void {
   }
 }
 
-function swapStagedFileIntoPlace(input: StagedFileInstall): Database.Database {
-  swapFileIntoPlace(input)
+function swapStagedFileAndReopen(input: StagedFileInstall): Database.Database {
+  renameStagedFileIntoPlace(input)
 
   return openConfiguredDatabase(input.destinationPath)
 }
@@ -416,7 +416,7 @@ function swapStagedFileIntoPlace(input: StagedFileInstall): Database.Database {
  */
 export function installStagedFileWithoutHandle(input: StagedFileInstall): void {
   removeSidecars(input.destinationPath)
-  swapFileIntoPlace(input)
+  renameStagedFileIntoPlace(input)
 }
 
 /** Reading a WAL-mode artifact through a readonly handle creates -wal and -shm next to it. */
