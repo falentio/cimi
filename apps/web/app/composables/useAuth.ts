@@ -1,6 +1,7 @@
 import { computed, getCurrentInstance, type ComputedRef, type Ref } from 'vue'
 import type { createCimiAuthClient } from '@cimi/auth/client'
-import { isBooleanValue, isNumberValue, isStringValue } from '../utils/type-guards'
+import { isNumberValue, isStringValue } from '../utils/type-guards'
+import { isAuthUser } from '@/utils/auth-session'
 
 type AuthClient = ReturnType<typeof createCimiAuthClient>
 
@@ -186,20 +187,6 @@ function toAuthSession(value: RawAuthSession): AuthSession {
   return {
     user: value.user,
   }
-}
-
-function isAuthUser(value: unknown): value is AuthUser {
-  if (!isRecord(value)) return false
-  const role = value.role
-
-  return (
-    isStringValue(value.id) &&
-    isStringValue(value.name) &&
-    isStringValue(value.email) &&
-    isBooleanValue(value.emailVerified) &&
-    (value.image === null || isStringValue(value.image)) &&
-    (role === undefined || role === null || isStringValue(role))
-  )
 }
 
 interface AuthResponse {
