@@ -7,4 +7,5 @@ useHeadSafe(useLocaleHead({ seo: false }))
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+  <UIToaster position="top-center" />
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import {
@@ -143,10 +143,10 @@ function confirmClear(): void {
         </Button>
       </Alert>
 
-      <Alert v-if="view.notice" role="status">
+      <div v-if="view.notice" :class="alertVariants()">
         <AlertTitle>Retention settings saved</AlertTitle>
         <AlertDescription>{{ view.notice.message }}</AlertDescription>
-      </Alert>
+      </div>
 
       <SiteRetentionSummary
         :policy="view.policy"

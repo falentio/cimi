@@ -555,8 +555,6 @@ function isRefreshing(resource: RetentionResource | InstallationResource): boole
 }
 
 function buildAnnouncement(state: RetentionState): string {
-  if (state.notice !== null) return state.notice.message
-
   if (state.command.kind === 'submitting') return 'Saving retention settings.'
 
   if (state.retention.kind === 'stale') return state.retention.error.message

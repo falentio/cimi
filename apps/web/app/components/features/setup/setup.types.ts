@@ -177,16 +177,20 @@ export type UpgradeView =
   | { readonly kind: 'completed' }
   | { readonly kind: 'failure'; readonly error: SetupFailure }
 
+export const SETUP_INITIALIZED_MESSAGE = 'Installation initialized.'
+
+export const SETUP_REUSED_MESSAGE = 'Existing installation reused.'
+
 export type SetupNotice =
   | {
       readonly kind: 'initialized'
       readonly httpStatus: 201
-      readonly message: 'Installation initialized.'
+      readonly message: typeof SETUP_INITIALIZED_MESSAGE
     }
   | {
       readonly kind: 'reused'
       readonly httpStatus: 200
-      readonly message: 'Existing installation reused; no data was overwritten.'
+      readonly message: typeof SETUP_REUSED_MESSAGE
     }
 
 export type SetupViewModel =
@@ -250,6 +254,26 @@ export interface DeriveSetupViewInput {
   readonly upgrade: UpgradeView
   readonly polling: PollingView
   readonly notice: SetupNotice | undefined
+}
+
+export interface SetupClient {
+  readonly installation: {
+    readonly getInstallationStatus: Pick<
+      CimiOrpc['installation']['getInstallationStatus'],
+      'queryOptions'
+    >
+    readonly initializeInstallation: Pick<
+      CimiOrpc['installation']['initializeInstallation'],
+      'mutationOptions'
+    >
+    readonly upgradeInstallation: Pick<
+      CimiOrpc['installation']['upgradeInstallation'],
+      'mutationOptions'
+    >
+  }
+  readonly health: {
+    readonly health: Pick<CimiOrpc['health']['health'], 'queryOptions'>
+  }
 }
 
 export interface SetupController {

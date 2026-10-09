@@ -53,9 +53,6 @@ const localizeError = useLocalizedErrorMessage()
       <p v-if="deletionState.status === 'error'" class="text-destructive text-sm" role="alert">
         {{ localizeError(deletionState.error) }}
       </p>
-      <p v-if="deletionState.status === 'accepted'" class="text-sm" role="status">
-        Deletion started. The site is recoverable until the server's purge deadline.
-      </p>
       <p
         v-if="deletionState.status === 'accepted' && deletionState.warning"
         class="text-muted-foreground text-sm"

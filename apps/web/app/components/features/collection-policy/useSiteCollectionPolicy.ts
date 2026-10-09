@@ -7,6 +7,7 @@ import {
   toValue,
   watch,
 } from 'vue'
+import { toast } from 'vue-sonner'
 import { useOrpc } from '../../../composables/useOrpc'
 import { isStringValue } from '../../../utils/type-guards'
 import {
@@ -68,6 +69,14 @@ export function useSiteCollectionPolicy(
     state.value = reduceCollectionPolicy(state.value, { kind: 'field-edited', patch })
   }
 
+  function announceSuccess(): void {
+    const notice = state.value.notice
+
+    if (notice === null) return
+
+    toast.success(notice.message)
+  }
+
   async function save(): Promise<void> {
     const current = view.value
 
@@ -112,6 +121,7 @@ export function useSiteCollectionPolicy(
         operation,
         layer: response,
       })
+      announceSuccess()
     } catch (error: unknown) {
       if (disposed) return
       fail(operation, normalizeCollectionPolicyError(error, 'update'))

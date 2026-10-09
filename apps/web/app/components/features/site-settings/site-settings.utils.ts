@@ -5,6 +5,11 @@ const SITE_NAME_MAX_LENGTH = 256
 
 const HOSTNAME_MAX_LENGTH = 253
 
+export const SITE_SETTINGS_SAVED_MESSAGE = 'Changes saved.'
+
+export const SITE_DELETION_STARTED_MESSAGE =
+  "Deletion started. The site is recoverable until the server's purge deadline."
+
 export const WEEK_START_OPTIONS: readonly {
   readonly value: SiteSettingsDraft['weekStartsOn']
   readonly label: string

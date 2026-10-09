@@ -22,6 +22,10 @@ import { isNumberValue, isStringValue } from '../../../utils/type-guards'
 
 type SetupErrorSource = 'status' | 'health' | 'initialize' | 'upgrade'
 
+export const UPGRADE_STARTED_MESSAGE = 'Installation upgrade started.'
+
+export const UPGRADE_COMPLETE_MESSAGE = 'Upgrade complete.'
+
 const FALLBACK_MESSAGES: Record<SetupErrorSource, string> = {
   status: 'Installation status could not be loaded. Refresh and try again.',
   health: 'Health status could not be loaded. Refresh and try again.',

@@ -1,10 +1,16 @@
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
-import { computed, shallowRef, toValue, watch } from 'vue'
+import { computed, onScopeDispose, shallowRef, toValue, watch } from 'vue'
+import { toast } from 'vue-sonner'
 import type { CimiOrpc } from '~/plugins/orpc'
-import { useAuth } from '@/composables/useAuth'
-import { useOrpc } from '@/composables/useOrpc'
+import { useAuth } from '../../../composables/useAuth'
+import { useOrpc } from '../../../composables/useOrpc'
 import { normalizeSettingsError } from '../../../utils/settings-error'
-import { normalizeSiteSettingsDraft, parseSiteId } from './site-settings.utils'
+import {
+  normalizeSiteSettingsDraft,
+  parseSiteId,
+  SITE_DELETION_STARTED_MESSAGE,
+  SITE_SETTINGS_SAVED_MESSAGE,
+} from './site-settings.utils'
 import type {
   Site,
   SiteDeletionAcceptance,
@@ -53,6 +59,10 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
   const saveState = shallowRef<SiteSaveState>({ status: 'idle' })
   const deletionState = shallowRef<SiteDeletionState>({ status: 'idle' })
   let contextVersion = 0
+
+  onScopeDispose(() => {
+    contextVersion += 1
+  })
 
   watch([resolvedSiteId, currentUserId], () => {
     contextVersion += 1
@@ -127,7 +137,10 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
       throw error
     }
 
-    if (operationContext === contextVersion) saveState.value = { status: 'saved', site }
+    if (operationContext === contextVersion) {
+      saveState.value = { status: 'saved', site }
+      toast.success(SITE_SETTINGS_SAVED_MESSAGE)
+    }
 
     try {
       await Promise.all([
@@ -184,6 +197,7 @@ export function useSiteSettings(options: SiteSettingsOptions): SiteSettingsContr
 
     if (operationContext === contextVersion) {
       deletionState.value = { status: 'accepted', operationId: result.operationId }
+      toast.success(SITE_DELETION_STARTED_MESSAGE)
     }
 
     try {

@@ -15,6 +15,7 @@ import {
   getSiteSettingsFieldError,
   getTimezoneOptions,
   normalizeSiteSettingsDraft,
+  SITE_SETTINGS_SAVED_MESSAGE,
 } from './site-settings.utils'
 import type { Site, SiteSaveState, SiteSettingsDraft } from './site-settings.types'
 import SiteGeneralFields from './SiteGeneralFields.vue'
@@ -155,8 +156,8 @@ async function submit(): Promise<void> {
       </form>
     </CardContent>
     <CardFooter class="flex-col items-start gap-1">
-      <p v-if="saveState.status === 'saved'" class="text-sm text-emerald-600" role="status">
-        Changes saved.
+      <p v-if="saveState.status === 'saved'" class="text-sm text-emerald-600">
+        {{ SITE_SETTINGS_SAVED_MESSAGE }}
       </p>
       <p
         v-if="saveState.status === 'saved' && saveState.warning"

@@ -1,4 +1,5 @@
 import { computed, getCurrentInstance, onMounted, onScopeDispose, shallowRef } from 'vue'
+import { toast } from 'vue-sonner'
 import { useOrpc } from '../../../composables/useOrpc'
 import type { BackupRestoreClient } from './backup-restore.types'
 import { createInitialBackupRestoreData, reduceBackupRestoreData } from './backup-restore.reducer'
@@ -15,6 +16,8 @@ import type {
   RestoreDialogState,
 } from './backup-restore.types'
 import {
+  CREATE_ACCEPTED_MESSAGE,
+  RESTORE_ACCEPTED_MESSAGE,
   deriveBackupRestoreActions,
   deriveLifecycleLock,
   isExactRestoreConfirmation,
@@ -162,8 +165,12 @@ export function useBackupRestore(client?: BackupRestoreClient): BackupRestoreCon
 
     try {
       const operation = await orpc.backupRestore.createBackup.call({})
+
+      if (disposed) return
       acceptedOperation(operation)
+      toast.success(CREATE_ACCEPTED_MESSAGE)
     } catch (error: unknown) {
+      if (disposed) return
       const failure = normalizeBackupRestoreError(error, 'create')
       command.value = { kind: 'failed', command: 'create', error: failure }
       await refresh()
@@ -212,13 +219,16 @@ export function useBackupRestore(client?: BackupRestoreClient): BackupRestoreCon
         confirmation: 'RESTORE',
       })
 
+      if (disposed) return
       restoreDialog.value = {
         kind: 'tracking',
         backupId: dialog.backupId,
         operationId: operation.id,
       }
       acceptedOperation(operation)
+      toast.success(RESTORE_ACCEPTED_MESSAGE)
     } catch (error: unknown) {
+      if (disposed) return
       const failure = normalizeBackupRestoreError(error, 'restore')
       command.value = { kind: 'failed', command: 'restore', error: failure }
       restoreDialog.value = { kind: 'confirming', backupId: dialog.backupId, error: failure }

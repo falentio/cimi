@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import type { SetupController, UpgradeView } from './setup.types'
+import { UPGRADE_COMPLETE_MESSAGE } from './setup.utils'
 
 const props = defineProps<{
   upgrade: UpgradeView
@@ -125,14 +126,14 @@ function cancel(): void {
     <AlertDescription>Preparing the safe lifecycle operation.</AlertDescription>
   </Alert>
 
-  <Alert v-else-if="upgrade.kind === 'completed'">
-    <AlertTitle>Upgrade complete</AlertTitle>
+  <div v-else-if="upgrade.kind === 'completed'" :class="alertVariants()">
+    <AlertTitle>{{ UPGRADE_COMPLETE_MESSAGE }}</AlertTitle>
     <AlertDescription>Refresh the health report to confirm both stores are ready.</AlertDescription>
     <Button class="mt-3" size="sm" variant="outline" :disabled="retrying" @click="refreshStatus">
       <Spinner v-if="retrying" aria-hidden="true" />
       {{ retrying ? 'Refreshing...' : 'Refresh health' }}
     </Button>
-  </Alert>
+  </div>
 
   <Alert v-else-if="upgrade.kind === 'failure'" variant="destructive">
     <AlertTitle>Upgrade needs attention</AlertTitle>

@@ -1,4 +1,5 @@
 import { effectScope, ref } from 'vue'
+import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RetentionPolicy, SiteRetentionClient } from './retention-policy.types'
 import type { SiteRetentionResult } from './site-retention.types'
@@ -69,7 +70,11 @@ function createControllerWithoutSite() {
   return { controller, scope }
 }
 
-beforeEach(resetMocks)
+beforeEach(() => {
+  resetMocks()
+  vi.restoreAllMocks()
+  vi.spyOn(toast, 'success')
+})
 
 afterEach(() => vi.useRealTimers())
 
@@ -113,6 +118,80 @@ describe('useSiteRetention', () => {
     })
     expect(mocks.getRetentionPolicy).toHaveBeenCalledTimes(2)
     scope.stop()
+  })
+
+  it('raises one success toast with the override copy on a committed save', async () => {
+    const longer: RetentionPolicy = { eventMonths: 24, profileMonths: 24, replayMonths: null }
+    mocks.updateRetentionPolicy.mockResolvedValue(
+      siteResult({
+        siteOverride: longer,
+        effectivePolicy: longer,
+        updatedAt: '2026-09-18T12:00:00Z',
+      }),
+    )
+    const { controller, scope } = createController()
+    await controller.refresh()
+    await controller.submit(longer)
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'Site retention override saved. This Site uses it instead of the installation default.',
+    )
+    expect(controller.view.value).toMatchObject({ kind: 'ready', announcement: '' })
+    scope.stop()
+  })
+
+  it('raises one success toast with the inherit copy when the override is cleared', async () => {
+    const shorter: RetentionPolicy = { eventMonths: 6, profileMonths: 6, replayMonths: null }
+    mocks.getRetentionPolicy.mockResolvedValue(
+      siteResult({ siteOverride: shorter, effectivePolicy: shorter }),
+    )
+    mocks.updateRetentionPolicy.mockResolvedValue(siteResult({ updatedAt: '2026-09-18T12:00:00Z' }))
+    const { controller, scope } = createController()
+    await controller.refresh()
+    await controller.clear()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'Site retention override cleared. This Site inherits the installation default again.',
+    )
+    expect(controller.view.value).toMatchObject({ kind: 'ready', announcement: '' })
+    scope.stop()
+  })
+
+  it('raises no toast when the save fails', async () => {
+    mocks.updateRetentionPolicy.mockRejectedValue({ code: 'CONFLICT', status: 409 })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    await controller.submit({ eventMonths: 18, profileMonths: 18, replayMonths: null })
+
+    expect(toast.success).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('raises no toast once the scope is disposed before the save settles', async () => {
+    let resolveSave: (result: SiteRetentionResult) => void = () => {}
+
+    mocks.updateRetentionPolicy.mockReturnValue(
+      new Promise<SiteRetentionResult>((resolve) => {
+        resolveSave = resolve
+      }),
+    )
+    const { controller, scope } = createController()
+    await controller.refresh()
+    const pending = controller.submit({ eventMonths: 18, profileMonths: 18, replayMonths: null })
+    await vi.waitFor(() => expect(mocks.updateRetentionPolicy).toHaveBeenCalledTimes(1))
+    scope.stop()
+    resolveSave(
+      siteResult({
+        siteOverride: { eventMonths: 18, profileMonths: 18, replayMonths: null },
+        effectivePolicy: { eventMonths: 18, profileMonths: 18, replayMonths: null },
+        updatedAt: '2026-09-18T12:00:00Z',
+      }),
+    )
+    await pending
+
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('requires the exact acknowledgement before a shortening write', async () => {

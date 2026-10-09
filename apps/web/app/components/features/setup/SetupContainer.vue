@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -13,6 +13,7 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import SetupHealthPanel from './SetupHealthPanel.vue'
 import SetupLifecyclePanel from './SetupLifecyclePanel.vue'
+import { SETUP_INITIALIZED_MESSAGE, SETUP_REUSED_MESSAGE } from './setup.types'
 import { useSetup } from './useSetup'
 
 const setup = useSetup()
@@ -100,12 +101,12 @@ async function refresh(): Promise<void> {
         </CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
-        <Alert v-if="view.initialization.kind === 'success'">
+        <div v-if="view.initialization.kind === 'success'" :class="alertVariants()">
           <AlertTitle>
             {{
               view.initialization.outcome.kind === 'created'
-                ? 'Installation initialized.'
-                : 'Existing installation reused.'
+                ? SETUP_INITIALIZED_MESSAGE
+                : SETUP_REUSED_MESSAGE
             }}
           </AlertTitle>
           <AlertDescription>
@@ -115,7 +116,7 @@ async function refresh(): Promise<void> {
                 : 'No data was overwritten.'
             }}
           </AlertDescription>
-        </Alert>
+        </div>
         <Alert v-else-if="view.initialization.kind === 'failure'" variant="destructive">
           <AlertTitle>Initialization could not be completed</AlertTitle>
           <AlertDescription>{{ view.initialization.error.message }}</AlertDescription>
@@ -153,10 +154,10 @@ async function refresh(): Promise<void> {
       </Button>
     </Alert>
 
-    <Alert v-if="operationalView?.notice">
+    <div v-if="operationalView?.notice" :class="alertVariants()">
       <AlertTitle>{{ operationalView.notice.message }}</AlertTitle>
       <AlertDescription>Installation lifecycle state has been refreshed.</AlertDescription>
-    </Alert>
+    </div>
 
     <Alert v-if="operationalView?.installation.kind === 'stale-failure'" variant="destructive">
       <AlertTitle>Showing the last known installation status</AlertTitle>

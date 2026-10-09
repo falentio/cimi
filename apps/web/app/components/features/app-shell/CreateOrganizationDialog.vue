@@ -57,6 +57,7 @@ async function submit(): Promise<void> {
 
   try {
     const organization = await createOrganization({ name })
+
     emit('created', organization)
     isOpen.value = false
   } catch {

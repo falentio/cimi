@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import type { CreateSectionView } from './backup-restore.types'
+import { CREATE_ACCEPTED_MESSAGE } from './backup-restore.utils'
 
 defineProps<{ section: CreateSectionView }>()
 
@@ -45,7 +46,7 @@ const emit = defineEmits<{
 
     <Card v-else-if="section.kind === 'tracking'">
       <CardHeader>
-        <CardTitle>Source backup accepted</CardTitle>
+        <CardTitle>{{ CREATE_ACCEPTED_MESSAGE }}</CardTitle>
       </CardHeader>
       <CardContent class="text-sm">
         The server is processing the backup. Operation ID <code>{{ section.operationId }}</code> is
