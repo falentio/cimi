@@ -1,4 +1,5 @@
 import { effectScope, nextTick } from 'vue'
+import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Backup, BackupRestoreClient, Installation } from './backup-restore.types'
 
@@ -108,6 +109,16 @@ function cleanupPendingBackup(id: string): Backup {
   }
 }
 
+function restoringBackup(id: string, sourceBackupId: string): Backup {
+  return {
+    ...sourceBackup(id),
+    status: 'restoring',
+    completedAt: null,
+    phase: 'restoring_sqlite',
+    restoreSourceBackupId: sourceBackupId,
+  }
+}
+
 function page(items: readonly Backup[]) {
   return { items: [...items], nextOffset: null, hasMore: false, totalCount: items.length }
 }
@@ -138,6 +149,8 @@ function createController() {
 
 beforeEach(() => {
   resetMocks()
+  vi.restoreAllMocks()
+  vi.spyOn(toast, 'success')
 })
 
 afterEach(() => {
@@ -474,5 +487,109 @@ describe('useBackupRestore', () => {
 
     expect(mocks.restoreBackup).toHaveBeenCalledTimes(1)
     scope.stop()
+  })
+
+  it('raises one success toast with the accepted copy when a backup is created', async () => {
+    const accepted = creatingBackup('backup-created')
+    mocks.createBackup.mockResolvedValue(accepted)
+    mocks.getBackupStatus.mockResolvedValue(sourceBackup(accepted.id))
+    const { controller, scope } = createController()
+    await controller.refresh()
+
+    await controller.createBackup()
+    await settle()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith('Source backup accepted.')
+    const ready = controller.view.value
+
+    expect(ready.kind === 'ready' ? ready.announcement : '').not.toContain('Source backup accepted')
+    scope.stop()
+  })
+
+  it('raises one success toast with the accepted copy when a restore is confirmed', async () => {
+    const source = sourceBackup()
+    const accepted = restoringBackup('restore-op', source.id)
+    mocks.listBackups.mockResolvedValue(page([source]))
+    mocks.restoreBackup.mockResolvedValue(accepted)
+    mocks.getBackupStatus.mockResolvedValue(sourceBackup('restore-op'))
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.openRestore(source.id)
+
+    await controller.confirmRestore('RESTORE')
+    await settle()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith('Restore accepted. The server is processing it.')
+    scope.stop()
+  })
+
+  it('raises no toast when creating a backup fails', async () => {
+    mocks.createBackup.mockRejectedValue({ code: 'INTERNAL_SERVER_ERROR' })
+    const { controller, scope } = createController()
+    await controller.refresh()
+
+    await controller.createBackup()
+    await settle()
+
+    expect(toast.success).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('raises no toast when a restore fails', async () => {
+    const source = sourceBackup()
+    mocks.listBackups.mockResolvedValue(page([source]))
+    mocks.restoreBackup.mockRejectedValue({ code: 'INCOMPATIBLE_BACKUP' })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.openRestore(source.id)
+
+    await controller.confirmRestore('RESTORE')
+    await settle()
+
+    expect(toast.success).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('raises no toast once the scope is disposed before createBackup settles', async () => {
+    let resolveCreate: (operation: Backup) => void = () => undefined
+
+    mocks.createBackup.mockReturnValue(
+      new Promise<Backup>((resolve) => {
+        resolveCreate = resolve
+      }),
+    )
+    const { controller, scope } = createController()
+    await controller.refresh()
+    const pending = controller.createBackup()
+    await settle()
+    scope.stop()
+    resolveCreate(creatingBackup('backup-created'))
+    await pending
+
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('raises no toast once the scope is disposed before restoreBackup settles', async () => {
+    const source = sourceBackup()
+    let resolveRestore: (operation: Backup) => void = () => undefined
+
+    mocks.listBackups.mockResolvedValue(page([source]))
+    mocks.restoreBackup.mockReturnValue(
+      new Promise<Backup>((resolve) => {
+        resolveRestore = resolve
+      }),
+    )
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.openRestore(source.id)
+    const pending = controller.confirmRestore('RESTORE')
+    await settle()
+    scope.stop()
+    resolveRestore(restoringBackup('restore-op', source.id))
+    await pending
+
+    expect(toast.success).not.toHaveBeenCalled()
   })
 })

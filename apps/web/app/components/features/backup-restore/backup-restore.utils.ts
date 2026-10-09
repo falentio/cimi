@@ -71,6 +71,10 @@ const FALLBACK_MESSAGES: Record<'list' | 'status' | 'create' | 'restore' | 'inst
 
 type ErrorSource = keyof typeof FALLBACK_MESSAGES
 
+export const CREATE_ACCEPTED_MESSAGE = 'Source backup accepted.'
+
+export const RESTORE_ACCEPTED_MESSAGE = 'Restore accepted. The server is processing it.'
+
 export function isRestorableSource(backup: Backup): boolean {
   return backup.status === 'available' && backup.restoreSourceBackupId === null
 }
