@@ -36,6 +36,18 @@ vp install                       # only when deps change
 - Dependency versions are pinned in the `pnpm-workspace.yaml` catalog; add new versions there rather than inline.
 - **Vite Plus** (`vite-plus`) owns dev, build, test, format, and lint. It resolves to Vite via the `vite` → `@voidzero-dev/vite-plus-core` override, and its config, ignore patterns, and `fmt`/`lint` rules live in `vite.config.ts`.
 
+### Resource repository boundaries
+
+Production code in `apps/api/src/resources/<resource>/` may import its own
+`repository.ts` and `repository.drizzle.ts` and no other resource's. Type-only
+imports count, and importing a barrel that re-exports a repository counts too.
+Cross-resource reads go through a port the provider or a shared package owns, and
+cross-resource behavior goes through a service interface, following
+`OrganizationMembershipReconciler`. Test fixtures under `testing/` and `*.test.ts`
+may compose several repositories when they exercise persistence.
+`apps/api/src/testing/resourceRepositoryBoundary.test.ts` fails the suite on a
+violation. See `docs/adr/0008-resource-repository-boundaries.md`.
+
 ### Implementation Conventions
 
 - The API module owns one reusable aggregate oRPC implementer for server-supported resources: create it with `implement({ ... }).$context<ApiContext>()`, define resource handlers from its branches, return implemented resource routers from `create<Resource>()`, and let the API composition root assemble those routers.
