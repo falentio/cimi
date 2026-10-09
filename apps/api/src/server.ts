@@ -1,5 +1,5 @@
-import { mkdirSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { statSync } from 'node:fs'
+import { join } from 'node:path'
 import { DEVELOPMENT_TRUSTED_ORIGINS } from '@cimi/auth'
 import { createAuth } from '@cimi/auth/server'
 import { loadConfig } from '@cimi/config'
@@ -11,9 +11,9 @@ import {
   createAnalyticsDb,
   createDb,
   migrateControlDb,
+  prepareControlDatabase,
   resolveControlDbPath,
   schema,
-  sweepRestoreStagingFiles,
 } from '@cimi/db'
 import type { ApiApp } from './index.ts'
 import { createApiApp } from './index.ts'
@@ -46,8 +46,17 @@ export async function createApiServerApp(
     }
 
     controlDbPath = resolveControlDbPath(env, process.cwd())
-    mkdirSync(dirname(controlDbPath), { recursive: true })
-    sweepOrphanedRestoreStagingFiles(controlDbPath)
+    const preparation = prepareControlDatabase({ controlDatabasePath: controlDbPath })
+
+    if (preparation.reclaimError !== undefined) {
+      reportLogEvent({
+        kind: 'operation.failure',
+        operation: 'api.startup',
+        stage: 'reclaim',
+        error: preparation.reclaimError,
+      })
+    }
+
     db = createDb({ path: controlDbPath })
   } catch (error) {
     reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
@@ -128,14 +137,6 @@ export async function createApiServerApp(
     reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'startup', error })
     closeDb(db)
     throw error
-  }
-}
-
-function sweepOrphanedRestoreStagingFiles(controlDbPath: string): void {
-  try {
-    sweepRestoreStagingFiles({ controlDatabasePath: controlDbPath })
-  } catch (error) {
-    reportLogEvent({ kind: 'operation.failure', operation: 'api.startup', stage: 'reclaim', error })
   }
 }
 

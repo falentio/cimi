@@ -35,7 +35,10 @@ describe('restoreDbFromBackup', () => {
   }
 
   function restoreLeftovers(): string[] {
-    return readdirSync(dir).filter((name) => name.includes('.tmp.') || name.includes('.previous.'))
+    return readdirSync(dir).filter(
+      (name) =>
+        name.includes('.tmp.') || name.includes('.previous.') || name.includes('.recovery.'),
+    )
   }
 
   it('removes tmp sidecars after restore into an open database', async () => {

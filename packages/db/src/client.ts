@@ -1,9 +1,11 @@
 import { randomBytes } from 'node:crypto'
 import {
   closeSync,
+  copyFileSync,
   existsSync,
   fsyncSync,
   linkSync,
+  mkdirSync,
   openSync,
   readdirSync,
   renameSync,
@@ -13,7 +15,7 @@ import { basename, dirname, join } from 'node:path'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema/index.ts'
-import { isFunctionValue } from '@cimi/utils'
+import { isFunctionValue, isStringValue } from '@cimi/utils'
 
 export const CONTROL_DB_FILENAME = 'control.sqlite'
 
@@ -32,6 +34,23 @@ export class ControlDatabaseBusyError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'ControlDatabaseBusyError'
+  }
+}
+
+/** Thrown when the control database is absent while a crash-recovery copy survives beside it. */
+export class OrphanedControlDatabaseError extends Error {
+  readonly controlDatabasePath: string
+  readonly recoveryPaths: readonly string[]
+
+  constructor(input: { controlDatabasePath: string; recoveryPaths: readonly string[] }) {
+    super(
+      `Control database ${input.controlDatabasePath} is missing but a crash-recovery copy ` +
+        `survives: ${input.recoveryPaths.join(', ')}. Refusing to initialize an empty database. ` +
+        `Move the recovery file into place or restore from a backup.`,
+    )
+    this.name = 'OrphanedControlDatabaseError'
+    this.controlDatabasePath = input.controlDatabasePath
+    this.recoveryPaths = input.recoveryPaths
   }
 }
 
@@ -77,30 +96,12 @@ export function createDb(options: CreateDbOptions) {
       checkpointTruncateOrThrow(current, destinationPath)
       current.close()
       removeSidecars(destinationPath)
-      const recoveryPath = `${destinationPath}.recovery.${randomBytes(8).toString('hex')}`
-      let recoveryHoldsOriginal = false
 
       try {
-        try {
-          linkSync(destinationPath, recoveryPath)
-        } catch {
-          renameSync(destinationPath, recoveryPath)
-        }
-
-        recoveryHoldsOriginal = true
-
-        try {
-          renameSync(stagedPath, destinationPath)
-          current = openConfiguredDatabase(destinationPath)
-        } catch (error) {
-          removeSqliteFile(destinationPath)
-          renameSync(recoveryPath, destinationPath)
-          recoveryHoldsOriginal = false
-          current = openConfiguredDatabase(destinationPath)
-          throw error
-        }
-      } finally {
-        if (recoveryHoldsOriginal) discardSqliteFile(recoveryPath)
+        current = swapStagedFileIntoPlace({ destinationPath, stagedPath })
+      } catch (error) {
+        current = openConfiguredDatabase(destinationPath)
+        throw error
       }
     },
     replaceFromFile: (sourcePath, destinationPath) => {
@@ -110,28 +111,16 @@ export function createDb(options: CreateDbOptions) {
         return
       }
 
-      const previousPath = `${destinationPath}.previous.${randomBytes(8).toString('hex')}`
-      let previousMoved = false
       checkpointTruncateOrThrow(current, destinationPath)
       current.close()
       removeSidecars(destinationPath)
 
       try {
-        renameSync(destinationPath, previousPath)
-        previousMoved = true
-        renameSync(sourcePath, destinationPath)
-        current = openConfiguredDatabase(destinationPath)
+        current = swapStagedFileIntoPlace({ destinationPath, stagedPath: sourcePath })
       } catch (error) {
-        if (previousMoved) {
-          removeSqliteFile(destinationPath)
-          renameSync(previousPath, destinationPath)
-          current = openConfiguredDatabase(destinationPath)
-        }
-
+        current = openConfiguredDatabase(destinationPath)
         throw error
       }
-
-      discardSqliteFile(previousPath)
     },
   })
 
@@ -349,6 +338,74 @@ function removeSqliteFile(path: string): void {
   removeSidecars(path)
 }
 
+/**
+ * Directory fsync is unsupported on some platforms and filesystems, which reject it with EINVAL or
+ * ENOTSUP; those are tolerated. Any other failure propagates, because the swap may not be durable.
+ */
+function fsyncDirectory(path: string): void {
+  let fd: number
+
+  try {
+    fd = openSync(path, 'r')
+  } catch {
+    return
+  }
+
+  try {
+    fsyncSync(fd)
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined
+
+    if (isStringValue(code) && ['EINVAL', 'ENOTSUP', 'EOPNOTSUPP'].includes(code)) {
+      return
+    }
+
+    throw error
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/**
+ * Installs a staged database over the live one. The destination is parked at a .recovery sibling by
+ * hard link, or by copy when the filesystem refuses a link, then one atomic rename replaces it.
+ * POSIX rename swaps the destination in a single step, so no reader observes a missing control
+ * database. The caller has already checkpointed the live handle, closed it, and removed its sidecars.
+ */
+function swapStagedFileIntoPlace(input: {
+  destinationPath: string
+  stagedPath: string
+}): Database.Database {
+  const directory = dirname(input.destinationPath)
+  const recoveryPath = `${input.destinationPath}.recovery.${randomBytes(8).toString('hex')}`
+  let recoveryHoldsOriginal = false
+
+  try {
+    try {
+      linkSync(input.destinationPath, recoveryPath)
+    } catch {
+      copyFileSync(input.destinationPath, recoveryPath)
+    }
+
+    recoveryHoldsOriginal = true
+
+    try {
+      renameSync(input.stagedPath, input.destinationPath)
+      fsyncDirectory(directory)
+
+      return openConfiguredDatabase(input.destinationPath)
+    } catch (error) {
+      removeSqliteFile(input.destinationPath)
+      renameSync(recoveryPath, input.destinationPath)
+      fsyncDirectory(directory)
+      recoveryHoldsOriginal = false
+      throw error
+    }
+  } finally {
+    if (recoveryHoldsOriginal) discardSqliteFile(recoveryPath)
+  }
+}
+
 /** Reading a WAL-mode artifact through a readonly handle creates -wal and -shm next to it. */
 function sidecarPresence(path: string): ReadonlyArray<{ path: string; existed: boolean }> {
   return [`${path}-wal`, `${path}-shm`].map((sidecarPath) => ({
@@ -378,11 +435,13 @@ function discardSqliteFile(path: string): void {
 
 const RESTORE_STAGING_FILE_NAME = /^(.+)\.tmp\.[0-9a-fA-F]{16}(?:-wal|-shm)?$/
 
+const RECOVERY_COPY_FILE_NAME = /^(.+)\.(?:previous|recovery)\.[0-9a-fA-F]{16}$/
+
 /**
  * Removes .tmp restore staging files from the control database directory. A staging file is a
  * partial write that was never renamed into place, so the destination always predates it and
- * deleting it cannot lose the only copy. The .previous and .recovery copies that a crash between
- * replaceFromFile's two renames leaves behind are recovery artifacts and are never swept here.
+ * deleting it cannot lose the only copy. The .previous and .recovery copies a swap parks beside
+ * the control database are crash-recovery artifacts and are never swept here.
  */
 export function sweepRestoreStagingFiles(input: { controlDatabasePath: string }): void {
   const directory = dirname(input.controlDatabasePath)
@@ -401,4 +460,57 @@ export function sweepRestoreStagingFiles(input: { controlDatabasePath: string })
 
     discardSqliteFile(join(directory, name))
   }
+}
+
+export interface PrepareControlDatabaseResult {
+  readonly reclaimError: Error | undefined
+}
+
+/**
+ * Makes the control database path safe to open. Throws OrphanedControlDatabaseError when the
+ * database is absent while a crash-recovery copy survives beside it, because a missing database is
+ * otherwise a fresh install and opening would orphan real rows.
+ */
+export function prepareControlDatabase(input: {
+  controlDatabasePath: string
+}): PrepareControlDatabaseResult {
+  const directory = dirname(input.controlDatabasePath)
+  mkdirSync(directory, { recursive: true })
+  let reclaimError: Error | undefined
+
+  try {
+    sweepRestoreStagingFiles({ controlDatabasePath: input.controlDatabasePath })
+  } catch (error) {
+    reclaimError = error instanceof Error ? error : new Error(String(error))
+  }
+
+  if (existsSync(input.controlDatabasePath)) return { reclaimError }
+
+  const recoveryPaths = findRecoveryCopies(input.controlDatabasePath)
+
+  if (recoveryPaths.length > 0) {
+    throw new OrphanedControlDatabaseError({
+      controlDatabasePath: input.controlDatabasePath,
+      recoveryPaths,
+    })
+  }
+
+  return { reclaimError }
+}
+
+function findRecoveryCopies(controlDatabasePath: string): readonly string[] {
+  const directory = dirname(controlDatabasePath)
+  const controlDatabaseName = basename(controlDatabasePath)
+  let entries: string[]
+
+  try {
+    entries = readdirSync(directory)
+  } catch {
+    return []
+  }
+
+  return entries
+    .filter((name) => RECOVERY_COPY_FILE_NAME.exec(name)?.[1] === controlDatabaseName)
+    .map((name) => join(directory, name))
+    .sort()
 }
