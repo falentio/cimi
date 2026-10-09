@@ -3,6 +3,7 @@ import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { OrphanedControlDatabaseError } from '@cimi/db'
 import { createApiServerApp } from '../server.ts'
 
 describe('createApiServerApp restore staging sweep', () => {
@@ -49,7 +50,7 @@ describe('createApiServerApp restore staging sweep', () => {
     }
   })
 
-  it('keeps a crash-recovery previous copy across two boots', async () => {
+  it('refuses to boot over an orphaned crash-recovery copy', async () => {
     const dataDir = join(dir, 'data')
     mkdirSync(dataDir, { recursive: true })
     const controlDbPath = join(dataDir, 'control.sqlite')
@@ -57,15 +58,9 @@ describe('createApiServerApp restore staging sweep', () => {
 
     writeFileSync(join(dataDir, recovery), 'the only copy of the database')
 
-    const first = await boot(dataDir, controlDbPath)
-    await first.close()
+    await expect(boot(dataDir, controlDbPath)).rejects.toThrow(OrphanedControlDatabaseError)
 
-    const second = await boot(dataDir, controlDbPath)
-
-    try {
-      expect(existsSync(join(dataDir, recovery))).toBe(true)
-    } finally {
-      await second.close()
-    }
+    expect(existsSync(controlDbPath)).toBe(false)
+    expect(existsSync(join(dataDir, recovery))).toBe(true)
   })
 })

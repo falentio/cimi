@@ -1,8 +1,7 @@
-import { mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import { closeDb, createDb, type Db } from './client.ts'
+import { closeDb, createDb, prepareControlDatabase, type Db } from './client.ts'
 import { bridgeLegacyControlDb, classifyControlLineage } from './legacy-bridge.ts'
 import {
   BASE_SKELETON_TABLES,
@@ -97,7 +96,7 @@ export function validateBaseSchema(db: Db): void {
 }
 
 export function migrateControlDbAtPath(path: string, options: ControlMigrationOptions = {}): void {
-  mkdirSync(dirname(path), { recursive: true })
+  prepareControlDatabase({ controlDatabasePath: path })
   const db = createDb({ path })
 
   try {

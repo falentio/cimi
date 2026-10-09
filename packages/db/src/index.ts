@@ -1,12 +1,15 @@
 export {
   CONTROL_DB_FILENAME,
   ControlDatabaseBusyError,
+  OrphanedControlDatabaseError,
   closeDb,
   createDb,
+  prepareControlDatabase,
   restoreDbFromBackup,
   sweepRestoreStagingFiles,
   type CreateDbOptions,
   type Db,
+  type PrepareControlDatabaseResult,
 } from './client.ts'
 
 export * as schema from './schema/index.ts'
