@@ -1,4 +1,5 @@
 import { effectScope, ref } from 'vue'
+import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CollectionPolicyClient, CollectionPolicyResult } from './collection-policy.types'
 import { useSiteCollectionPolicy } from './useSiteCollectionPolicy'
@@ -100,7 +101,11 @@ function createController(siteId: ReturnType<typeof ref<string | undefined>> = r
   return { controller, scope, siteId }
 }
 
-beforeEach(resetMocks)
+beforeEach(() => {
+  resetMocks()
+  vi.restoreAllMocks()
+  vi.spyOn(toast, 'success')
+})
 
 afterEach(() => vi.useRealTimers())
 
@@ -172,6 +177,64 @@ describe('useSiteCollectionPolicy', () => {
       notice: { kind: 'committed', warning: null },
     })
     scope.stop()
+  })
+
+  it('raises one success toast for a save and leaves the page announcement empty', async () => {
+    mocks.getCollectionPolicy
+      .mockResolvedValueOnce(policyResult())
+      .mockResolvedValue(siteOverrideResult())
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.beginEdit()
+    controller.edit({ field: 'botPolicy', value: 'include' })
+    await controller.save()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'The Site collection override was saved and applies to this Site only.',
+    )
+    expect(controller.view.value).toMatchObject({ kind: 'ready', announcement: '' })
+    scope.stop()
+  })
+
+  it('raises one success toast for a clear and leaves the page announcement empty', async () => {
+    mocks.getCollectionPolicy
+      .mockResolvedValueOnce(siteOverrideResult())
+      .mockResolvedValue(policyResult())
+    const { controller, scope } = createController()
+    await controller.refresh()
+    await controller.clearOverride()
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(
+      'The Site collection override was cleared, so this Site inherits the installation default again.',
+    )
+    expect(controller.view.value).toMatchObject({ kind: 'ready', announcement: '' })
+    scope.stop()
+  })
+
+  it('raises no toast when the save fails', async () => {
+    mocks.updateCollectionPolicy.mockRejectedValue({ code: 'CONFLICT' })
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.beginEdit()
+    controller.edit({ field: 'botPolicy', value: 'include' })
+    await controller.save()
+
+    expect(toast.success).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('raises no toast once the scope is disposed before the save settles', async () => {
+    const { controller, scope } = createController()
+    await controller.refresh()
+    controller.beginEdit()
+    controller.edit({ field: 'botPolicy', value: 'include' })
+    const pending = controller.save()
+    scope.stop()
+    await pending
+
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('clears the override with the clear payload and keeps the site id', async () => {

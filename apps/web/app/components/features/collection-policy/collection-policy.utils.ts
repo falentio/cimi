@@ -1034,8 +1034,6 @@ function isRefreshing(resource: CollectionPolicyResource): boolean {
 }
 
 function buildAnnouncement(state: CollectionPolicyState): string {
-  if (state.notice !== null) return state.notice.message
-
   if (state.command.kind === 'submitting') return 'Saving the Site override.'
 
   if (state.policy.kind === 'stale') return state.policy.error.message

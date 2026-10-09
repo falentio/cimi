@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import {
@@ -106,7 +106,7 @@ const collectionSettingsPath = computed(() => siteCollectionSettingsPath(props.s
         </Button>
       </Alert>
 
-      <Alert v-if="view.notice" role="status">
+      <div v-if="view.notice" :class="alertVariants()">
         <AlertTitle>
           {{ view.notice.kind === 'cleared' ? 'Site override cleared' : 'Site override saved' }}
         </AlertTitle>
@@ -116,7 +116,7 @@ const collectionSettingsPath = computed(() => siteCollectionSettingsPath(props.s
             {{ view.notice.warning.message }}
           </template>
         </AlertDescription>
-      </Alert>
+      </div>
 
       <CollectionPolicyEditor
         :editor="view.editor"
