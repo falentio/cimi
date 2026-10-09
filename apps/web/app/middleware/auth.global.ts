@@ -1,28 +1,35 @@
-import { resolveAuthDecision } from '@/utils/auth-guard'
+import type { AuthState } from '@/composables/useAuth'
+import { resolveAuthDecision, toRouteLocation } from '@/utils/auth-guard'
+import { authStateFromPayload } from '@/utils/auth-session'
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (import.meta.server) return
-
-  const auth = useAuth()
   const localePath = useLocalePath()
 
-  if (auth.session.value.status !== 'authenticated') {
-    await auth.refreshSession()
-  }
+  if (import.meta.server && to.meta.auth === false) return undefined
 
-  const state = auth.session.value
+  const state = import.meta.server ? await probeServerSession() : await refreshClientSession()
   const userRole = state.status === 'authenticated' ? state.session.user.role : null
   const decision = resolveAuthDecision(to, state.status, userRole)
 
-  if (!decision) return undefined
+  if (decision === undefined) return undefined
 
-  if (decision.path === '/login') {
-    return navigateTo({ ...decision, path: localePath('login') })
-  }
-
-  if (decision.path === '/') {
-    return navigateTo({ ...decision, path: localePath('index') })
-  }
-
-  return navigateTo(decision)
+  return navigateTo(toRouteLocation(decision, localePath))
 })
+
+async function probeServerSession(): Promise<AuthState> {
+  try {
+    const payload: unknown = await useRequestFetch()('/api/auth/get-session')
+
+    return authStateFromPayload(payload)
+  } catch {
+    return { status: 'unauthenticated' }
+  }
+}
+
+async function refreshClientSession(): Promise<AuthState> {
+  const auth = useAuth()
+
+  await auth.refreshSession()
+
+  return auth.session.value
+}

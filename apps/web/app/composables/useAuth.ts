@@ -1,6 +1,7 @@
 import { computed, getCurrentInstance, type ComputedRef, type Ref } from 'vue'
 import type { createCimiAuthClient } from '@cimi/auth/client'
-import { isBooleanValue, isNumberValue, isStringValue } from '../utils/type-guards'
+import { isNumberValue, isStringValue } from '../utils/type-guards'
+import { isAuthUser } from '@/utils/auth-session'
 
 type AuthClient = ReturnType<typeof createCimiAuthClient>
 
@@ -47,6 +48,7 @@ export interface AuthApi {
   readonly session: Readonly<Ref<AuthState>>
   readonly pending: Readonly<ComputedRef<boolean>>
   refreshSession(): Promise<AuthResult>
+  markUnauthenticated(): void
   signUp(input: SignUpInput): Promise<AuthResult>
   signIn(input: SignInInput): Promise<AuthResult>
   signOut(): Promise<AuthResult>
@@ -70,8 +72,6 @@ export function useAuth(): AuthApi {
 
   async function refreshSession(): Promise<AuthResult> {
     return withPending(async () => {
-      session.value = { status: 'loading' }
-
       try {
         const result = await getAuthClient().getSession()
 
@@ -162,7 +162,13 @@ export function useAuth(): AuthApi {
     }
   }
 
-  return { session, pending, refreshSession, signUp, signIn, signOut }
+  function markUnauthenticated(): void {
+    if (session.value.status === 'unauthenticated') return
+
+    session.value = { status: 'unauthenticated' }
+  }
+
+  return { session, pending, refreshSession, markUnauthenticated, signUp, signIn, signOut }
 }
 
 function getAuthClient(): AuthClient {
@@ -181,20 +187,6 @@ function toAuthSession(value: RawAuthSession): AuthSession {
   return {
     user: value.user,
   }
-}
-
-function isAuthUser(value: unknown): value is AuthUser {
-  if (!isRecord(value)) return false
-  const role = value.role
-
-  return (
-    isStringValue(value.id) &&
-    isStringValue(value.name) &&
-    isStringValue(value.email) &&
-    isBooleanValue(value.emailVerified) &&
-    (value.image === null || isStringValue(value.image)) &&
-    (role === undefined || role === null || isStringValue(role))
-  )
 }
 
 interface AuthResponse {

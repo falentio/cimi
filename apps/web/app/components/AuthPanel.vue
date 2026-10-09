@@ -10,6 +10,7 @@ import {
   signupSchema,
 } from '@/lib/auth-form'
 import { useLocalizedValibotSchema } from '@/composables/useLocalizedValibotSchema'
+import { resolvePostAuthDestination, toRouteLocation } from '@/utils/auth-guard'
 import { isLocalizableError, localizeErrorMessage } from '@/utils/error-message'
 import AuthPageFooter from '@/components/AuthPageFooter.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -59,6 +60,8 @@ const { pending, signIn, signUp } = useAuth()
 const { locale, t } = useI18n()
 
 const route = useRoute()
+
+const localePath = useLocalePath()
 
 const feedback = shallowRef<AuthFeedback>(null)
 
@@ -231,11 +234,7 @@ function focusFirstInvalidField(field: AuthFormField): void {
 async function redirectAfterAuthentication(result: AuthResult): Promise<void> {
   if (!result.ok || result.session === null) return
 
-  const redirect = route.query.redirect
-
-  if (!isStringValue(redirect) || !redirect.startsWith('/') || redirect.startsWith('//')) return
-
-  await navigateTo(redirect)
+  await navigateTo(toRouteLocation(resolvePostAuthDestination(route.query.redirect), localePath))
 }
 </script>
 
