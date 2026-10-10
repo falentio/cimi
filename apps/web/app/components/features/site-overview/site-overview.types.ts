@@ -132,7 +132,12 @@ export interface OverviewFreshnessView {
   readonly coverageThrough: string | null
 }
 
+/**
+ * Whether the Site has received any traffic in the range. The metric grid always renders all
+ * six cards, so "no data" cannot be read off the card count.
+ */
 export interface SiteTrafficView {
+  readonly hasTraffic: boolean
   readonly range: OverviewRange
   readonly granularity: OverviewRangeGranularity
   readonly metrics: readonly OverviewMetricView[]

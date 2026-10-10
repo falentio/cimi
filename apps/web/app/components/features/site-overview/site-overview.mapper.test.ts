@@ -174,6 +174,38 @@ describe('toOverviewTrend', () => {
   })
 })
 
+describe('toSiteTrafficView emptiness', () => {
+  const noTraffic = period({
+    visitors: 0,
+    sessions: 0,
+    pageviews: 0,
+    trend: [],
+  })
+
+  function mapView(overview: TrafficOverviewPeriod) {
+    return toSiteTrafficView({
+      range: '30d',
+      granularity: 'day',
+      overview,
+      comparison: null,
+      breakdowns: new Map(),
+      activeTabs: {},
+    })
+  }
+
+  it('reports no traffic when every count is zero', () => {
+    expect(mapView(noTraffic).hasTraffic).toBe(false)
+  })
+
+  it('reports traffic when any count is non-zero', () => {
+    expect(mapView(period({ visitors: 1 })).hasTraffic).toBe(true)
+  })
+
+  it('still renders the six metric cards when there is no traffic', () => {
+    expect(mapView(noTraffic).metrics).toHaveLength(6)
+  })
+})
+
 describe('toSiteTrafficView', () => {
   it('renders every section the registry declares, including one with no page yet', () => {
     const view = toSiteTrafficView({

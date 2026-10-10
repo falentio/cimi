@@ -3,6 +3,7 @@ import {
   overviewBreakdownSections,
   overviewBreakdownTabViews,
   type OverviewBreakdownSectionDescriptor,
+  type OverviewBreakdownTabDescriptor,
 } from './site-overview-breakdowns'
 import {
   findOverviewMetric,
@@ -122,15 +123,9 @@ export function toOverviewMetrics(
 }
 
 function toBreakdownRows(
-  tabId: string,
+  tab: OverviewBreakdownTabDescriptor,
   page: TrafficBreakdownPage,
 ): readonly OverviewBreakdownRowView[] {
-  const tab = overviewBreakdownSections
-    .flatMap((section) => section.tabs)
-    .find((candidate) => candidate.id === tabId)
-
-  if (tab === undefined) return []
-
   return page.items.map((item) => ({
     id: tab.dimension + ':' + item.value,
     label: item.value,
@@ -142,7 +137,7 @@ function toBreakdownRows(
 
 function toBreakdownSection(
   section: OverviewBreakdownSectionDescriptor,
-  tabId: string,
+  tab: OverviewBreakdownTabDescriptor | undefined,
   page: TrafficBreakdownPage | undefined,
 ): OverviewBreakdownSectionView {
   return {
@@ -151,8 +146,8 @@ function toBreakdownSection(
     subtitle: section.subtitle,
     icon: section.icon,
     tabs: overviewBreakdownTabViews(section),
-    activeTab: tabId,
-    rows: page === undefined ? [] : toBreakdownRows(tabId, page),
+    activeTab: tab?.id ?? '',
+    rows: tab === undefined || page === undefined ? [] : toBreakdownRows(tab, page),
     hasMore: page?.hasMore ?? false,
     totalCount: page?.totalCount ?? 0,
   }
@@ -175,22 +170,28 @@ export interface OverviewMappingInput {
   readonly activeTabs: Readonly<Record<string, string>>
 }
 
+/**
+ * A Site with traffic has at least one count. Rates and ratios are derived from these three, so
+ * they carry no independent signal about emptiness.
+ */
+function hasTraffic(period: TrafficOverviewPeriod): boolean {
+  return period.visitors > 0 || period.sessions > 0 || period.pageviews > 0
+}
+
 /** Assembles one render-ready view. Pure, so the acceptance rules are testable without a DOM. */
 export function toSiteTrafficView(input: OverviewMappingInput): SiteTrafficView {
   return {
+    hasTraffic: hasTraffic(input.overview),
     range: input.range,
     granularity: input.granularity,
     metrics: toOverviewMetrics(input.overview, input.comparison),
     trend: toOverviewTrend(input.overview, input.comparison),
-    breakdowns: overviewBreakdownSections.map((section) =>
-      toBreakdownSection(
-        section,
-        input.activeTabs[section.id] ?? section.tabs[0]?.id ?? '',
-        input.breakdowns.get(
-          section.id + ':' + (input.activeTabs[section.id] ?? section.tabs[0]?.id),
-        ),
-      ),
-    ),
+    breakdowns: overviewBreakdownSections.map((section) => {
+      const tabId = input.activeTabs[section.id] ?? section.tabs[0]?.id
+      const tab = section.tabs.find((candidate) => candidate.id === tabId)
+
+      return toBreakdownSection(section, tab, input.breakdowns.get(section.id + ':' + tabId))
+    }),
     freshness: toFreshness(input.overview),
   }
 }

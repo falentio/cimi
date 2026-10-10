@@ -109,6 +109,30 @@ export function useSiteTraffic(options: SiteTrafficOptions): SiteTrafficControll
 
   const siteReady = computed(() => enabled.value && timezone.value !== undefined)
 
+  /**
+   * Both reads share one resolved range, so the overview and the breakdowns can never disagree
+   * about which days they cover, even across a midnight boundary between two calls.
+   */
+  const rangeFields = computed(() => {
+    const zone = timezone.value
+
+    if (zone === undefined) return null
+
+    const request = resolveOverviewRangeRequest(
+      range.value,
+      today(zone).toString(),
+      comparison.value,
+    )
+
+    const fields = {
+      fromDate: request.fromDate,
+      toDate: request.toDate,
+      granularity: request.granularity,
+    }
+
+    return request.comparison === undefined ? fields : { ...fields, comparison: request.comparison }
+  })
+
   const overviewQuery = useQuery({
     key: computed(() => [
       ...TRAFFIC_QUERY_KEY,
@@ -122,31 +146,15 @@ export function useSiteTraffic(options: SiteTrafficOptions): SiteTrafficControll
     enabled: siteReady,
     query: async ({ signal }) => {
       const current = siteId.value
-      const zone = timezone.value
+      const fields = rangeFields.value
 
-      if (current === undefined || zone === undefined) {
+      if (current === undefined || fields === null) {
         throw new Error('Choose a site before loading its traffic.')
       }
 
-      const request = resolveOverviewRangeRequest(
-        range.value,
-        today(zone).toString(),
-        comparison.value,
-      )
+      if (fields === null) throw new Error('Choose a site before loading its traffic.')
 
-      const comparisonWindow =
-        request.comparison === undefined ? {} : { comparison: request.comparison }
-
-      return orpc.trafficReport.getTrafficOverview.call(
-        {
-          siteId: current,
-          fromDate: request.fromDate,
-          toDate: request.toDate,
-          granularity: request.granularity,
-          ...comparisonWindow,
-        },
-        { signal },
-      )
+      return orpc.trafficReport.getTrafficOverview.call({ siteId: current, ...fields }, { signal })
     },
   })
 
@@ -174,32 +182,17 @@ export function useSiteTraffic(options: SiteTrafficOptions): SiteTrafficControll
       enabled: computed(() => siteReady.value && dimension.value !== undefined),
       query: async ({ signal }) => {
         const current = siteId.value
-        const zone = timezone.value
         const activeDimension = dimension.value
+        const fields = rangeFields.value
 
-        if (current === undefined || zone === undefined || activeDimension === undefined) {
+        if (current === undefined || activeDimension === undefined || fields === null) {
           throw new Error('Choose a site before loading its traffic.')
         }
 
-        const request = resolveOverviewRangeRequest(
-          range.value,
-          today(zone).toString(),
-          comparison.value,
-        )
-
-        const comparisonWindow =
-          request.comparison === undefined ? {} : { comparison: request.comparison }
+        if (fields === null) throw new Error('Choose a site before loading its traffic.')
 
         return orpc.trafficReport.getTrafficBreakdowns.call(
-          {
-            siteId: current,
-            dimension: activeDimension,
-            limit: limit.value,
-            fromDate: request.fromDate,
-            toDate: request.toDate,
-            granularity: request.granularity,
-            ...comparisonWindow,
-          },
+          { siteId: current, dimension: activeDimension, limit: limit.value, ...fields },
           { signal },
         )
       },

@@ -46,6 +46,8 @@ const load = computed(() => traffic.load.value)
 
 const metrics = computed(() => view.value?.metrics ?? [])
 
+const hasTraffic = computed(() => view.value?.hasTraffic ?? false)
+
 const trend = computed(() => view.value?.trend)
 
 const breakdowns = computed(() => view.value?.breakdowns ?? [])
@@ -168,7 +170,7 @@ function handleFilterClear(): void {
       </EmptyHeader>
     </Empty>
 
-    <Empty v-else-if="load.status === 'ready' && metrics.length === 0" class="min-h-56">
+    <Empty v-else-if="load.status === 'ready' && !hasTraffic" class="min-h-56">
       <EmptyHeader>
         <EmptyMedia variant="icon" class="bg-muted text-muted-foreground">
           <HugeiconsIcon :icon="GlobalIcon" aria-hidden="true" />
