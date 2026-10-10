@@ -4,9 +4,9 @@ import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { migrateControlDbAtPath } from '../../migrate.ts'
+import { readSqliteMaster } from '../../push.ts'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 
@@ -69,16 +69,7 @@ describe('push-cli', () => {
 })
 
 function readMaster(path: string): Array<{ name: string; type: string }> {
-  const client = new Database(path, { readonly: true, fileMustExist: true })
-
-  try {
-    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL.
-    const rows = client
-      .prepare('SELECT type, name FROM sqlite_master ORDER BY type, name')
-      .all() as Array<{ type: string; name: string }>
-
-    return rows.map((row) => ({ name: row.name, type: row.type }))
-  } finally {
-    client.close()
-  }
+  return readSqliteMaster(path, 'SELECT type, name FROM sqlite_master ORDER BY type, name').map(
+    (row) => ({ name: row.name, type: row.type }),
+  )
 }
