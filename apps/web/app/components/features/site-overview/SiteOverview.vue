@@ -19,7 +19,7 @@ import {
   toggleOverviewFilterValue,
 } from './site-overview-filters'
 import { overviewRangeOptions } from './site-overview.range'
-import type { BreakdownId, OverviewFilter, OverviewRange } from './site-overview.types'
+import type { BreakdownTabChange, OverviewFilter, OverviewRange } from './site-overview.types'
 import { useSiteTraffic } from './useSiteTraffic'
 
 const route = useRoute()
@@ -85,7 +85,7 @@ async function handleRefresh(): Promise<void> {
   statusText.value = 'Updated just now'
 }
 
-function handleBreakdownTabChange(payload: { sectionId: string; tabId: string }): void {
+function handleBreakdownTabChange(payload: BreakdownTabChange): void {
   const section = overviewBreakdownSections.find((item) => item.id === payload.sectionId)
 
   if (section === undefined || !section.tabs.some((tab) => tab.id === payload.tabId)) return

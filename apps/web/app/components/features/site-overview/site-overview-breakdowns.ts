@@ -1,12 +1,13 @@
 import { ComputerIcon, File01Icon, GlobalIcon, Link01Icon } from '@hugeicons/core-free-icons'
 import type {
   OverviewBreakdownDimension,
+  OverviewBreakdownSectionId,
   OverviewBreakdownTabView,
   OverviewFilter,
   OverviewIcon,
 } from './site-overview.types'
 
-export type OverviewBreakdownSectionId = 'pages' | 'referrers' | 'countries' | 'devices'
+export { type OverviewBreakdownSectionId } from './site-overview.types'
 
 export interface OverviewBreakdownTabDescriptor {
   readonly id: string

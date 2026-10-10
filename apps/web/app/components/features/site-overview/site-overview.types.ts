@@ -71,6 +71,13 @@ export type OverviewFilter =
       readonly values: OverviewFilterValues
     })
 
+export type OverviewBreakdownSectionId = 'pages' | 'referrers' | 'countries' | 'devices'
+
+export interface BreakdownTabChange {
+  readonly sectionId: OverviewBreakdownSectionId
+  readonly tabId: string
+}
+
 export type OverviewTrendPoint = {
   readonly at: string
   readonly value: number
@@ -116,7 +123,7 @@ export interface OverviewBreakdownRowView {
 }
 
 export interface OverviewBreakdownSectionView {
-  readonly id: string
+  readonly id: OverviewBreakdownSectionId
   /** The breakdown page's own freshness, which can differ from the overview period's. */
   readonly status: 'current' | 'stale'
   readonly title: string
