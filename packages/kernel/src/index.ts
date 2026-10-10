@@ -1,6 +1,7 @@
 export {
   DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS,
   DEFAULT_RETENTION_POLICY,
+  DEMO_SITE_NAME,
   InMemoryAcceptanceJournalPort,
   InMemoryAcceptanceQuiescencePort,
   InMemoryAnalyticsReadinessPort,

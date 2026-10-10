@@ -28,6 +28,7 @@ export function createDemoSeedFixture({ policy, retention }: DemoSeedFixtureOpti
 
   const controlDb = mock<Db>()
   const analytics = mock<AnalyticsDb>()
+  analytics.purgeSite.mockResolvedValue(undefined)
   analytics.appendProjectedEvents.mockResolvedValue({
     appendedEventCount: 0,
     appendedPropertyCount: 0,

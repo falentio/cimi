@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
+import { DEMO_SITE_NAME } from '@cimi/kernel'
 import { schema } from '@cimi/db'
 import { OrganizationRepositoryDrizzle } from '../repository.drizzle.ts'
 import {
@@ -21,6 +22,10 @@ function createSiteRow(organizationId: string) {
     createdAt: now,
     updatedAt: now,
   }
+}
+
+function createDemoSiteRow(organizationId: string) {
+  return { ...createSiteRow(organizationId), name: DEMO_SITE_NAME }
 }
 
 describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
@@ -146,6 +151,22 @@ describe.concurrent('OrganizationRepositoryDrizzle.delete', () => {
     )
   })
 
+  it('ignores the demo site when classifying a personal organization', async () => {
+    using fixture = await createOrganizationDrizzleFixture()
+    await seedOrganizationDrizzle(fixture.db, { organization: { isPersonal: true } })
+    await fixture.db.insert(schema.TSite).values(createDemoSiteRow('org_1'))
+    const repo = new OrganizationRepositoryDrizzle({ db: fixture.db })
+
+    await expect(repo.checkDelete('org_1')).resolves.toEqual({
+      kind: 'deletable',
+      isPersonal: true,
+    })
+    await expect(
+      repo.createDeleteOperation(createOrganizationRowDeleteInput()),
+    ).resolves.toMatchObject({
+      organizationId: 'org_1',
+    })
+  })
   it('rejects a delete operation while another operation is pending', async () => {
     using fixture = await createOrganizationDrizzleFixture()
     await seedOrganizationDrizzle(fixture.db)

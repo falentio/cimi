@@ -75,12 +75,13 @@ describe('ensurePersonal seeds the demo site', () => {
         siteId: schema.TAcceptedEvent.siteId,
         late: schema.TAcceptedEvent.late,
         occurrenceTime: schema.TAcceptedEvent.occurrenceTime,
+        receiptTime: schema.TAcceptedEvent.receiptTime,
       })
       .from(schema.TAcceptedEvent)
       .all()
 
-    const occurrences = seeded.map((row) => row.occurrenceTime.getTime())
-    const cutoff = Math.max(...occurrences) - LATE_WINDOW_MS
+    const receipts = seeded.map((row) => row.receiptTime.getTime())
+    const cutoff = Math.max(...receipts) - LATE_WINDOW_MS
 
     expect(journal.length).toBe(seeded.length)
     expect(new Set(journal.map((row) => row.replaySequence)).size).toBe(seeded.length)
