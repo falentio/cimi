@@ -9,23 +9,42 @@ export interface DemoSitePort {
   }): Promise<{ readonly siteId: string }>
 }
 
-export interface DemoSeedEvent {
+interface DemoSeedEventCommon {
   readonly eventId: string
   readonly kind: EventKind
   readonly occurrenceTime: string
   readonly visitorId: string
   readonly analyticsSessionId: string
-  readonly pageViewId: string | null
-  readonly pagePath: string | null
-  readonly referrer: string | null
-  readonly name: string | null
-  readonly destination: string | null
-  readonly value: number | null
-  readonly unit: string | null
-  readonly code: string | null
-  readonly message: string | null
   readonly properties: Readonly<Record<string, ScalarValue>>
 }
+
+export type DemoSeedEvent = DemoSeedEventCommon &
+  (
+    | {
+        readonly kind: 'page_view'
+        readonly pageViewId: string
+        readonly pagePath: string
+        readonly referrer: string | null
+      }
+    | { readonly kind: 'custom_event'; readonly name: string }
+    | {
+        readonly kind: 'outbound'
+        readonly destination: string
+        readonly name: string | null
+      }
+    | {
+        readonly kind: 'performance'
+        readonly name: string
+        readonly value: number
+        readonly unit: string | null
+      }
+    | {
+        readonly kind: 'error'
+        readonly name: string
+        readonly code: string | null
+        readonly message: string | null
+      }
+  )
 
 export interface DemoSeedJournalPort {
   appendGenerated(input: {

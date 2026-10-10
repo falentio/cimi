@@ -273,55 +273,54 @@ function createEvent(input: {
     occurrenceTime: new Date(input.occurredAt).toISOString(),
     visitorId: input.visitorId,
     analyticsSessionId: input.analyticsSessionId,
-    properties: {},
-    pageViewId: null,
-    pagePath: null,
-    referrer: null,
-    name: null,
-    destination: null,
-    value: null,
-    unit: null,
-    code: null,
-    message: null,
   }
 
   switch (input.kind) {
     case 'page_view':
       return {
         ...common,
+        kind: 'page_view',
         pageViewId: `${input.siteId}-pv${input.sequence}`,
         pagePath: pick(input.random, PAGE_PATHS),
         referrer: pick(input.random, REFERRERS),
+        properties: {},
       }
     case 'custom_event':
       return {
         ...common,
+        kind: 'custom_event',
         name: pick(input.random, CUSTOM_EVENT_NAMES),
         properties: pick(input.random, CUSTOM_EVENT_PROPERTIES),
       }
     case 'outbound':
       return {
         ...common,
+        kind: 'outbound',
         destination: pick(input.random, OUTBOUND_DESTINATIONS),
         name: pick(input.random, OUTBOUND_NAMES),
+        properties: {},
       }
     case 'performance': {
       const metric = pick(input.random, PERFORMANCE_METRICS)
 
       return {
         ...common,
+        kind: 'performance',
         name: metric.name,
         value: integerInRange(input.random, 40, 2_400),
         unit: metric.unit,
+        properties: {},
       }
     }
 
     case 'error':
       return {
         ...common,
+        kind: 'error',
         name: pick(input.random, ERROR_NAMES),
         code: pick(input.random, ERROR_CODES),
         message: pick(input.random, ERROR_MESSAGES),
+        properties: {},
       }
   }
 }

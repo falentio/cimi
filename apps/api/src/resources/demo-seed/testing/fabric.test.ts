@@ -37,8 +37,8 @@ function sessionsOf(events: readonly DemoSeedEvent[]) {
   return [...sessions.values()]
 }
 
-function kindEvents(events: readonly DemoSeedEvent[], kind: EventKind) {
-  return events.filter((event) => event.kind === kind)
+function kindEvents<K extends EventKind>(events: readonly DemoSeedEvent[], kind: K) {
+  return events.filter((event): event is Extract<DemoSeedEvent, { kind: K }> => event.kind === kind)
 }
 
 describe('generateEventFabric', () => {
@@ -53,7 +53,7 @@ describe('generateEventFabric', () => {
 
     expect(new Set(events.map((event) => event.eventId)).size).toBe(events.length)
     expect(new Set(pageViewIds).size).toBe(pageViewIds.length)
-    expect(pageViewIds.every((pageViewId) => pageViewId !== null)).toBe(true)
+    expect(pageViewIds.every((pageViewId) => pageViewId.length > 0)).toBe(true)
   })
 
   it('fills between twenty and a hundred events of every kind each day', () => {
@@ -143,27 +143,27 @@ describe('generateEventFabric', () => {
     }
 
     const pageViews = kindEvents(events, 'page_view')
-    expect(pageViews.every((event) => event.pagePath !== null)).toBe(true)
+    expect(pageViews.every((event) => event.pagePath.length > 0)).toBe(true)
     expect(pageViews.some((event) => event.referrer === null)).toBe(true)
     expect(pageViews.some((event) => event.referrer !== null)).toBe(true)
 
     const outbound = kindEvents(events, 'outbound')
-    expect(outbound.every((event) => event.destination !== null)).toBe(true)
+    expect(outbound.every((event) => event.destination.length > 0)).toBe(true)
     expect(outbound.some((event) => event.name === null)).toBe(true)
 
     const performance = kindEvents(events, 'performance')
-    expect(performance.every((event) => event.value !== null && event.name !== null)).toBe(true)
+    expect(performance.every((event) => event.value > 0 && event.name.length > 0)).toBe(true)
     expect(performance.some((event) => event.unit === null)).toBe(true)
     expect(performance.some((event) => event.unit !== null)).toBe(true)
 
     const errors = kindEvents(events, 'error')
-    expect(errors.every((event) => event.name !== null)).toBe(true)
+    expect(errors.every((event) => event.name.length > 0)).toBe(true)
     expect(errors.some((event) => event.code === null)).toBe(true)
     expect(errors.some((event) => event.message === null)).toBe(true)
     expect(errors.some((event) => event.code !== null && event.message !== null)).toBe(true)
 
     const custom = kindEvents(events, 'custom_event')
-    expect(custom.every((event) => event.name !== null)).toBe(true)
+    expect(custom.every((event) => event.name.length > 0)).toBe(true)
     expect(custom.some((event) => Object.keys(event.properties).length > 0)).toBe(true)
   })
 
