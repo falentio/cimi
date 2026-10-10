@@ -10,16 +10,16 @@ supply are dropped, not faked.
 
 ## Dropped views
 
-| View | Why |
-| --- | --- |
-| Exit-rate metric card | `STrafficMetric` has no exit-rate metric |
-| Per-metric time series | `service.ts` sets `TREND_METRIC = 'visitors'`; the trend array carries visitors only |
-| Metric selector on the chart | Same reason. Nothing to switch to |
-| Per-metric sparklines | Same reason. Only visitors has bucket values |
-| Page-title breakdown tab | `STrafficBreakdownFields.dimension` has no page-title dimension |
-| Channel breakdown tab | No channel dimension. `utm` exists but is not a channel grouping |
-| Custom date-range input | Range is a fixed allowlist of four options, each mapping to one granularity |
-| Client-side previous-period date math | The contract resolves and returns the comparison period itself |
+| View                                          | Why                                                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Exit-rate metric card                         | `STrafficMetric` has no exit-rate metric                                                                     |
+| Per-metric time series                        | `service.ts` sets `TREND_METRIC = 'visitors'`; the trend array carries visitors only                         |
+| Metric selector on the chart                  | Same reason. Nothing to switch to                                                                            |
+| Per-metric sparklines                         | Same reason. Only visitors has bucket values                                                                 |
+| Page-title breakdown tab                      | `STrafficBreakdownFields.dimension` has no page-title dimension                                              |
+| Channel breakdown tab                         | No channel dimension. `utm` exists but is not a channel grouping                                             |
+| Custom date-range input                       | Range is a fixed allowlist of four options, each mapping to one granularity                                  |
+| Client-side previous-period date math         | The contract resolves and returns the comparison period itself                                               |
 | `greater_than` / `less_than` filter operators | `isCompatibleSessionFilter` and `isCompatibleDirectEventFilter` reject them for every scope this page offers |
 
 ## Data shape
@@ -121,4 +121,3 @@ asserted in its test.
 2. `vp test` scoped to `apps/web/app/components/features/site-overview`.
 3. `vp check --fix` on the changed files.
 4. Dev server smoke test on `/sites/<siteId>` against real contract responses.
-
