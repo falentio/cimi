@@ -1,0 +1,12 @@
+# Health after the first admin signup - fixes #162 and #165 landed
+
+{"status":"healthy","controlStore":"ready","analyticsStore":"ready","cleanupPending":false,"ingestion":{"queueDepth":0,"activeBatchSize":0,"pendingQueueSize":0,"flushCount":1,"committedCandidates":6,"queueWaitMsTotal":6000,"commitLatencyMsTotal":11,"responseLatencyMsTotal":6066,"responseCount":6,"saturationCount":0,"failureCount":0,"lastSafeSequence":6,"walBytes":1417312},"version":"0.0.1","checkedAt":"2026-10-10T14:37:46.619Z"}
+
+# Event ingestion: first attempt, 6 accepted
+200 {"results":[{"status":"accepted","eventId":"e1"},{"status":"accepted","eventId":"e2"},{"status":"accepted","eventId":"e3"},{"status":"accepted","eventId":"e4"},{"status":"accepted","eventId":"e5"},{"status":"accepted","eventId":"e6"}]}
+
+# Event ingestion: same payload replayed, 6 duplicates (committedCandidates 6)
+200 {"results":[{"status":"duplicate","eventId":"e1","receiptTime":"2026-10-10T14:34:33.722Z"},...]}
+
+# Retention report for the same cohort and range
+503 SERVICE_UNAVAILABLE raised inside the reporting kernel, past the admission gate
