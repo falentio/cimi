@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  COHORT_DRAFT_PROBLEM_LABELS,
   cohortDraftFromDefinition,
   emptyCohortDraft,
   isCompleteCohortActionDraft,
@@ -195,5 +196,26 @@ describe('toCohortUpdateFields', () => {
       identityKind: 'visitor',
       period: 'month',
     })
+  })
+})
+
+describe('COHORT_DRAFT_PROBLEM_LABELS', () => {
+  it('labels every draft problem', () => {
+    expect(Object.keys(COHORT_DRAFT_PROBLEM_LABELS).sort()).toEqual(
+      [
+        'action-name-required',
+        'actions-identical',
+        'entry-action-required',
+        'identity-kind-invalid',
+        'name-duplicated',
+        'name-required',
+        'period-invalid',
+        'retention-action-required',
+      ].sort(),
+    )
+  })
+
+  it('states the distinct-action rule in plain words', () => {
+    expect(COHORT_DRAFT_PROBLEM_LABELS['actions-identical']).toMatch(/different/i)
   })
 })

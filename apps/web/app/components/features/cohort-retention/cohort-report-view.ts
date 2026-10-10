@@ -63,26 +63,26 @@ export function toCohortReportViewModel(input: {
     identityLabel: IDENTITY_LABELS[cohort.identityKind],
     periodLabel: PERIOD_LABELS[cohort.period],
     statusLabel: cohortRetentionStatusLabel({ report }).label,
-    statusTone: report.freshness.status,
+    statusTone: report.status,
     rows,
     totals: {
       size: entry === undefined ? 0 : entry.size,
       retained: latest === undefined ? 0 : latest.retained,
       rateLabel: latest === undefined ? '0%' : latest.rateLabel,
     },
-    isCurrent: report.freshness.status === 'current',
+    isCurrent: report.status === 'current',
     comparisonLabel: formatComparisonWindow(report, input.locale),
     coverageThroughLabel:
-      report.freshness.occurrenceTimeCoverageThrough === null
+      report.occurrenceTimeCoverageThrough === null
         ? null
-        : formatInstant(report.freshness.occurrenceTimeCoverageThrough, input.locale),
+        : formatInstant(report.occurrenceTimeCoverageThrough, input.locale),
   }
 }
 
 export function cohortRetentionStatusLabel(input: {
   report: SCohortReportOutput
 }): CohortFreshnessLabel {
-  const status = input.report.freshness.status
+  const status = input.report.status
 
   return { label: FRESHNESS_LABELS[status], tone: status }
 }

@@ -177,6 +177,17 @@ export function toCohortUpdateFields(input: {
   return { ...toCohortDefinitionFields(input), cohortId: input.cohortId }
 }
 
+export const COHORT_DRAFT_PROBLEM_LABELS: Readonly<Record<CohortDraftProblem, string>> = {
+  'name-required': 'Enter a cohort name.',
+  'name-duplicated': 'Another cohort on this Site already uses that name.',
+  'entry-action-required': 'Choose the action that enters visitors into this cohort.',
+  'retention-action-required': 'Choose the action that counts as retention.',
+  'action-name-required': 'This action needs a name.',
+  'actions-identical': 'The entry and retention actions must be different.',
+  'identity-kind-invalid': 'Choose either Visitors or Identified users.',
+  'period-invalid': 'Choose a day, week, or month period.',
+}
+
 function missingActionName(action: CohortActionDraft): boolean {
   if (action.kind === 'page_view' || action.kind === 'outbound') return false
 

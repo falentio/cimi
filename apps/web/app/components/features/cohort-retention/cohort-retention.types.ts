@@ -3,6 +3,16 @@ import type { CimiOrpc } from '~/plugins/orpc'
 
 type CohortRetentionProcedures = CimiOrpc['cohortRetention']
 
+type ListCohortsCall = CohortRetentionProcedures['listCohorts']['call']
+
+type GetRetentionReportCall = CohortRetentionProcedures['getRetentionReport']['call']
+
+type CreateCohortCall = CohortRetentionProcedures['createCohort']['call']
+
+type UpdateCohortCall = CohortRetentionProcedures['updateCohort']['call']
+
+type ArchiveCohortCall = CohortRetentionProcedures['archiveCohort']['call']
+
 export type SCohort = Awaited<ReturnType<CohortRetentionProcedures['getCohort']['call']>>
 
 export type SCohortAction = SCohort['entryAction']
@@ -17,48 +27,23 @@ export type SCohortReportInput = Parameters<
   CohortRetentionProcedures['getRetentionReport']['call']
 >[0]
 
-type CohortReportContractOutput = Awaited<
+/**
+ * The contract flattens SReportFreshness into the report through
+ * valibot's entriesFromObjects, so the freshness fields sit on the report
+ * itself rather than under a nested key. Taking the contract's own inferred
+ * output means a contract change breaks this build instead of drifting.
+ */
+export type SCohortReportOutput = Awaited<
   ReturnType<CohortRetentionProcedures['getRetentionReport']['call']>
 >
 
-type CohortFreshnessFields =
-  | 'projectedAcceptanceSequence'
-  | 'occurrenceTimeCoverageThrough'
-  | 'status'
-
-type CohortReportFreshness = Pick<CohortReportContractOutput, CohortFreshnessFields>
-
-/**
- * valibot's entriesFromObjects flattens SReportFreshness into the parent at the
- * type level while the runtime output nests it under `freshness`, so every
- * group that carries it is re-nested here from the contract's own fields. A
- * contract rename breaks this type rather than silently drifting.
- */
-export type SCohortReportPeriod = Omit<
-  CohortReportContractOutput['periods'][number],
-  CohortFreshnessFields
-> & {
-  readonly freshness: CohortReportFreshness
-}
-
-export type SCohortReportComparison = Omit<
-  NonNullable<CohortReportContractOutput['comparison']>,
-  CohortFreshnessFields | 'periods'
-> & {
-  readonly freshness: CohortReportFreshness
-  readonly periods: readonly SCohortReportPeriod[]
-}
-
-export type SCohortReportOutput = Omit<
-  CohortReportContractOutput,
-  CohortFreshnessFields | 'comparison' | 'periods'
-> & {
-  readonly freshness: CohortReportFreshness
-  readonly periods: readonly SCohortReportPeriod[]
-  readonly comparison?: SCohortReportComparison | null
-}
+export type SCohortReportPeriod = SCohortReportOutput['periods'][number]
 
 export type SCohortCreateInput = Parameters<CohortRetentionProcedures['createCohort']['call']>[0]
+
+export type SCohortIdentityFields = Parameters<
+  CohortRetentionProcedures['archiveCohort']['call']
+>[0]
 
 export type SCohortUpdateInput = Parameters<CohortRetentionProcedures['updateCohort']['call']>[0]
 
@@ -67,11 +52,13 @@ export type CohortDefinitionsPage = Awaited<
 >
 
 export interface CohortRetentionClient {
-  readonly listCohorts: CohortRetentionProcedures['listCohorts']['call']
-  readonly getRetentionReport: CohortRetentionProcedures['getRetentionReport']['call']
-  readonly createCohort: CohortRetentionProcedures['createCohort']['call']
-  readonly updateCohort: CohortRetentionProcedures['updateCohort']['call']
-  readonly archiveCohort: CohortRetentionProcedures['archiveCohort']['call']
+  readonly cohortRetention: {
+    readonly listCohorts: { readonly call: ListCohortsCall }
+    readonly getRetentionReport: { readonly call: GetRetentionReportCall }
+    readonly createCohort: { readonly call: CreateCohortCall }
+    readonly updateCohort: { readonly call: UpdateCohortCall }
+    readonly archiveCohort: { readonly call: ArchiveCohortCall }
+  }
 }
 
 export interface CohortOption {
@@ -84,6 +71,7 @@ export interface CohortsOptions {
   readonly siteId: MaybeRefOrGetter<string | undefined>
   readonly today?: () => string
   readonly client?: CohortRetentionClient | undefined
+  readonly routeQuery?: (() => CohortRouteQuery) | undefined
 }
 
 export type CohortReportFailure =
@@ -290,3 +278,16 @@ export type CohortCompleteAction =
       readonly kind: 'outbound'
       readonly name: string
     }
+
+/** Route query values as vue-router reports them. A null is an absent param, not an empty one. */
+export type CohortRouteQueryValue = string | null | readonly (string | null)[]
+
+/** The route query bag the page seeds from, keyed exactly as the page writes its params. */
+export interface CohortRouteQuery {
+  readonly cohort?: CohortRouteQueryValue
+  readonly status?: CohortRouteQueryValue
+  readonly from?: CohortRouteQueryValue
+  readonly to?: CohortRouteQueryValue
+  readonly compare?: CohortRouteQueryValue
+  readonly filters?: CohortRouteQueryValue
+}

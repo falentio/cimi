@@ -15,11 +15,6 @@ function period(overrides: Partial<SCohortReportPeriod> = {}): SCohortReportPeri
     size: 100,
     retained: 40,
     rate: 0.4,
-    freshness: {
-      projectedAcceptanceSequence: 7,
-      occurrenceTimeCoverageThrough: '2026-06-07T23:59:59Z',
-      status: 'current',
-    },
     ...overrides,
   }
 }
@@ -28,6 +23,9 @@ function report(overrides: Partial<SCohortReportOutput> = {}): SCohortReportOutp
   return {
     fromDate: '2026-06-01',
     toDate: '2026-06-14',
+    projectedAcceptanceSequence: 7,
+    occurrenceTimeCoverageThrough: '2026-06-14T23:59:59Z',
+    status: 'current',
     periods: [
       period({ index: 0 }),
       period({
@@ -39,11 +37,6 @@ function report(overrides: Partial<SCohortReportOutput> = {}): SCohortReportOutp
         rate: 0,
       }),
     ],
-    freshness: {
-      projectedAcceptanceSequence: 7,
-      occurrenceTimeCoverageThrough: '2026-06-14T23:59:59Z',
-      status: 'current',
-    },
     comparison: null,
     ...overrides,
   }
@@ -96,6 +89,9 @@ describe('toCohortReportViewModel', () => {
         comparison: {
           fromDate: '2026-05-19',
           toDate: '2026-06-01',
+          projectedAcceptanceSequence: 5,
+          occurrenceTimeCoverageThrough: '2026-06-01T23:59:59Z',
+          status: 'current',
           periods: [
             period({
               index: 0,
@@ -114,11 +110,6 @@ describe('toCohortReportViewModel', () => {
               rate: 0.1667,
             }),
           ],
-          freshness: {
-            projectedAcceptanceSequence: 5,
-            occurrenceTimeCoverageThrough: '2026-06-01T23:59:59Z',
-            status: 'current',
-          },
         },
       }),
       cohort: definition(),
@@ -133,11 +124,9 @@ describe('toCohortReportViewModel', () => {
   it('marks a stale report and keeps its rows', () => {
     const view = toCohortReportViewModel({
       report: report({
-        freshness: {
-          projectedAcceptanceSequence: null,
-          occurrenceTimeCoverageThrough: null,
-          status: 'stale',
-        },
+        projectedAcceptanceSequence: null,
+        occurrenceTimeCoverageThrough: null,
+        status: 'stale',
       }),
       cohort: definition(),
       locale: 'en',
