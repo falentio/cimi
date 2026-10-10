@@ -220,34 +220,36 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
   const createAppendConnection = (): ProjectionAppendConnection => {
     return {
       async transaction<T>(work: (transaction: ProjectionAppendTransaction) => Promise<T>) {
-        await connection.run('BEGIN TRANSACTION')
+        return enqueue(async () => {
+          await connection.run('BEGIN TRANSACTION')
 
-        try {
-          const result = await work({
-            async read(sql, args) {
-              const reader = await connection.runAndReadAll(
-                sql,
-                args === undefined ? [] : [...args],
-              )
+          try {
+            const result = await work({
+              async read(sql, args) {
+                const reader = await connection.runAndReadAll(
+                  sql,
+                  args === undefined ? [] : [...args],
+                )
 
-              return reader.getRowObjects()
-            },
-            async run(sql, args) {
-              await connection.run(sql, args === undefined ? [] : [...args])
-            },
-            createAppender: (table) => connection.createAppender(table),
-            nextProjectionGeneration: (siteId) => nextProjectionGeneration(connection, siteId),
-            writeProjectionGeneration: (siteId, generation) =>
-              writeProjectionGeneration(connection, siteId, generation),
-          })
+                return reader.getRowObjects()
+              },
+              async run(sql, args) {
+                await connection.run(sql, args === undefined ? [] : [...args])
+              },
+              createAppender: (table) => connection.createAppender(table),
+              nextProjectionGeneration: (siteId) => nextProjectionGeneration(connection, siteId),
+              writeProjectionGeneration: (siteId, generation) =>
+                writeProjectionGeneration(connection, siteId, generation),
+            })
 
-          await connection.run('COMMIT')
+            await connection.run('COMMIT')
 
-          return result
-        } catch (error) {
-          await connection.run('ROLLBACK')
-          throw error
-        }
+            return result
+          } catch (error) {
+            await connection.run('ROLLBACK')
+            throw error
+          }
+        })
       },
     }
   }
