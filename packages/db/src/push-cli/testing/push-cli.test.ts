@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,9 +35,36 @@ describe('push-cli', () => {
       encoding: 'utf8',
     })
 
-    expect(result.status).not.toBe(0)
+    expect(result.status).toBe(1)
     expect(`${result.stdout}${result.stderr}`).toContain('vp run --filter @cimi/db migrate')
     expect(readMaster(controlPath)).toEqual(masterBefore)
+  })
+
+  it('refuses with a readable message when the target cannot be opened', () => {
+    writeFileSync(controlPath, 'not a database')
+
+    const result = spawnSync(process.execPath, [PUSH_CLI], {
+      cwd: PACKAGE_ROOT,
+      env: { ...process.env, CIMI_CONTROL_DB_PATH: controlPath },
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toContain('db:push refused')
+    expect(`${result.stdout}${result.stderr}`).not.toContain('SqliteError')
+  })
+
+  it('pushes an empty database file', () => {
+    writeFileSync(controlPath, '')
+
+    const result = spawnSync(process.execPath, [PUSH_CLI], {
+      cwd: PACKAGE_ROOT,
+      env: { ...process.env, CIMI_CONTROL_DB_PATH: controlPath },
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(0)
+    expect(`${result.stdout}${result.stderr}`).toContain('Changes applied')
   })
 })
 
