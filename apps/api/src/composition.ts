@@ -293,6 +293,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     analytics: deps.analytics,
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
+    ...(deps.migrationsFolder !== undefined && { migrationsFolder: deps.migrationsFolder }),
     profileFilterKeys: reportingProfileFilter,
     lifecycleLock: lock,
   })
@@ -302,6 +303,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     analytics: deps.analytics,
     lifecycle,
     dataDirectoryReady: deps.dataDirectoryReady,
+    ...(deps.migrationsFolder !== undefined && { migrationsFolder: deps.migrationsFolder }),
     profileFilterKeys: reportingProfileFilter,
     lifecycleLock: lock,
   })

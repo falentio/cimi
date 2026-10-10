@@ -41,9 +41,10 @@ export async function createApiTestFixture(
     logging?: LoggingConfig
     lifecycle?: HealthLifecycle
     lock?: LifecycleLock
+    migrationsFolder?: string | undefined
   } = {},
 ) {
-  const db = createMigratedTestDb()
+  const db = createMigratedTestDb({ migrationsFolder: options.migrationsFolder })
 
   try {
     const analytics = await createTestAnalyticsDb()
@@ -67,6 +68,9 @@ export async function createApiTestFixture(
         dataDirectoryReady: true,
         controlDatabasePath: ':memory:',
         dataDirectoryPath: '/tmp/cimi-test-data',
+        ...(options.migrationsFolder !== undefined && {
+          migrationsFolder: options.migrationsFolder,
+        }),
         ...(options.logging !== undefined && { logging: options.logging }),
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
         eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
