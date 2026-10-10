@@ -17,6 +17,15 @@ import type { InferOutput } from 'valibot'
 import type { SiteRepository } from './repository.ts'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
 
+const DEMO_SITE_NAME = 'Demo Site'
+
+const DEMO_SITE_HOSTNAME = 'demo.example.com'
+
+export interface DemoSiteInput {
+  readonly organizationId: string
+  readonly ownerUserId: string
+}
+
 export interface SiteServiceDependencies {
   repository: SiteRepository
   scope: SiteScopeGuardDependencies
@@ -99,6 +108,33 @@ export class SiteService {
       missingCode: 'NOT_FOUND',
     })
 
+    return this.insertSite({
+      organizationId: input.organizationId,
+      name: input.name,
+      hostname: input.hostname,
+    })
+  }
+
+  /**
+   * Seeding runs behind the request, where there is no user and no headers, so the demo site is
+   * written through the repository without the membership reconcile and role assertions the
+   * request path owes.
+   */
+  async createDemoSite({ organizationId }: DemoSiteInput): Promise<{ readonly siteId: string }> {
+    const site = await this.insertSite({
+      organizationId,
+      name: DEMO_SITE_NAME,
+      hostname: DEMO_SITE_HOSTNAME,
+    })
+
+    return { siteId: site.id }
+  }
+
+  private async insertSite(input: {
+    organizationId: string
+    name: string
+    hostname: string
+  }): Promise<SiteRepository.Site> {
     try {
       return await this.repository.insert({
         id: generateId('ste'),
@@ -113,6 +149,7 @@ export class SiteService {
       })
     } catch (error) {
       if (isConstraintError(error)) throw new ORPCError('CONFLICT', { status: 409 })
+
       throw error
     }
   }
