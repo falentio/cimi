@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { closeDb, createDb } from '../../client.ts'
 import { migrateControlDb } from '../../migrate.ts'
 import { createTestAnalyticsDb } from '../../testing/index.ts'
-import type { AnalyticsDb, Db } from '../../index.ts'
+import type { AnalyticsDb, AnalyticsProjectionSnapshot, Db } from '../../index.ts'
 
 const NOW = Date.parse('2026-09-05T00:00:00.000Z')
 
@@ -11,6 +11,10 @@ const SITE_ID = 'ste-1'
 const CHUNK_ROWS = 2_000
 
 const VOLUME_EVENTS = 2_001
+
+const INTERLEAVED_EVENTS = 10_000
+
+const READS_DURING_APPEND = 8
 
 function epochMs(milliseconds: number): bigint {
   return BigInt(milliseconds)
@@ -37,6 +41,30 @@ async function readFacts(analytics: AnalyticsDb, siteId: string) {
   )
 
   return { visitors, sessions }
+}
+
+function checkpointState(snapshot: AnalyticsProjectionSnapshot) {
+  const checkpoint = snapshot.checkpoint
+
+  return {
+    factCardinality: snapshot.factCardinality,
+    projectedAcceptanceSequence: checkpoint?.projectedAcceptanceSequence ?? null,
+    projectedFactCardinality: checkpoint?.projectedFactCardinality ?? null,
+    projectionGeneration: checkpoint?.projectionGeneration ?? null,
+    occurrenceCoveredFrom: checkpoint?.occurrenceCoveredFrom?.getTime() ?? null,
+    occurrenceCoveredThrough: checkpoint?.occurrenceCoveredThrough?.getTime() ?? null,
+    readiness: checkpoint?.readiness ?? null,
+  }
+}
+
+async function readReportEventIds(analytics: AnalyticsDb, siteId: string, events: number) {
+  const report = await analytics.readReportData({
+    siteId,
+    from: new Date(NOW - 1_000),
+    toExclusive: new Date(NOW + events * 1_000),
+  })
+
+  return report.events.map((event) => event.eventId)
 }
 
 describe('AnalyticsDb.appendProjectedEvents', () => {
@@ -226,6 +254,56 @@ describe('AnalyticsDb.appendProjectedEvents', () => {
       }
     } finally {
       await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
+  it('serializes a read issued mid-append behind the append, not inside its transaction', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const interleaved = await createTestAnalyticsDb()
+    const clean = await createTestAnalyticsDb()
+
+    try {
+      seedVolume(controlDb, INTERLEAVED_EVENTS)
+
+      const appendPromise = interleaved.appendProjectedEvents({
+        controlDb,
+        siteId: SITE_ID,
+        chunkRows: CHUNK_ROWS,
+      })
+
+      const snapshotsDuringAppend: AnalyticsProjectionSnapshot[] = []
+
+      for (let read = 0; read < READS_DURING_APPEND; read += 1) {
+        snapshotsDuringAppend.push(await interleaved.readProjectionSnapshot({ siteId: SITE_ID }))
+      }
+
+      const result = await appendPromise
+
+      const cleanResult = await clean.appendProjectedEvents({
+        controlDb,
+        siteId: SITE_ID,
+        chunkRows: CHUNK_ROWS,
+      })
+
+      expect(result.chunkCount).toBeGreaterThan(1)
+      expect(result.appendedEventCount).toBe(INTERLEAVED_EVENTS)
+      expect(result.appendedEventCount).toBe(cleanResult.appendedEventCount)
+
+      for (const snapshot of snapshotsDuringAppend) {
+        expect(snapshot.factCardinality).toBe(snapshot.checkpoint?.projectedFactCardinality ?? 0)
+      }
+
+      expect(await readFacts(interleaved, SITE_ID)).toEqual(await readFacts(clean, SITE_ID))
+      expect(await readReportEventIds(interleaved, SITE_ID, INTERLEAVED_EVENTS)).toEqual(
+        await readReportEventIds(clean, SITE_ID, INTERLEAVED_EVENTS),
+      )
+      expect(
+        checkpointState(await interleaved.readProjectionSnapshot({ siteId: SITE_ID })),
+      ).toEqual(checkpointState(await clean.readProjectionSnapshot({ siteId: SITE_ID })))
+    } finally {
+      await interleaved.close()
+      await clean.close()
       closeDb(controlDb)
     }
   })
