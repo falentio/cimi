@@ -153,6 +153,43 @@ export class SiteService {
       throw error
     }
   }
+  /**
+   * A seed that fails after the site insert takes its own site back. The request path cannot own
+   * this: seeding runs behind the request with no user and no headers, and the site still has to
+   * go, or the personal organization keeps a site row it can never be deleted through.
+   */
+  async releaseDemoSite({ siteId }: { readonly siteId: string }): Promise<void> {
+    const requestedAt = new Date()
+
+    await this.withLifecycleLease('site_deletion', async () => {
+      const begun = await this.repository.beginDelete({
+        siteId,
+        operationId: generateId('sop'),
+        requestedAt,
+      })
+
+      if (begun.status !== 'accepted') return
+
+      const completed = await this.repository.completeDelete({
+        siteId,
+        operationId: begun.operationId,
+        completedAt: requestedAt,
+      })
+
+      if (completed.status !== 'completed') return
+
+      const deletion = await this.repository.getDeletionStatus(siteId)
+
+      // Nobody has seen this site, so it does not wait out the recovery window the request path owes.
+      if (deletion === undefined || deletion.purgeAt === null) return
+
+      await this.repository.purge({
+        siteId,
+        operationId: generateId('sop'),
+        requestedAt: new Date(deletion.purgeAt),
+      })
+    })
+  }
 
   async update(
     input: InferOutput<typeof schema.SSiteUpdateV2Input>,
@@ -212,7 +249,6 @@ export class SiteService {
       return { accepted: true, status: 'deleting', operationId: result.operationId }
     })
   }
-
   async recover(
     input: InferOutput<typeof schema.SSiteRecoverInput>,
     user: Pick<AuthUser, 'id'>,

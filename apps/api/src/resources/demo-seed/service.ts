@@ -62,27 +62,40 @@ export class DemoSeedService {
       ownerUserId: input.ownerUserId,
     })
 
-    const policy = await this.#retention.effective(site.siteId)
+    try {
+      const policy = await this.#retention.effective(site.siteId)
 
-    const horizon = resolveSiteLocalCutoff({
-      now,
-      timeZone: DEMO_REPORTING_TIMEZONE,
-      retentionMonths: policy.eventMonths,
-    })
+      const horizon = resolveSiteLocalCutoff({
+        now,
+        timeZone: DEMO_REPORTING_TIMEZONE,
+        retentionMonths: policy.eventMonths,
+      })
 
-    const events = generateEventFabric({
-      siteId: site.siteId,
-      from: new Date(Math.max(now.getTime() - DEMO_HISTORY_DAYS * MS_PER_DAY, horizon.getTime())),
-      to: now,
-    })
+      const events = generateEventFabric({
+        siteId: site.siteId,
+        from: new Date(Math.max(now.getTime() - DEMO_HISTORY_DAYS * MS_PER_DAY, horizon.getTime())),
+        to: now,
+      })
 
-    const appendedEventCount = await this.#journal.appendGenerated({
-      siteId: site.siteId,
-      events,
-    })
+      const appendedEventCount = await this.#journal.appendGenerated({
+        siteId: site.siteId,
+        events,
+      })
 
-    await this.#analytics.appendProjectedEvents({ controlDb: this.#controlDb, siteId: site.siteId })
+      await this.#analytics.appendProjectedEvents({
+        controlDb: this.#controlDb,
+        siteId: site.siteId,
+      })
 
-    return { siteId: site.siteId, appendedEventCount }
+      return { siteId: site.siteId, appendedEventCount }
+    } catch (error) {
+      try {
+        await this.#sites.releaseDemoSite({ siteId: site.siteId })
+      } catch {
+        // The original failure is the one worth reporting; a release that also fails adds nothing.
+      }
+
+      throw error
+    }
   }
 }

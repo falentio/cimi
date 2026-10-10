@@ -7,6 +7,7 @@ export interface DemoSitePort {
     readonly organizationId: string
     readonly ownerUserId: string
   }): Promise<{ readonly siteId: string }>
+  releaseDemoSite(input: { readonly siteId: string }): Promise<void>
 }
 
 interface DemoSeedEventCommon {

@@ -81,6 +81,57 @@ describe('DemoSeedService.seed', () => {
     )
     expect(analytics.appendProjectedEvents).not.toHaveBeenCalled()
   })
+
+  it('releases the site and rethrows when the retention horizon throws', async () => {
+    const { sites, service } = createDemoSeedFixture({ retention: failingRetention() })
+
+    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
+      'horizon down',
+    )
+    expect(sites.releaseDemoSite).toHaveBeenCalledWith({ siteId: 'ste_1' })
+  })
+
+  it('releases the site when the journal append throws', async () => {
+    const { sites, journal, service } = createDemoSeedFixture()
+    journal.appendGenerated.mockRejectedValue(new Error('journal closed'))
+
+    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
+      'journal closed',
+    )
+    expect(sites.releaseDemoSite).toHaveBeenCalledWith({ siteId: 'ste_1' })
+  })
+
+  it('releases the site when the projection throws', async () => {
+    const { sites, analytics, service } = createDemoSeedFixture()
+    analytics.appendProjectedEvents.mockRejectedValue(new Error('projection down'))
+
+    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
+      'projection down',
+    )
+    expect(sites.releaseDemoSite).toHaveBeenCalledWith({ siteId: 'ste_1' })
+  })
+
+  it('rethrows the seeding error when the release itself throws', async () => {
+    const { sites, analytics, service } = createDemoSeedFixture()
+    analytics.appendProjectedEvents.mockRejectedValue(new Error('projection down'))
+    sites.releaseDemoSite.mockRejectedValue(new Error('release down'))
+
+    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
+      'projection down',
+    )
+  })
+
+  it('leaves the site in place when the seed succeeds', async () => {
+    const { sites, service } = createDemoSeedFixture()
+
+    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).resolves.toEqual(
+      {
+        siteId: 'ste_1',
+        appendedEventCount: 0,
+      },
+    )
+    expect(sites.releaseDemoSite).not.toHaveBeenCalled()
+  })
 })
 
 const now = new Date('2026-04-01T12:00:00.000Z')
@@ -89,4 +140,11 @@ const GOLDEN_POLICY = {
   eventMonths: 12,
   profileMonths: 12,
   replayMonths: null,
+}
+
+function failingRetention(): DemoSeedRetentionPort {
+  const retention = mock<DemoSeedRetentionPort>()
+  retention.effective.mockRejectedValue(new Error('horizon down'))
+
+  return retention
 }
