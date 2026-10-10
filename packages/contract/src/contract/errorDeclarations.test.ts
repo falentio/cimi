@@ -191,6 +191,12 @@ const expectedErrors = {
     'CONFLICT',
     'SERVICE_UNAVAILABLE',
   ),
+  'installation.ensureInstallation': catalog(
+    'UNAUTHORIZED',
+    'FORBIDDEN',
+    'CONFLICT',
+    'INTERNAL_SERVER_ERROR',
+  ),
   'installation.getInstallationStatus': catalog(
     'UNAUTHORIZED',
     'FORBIDDEN',
@@ -416,7 +422,7 @@ const getRoutes = (
 
 describe('procedure error declarations', () => {
   it('matches every route to its documented exhaustive error catalog', () => {
-    expect(Object.keys(expectedErrors)).toHaveLength(76)
+    expect(Object.keys(expectedErrors)).toHaveLength(77)
 
     for (const [path, expected] of Object.entries(expectedErrors)) {
       expect(getErrorMap(path), path).toEqual(expected)
@@ -431,7 +437,7 @@ describe('procedure error declarations', () => {
     const routes = getRoutes(contract)
     const routeKeys = new Set<string>()
 
-    expect(routes).toHaveLength(76)
+    expect(routes).toHaveLength(77)
 
     for (const { contractPath, method, routePath } of routes) {
       // SAFETY: contract paths are `resource.operation` pairs by construction; split yields two segments.

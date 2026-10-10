@@ -1,6 +1,11 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import {
+  ensureInstallation,
+  SInstallationEnsureInput,
+  SInstallationEnsureOutput,
+} from './command/ensure.ts'
+import {
   initializeInstallation,
   SInstallationInitializeInput,
   SInstallationInitializeOutput,
@@ -77,5 +82,20 @@ describe('installation initialization contract', () => {
 
   it('rejects the legacy compact response shape', () => {
     expect(() => v.parse(SInstallationInitializeOutput, installation)).toThrow(v.ValiError)
+  })
+
+  it('accepts an empty ensure input', () => {
+    expect(v.parse(SInstallationEnsureInput, {})).toEqual({})
+  })
+
+  it('rejects an ensure input carrying fields', () => {
+    expect(() =>
+      v.parse(SInstallationEnsureInput, { defaultRetention: DEFAULT_RETENTION_POLICY }),
+    ).toThrow(v.ValiError)
+  })
+
+  it('accepts a ready installation as the ensure output', () => {
+    expect(ensureInstallation['~orpc'].route).toMatchObject({ successStatus: 200 })
+    expect(v.parse(SInstallationEnsureOutput, installation)).toEqual(installation)
   })
 })
