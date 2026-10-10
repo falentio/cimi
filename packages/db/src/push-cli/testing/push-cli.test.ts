@@ -1,0 +1,75 @@
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { migrateControlDbAtPath } from '../../migrate.ts'
+import { readSqliteMaster } from '../../push.ts'
+
+const PACKAGE_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
+
+const PUSH_CLI = fileURLToPath(new URL('../../push-cli.ts', import.meta.url))
+
+describe('push-cli', () => {
+  let dir: string
+  let controlPath: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'cimi-push-cli-'))
+    controlPath = join(dir, 'control.sqlite')
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it('refuses to push a migrated control database and leaves the schema untouched', () => {
+    migrateControlDbAtPath(controlPath)
+    const masterBefore = readMaster(controlPath)
+
+    const result = spawnSync(process.execPath, [PUSH_CLI], {
+      cwd: PACKAGE_ROOT,
+      env: { ...process.env, CIMI_CONTROL_DB_PATH: controlPath },
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toContain('vp run --filter @cimi/db migrate')
+    expect(readMaster(controlPath)).toEqual(masterBefore)
+  })
+
+  it('refuses with a readable message when the target cannot be opened', () => {
+    writeFileSync(controlPath, 'not a database')
+
+    const result = spawnSync(process.execPath, [PUSH_CLI], {
+      cwd: PACKAGE_ROOT,
+      env: { ...process.env, CIMI_CONTROL_DB_PATH: controlPath },
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toContain('db:push refused')
+    expect(`${result.stdout}${result.stderr}`).not.toContain('SqliteError')
+  })
+
+  it('pushes an empty database file', { timeout: 30_000 }, () => {
+    writeFileSync(controlPath, '')
+
+    const result = spawnSync(process.execPath, [PUSH_CLI], {
+      cwd: PACKAGE_ROOT,
+      env: { ...process.env, CIMI_CONTROL_DB_PATH: controlPath },
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(0)
+    expect(`${result.stdout}${result.stderr}`).toContain('Changes applied')
+  })
+})
+
+function readMaster(path: string): Array<{ name: string; type: string }> {
+  return readSqliteMaster(path, 'SELECT type, name FROM sqlite_master ORDER BY type, name').map(
+    (row) => ({ name: row.name, type: row.type }),
+  )
+}

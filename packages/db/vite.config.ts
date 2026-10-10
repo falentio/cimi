@@ -7,7 +7,7 @@ export default defineConfig({
     tasks: {
       'db:check': { command: 'drizzle-kit check --config drizzle.config.ts', env: dbEnv },
       'db:generate': { command: 'drizzle-kit generate --config drizzle.config.ts', cache: false },
-      'db:push': { command: 'drizzle-kit push --config drizzle.config.ts', cache: false },
+      'db:push': { command: 'node src/push-cli.ts', cache: false },
       'db:studio': { command: 'drizzle-kit studio --config drizzle.config.ts', cache: false },
       migrate: { command: 'node src/migrate-cli.ts', cache: false },
     },
