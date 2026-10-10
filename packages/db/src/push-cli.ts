@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readControlDatabasePushability, type ControlDatabasePushability } from './client.ts'
 import { resolveControlDbPath } from './migrate.ts'
+import { readControlDatabaseTables } from './push.ts'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('../', import.meta.url))
 
@@ -20,19 +20,18 @@ if (refusal !== undefined) {
 }
 
 function describeRefusal(path: string): string | undefined {
-  let pushability: ControlDatabasePushability
+  let tables: string[]
 
   try {
-    pushability = readControlDatabasePushability(path)
+    tables = readControlDatabaseTables(path)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
 
     return `db:push refused: control database ${path} could not be read: ${reason}.`
   }
 
-  if (pushability.kind !== 'populated') return undefined
+  if (tables.length === 0) return undefined
 
-  const tables = pushability.userTables
   const shown = tables.slice(0, 10).join(', ')
   const rest = tables.length > 10 ? `, and ${String(tables.length - 10)} more` : ''
 
