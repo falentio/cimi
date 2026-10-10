@@ -157,7 +157,10 @@ export interface StoreHealthReport {
  * admission gate about whether the analytics store is ready.
  */
 export async function readStoreHealth(
-  deps: Pick<CreateApiAppDependencies, 'db' | 'analytics' | 'dataDirectoryReady' | 'lifecycle'>,
+  deps: Pick<
+    CreateApiAppDependencies,
+    'db' | 'analytics' | 'dataDirectoryReady' | 'lifecycle' | 'migrationsFolder'
+  >,
   lifecycleSnapshot?: HealthSnapshot,
   reportFailures = true,
 ): Promise<StoreHealthReport> {
@@ -167,7 +170,7 @@ export async function readStoreHealth(
     const result = deps.db.$client.prepare('select 1').get()
 
     if (result !== undefined) {
-      validateBaseSchema(deps.db)
+      validateBaseSchema(deps.db, { migrationsFolder: deps.migrationsFolder })
       controlDatabase = true
     }
   } catch (error: unknown) {

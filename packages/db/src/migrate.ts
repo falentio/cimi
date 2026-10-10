@@ -79,7 +79,7 @@ export function validateControlMigrationHistory(
   }
 }
 
-export function validateBaseSchema(db: Db): void {
+export function validateBaseSchema(db: Db, options: ControlMigrationOptions = {}): void {
   // SAFETY: better-sqlite3 returns any; single name column selected below.
   const rows = db.$client
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -92,7 +92,7 @@ export function validateBaseSchema(db: Db): void {
     throw new Error(`Base control schema is missing tables: ${missing.join(', ')}`)
   }
 
-  const drift = describeControlSchemaDrift(db.$client)
+  const drift = describeControlSchemaDrift(db.$client, options.migrationsFolder)
 
   if (drift.length > 0) {
     throw new ControlMigrationIncompatibilityError(
@@ -110,7 +110,7 @@ export function migrateControlDbAtPath(path: string, options: ControlMigrationOp
 
   try {
     migrateControlDb(db, options)
-    validateBaseSchema(db)
+    validateBaseSchema(db, options)
   } finally {
     closeDb(db)
   }
@@ -118,7 +118,7 @@ export function migrateControlDbAtPath(path: string, options: ControlMigrationOp
 
 export { resolveControlDbPath } from './control-db-path.ts'
 
-let referenceColumnOrder: Map<string, string[]> | undefined
+let referenceColumnOrderByFolder: Map<string, Map<string, string[]>> | undefined
 
 /**
  * Compares the live column layout of every user table against the layout the control migrations
@@ -127,9 +127,12 @@ let referenceColumnOrder: Map<string, string[]> | undefined
  * migrations grew carries an order the module does not restate. A half-pushed database, whose
  * rebuilt tables follow the module order while the rest keep the migration order, matches neither.
  */
-function describeControlSchemaDrift(client: Database.Database): string[] {
+function describeControlSchemaDrift(
+  client: Database.Database,
+  migrationsFolder?: string,
+): string[] {
   const live = readLiveColumnOrder(client)
-  const reference = readReferenceColumnOrder()
+  const reference = readReferenceColumnOrder(migrationsFolder)
   const drift: string[] = []
 
   for (const [table, columns] of reference) {
@@ -168,19 +171,25 @@ function readLiveColumnOrder(client: Database.Database): Map<string, string[]> {
   return columns
 }
 
-function readReferenceColumnOrder(): Map<string, string[]> {
-  if (referenceColumnOrder !== undefined) return referenceColumnOrder
+function readReferenceColumnOrder(migrationsFolder?: string): Map<string, string[]> {
+  referenceColumnOrderByFolder ??= new Map()
+  const cache = referenceColumnOrderByFolder
+  const key = migrationsFolder ?? MIGRATIONS_FOLDER
+  const cached = cache.get(key)
+
+  if (cached !== undefined) return cached
 
   const reference = createDb({ path: ':memory:' })
 
   try {
-    migrateControlDb(reference)
-    referenceColumnOrder = readLiveColumnOrder(reference.$client)
+    migrateControlDb(reference, { migrationsFolder })
+    const order = readLiveColumnOrder(reference.$client)
+    cache.set(key, order)
+
+    return order
   } finally {
     closeDb(reference)
   }
-
-  return referenceColumnOrder
 }
 
 let defaultControlMigrationManifest: readonly MigrationManifestEntry[] | undefined

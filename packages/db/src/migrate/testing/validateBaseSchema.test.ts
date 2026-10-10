@@ -1,16 +1,24 @@
 import Database from 'better-sqlite3'
-import { mkdtempSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { closeDb, createDb } from '../../client.ts'
 import { migrateControlDbAtPath, validateBaseSchema } from '../../migrate.ts'
-import { ControlMigrationIncompatibilityError } from '../../migration-plan.ts'
+import {
+  ControlMigrationIncompatibilityError,
+  loadCurrentMigrationPlan,
+} from '../../migration-plan.ts'
 import * as schema from '../../schema/index.ts'
 
 const DRIFTED_TABLE = 'accepted_event'
+
+const CURRENT_MIGRATIONS_FOLDER = fileURLToPath(new URL('../../migrations', import.meta.url))
+
+const SENTINEL_MIGRATION_TAG = '0015_regression_sentinel'
 
 describe('validateBaseSchema', () => {
   let dir: string
@@ -64,6 +72,13 @@ describe('validateBaseSchema', () => {
     } finally {
       closeDb(db)
     }
+  })
+
+  it('validates a control database against the migrations folder it was built from', () => {
+    const folder = createExtendedMigrationsFolder(dir)
+    const customPath = join(dir, 'custom.sqlite')
+
+    expect(() => migrateControlDbAtPath(customPath, { migrationsFolder: folder })).not.toThrow()
   })
 })
 
@@ -128,4 +143,26 @@ function createRebuiltTableSql(
   })
 
   return 'CREATE TABLE __new_' + DRIFTED_TABLE + ' (' + definitions.join(', ') + ')'
+}
+
+function createExtendedMigrationsFolder(dir: string): string {
+  const folder = join(dir, 'extended-migrations')
+  mkdirSync(join(folder, 'meta'), { recursive: true })
+
+  for (const name of readdirSync(CURRENT_MIGRATIONS_FOLDER)) {
+    if (name.endsWith('.sql'))
+      copyFileSync(join(CURRENT_MIGRATIONS_FOLDER, name), join(folder, name))
+  }
+
+  const plan = loadCurrentMigrationPlan(CURRENT_MIGRATIONS_FOLDER)
+  const entries = plan.entries.map((entry) => ({ tag: entry.tag, when: entry.createdAt }))
+  entries.push({ tag: SENTINEL_MIGRATION_TAG, when: 9_999_999_999_999 })
+
+  writeFileSync(join(folder, 'meta/_journal.json'), JSON.stringify({ entries }), 'utf8')
+  writeFileSync(
+    join(folder, SENTINEL_MIGRATION_TAG + '.sql'),
+    'ALTER TABLE installation ADD COLUMN regression_sentinel INTEGER NOT NULL DEFAULT 0',
+  )
+
+  return folder
 }
