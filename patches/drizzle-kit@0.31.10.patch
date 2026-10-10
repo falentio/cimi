@@ -1,0 +1,34 @@
+diff --git a/bin.cjs b/bin.cjs
+index 07274ea6f53fd54a129b3d338892feda6e995cff..61607e685699b8a9293acdeb914498f5e1cde03e 100755
+--- a/bin.cjs
++++ b/bin.cjs
+@@ -82781,6 +82781,29 @@ var init_push = __esm({
+       const { connectToSQLite: connectToSQLite2 } = await Promise.resolve().then(() => (init_connections(), connections_exports));
+       const { sqlitePushIntrospect: sqlitePushIntrospect2 } = await Promise.resolve().then(() => (init_sqliteIntrospect(), sqliteIntrospect_exports));
+       const db = await connectToSQLite2(credentials2);
++      if (!('driver' in credentials2) && typeof credentials2.url === 'string') {
++        const sqliteTargetPath = credentials2.url.startsWith('file:')
++          ? credentials2.url.substring(5)
++          : credentials2.url;
++        const { existsSync: existsSync2 } = await import('node:fs');
++        if (existsSync2(sqliteTargetPath)) {
++          const existingTables = await db.query(
++            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
++          );
++          if (existingTables.length > 0) {
++            const tableNames = existingTables.map((row) => row.name);
++            const shown = tableNames.slice(0, 10).join(', ');
++            const rest = tableNames.length > 10 ? `, and ${tableNames.length - 10} more` : '';
++            console.error(
++              `drizzle-kit push refused: ${sqliteTargetPath} already holds ${tableNames.length} tables (${shown}${rest}).`,
++            );
++            console.error(
++              'drizzle-kit push only initializes an empty prototyping database; run `vp run --filter @cimi/db migrate` instead.',
++            );
++            process.exit(1);
++          }
++        }
++      }
+       const { schema: schema6 } = await sqlitePushIntrospect2(db, tablesFilter);
+       const { prepareSQLitePush: prepareSQLitePush2 } = await Promise.resolve().then(() => (init_migrate(), migrate_exports));
+       const statements = await prepareSQLitePush2(schemaPath, schema6, casing2);

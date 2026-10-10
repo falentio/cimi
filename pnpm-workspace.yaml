@@ -53,3 +53,6 @@ catalog:
 catalogs:
   vue-compiler:
     typescript: 6.0.3
+
+patchedDependencies:
+  drizzle-kit@0.31.10: patches/drizzle-kit@0.31.10.patch
