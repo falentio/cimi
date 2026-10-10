@@ -193,29 +193,14 @@ export class InstallationService implements LifecycleOperationStatusReader {
         return this.reuseExisting(existing, input.defaultRetention, dataDirectoryReady)
       }
 
-      try {
-        const now = this.clock()
+      const { record, inserted } = await this.createSingletonRow(
+        input.defaultRetention,
+        dataDirectoryReady,
+      )
 
-        const created = await this.repository.insert({
-          id: this.ids.installationId(),
-          retentionPolicyId: this.ids.retentionPolicyId(),
-          eventMonths: input.defaultRetention.eventMonths,
-          profileMonths: input.defaultRetention.profileMonths,
-          replayMonths: input.defaultRetention.replayMonths,
-          dataDirectoryReady,
-          createdAt: now,
-          updatedAt: now,
-        })
+      if (!inserted) return this.reuseExisting(record, input.defaultRetention, dataDirectoryReady)
 
-        return { status: 201, body: toPublicInstallation(created) }
-      } catch (error) {
-        if (!isConstraintError(error)) throw error
-        const raced = await this.repository.find()
-
-        if (raced === undefined) throw error
-
-        return this.reuseExisting(raced, input.defaultRetention, dataDirectoryReady)
-      }
+      return { status: 201, body: toPublicInstallation(record) }
     } finally {
       await lease.release()
     }
@@ -446,27 +431,12 @@ export class InstallationService implements LifecycleOperationStatusReader {
 
     if (!dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
 
-    try {
-      const now = this.clock()
+    const { record } = await this.createSingletonRow(
+      schema.DEFAULT_RETENTION_POLICY,
+      dataDirectoryReady,
+    )
 
-      const created = await this.repository.insert({
-        id: this.ids.installationId(),
-        retentionPolicyId: this.ids.retentionPolicyId(),
-        ...schema.DEFAULT_RETENTION_POLICY,
-        dataDirectoryReady,
-        createdAt: now,
-        updatedAt: now,
-      })
-
-      return toPublicInstallation(created)
-    } catch (error) {
-      if (!isConstraintError(error)) throw error
-      const raced = await this.repository.find()
-
-      if (raced === undefined) throw error
-
-      return toPublicInstallation(raced)
-    }
+    return toPublicInstallation(record)
   }
 
   async snapshotForHealth(): Promise<InstallationHealthSnapshot | undefined> {
@@ -492,6 +462,35 @@ export class InstallationService implements LifecycleOperationStatusReader {
       ...base,
       controlStore: readiness.controlStore,
       analyticsStore: readiness.analyticsStore,
+    }
+  }
+
+  // inserted is false when the singleton_key unique index rejected this insert and another
+  // writer's row was read back; initialize answers 201 only for the row it wrote itself.
+  private async createSingletonRow(
+    retention: InstallationRepository.Retention,
+    dataDirectoryReady: boolean,
+  ): Promise<{ record: InstallationRepository.Record; inserted: boolean }> {
+    try {
+      const now = this.clock()
+
+      const record = await this.repository.insert({
+        id: this.ids.installationId(),
+        retentionPolicyId: this.ids.retentionPolicyId(),
+        ...retention,
+        dataDirectoryReady,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      return { record, inserted: true }
+    } catch (error) {
+      if (!isConstraintError(error)) throw error
+      const raced = await this.repository.find()
+
+      if (raced === undefined) throw error
+
+      return { record: raced, inserted: false }
     }
   }
 
