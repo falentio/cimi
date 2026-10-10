@@ -2162,6 +2162,30 @@ describe('DuckDbPublicDashboardQuery.publicDashboard', () => {
     }
   })
 
+  it('counts distinct visitors across time buckets', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+
+    try {
+      seedBreakdownEvents(controlDb, attributedEvents())
+      await analytics.rebuild({ controlDb })
+      const query = createPublicQuery(analytics)
+
+      await expect(
+        query.countDistinctVisitors({
+          siteId: createSiteId(SITE),
+          period: publicTimePeriod(),
+          metric: 'events',
+          dimension: 'time',
+          filterPlan: emptyPlan,
+        }),
+      ).resolves.toBe(5)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
   it('removes query strings and fragments from public URL dimensions', async () => {
     const controlDb = createMigratedTestDb()
     const analytics = await createTestAnalyticsDb()
