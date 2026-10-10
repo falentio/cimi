@@ -1,4 +1,5 @@
 import { schema } from '@cimi/contract'
+import type { IngestionSite, SiteIngestionPort } from '@cimi/guard'
 import type { LifecycleLock, RetentionResolver } from '@cimi/kernel'
 import {
   isRecord,
@@ -19,8 +20,6 @@ import {
   SEvent,
 } from '@cimi/contract'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
-import type { RetentionPolicyRepository } from '../retention-policy/repository.ts'
-import type { SiteRepository } from '../site/repository.ts'
 import {
   AcceptanceAdmissionStoppedError,
   AcceptanceCoalescer,
@@ -50,9 +49,9 @@ export type CollectEventsInput = InferOutput<typeof SCollectEventsInput>
 export type CollectEventsOutput = InferOutput<typeof SCollectEventsOutput>
 
 export interface EventIngestionServiceDependencies {
-  readonly siteRepository: SiteRepository
+  readonly sites: SiteIngestionPort
   readonly collectionPolicy: CollectionPolicyService
-  readonly retention: RetentionPolicyRepository | RetentionResolver
+  readonly retention: RetentionResolver
   readonly acceptance: AcceptanceRepository
   readonly lifecycleLock?: LifecycleLock | undefined
   readonly clock?: (() => Date) | undefined
@@ -131,9 +130,9 @@ type SuccessfulReservation = Exclude<Reservation, { readonly status: 'conflict' 
 
 export class EventIngestionService {
   readonly coalescer: AcceptanceCoalescer
-  private readonly siteRepository: SiteRepository
+  private readonly sites: SiteIngestionPort
   private readonly collectionPolicy: CollectionPolicyService
-  private readonly retention: RetentionPolicyRepository | RetentionResolver
+  private readonly retention: RetentionResolver
   private readonly acceptance: AcceptanceRepository
   private readonly lifecycleLock: LifecycleLock | undefined
   private readonly clock: () => Date
@@ -145,7 +144,7 @@ export class EventIngestionService {
   }
 
   constructor({
-    siteRepository,
+    sites,
     collectionPolicy,
     retention,
     acceptance,
@@ -155,7 +154,7 @@ export class EventIngestionService {
     protection,
     identitySession,
   }: EventIngestionServiceDependencies) {
-    this.siteRepository = siteRepository
+    this.sites = sites
     this.collectionPolicy = collectionPolicy
     this.retention = retention
     this.acceptance = acceptance
@@ -476,10 +475,10 @@ export class EventIngestionService {
     return this.coalescer.stop()
   }
 
-  private async resolveSite(ingestionIdentifier: string): Promise<SiteRepository.SiteRecord> {
-    const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
+  private async resolveSite(ingestionIdentifier: string): Promise<IngestionSite> {
+    const site = await this.sites.findActiveByIngestionIdentifier(ingestionIdentifier)
 
-    if (site === undefined || site.status !== 'active') throw new ORPCError('NOT_FOUND')
+    if (site === undefined) throw new ORPCError('NOT_FOUND')
 
     return site
   }
@@ -506,11 +505,11 @@ export class EventIngestionService {
 
   private async prepare(
     input: EventInput,
-    site: SiteRepository.SiteRecord,
+    site: IngestionSite,
     request: IngestionRequestContext = {},
   ): Promise<PreparedEvent> {
     const receipt = this.clock()
-    const retention = await this.retentionPolicy(site.id)
+    const retention = await this.retention.effective(site.id)
 
     const decision = await this.collectionPolicy.admit({
       siteId: site.id,
@@ -666,18 +665,6 @@ export class EventIngestionService {
     }
   }
 
-  private async retentionPolicy(siteId: string): Promise<{ readonly eventMonths: number }> {
-    if ('effective' in this.retention) {
-      const policy = await this.retention.effective(siteId)
-
-      return { eventMonths: policy.eventMonths }
-    }
-
-    const resolution = await this.retention.findResolved({ siteId })
-
-    return { eventMonths: resolution.effectivePolicy.eventMonths }
-  }
-
   private reserve(candidates: readonly ReservableCandidate[]): Promise<readonly Reservation[]> {
     return this.coalescer.reserveMany(candidates).catch((cause: unknown) => {
       throw acceptanceError(cause)
@@ -692,7 +679,7 @@ export class EventIngestionService {
     const lease = await this.lifecycleLock.acquire('ingestion')
 
     if (lease === undefined) {
-      const site = await this.siteRepository.findByIngestionIdentifier(ingestionIdentifier)
+      const site = await this.sites.findActiveByIngestionIdentifier(ingestionIdentifier)
 
       if (site === undefined) throw new ORPCError('NOT_FOUND')
       throw new ORPCError('SERVICE_UNAVAILABLE', { status: 503 })

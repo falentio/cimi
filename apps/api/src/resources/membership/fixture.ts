@@ -1,6 +1,6 @@
 import type { AuthorityMember, OrganizationAuthority } from '@cimi/auth'
 import { mock } from 'vitest-mock-extended'
-import type { OrganizationRole } from '../organization/repository.ts'
+import type { MembershipRole } from './repository.ts'
 import type { MembershipRecord, MembershipRepository } from './repository.ts'
 import { MembershipService } from './service.ts'
 
@@ -88,7 +88,7 @@ export function createMembershipFixture(
 export function createMembershipRecord(
   overrides: Partial<MembershipRecord> = {},
 ): MembershipRecord {
-  const role: OrganizationRole = overrides.role ?? 'owner'
+  const role: MembershipRole = overrides.role ?? 'owner'
 
   return {
     organizationId,

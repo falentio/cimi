@@ -5,6 +5,7 @@ import type { OrganizationMembershipReconciler } from '../organization/service.t
 import { SiteLifecycleWorker, type SiteLifecycleWorkerDependencies } from './lifecycle.ts'
 import { SiteRepositoryDrizzle } from './repository.drizzle.ts'
 import { siteRouter } from './router.ts'
+import { createSiteIngestionPort } from './ingestion-port.ts'
 import { createSiteScopeDependencies } from './scope.ts'
 import { SiteService } from './service.ts'
 
@@ -22,6 +23,11 @@ export {
 export type { SiteRepository } from './repository.ts'
 
 export { createSiteScopeDependencies, type SiteScopeDependencies } from './scope.ts'
+
+export {
+  createSiteIngestionPort,
+  type CreateSiteIngestionPortDependencies,
+} from './ingestion-port.ts'
 
 export interface CreateSiteDependencies {
   db: Db
@@ -63,7 +69,7 @@ export function createSite({ db, lock, lifecycle, membership }: CreateSiteDepend
   const service = new SiteService({ repository, scope, lock, lifecycle, membership })
   const router = siteRouter(service)
 
-  return { service, router }
+  return { service, router, ingestionPort: createSiteIngestionPort({ repository }) }
 }
 
 export type SiteModule = ReturnType<typeof createSite>

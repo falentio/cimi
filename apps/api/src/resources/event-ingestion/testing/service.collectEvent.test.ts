@@ -8,11 +8,12 @@ import {
 } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
 import type { MockProxy } from 'vitest-mock-extended'
+import type { SiteIngestionPort } from '@cimi/guard'
+import { createIngestionSite } from '../../site/fixture.ts'
+import { InMemoryRetentionResolver } from '@cimi/kernel'
 import { CollectionPolicyService } from '../../collection-policy/service.ts'
 import { createPolicyLayers } from '../../collection-policy/fixture.ts'
 import type { CollectionPolicyRepository } from '../../collection-policy/repository.ts'
-import type { RetentionPolicyRepository } from '../../retention-policy/repository.ts'
-import type { SiteRepository } from '../../site/repository.ts'
 import { EventIngestionService } from '../service.ts'
 import { DefaultIdentitySessionResolver } from '../identity-session.ts'
 import type { AcceptanceRepository } from '../repository.ts'
@@ -33,8 +34,8 @@ function createFixture(
     acceptance?: MockProxy<AcceptanceRepository> & AcceptanceRepository
   } = {},
 ) {
-  const siteRepository = mock<SiteRepository>()
-  siteRepository.findByIngestionIdentifier.mockResolvedValue(site())
+  const sites = mock<SiteIngestionPort>()
+  sites.findActiveByIngestionIdentifier.mockResolvedValue(ingestionSite)
 
   const policyRepository = mock<CollectionPolicyRepository>()
   policyRepository.loadLayers.mockResolvedValue(createPolicyLayers())
@@ -50,19 +51,7 @@ function createFixture(
     clock: () => now,
   })
 
-  const retentionRepository = mock<RetentionPolicyRepository>()
-  retentionRepository.findResolved.mockResolvedValue({
-    installationId: 'ins_1',
-    installationDefault: schema.DEFAULT_RETENTION_POLICY,
-    siteOverride: null,
-    effectivePolicy: schema.DEFAULT_RETENTION_POLICY,
-    cleanup: {
-      pending: false,
-      derived: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
-      backup: { status: 'not_applicable', startedAt: null, completedAt: null, errorCode: null },
-    },
-    updatedAt: now.toISOString(),
-  })
+  const retention = new InMemoryRetentionResolver(schema.DEFAULT_RETENTION_POLICY)
 
   const acceptanceRepository: MockProxy<AcceptanceRepository> =
     options.acceptance ??
@@ -78,9 +67,9 @@ function createFixture(
     })()
 
   const service = new EventIngestionService({
-    siteRepository,
+    sites,
     collectionPolicy: policy,
-    retention: retentionRepository,
+    retention,
     acceptance: acceptanceRepository,
     clock: () => now,
     ...(options.withoutResolver !== true && {
@@ -92,7 +81,7 @@ function createFixture(
     ...(options.lifecycleLock !== undefined && { lifecycleLock: options.lifecycleLock }),
   })
 
-  return { service, siteRepository, policyRepository, acceptanceRepository }
+  return { service, sites, policyRepository, acceptanceRepository }
 }
 
 function event(overrides: Record<string, JsonValue> = {}) {
@@ -105,29 +94,7 @@ function event(overrides: Record<string, JsonValue> = {}) {
   }
 }
 
-function site(): SiteRepository.SiteRecord {
-  return {
-    id: 'ste_1',
-    organizationId: 'org_1',
-    name: 'Production',
-    hostname: 'example.com',
-    ingestionIdentifier: 'ing-1',
-    reportingTimezone: 'UTC',
-    weekStartsOn: 'monday',
-    createdAt: '2026-09-01T00:00:00.000Z',
-    updatedAt: '2026-09-01T00:00:00.000Z',
-    status: 'active',
-    deleteRequestedAt: null,
-    deletedAt: null,
-    recoveryDeadline: null,
-    purgeAt: null,
-    purgedAt: null,
-    currentOperationId: null,
-    cleanupStatus: 'not-required',
-    cleanupUpdatedAt: null,
-    cleanupError: null,
-  }
-}
+const ingestionSite = createIngestionSite()
 
 describe('EventIngestionService.collectEvent', () => {
   it('returns the durable duplicate and rejects changed payloads', async () => {
@@ -357,12 +324,9 @@ describe('EventIngestionService.collectEvent', () => {
   })
 
   it('grandfathers a candidate admitted before the site flips to deleting', async () => {
-    const { service, siteRepository, acceptanceRepository } = createFixture()
+    const { service, sites, acceptanceRepository } = createFixture()
     acceptanceRepository.append.mockImplementation(async (candidates) => {
-      siteRepository.findByIngestionIdentifier.mockResolvedValue({
-        ...site(),
-        status: 'deleting',
-      })
+      sites.findActiveByIngestionIdentifier.mockResolvedValue(undefined)
       expect(candidates[0]?.event.eventId).toBe('event-1')
 
       return candidates.map(() => ({ status: 'accepted' }) as const)
