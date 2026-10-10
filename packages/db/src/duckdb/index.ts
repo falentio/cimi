@@ -17,6 +17,7 @@ import {
   readIdentities,
   readProjectionGaps,
   readProperties,
+  timestamp,
   type ProjectedEventRow,
 } from './projection-source.ts'
 import {
@@ -25,6 +26,13 @@ import {
   foldSessionRows,
   foldVisitorRows,
 } from './projection-fold.ts'
+import {
+  AnalyticsProjectionAppender,
+  DEFAULT_APPEND_CHUNK_ROWS,
+  type AnalyticsProjectionAppendResult,
+  type ProjectionAppendConnection,
+  type ProjectionAppendTransaction,
+} from './projection-append.ts'
 import {
   appendEventRows,
   appendFactRows,
@@ -39,6 +47,15 @@ export {
   ANALYTICS_REQUIRED_TABLES,
   type AnalyticsMigration,
 } from './schema.ts'
+
+export {
+  AnalyticsProjectionAppender,
+  DEFAULT_APPEND_CHUNK_ROWS,
+  type AnalyticsProjectionAppendResult,
+  type ProjectionAppendConnection,
+  type ProjectionAppendSource,
+  type ProjectionAppendTransaction,
+} from './projection-append.ts'
 
 export const ANALYTICS_DB_FILENAME = 'analytics.duckdb'
 
@@ -124,6 +141,11 @@ export interface AnalyticsWindowReader {
 export interface AnalyticsDb {
   ready(): Promise<boolean>
   rebuild(input: { controlDb: Db }): Promise<void>
+  appendProjectedEvents(input: {
+    controlDb: Db
+    siteId: string
+    chunkRows?: number
+  }): Promise<AnalyticsProjectionAppendResult>
   deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number>
   purgeSite(input: { siteId: string }): Promise<void>
   readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot>
@@ -194,6 +216,41 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
     },
     schedule: enqueue,
   })
+
+  const createAppendConnection = (): ProjectionAppendConnection => {
+    return {
+      async transaction<T>(work: (transaction: ProjectionAppendTransaction) => Promise<T>) {
+        await connection.run('BEGIN TRANSACTION')
+
+        try {
+          const result = await work({
+            async read(sql, args) {
+              const reader = await connection.runAndReadAll(
+                sql,
+                args === undefined ? [] : [...args],
+              )
+
+              return reader.getRowObjects()
+            },
+            async run(sql, args) {
+              await connection.run(sql, args === undefined ? [] : [...args])
+            },
+            createAppender: (table) => connection.createAppender(table),
+            nextProjectionGeneration: (siteId) => nextProjectionGeneration(connection, siteId),
+            writeProjectionGeneration: (siteId, generation) =>
+              writeProjectionGeneration(connection, siteId, generation),
+          })
+
+          await connection.run('COMMIT')
+
+          return result
+        } catch (error) {
+          await connection.run('ROLLBACK')
+          throw error
+        }
+      },
+    }
+  }
 
   return {
     async ready(): Promise<boolean> {
@@ -491,6 +548,29 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
           rebuilding = false
         }
       })
+    },
+    async appendProjectedEvents(input: {
+      controlDb: Db
+      siteId: string
+      chunkRows?: number
+    }): Promise<AnalyticsProjectionAppendResult> {
+      if (!closeController.isOpen()) throw new Error('Analytics database is closed')
+
+      if (unavailable) throw new Error('Analytics database is unavailable')
+
+      if (rebuilding) throw new Error('Analytics database rebuild is already running')
+
+      const appender = new AnalyticsProjectionAppender({
+        connection: createAppendConnection(),
+        source: {
+          readEvents,
+          readProperties,
+          readIdentities,
+        },
+        chunkRows: input.chunkRows ?? DEFAULT_APPEND_CHUNK_ROWS,
+      })
+
+      return appender.append(input)
     },
     async deleteExpired(input: { siteId: string; occurrenceCutoff: Date }): Promise<number> {
       if (!closeController.isOpen()) throw new Error('Analytics database is closed')
@@ -832,10 +912,6 @@ async function writeProjectionGeneration(
      VALUES (?, ?, CAST(? AS TIMESTAMP))`,
     [siteId, generation, timestamp(updatedAt)],
   )
-}
-
-function timestamp(value: number | null): string | null {
-  return value === null ? null : new Date(value).toISOString()
 }
 
 /**

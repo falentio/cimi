@@ -56,8 +56,6 @@ const VISITOR_SEED_CLAUSE = ' AND visitor_id IN '
 
 const SESSION_SEED_CLAUSE = ' AND session_id IN '
 
-const ID_BATCH_SIZE = 400
-
 export function createFactFoldState(): FactFoldState {
   return { visitors: new Map(), sessions: new Map() }
 }
@@ -74,8 +72,11 @@ export async function seedFactFoldState(
   state: FactFoldState,
   input: FactFoldSeedInput,
 ): Promise<void> {
-  for (const ids of batches(input.visitorIds)) {
-    const rows = await input.read(visitorSeedSql(ids.length), [input.siteId, ...ids])
+  if (input.visitorIds.length > 0) {
+    const rows = await input.read(visitorSeedSql(input.visitorIds.length), [
+      input.siteId,
+      ...input.visitorIds,
+    ])
 
     for (const row of rows) {
       const siteId = String(row['site_id'])
@@ -92,8 +93,11 @@ export async function seedFactFoldState(
     }
   }
 
-  for (const ids of batches(input.sessionIds)) {
-    const rows = await input.read(sessionSeedSql(ids.length), [input.siteId, ...ids])
+  if (input.sessionIds.length > 0) {
+    const rows = await input.read(sessionSeedSql(input.sessionIds.length), [
+      input.siteId,
+      ...input.sessionIds,
+    ])
 
     for (const row of rows) {
       const siteId = String(row['site_id'])
@@ -220,16 +224,6 @@ function sessionSeedSql(idCount: number): string {
     placeholders(idCount) +
     ') ORDER BY session_id'
   )
-}
-
-function batches(ids: readonly string[]): string[][] {
-  const result: string[][] = []
-
-  for (let index = 0; index < ids.length; index += ID_BATCH_SIZE) {
-    result.push(ids.slice(index, index + ID_BATCH_SIZE))
-  }
-
-  return result
 }
 
 function placeholders(count: number): string {

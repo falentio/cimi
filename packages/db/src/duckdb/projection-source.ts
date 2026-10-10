@@ -357,3 +357,7 @@ export function propertyValue(property: PropertyRow): string | number | boolean 
 
   return null
 }
+
+export function timestamp(value: number | null): string | null {
+  return value === null ? null : new Date(value).toISOString()
+}
