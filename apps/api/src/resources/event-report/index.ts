@@ -37,6 +37,7 @@ export interface CreateEventReportDependencies {
   readonly analytics: AnalyticsDb
   readonly lifecycle: HealthLifecycle
   readonly dataDirectoryReady: boolean | (() => boolean)
+  readonly migrationsFolder?: string | undefined
   readonly scope?: SiteScopeGuardDependencies | undefined
   readonly profileFilterKeys: ReportingProfileFilterPort
   readonly lifecycleLock: LifecycleLock
@@ -47,6 +48,7 @@ export function createEventReport({
   analytics,
   lifecycle,
   dataDirectoryReady,
+  migrationsFolder,
   scope,
   profileFilterKeys,
   lifecycleLock,
@@ -59,7 +61,7 @@ export function createEventReport({
     metadata,
     evidence,
     analyticsReadiness: createReportingReadinessPort({
-      health: { db, analytics, dataDirectoryReady },
+      health: { db, analytics, dataDirectoryReady, migrationsFolder },
       lifecycle,
     }),
   })

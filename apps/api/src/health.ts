@@ -151,16 +151,18 @@ export interface StoreHealthReport {
   readonly cleanupPending: boolean
 }
 
+export type StoreProbeDependencies = Pick<
+  CreateApiAppDependencies,
+  'db' | 'analytics' | 'dataDirectoryReady' | 'lifecycle' | 'migrationsFolder'
+>
+
 /**
  * The single place that probes control and analytics store readiness. `systemHealthHandler` and
  * the reporting readiness port both read through here, so a report cannot disagree with the
  * admission gate about whether the analytics store is ready.
  */
 export async function readStoreHealth(
-  deps: Pick<
-    CreateApiAppDependencies,
-    'db' | 'analytics' | 'dataDirectoryReady' | 'lifecycle' | 'migrationsFolder'
-  >,
+  deps: StoreProbeDependencies,
   lifecycleSnapshot?: HealthSnapshot,
   reportFailures = true,
 ): Promise<StoreHealthReport> {
