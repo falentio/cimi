@@ -4,14 +4,8 @@ import { computed } from 'vue'
 import { ArrowDownRight01Icon, ArrowUpRight01Icon, MinusSignIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { cn } from '@/lib/utils'
-import type {
-  ChangeKind,
-  OverviewIcon,
-  OverviewMetricPolarity,
-  OverviewRange,
-} from './site-overview.types'
 import { resolveOverviewChange } from './site-overview-chart-change'
-import { resolveTooltipDates } from './site-overview-chart-dates'
+import type { ChangeKind, OverviewIcon, OverviewTrendPointDate } from './site-overview.types'
 
 interface TooltipDatum {
   readonly index?: number
@@ -24,17 +18,13 @@ const props = withDefaults(
     /** Injected by the crosshair template: the nearest hovered datum. */
     payload?: TooltipDatum
     title: string
-    dates: readonly string[]
-    range: OverviewRange
-    unit?: string
-    polarity: OverviewMetricPolarity
+    dates: readonly OverviewTrendPointDate[]
     currentColor: string
     previousColor: string
     class?: HTMLAttributes['class']
   }>(),
   {
     payload: () => ({}),
-    unit: 'count',
   },
 )
 
@@ -51,32 +41,31 @@ const changeClasses: Readonly<Record<ChangeKind, string>> = {
 }
 
 function formatValue(value: number | undefined): string {
-  if (value === undefined) return '—'
-
-  return props.unit === 'percent' ? `${value.toLocaleString()}%` : value.toLocaleString()
+  return value === undefined ? '\u2014' : value.toLocaleString()
 }
 
-const rows = computed(() => {
-  const dates = resolveTooltipDates(props.dates[props.payload.index ?? -1], props.range)
+const dates = computed<OverviewTrendPointDate | undefined>(
+  () => props.dates[props.payload.index ?? -1],
+)
 
-  return [
-    {
-      key: 'current',
-      label: dates.current,
-      value: props.payload.current,
-      color: props.currentColor,
-    },
-    {
-      key: 'previous',
-      label: dates.previous,
-      value: props.payload.previous,
-      color: props.previousColor,
-    },
-  ]
-})
+const rows = computed(() => [
+  {
+    key: 'current',
+    label: dates.value?.current ?? '',
+    value: props.payload.current,
+    color: props.currentColor,
+  },
+  {
+    key: 'previous',
+    label: dates.value?.previous ?? '',
+    value: props.payload.previous,
+    color: props.previousColor,
+  },
+])
 
+/** The chart plots visitors, where more is better, so polarity is fixed. */
 const change = computed(() =>
-  resolveOverviewChange(props.payload.current, props.payload.previous, props.polarity),
+  resolveOverviewChange(props.payload.current, props.payload.previous, 'higher-is-better'),
 )
 </script>
 

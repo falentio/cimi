@@ -25,12 +25,15 @@ export type OverviewFilterDefinition =
       readonly operators: readonly OverviewFilterOperatorOption[]
     }
 
+/**
+ * Every scope this page offers rejects greater_than and less_than: the contract's compatibility
+ * check refuses them for session attributes and for event pagePath and referrer, so offering them
+ * here would produce a filter the server answers with BAD_REQUEST.
+ */
 export const overviewFilterOperatorOptions: readonly OverviewFilterOperatorOption[] = [
   { value: 'equals', label: 'is' },
   { value: 'not_equals', label: 'is not' },
   { value: 'contains', label: 'contains' },
-  { value: 'greater_than', label: 'is greater than' },
-  { value: 'less_than', label: 'is less than' },
 ]
 
 export const overviewFilterDefinitions: readonly OverviewFilterDefinition[] = [

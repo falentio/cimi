@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { Calendar03Icon, RefreshIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -18,11 +19,14 @@ const props = defineProps<{
   readonly ranges: readonly OverviewRangeOption[]
   readonly selectedRange: OverviewRange
   readonly statusText: string
+  readonly freshnessText: string
+  readonly comparison: boolean
 }>()
 
 const emit = defineEmits<{
   rangeChange: [range: OverviewRange]
   refresh: []
+  comparisonChange: [comparison: boolean]
 }>()
 
 const selectedRangeLabel = computed(
@@ -64,6 +68,18 @@ function handleRangeChange(value: AcceptableValue): void {
         </SelectContent>
       </Select>
 
+      <div class="flex items-center gap-2">
+        <Switch
+          id="overview-comparison"
+          :model-value="props.comparison"
+          aria-label="Compare with the previous period"
+          @update:model-value="emit('comparisonChange', $event)"
+        />
+        <label for="overview-comparison" class="text-muted-foreground cursor-pointer text-xs">
+          Compare
+        </label>
+      </div>
+
       <Button type="button" @click="emit('refresh')">
         <HugeiconsIcon :icon="RefreshIcon" aria-hidden="true" data-icon="inline-start" />
         Refresh
@@ -75,6 +91,12 @@ function handleRangeChange(value: AcceptableValue): void {
         class="text-muted-foreground min-h-5 text-xs whitespace-nowrap"
       >
         {{ props.statusText }}
+      </span>
+      <span
+        v-if="props.freshnessText"
+        class="text-muted-foreground min-h-5 text-xs whitespace-nowrap"
+      >
+        {{ props.freshnessText }}
       </span>
     </div>
   </section>

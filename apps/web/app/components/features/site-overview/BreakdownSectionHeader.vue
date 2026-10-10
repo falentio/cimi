@@ -2,10 +2,10 @@
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { Button } from '@/components/ui/button'
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { BreakdownTabChange, VisibleBreakdownSection } from './site-overview.types'
+import type { BreakdownTabChange, OverviewBreakdownSectionView } from './site-overview.types'
 
 const props = defineProps<{
-  readonly section: VisibleBreakdownSection
+  readonly section: OverviewBreakdownSectionView
 }>()
 
 const emit = defineEmits<{
@@ -22,7 +22,15 @@ const emit = defineEmits<{
         <HugeiconsIcon :icon="props.section.icon" :size="15" aria-hidden="true" />
       </span>
       <div class="min-w-0">
-        <CardTitle class="truncate text-sm">{{ props.section.title }}</CardTitle>
+        <div class="flex min-w-0 items-center gap-1.5">
+          <CardTitle class="truncate text-sm">{{ props.section.title }}</CardTitle>
+          <span
+            v-if="props.section.status === 'stale'"
+            class="text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-border ring-inset"
+          >
+            Stale
+          </span>
+        </div>
         <CardDescription class="mt-0.5 text-xs">{{ props.section.subtitle }}</CardDescription>
       </div>
     </div>
