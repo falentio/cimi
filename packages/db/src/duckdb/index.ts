@@ -1,16 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DuckDBInstance, type DuckDBConnection, type DuckDBValue } from '@duckdb/node-api'
-import {
-  isBigintValue,
-  isBooleanValue,
-  isNumberValue,
-  isStringValue,
-  getNestedMapValue,
-  nestedMapValues,
-  setNestedMapValue,
-  isRecord,
-} from '@cimi/utils'
+import { isBigintValue, isBooleanValue, isNumberValue, isStringValue, isRecord } from '@cimi/utils'
 import type { Db } from '../client.ts'
 import {
   ANALYTICS_PROJECTION_VERSION,
@@ -28,6 +19,12 @@ import {
   readProperties,
   type ProjectedEventRow,
 } from './projection-source.ts'
+import {
+  createFactFoldState,
+  foldProjectedEvent,
+  foldSessionRows,
+  foldVisitorRows,
+} from './projection-fold.ts'
 
 export {
   ANALYTICS_PROJECTION_VERSION,
@@ -390,87 +387,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
             previousGenerations,
           )
 
-          const sessions = new Map<string, Map<string, SessionRow>>()
-          const visitors = new Map<string, Map<string, VisitorRow>>()
+          const factState = createFactFoldState()
 
-          for (const event of projectedEvents) {
-            if (event.visitorId !== null) {
-              const visitor = getNestedMapValue(visitors, event.siteId, event.visitorId)
-
-              if (visitor === undefined) {
-                setNestedMapValue(visitors, event.siteId, event.visitorId, {
-                  siteId: event.siteId,
-                  visitorId: event.visitorId,
-                  identityKind: event.identifiedUserId === null ? 'anonymous' : 'identified',
-                  profileId: event.profileId,
-                  firstSeenAt: event.occurrenceTime,
-                  lastSeenAt: event.occurrenceTime,
-                })
-              } else {
-                visitor.firstSeenAt = Math.min(visitor.firstSeenAt, event.occurrenceTime)
-                visitor.lastSeenAt = Math.max(visitor.lastSeenAt, event.occurrenceTime)
-
-                if (event.identifiedUserId !== null) visitor.identityKind = 'identified'
-
-                if (event.profileId !== null) {
-                  if (visitor.profileId === null) visitor.profileId = event.profileId
-                  else if (visitor.profileId !== event.profileId) visitor.profileId = null
-                }
-              }
-            }
-
-            if (event.analyticsSessionId !== null) {
-              const session = getNestedMapValue(sessions, event.siteId, event.analyticsSessionId)
-
-              if (session === undefined) {
-                setNestedMapValue(sessions, event.siteId, event.analyticsSessionId, {
-                  siteId: event.siteId,
-                  sessionId: event.analyticsSessionId,
-                  visitorId: event.visitorId,
-                  identifiedUserId: event.identifiedUserId,
-                  startedAt: event.occurrenceTime,
-                  endedAt: event.occurrenceTime,
-                  entryPage: event.pagePath,
-                  referrer: event.referrer,
-                  utmSource: event.utmSource,
-                  utmMedium: event.utmMedium,
-                  utmCampaign: event.utmCampaign,
-                  device: event.deviceType,
-                  browser: event.browserType,
-                  operatingSystem: event.operatingSystem,
-                  country: event.country,
-                })
-              } else {
-                const earlier = event.occurrenceTime < session.startedAt
-                session.startedAt = Math.min(session.startedAt, event.occurrenceTime)
-                session.endedAt = Math.max(session.endedAt, event.occurrenceTime)
-
-                if (session.visitorId === null) session.visitorId = event.visitorId
-
-                if (session.identifiedUserId === null)
-                  session.identifiedUserId = event.identifiedUserId
-
-                if (earlier || session.entryPage === null) session.entryPage = event.pagePath
-
-                if (earlier || session.referrer === null) session.referrer = event.referrer
-
-                if (earlier || session.utmSource === null) session.utmSource = event.utmSource
-
-                if (earlier || session.utmMedium === null) session.utmMedium = event.utmMedium
-
-                if (earlier || session.utmCampaign === null) session.utmCampaign = event.utmCampaign
-
-                if (earlier || session.device === null) session.device = event.deviceType
-
-                if (earlier || session.browser === null) session.browser = event.browserType
-
-                if (earlier || session.operatingSystem === null)
-                  session.operatingSystem = event.operatingSystem
-
-                if (earlier || session.country === null) session.country = event.country
-              }
-            }
-          }
+          for (const event of projectedEvents) foldProjectedEvent(factState, event)
 
           await connection.run('BEGIN TRANSACTION')
 
@@ -530,7 +449,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               )
             }
 
-            for (const visitor of nestedMapValues(visitors)) {
+            for (const visitor of foldVisitorRows(factState)) {
               await connection.run(
                 `INSERT INTO visitors (site_id, visitor_id, identity_kind, first_seen_at, last_seen_at, profile_id)
              VALUES (?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?)`,
@@ -545,7 +464,7 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               )
             }
 
-            for (const session of nestedMapValues(sessions)) {
+            for (const session of foldSessionRows(factState)) {
               await connection.run(
                 `INSERT INTO analytics_sessions (
                site_id, session_id, visitor_id, identified_user_id, started_at, ended_at,
@@ -895,33 +814,6 @@ interface ProjectedCheckpointRow {
   readiness: string
   projectionVersion: string
   updatedAt: number
-}
-
-interface VisitorRow {
-  siteId: string
-  visitorId: string
-  identityKind: 'anonymous' | 'identified'
-  profileId: string | null
-  firstSeenAt: number
-  lastSeenAt: number
-}
-
-interface SessionRow {
-  siteId: string
-  sessionId: string
-  visitorId: string | null
-  identifiedUserId: string | null
-  startedAt: number
-  endedAt: number
-  entryPage: string | null
-  referrer: string | null
-  utmSource: string | null
-  utmMedium: string | null
-  utmCampaign: string | null
-  device: string | null
-  browser: string | null
-  operatingSystem: string | null
-  country: string | null
 }
 
 function foldProjectedCheckpoints(
