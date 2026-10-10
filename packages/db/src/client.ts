@@ -54,6 +54,38 @@ export class OrphanedControlDatabaseError extends Error {
   }
 }
 
+/**
+ * drizzle-kit push rebuilds the tables of any non-empty database and re-emits each rebuilt
+ * table's indexes, so a duplicate CREATE INDEX aborts the statement list mid-run with no
+ * wrapping transaction and leaves the database half-pushed. Only an empty database converges.
+ */
+export type ControlDatabasePushability =
+  | { kind: 'pushable' }
+  | { kind: 'populated'; userTables: readonly string[] }
+
+export function readControlDatabasePushability(
+  controlDatabasePath: string,
+): ControlDatabasePushability {
+  if (!existsSync(controlDatabasePath)) return { kind: 'pushable' }
+
+  const client = new Database(controlDatabasePath, { readonly: true, fileMustExist: true })
+
+  try {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL.
+    const rows = client
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+      )
+      .all() as Array<{ name: string }>
+
+    const userTables = rows.map((row) => row.name)
+
+    return userTables.length === 0 ? { kind: 'pushable' } : { kind: 'populated', userTables }
+  } finally {
+    client.close()
+  }
+}
+
 export function createDb(options: CreateDbOptions) {
   const location: DbStorageLocation =
     options.path === ':memory:' ? { kind: 'memory' } : { kind: 'file', path: options.path }

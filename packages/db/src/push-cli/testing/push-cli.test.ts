@@ -9,7 +9,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { migrateControlDbAtPath } from '../../migrate.ts'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
-const PUSH_CLI = fileURLToPath(new URL('../push-cli.ts', import.meta.url))
+
+const PUSH_CLI = fileURLToPath(new URL('../../push-cli.ts', import.meta.url))
 
 describe('push-cli', () => {
   let dir: string
