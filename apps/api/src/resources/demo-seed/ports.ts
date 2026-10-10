@@ -7,7 +7,10 @@ export interface DemoSitePort {
     readonly organizationId: string
     readonly ownerUserId: string
   }): Promise<{ readonly siteId: string }>
-  releaseDemoSite(input: { readonly siteId: string }): Promise<void>
+  releaseDemoSite(input: {
+    readonly siteId: string
+    readonly onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined
+  }): Promise<void>
 }
 
 interface DemoSeedEventCommon {

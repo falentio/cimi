@@ -90,7 +90,11 @@ export class DemoSeedService {
       return { siteId: site.siteId, appendedEventCount }
     } catch (error) {
       try {
-        await this.#sites.releaseDemoSite({ siteId: site.siteId })
+        await this.#sites.releaseDemoSite({
+          siteId: site.siteId,
+          onPurgedSite: ({ siteId: purgedSiteId }) =>
+            this.#analytics.purgeSite({ siteId: purgedSiteId }),
+        })
       } catch {
         // The original failure is the one worth reporting; a release that also fails adds nothing.
       }

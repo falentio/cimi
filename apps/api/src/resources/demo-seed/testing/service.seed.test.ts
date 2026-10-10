@@ -88,7 +88,8 @@ describe('DemoSeedService.seed', () => {
     await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
       'horizon down',
     )
-    expect(sites.releaseDemoSite).toHaveBeenCalledWith({ siteId: 'ste_1' })
+    expect(sites.releaseDemoSite).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'ste_1' }))
+    expect(sites.releaseDemoSite.mock.calls[0]?.[0].onPurgedSite).toBeTypeOf('function')
   })
 
   it('releases the site when the journal append throws', async () => {
@@ -98,7 +99,7 @@ describe('DemoSeedService.seed', () => {
     await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
       'journal closed',
     )
-    expect(sites.releaseDemoSite).toHaveBeenCalledWith({ siteId: 'ste_1' })
+    expect(sites.releaseDemoSite).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'ste_1' }))
   })
 
   it('releases the site when the projection throws', async () => {
@@ -108,7 +109,7 @@ describe('DemoSeedService.seed', () => {
     await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
       'projection down',
     )
-    expect(sites.releaseDemoSite).toHaveBeenCalledWith({ siteId: 'ste_1' })
+    expect(sites.releaseDemoSite).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'ste_1' }))
   })
 
   it('rethrows the seeding error when the release itself throws', async () => {

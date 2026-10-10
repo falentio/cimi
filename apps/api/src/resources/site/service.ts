@@ -158,7 +158,13 @@ export class SiteService {
    * this: seeding runs behind the request with no user and no headers, and the site still has to
    * go, or the personal organization keeps a site row it can never be deleted through.
    */
-  async releaseDemoSite({ siteId }: { readonly siteId: string }): Promise<void> {
+  async releaseDemoSite({
+    siteId,
+    onPurgedSite,
+  }: {
+    readonly siteId: string
+    readonly onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined
+  }): Promise<void> {
     const requestedAt = new Date()
 
     await this.withLifecycleLease('site_deletion', async () => {
@@ -183,11 +189,18 @@ export class SiteService {
       // Nobody has seen this site, so it does not wait out the recovery window the request path owes.
       if (deletion === undefined || deletion.purgeAt === null) return
 
+      const purgedAt = new Date(deletion.purgeAt)
+
       await this.repository.purge({
         siteId,
         operationId: generateId('sop'),
-        requestedAt: new Date(deletion.purgeAt),
+        requestedAt: purgedAt,
       })
+
+      // The lifecycle worker cannot reach this site: its purge candidate scan reads the control
+      // store, and the repository purge already removed the site row, so nothing would call the
+      // projection purge the worker normally fires on a purge it owns.
+      await onPurgedSite?.({ siteId, now: purgedAt })
     })
   }
 
