@@ -15,7 +15,7 @@ describe('resolveOverviewRangeRequest', () => {
       fromDate: '2026-05-21',
       toDate: '2026-05-27',
       granularity: 'day',
-      comparison: null,
+      comparison: undefined,
     })
   })
 
@@ -47,7 +47,7 @@ describe('resolveOverviewRangeRequest', () => {
   })
 
   it('omits the comparison when comparison is off', () => {
-    expect(resolveOverviewRangeRequest('7d', TODAY, false).comparison).toBeNull()
+    expect(resolveOverviewRangeRequest('7d', TODAY, false).comparison).toBeUndefined()
   })
 })
 

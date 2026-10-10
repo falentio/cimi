@@ -4,7 +4,7 @@ export interface OverviewRangeRequest {
   readonly fromDate: string
   readonly toDate: string
   readonly granularity: OverviewRangeGranularity
-  readonly comparison: { readonly fromDate: string; readonly toDate: string } | null
+  readonly comparison: { readonly fromDate: string; readonly toDate: string } | undefined
 }
 
 interface CalendarDate {
@@ -44,6 +44,10 @@ export const overviewRangeOptions: readonly {
   { value: '90d', label: 'Last 90 days' },
   { value: '12m', label: 'Last 12 months' },
 ]
+
+export function overviewRangeGranularity(range: OverviewRange): OverviewRangeGranularity {
+  return RANGE_GRANULARITY[range]
+}
 
 function parseDate(value: string): CalendarDate {
   const [year, month, day] = value.split('-').map(Number)
@@ -110,7 +114,7 @@ export function resolveOverviewRangeRequest(
           fromDate: shiftDays(current.fromDate, -(length + 1)),
           toDate: shiftDays(current.fromDate, -1),
         }
-      : null,
+      : undefined,
   }
 }
 
