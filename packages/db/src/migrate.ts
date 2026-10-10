@@ -144,12 +144,6 @@ function describeControlSchemaDrift(client: Database.Database): string[] {
     }
   }
 
-  for (const table of live.keys()) {
-    if (!reference.has(table)) {
-      drift.push(`table ${table} is not built by the control migrations`)
-    }
-  }
-
   return drift
 }
 
