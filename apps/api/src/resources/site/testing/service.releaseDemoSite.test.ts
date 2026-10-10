@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createSiteFixture } from '../fixture.ts'
 
 const purgeAt = new Date('2026-10-31T00:00:00.000Z')
@@ -51,6 +51,45 @@ describe('SiteService.releaseDemoSite', () => {
     await expect(service.releaseDemoSite({ siteId: 'ste_1' })).resolves.toBeUndefined()
 
     expect(repository.purge).not.toHaveBeenCalled()
+  })
+
+  it('purges the projection itself, since the lifecycle worker cannot see a site the repository purge removed', async () => {
+    const { repository, service } = createSiteFixture()
+    repository.beginDelete.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
+    repository.completeDelete.mockResolvedValue({ status: 'completed' })
+    repository.getDeletionStatus.mockResolvedValue({
+      siteId: 'ste_1',
+      status: 'deleted',
+      operationId: 'sop_1',
+      requestedAt: '2026-10-01T00:00:00.000Z',
+      deletedAt: '2026-10-01T00:00:00.000Z',
+      recoveryDeadline: purgeAt.toISOString(),
+      purgeAt: purgeAt.toISOString(),
+      cleanup: { status: 'pending', updatedAt: '2026-10-01T00:00:00.000Z', errorCode: null },
+    })
+
+    const onPurgedSite = vi.fn().mockResolvedValue(undefined)
+
+    await expect(
+      service.releaseDemoSite({ siteId: 'ste_1', onPurgedSite }),
+    ).resolves.toBeUndefined()
+
+    expect(onPurgedSite).toHaveBeenCalledTimes(1)
+    expect(onPurgedSite).toHaveBeenCalledWith({ siteId: 'ste_1', now: purgeAt })
+
+    const stopped = createSiteFixture()
+    stopped.repository.beginDelete.mockResolvedValue({
+      status: 'conflict',
+      currentStatus: 'deleted',
+    })
+
+    const neverPurged = vi.fn().mockResolvedValue(undefined)
+
+    await expect(
+      stopped.service.releaseDemoSite({ siteId: 'ste_1', onPurgedSite: neverPurged }),
+    ).resolves.toBeUndefined()
+
+    expect(neverPurged).not.toHaveBeenCalled()
   })
 
   it('does not purge a deletion the resource reports no deadline for', async () => {
