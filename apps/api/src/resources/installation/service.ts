@@ -436,6 +436,39 @@ export class InstallationService implements LifecycleOperationStatusReader {
     }
   }
 
+  async ensureInstallation(user: AuthUser | undefined): Promise<InstallationStatusOutput> {
+    assertInstallationAdmin(user)
+    const existing = await this.repository.find()
+
+    if (existing !== undefined) return toPublicInstallation(existing)
+
+    const dataDirectoryReady = this.dataDirectoryReady()
+
+    if (!dataDirectoryReady) throw new ORPCError('CONFLICT', { status: 409 })
+
+    try {
+      const now = this.clock()
+
+      const created = await this.repository.insert({
+        id: this.ids.installationId(),
+        retentionPolicyId: this.ids.retentionPolicyId(),
+        ...schema.DEFAULT_RETENTION_POLICY,
+        dataDirectoryReady,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      return toPublicInstallation(created)
+    } catch (error) {
+      if (!isConstraintError(error)) throw error
+      const raced = await this.repository.find()
+
+      if (raced === undefined) throw error
+
+      return toPublicInstallation(raced)
+    }
+  }
+
   async snapshotForHealth(): Promise<InstallationHealthSnapshot | undefined> {
     const existing = await this.repository.find()
 

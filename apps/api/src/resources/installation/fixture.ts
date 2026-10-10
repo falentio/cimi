@@ -1,11 +1,15 @@
 import { InMemoryAcceptanceJournalPort, InMemoryLifecycleLock } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
 import type { InstallationRepository } from './repository.ts'
-import { InstallationService, type UpgradeExecutor } from './service.ts'
+import {
+  InstallationService,
+  type DataDirectoryReadiness,
+  type UpgradeExecutor,
+} from './service.ts'
 import type { InstallationIdFactory } from './service.ts'
 
 export interface InstallationFixtureOptions {
-  readonly dataDirectoryReady?: boolean
+  readonly dataDirectoryReady?: DataDirectoryReadiness
   readonly clock?: (() => Date) | undefined
   readonly ids?: InstallationIdFactory | undefined
   readonly upgradeExecutor?: UpgradeExecutor | undefined
