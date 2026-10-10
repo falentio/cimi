@@ -54,13 +54,14 @@ The control-plane row is a singleton with a fixed internal key. Retention values
 
 **Audience:** FE
 
-Contract paths below are served under the `/api` runtime prefix. Q1, C1, and C2 are served and are exempt from lifecycle admission enforcement.
+Contract paths below are served under the `/api` runtime prefix. Q1, C1, C2, and C3 are served and are exempt from lifecycle admission enforcement.
 
 | #   | Procedure                | Method | Path                                   | Auth  | CQRS    |
 | --- | ------------------------ | ------ | -------------------------------------- | ----- | ------- |
 | Q1  | `getInstallationStatus`  | GET    | `/installation/getInstallationStatus`  | admin | query   |
 | C1  | `initializeInstallation` | POST   | `/installation/initializeInstallation` | admin | command |
 | C2  | `upgradeInstallation`    | POST   | `/installation/upgradeInstallation`    | admin | command |
+| C3  | `ensureInstallation`     | POST   | `/installation/ensureInstallation`     | admin | command |
 
 ## 4. Queries
 
@@ -100,6 +101,16 @@ Contract paths below are served under the `/api` runtime prefix. Q1, C1, and C2 
 
 **Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `CONFLICT` (409 while the lifecycle lock is held), `INCOMPATIBLE_BACKUP` (422), `INSUFFICIENT_STORAGE` (507), `INTERNAL_SERVER_ERROR` (500).
 
+### C3: `POST /installation/ensureInstallation` — `ensureInstallation`
+
+**Audience:** Both
+
+**Purpose:** Create the singleton installation row when it is absent and return the existing row unchanged.
+
+**Behavior:** Installation admin only. Actor-triggered and idempotent, so a repeated call never rewrites an existing row. No lifecycle lease is taken; concurrent calls converge on the `singleton_key` unique index, where the losing call re-reads and returns the winning row. Returns 200 for both creation and reuse.
+
+**Errors:** `UNAUTHORIZED` (401), `FORBIDDEN` (403), `CONFLICT` (409 when the row is absent and the mounted data directory is not ready), `INTERNAL_SERVER_ERROR` (500).
+
 ## 6. Business Rules
 
 | Rule                                                                                                                                | Enforcement Point                                 | Affected Procedures |
@@ -135,16 +146,16 @@ No domain event channel is required by the MVP contract.
 
 ## 10. Error Code Catalog
 
-| Code                    | HTTP | Trigger                                                          |
-| ----------------------- | ---: | ---------------------------------------------------------------- |
-| `UNAUTHORIZED`          |  401 | No authenticated admin.                                          |
-| `FORBIDDEN`             |  403 | Caller is not installation admin.                                |
-| `BAD_REQUEST`           |  400 | Bootstrap input invalid.                                         |
-| `CONFLICT`              |  409 | Installation lifecycle cannot accept initialization.             |
-| `INCOMPATIBLE_BACKUP`   |  422 | An upgrade manifest is newer or incompatible.                    |
-| `INSUFFICIENT_STORAGE`  |  507 | The SQLite safety artifact or migration cannot be stored safely. |
-| `NOT_FOUND`             |  404 | Required installation resource is unavailable.                   |
-| `INTERNAL_SERVER_ERROR` |  500 | Initialization or status cannot be completed safely.             |
+| Code                    | HTTP | Trigger                                                                                          |
+| ----------------------- | ---: | ------------------------------------------------------------------------------------------------ |
+| `UNAUTHORIZED`          |  401 | No authenticated admin.                                                                          |
+| `FORBIDDEN`             |  403 | Caller is not installation admin.                                                                |
+| `BAD_REQUEST`           |  400 | Bootstrap input invalid.                                                                         |
+| `CONFLICT`              |  409 | Installation lifecycle cannot accept initialization, or the mounted data directory is not ready. |
+| `INCOMPATIBLE_BACKUP`   |  422 | An upgrade manifest is newer or incompatible.                                                    |
+| `INSUFFICIENT_STORAGE`  |  507 | The SQLite safety artifact or migration cannot be stored safely.                                 |
+| `NOT_FOUND`             |  404 | Required installation resource is unavailable.                                                   |
+| `INTERNAL_SERVER_ERROR` |  500 | Initialization or status cannot be completed safely.                                             |
 
 ## 11. Related Resources & Dependencies
 
