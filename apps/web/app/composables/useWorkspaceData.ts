@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@pinia/colada'
 import type { CimiOrpc } from '~/plugins/orpc'
-import { ADMIN_ROLE } from '../utils/auth-guard'
+import { isAdminSession } from '../utils/auth-guard'
 import type { WorkspaceSite, WorkspaceTeam } from '@/components/features/app-shell/workspace'
 
 const PAGE_SIZE = 100
@@ -44,11 +44,7 @@ export function useWorkspaceData() {
   const orpc = useOrpc()
   const enabled = computed(() => session.value.status === 'authenticated')
 
-  const isAdmin = computed(() => {
-    const state = session.value
-
-    return state.status === 'authenticated' && state.session.user.role === ADMIN_ROLE
-  })
+  const isAdmin = computed(() => isAdminSession(session.value))
 
   const queryKey = computed(() => [
     'workspace',

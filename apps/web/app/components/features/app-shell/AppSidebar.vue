@@ -10,6 +10,7 @@ import NavSecondary from './NavSecondary.vue'
 import NavUser from './NavUser.vue'
 import { createSiteSectionNav } from './site-nav-config'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
+import { isAdminSession } from '../../../utils/auth-guard'
 import { isStringValue } from '../../../utils/type-guards'
 
 const props = withDefaults(defineProps<SidebarProps>(), {
@@ -42,11 +43,7 @@ const routeOrganizationId = computed<string | undefined>(() => {
 
 const isOrganizationRoute = computed(() => route.path === '/org' || route.path.startsWith('/org/'))
 
-const isAdmin = computed(() => {
-  const state = session.value
-
-  return state.status === 'authenticated' && state.session.user.role === 'admin'
-})
+const isAdmin = computed(() => isAdminSession(session.value))
 
 const secondary = computed(() => ({
   ...NAV_REGISTRY.secondary,
