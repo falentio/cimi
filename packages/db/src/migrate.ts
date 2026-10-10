@@ -1,4 +1,3 @@
-import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { closeDb, createDb, prepareControlDatabase, type Db } from './client.ts'
@@ -13,8 +12,6 @@ import {
 export { BASE_SKELETON_TABLES, ControlMigrationIncompatibilityError } from './migration-plan.ts'
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL('./migrations', import.meta.url))
-
-const WORKSPACE_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 
 export interface ControlMigrationOptions {
   migrationsFolder?: string | undefined
@@ -107,18 +104,7 @@ export function migrateControlDbAtPath(path: string, options: ControlMigrationOp
   }
 }
 
-export function resolveControlDbPath(
-  env: Record<string, string | undefined> = process.env,
-  workingDirectory: string = WORKSPACE_ROOT,
-): string {
-  const configuredPath = env['CIMI_CONTROL_DB_PATH']
-
-  if (configuredPath !== undefined) return resolve(workingDirectory, configuredPath)
-
-  const dataDirectory = env['CIMI_DATA_DIR'] ?? '.cimi'
-
-  return resolve(workingDirectory, dataDirectory, 'control.sqlite')
-}
+export { resolveControlDbPath } from './control-db-path.ts'
 
 let defaultControlMigrationManifest: readonly MigrationManifestEntry[] | undefined
 

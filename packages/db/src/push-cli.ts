@@ -1,8 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readControlDatabasePushability } from './client.ts'
+import { readControlDatabasePushability, type ControlDatabasePushability } from './client.ts'
 import { resolveControlDbPath } from './migrate.ts'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('../', import.meta.url))
@@ -11,18 +10,38 @@ const MIGRATE_TASK = 'vp run --filter @cimi/db migrate'
 
 const controlDatabasePath = resolveControlDbPath()
 
-const pushability = readControlDatabasePushability(controlDatabasePath)
+const refusal = describeRefusal(controlDatabasePath)
 
-if (pushability.kind === 'populated') {
-  console.error(
-    `db:push refused: control database ${controlDatabasePath} already holds ` +
-      `${String(pushability.userTables.length)} tables (${pushability.userTables.join(', ')}).\n` +
-      `drizzle-kit push only initializes an empty prototyping database; run ` +
-      `\`${MIGRATE_TASK}\` instead.`,
-  )
+if (refusal !== undefined) {
+  console.error(refusal)
   process.exitCode = 1
 } else {
   process.exitCode = runDrizzleKitPush()
+}
+
+function describeRefusal(path: string): string | undefined {
+  let pushability: ControlDatabasePushability
+
+  try {
+    pushability = readControlDatabasePushability(path)
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+
+    return `db:push refused: control database ${path} could not be read: ${reason}.`
+  }
+
+  if (pushability.kind !== 'populated') return undefined
+
+  const tables = pushability.userTables
+  const shown = tables.slice(0, 10).join(', ')
+  const rest = tables.length > 10 ? `, and ${String(tables.length - 10)} more` : ''
+
+  return (
+    `db:push refused: control database ${path} already holds ` +
+    `${String(tables.length)} tables (${shown}${rest}).\n` +
+    `drizzle-kit push only initializes an empty prototyping database; run ` +
+    `\`${MIGRATE_TASK}\` instead.`
+  )
 }
 
 function runDrizzleKitPush(): number {
@@ -42,9 +61,5 @@ function runDrizzleKitPush(): number {
 }
 
 function resolveDrizzleKitBin(): string {
-  const bin = join(dirname(fileURLToPath(import.meta.resolve('drizzle-kit'))), 'bin.cjs')
-
-  if (existsSync(bin)) return bin
-
-  return join(PACKAGE_ROOT, 'node_modules', '.bin', 'drizzle-kit')
+  return join(dirname(fileURLToPath(import.meta.resolve('drizzle-kit'))), 'bin.cjs')
 }

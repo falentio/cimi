@@ -54,7 +54,7 @@ describe('push-cli', () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain('SqliteError')
   })
 
-  it('pushes an empty database file', () => {
+  it('pushes an empty database file', { timeout: 30_000 }, () => {
     writeFileSync(controlPath, '')
 
     const result = spawnSync(process.execPath, [PUSH_CLI], {

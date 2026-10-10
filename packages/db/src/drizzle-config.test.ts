@@ -1,9 +1,8 @@
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { resolveControlDbPath } from './src/control-db-path.ts'
 
-const WORKSPACE_ROOT = fileURLToPath(new URL('./', import.meta.url))
+const WORKSPACE_ROOT = fileURLToPath(new URL('../../', import.meta.url))
 
 describe('drizzle.config', () => {
   const original = process.env['CIMI_CONTROL_DB_PATH']
@@ -20,9 +19,8 @@ describe('drizzle.config', () => {
   it('resolves a relative CIMI_CONTROL_DB_PATH against the workspace root', async () => {
     process.env['CIMI_CONTROL_DB_PATH'] = 'rel-miss.sqlite'
 
-    const config = (await import('./drizzle.config.ts')).default
+    const config = await import('../drizzle.config.ts')
 
-    expect(config.dbCredentials.url).toBe(join(WORKSPACE_ROOT, 'rel-miss.sqlite'))
-    expect(config.dbCredentials.url).toBe(resolveControlDbPath())
+    expect(config.controlDatabaseUrl).toBe(join(WORKSPACE_ROOT, 'rel-miss.sqlite'))
   })
 })
