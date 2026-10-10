@@ -163,13 +163,6 @@ export interface AnalyticsReadinessPort {
   getHealth(): PortResult<AnalyticsHealth>
 }
 
-/**
- * The name the demo seed writes onto a personal organization's first site. The
- * seed is our data, not the owner's, so an organization whose only site carries this
- * name still holds nothing the owner would lose by deleting it.
- */
-export const DEMO_SITE_NAME = 'Demo Site'
-
 export const DEFAULT_RETENTION_POLICY: RetentionPolicy = {
   eventMonths: 12,
   profileMonths: 12,

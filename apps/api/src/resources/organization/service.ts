@@ -30,8 +30,6 @@ export interface PersonalOrganizationSeeder {
     readonly organizationId: string
     readonly ownerUserId: string
   }): Promise<DemoSeedResult>
-
-  removeSeed(input: { readonly organizationId: string }): Promise<void>
 }
 
 export interface OrganizationServiceDependencies {
@@ -548,11 +546,6 @@ export class OrganizationService {
   ): Promise<InferOutput<typeof SOrganizationDeleteOutput>> {
     const organization = await this.requireOrganizationForUser(input.organizationId, user.id)
     await this.assertCommandRole(organization.id, user.id, 'owner')
-
-    if (this.demoSeed !== undefined) {
-      await this.demoSeed.removeSeed({ organizationId: organization.id })
-    }
-
     let operation = await this.repository.findPendingDeleteOperation(organization.id)
 
     if (operation !== undefined) {

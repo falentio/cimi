@@ -11,12 +11,13 @@ import type {
   LifecycleOperationStatusReader,
   PersistedLifecycleOperationKind,
 } from '@cimi/kernel'
-import { DEMO_SITE_NAME } from '@cimi/kernel'
 import { canonicalizeHostname, generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import type { SiteRepository } from './repository.ts'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
+
+const DEMO_SITE_NAME = 'Demo Site'
 
 const DEMO_SITE_HOSTNAME = 'demo.example.com'
 

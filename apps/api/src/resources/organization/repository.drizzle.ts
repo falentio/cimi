@@ -1,5 +1,4 @@
-import { and, count, desc, eq, ne, sql } from 'drizzle-orm'
-import { DEMO_SITE_NAME } from '@cimi/kernel'
+import { and, count, desc, eq, sql } from 'drizzle-orm'
 import { schema, type Db } from '@cimi/db'
 import type { OrganizationRecord, OrganizationRepository } from './repository.ts'
 import { isOwnerInvariantValid } from './owner-invariant.ts'
@@ -414,7 +413,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
     const sites = await this.db
       .select({ id: schema.TSite.id })
       .from(schema.TSite)
-      .where(and(eq(schema.TSite.organizationId, id), ne(schema.TSite.name, DEMO_SITE_NAME)))
+      .where(eq(schema.TSite.organizationId, id))
       .limit(1)
 
     if (sites.length > 0) return { kind: 'not-empty', isPersonal: organization.isPersonal }
@@ -447,7 +446,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       const sites = tx
         .select({ id: schema.TSite.id })
         .from(schema.TSite)
-        .where(and(eq(schema.TSite.organizationId, id), ne(schema.TSite.name, DEMO_SITE_NAME)))
+        .where(eq(schema.TSite.organizationId, id))
         .limit(1)
         .all()
 
@@ -475,12 +474,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       const sites = tx
         .select({ id: schema.TSite.id })
         .from(schema.TSite)
-        .where(
-          and(
-            eq(schema.TSite.organizationId, input.organizationId),
-            ne(schema.TSite.name, DEMO_SITE_NAME),
-          ),
-        )
+        .where(eq(schema.TSite.organizationId, input.organizationId))
         .limit(1)
         .all()
 
@@ -630,12 +624,7 @@ export class OrganizationRepositoryDrizzle implements OrganizationRepository {
       const sites = tx
         .select({ id: schema.TSite.id })
         .from(schema.TSite)
-        .where(
-          and(
-            eq(schema.TSite.organizationId, operation.organizationId),
-            ne(schema.TSite.name, DEMO_SITE_NAME),
-          ),
-        )
+        .where(eq(schema.TSite.organizationId, operation.organizationId))
         .limit(1)
         .all()
 
