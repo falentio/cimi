@@ -37,6 +37,22 @@ describe('validateBaseSchema', () => {
     }
   })
 
+  it('accepts a control database that carries a table the migrations do not build', () => {
+    migrateControlDbAtPath(controlPath)
+
+    const raw = new Database(controlPath)
+    raw.exec('CREATE TABLE migration_probe (id TEXT PRIMARY KEY NOT NULL)')
+    raw.close()
+
+    const db = createDb({ path: controlPath })
+
+    try {
+      expect(() => validateBaseSchema(db)).not.toThrow()
+    } finally {
+      closeDb(db)
+    }
+  })
+
   it('rejects a control database half-pushed by a table rebuild', () => {
     migrateControlDbAtPath(controlPath)
     rebuildTableWithDeclaredColumnOrder(controlPath)
