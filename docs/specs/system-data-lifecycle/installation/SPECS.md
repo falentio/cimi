@@ -124,9 +124,9 @@ Contract paths below are served under the `/api` runtime prefix. Q1, C1, C2, and
 
 ## 7. Authorization Matrix
 
-| Auth Level | Meaning                     | Procedures |
-| ---------- | --------------------------- | ---------- |
-| `admin`    | Installation administrator. | Q1, C1, C2 |
+| Auth Level | Meaning                     | Procedures     |
+| ---------- | --------------------------- | -------------- |
+| `admin`    | Installation administrator. | Q1, C1, C2, C3 |
 
 ## 8. Event Catalog
 
