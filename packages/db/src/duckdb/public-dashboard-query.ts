@@ -47,7 +47,7 @@ ${grouped}
 SELECT count(DISTINCT group_key) AS total_count
 FROM grouped
 WHERE group_key IS NOT NULL AND trim(CAST(group_key AS VARCHAR)) <> ''`,
-        publicDashboardArgs(query, predicate.args, true),
+        publicDashboardArgs(query, predicate.args, true, true),
       )
 
       return readCount(rows[0]?.['total_count'])
@@ -106,7 +106,7 @@ SELECT group_key,
 FROM grouped
 GROUP BY group_key
 ORDER BY group_key`,
-        publicDashboardArgs(query, predicate.args, true),
+        publicDashboardArgs(query, predicate.args, true, true),
       )
 
       return rows.flatMap((row) => {
@@ -269,6 +269,7 @@ function publicDashboardArgs(
   query: PublicDashboardAggregateQuery,
   predicateArgs: readonly BoundValue[],
   includeSessionStats = false,
+  includeBucketedCte = false,
 ): BoundValue[] {
   const args: BoundValue[] = [
     query.siteId,
@@ -279,7 +280,7 @@ function publicDashboardArgs(
 
   if (includeSessionStats) args.push(query.siteId)
 
-  if (query.dimension === 'time') {
+  if (includeBucketedCte && query.dimension === 'time') {
     const starts = query.period.bucketStarts ?? []
 
     for (let index = 0; index < starts.length; index += 1) {
