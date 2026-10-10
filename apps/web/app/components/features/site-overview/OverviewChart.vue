@@ -10,9 +10,9 @@ import {
   ChartLegendContent,
   ChartTooltip,
 } from '@/components/ui/chart'
-import type { OverviewMetric, OverviewRange, OverviewTrend } from './site-overview.types'
-import OverviewChartTooltip from './OverviewChartTooltip.vue'
 import { isNumberValue } from '../../../utils/type-guards'
+import OverviewChartTooltip from './OverviewChartTooltip.vue'
+import type { OverviewTrendView } from './site-overview.types'
 
 interface ChartDatum {
   readonly index: number
@@ -22,30 +22,28 @@ interface ChartDatum {
 }
 
 const props = defineProps<{
-  readonly metric: OverviewMetric
-  readonly trend: OverviewTrend
-  readonly range: OverviewRange
-  readonly rangeLabel: string
+  readonly title: string
+  readonly trend: OverviewTrendView
 }>()
 
-const maxValue = computed(() => Math.max(1, ...props.trend.current, ...props.trend.previous))
+/** Visitors is the only series the contract trends, so the chart plots that one metric. */
+const hasComparison = computed(() => props.trend.previous.length > 0)
+
+const maxValue = computed(() =>
+  Math.max(1, ...props.trend.current, ...(hasComparison.value ? props.trend.previous : [])),
+)
 
 const currentTailIndex = computed(() =>
   Math.min(Math.max(props.trend.currentTailIndex, 0), Math.max(props.trend.labels.length - 1, 0)),
 )
 
 const chartData = computed<ChartDatum[]>(() =>
-  props.trend.labels.map((label, index) => {
-    const current = props.trend.current[index] ?? 0
-    const previous = props.trend.previous[index] ?? 0
-
-    return {
-      index,
-      label,
-      current,
-      previous,
-    }
-  }),
+  props.trend.labels.map((label, index) => ({
+    index,
+    label,
+    current: props.trend.current[index] ?? 0,
+    previous: props.trend.previous[index] ?? 0,
+  })),
 )
 
 const solidChartData = computed(() => chartData.value.slice(0, currentTailIndex.value + 1))
@@ -75,11 +73,8 @@ const tooltipTemplate = (datum: ChartDatum): string => {
   render(
     h(OverviewChartTooltip, {
       payload: datum,
-      title: props.metric.label,
+      title: props.title,
       dates: props.trend.dates,
-      range: props.range,
-      unit: props.metric.unit,
-      polarity: props.metric.polarity,
       currentColor: chartConfig.current.color,
       previousColor: chartConfig.previous.color,
     }),
@@ -94,16 +89,25 @@ function formatXTick(value: number | Date): string {
 }
 
 function formatYTick(value: number | Date): string {
-  if (!isNumberValue(value)) return ''
-
-  return props.metric.unit === 'percent' ? `${value}%` : value.toLocaleString()
+  return isNumberValue(value) ? value.toLocaleString() : ''
 }
 
 const chartSummary = computed(() => {
   const currentEnd = props.trend.current.at(-1) ?? 0
-  const previousEnd = props.trend.previous.at(-1) ?? 0
+  const previousEnd = props.trend.previous.at(-1)
 
-  return `${props.metric.label} trend for ${props.rangeLabel}. The current period ends at ${currentEnd.toLocaleString()} and the previous period ends at ${previousEnd.toLocaleString()}.`
+  const comparison =
+    previousEnd === undefined
+      ? 'No comparison period is selected.'
+      : 'The previous period ends at ' + previousEnd.toLocaleString() + '.'
+
+  return (
+    props.title +
+    ' trend. The current period ends at ' +
+    currentEnd.toLocaleString() +
+    '. ' +
+    comparison
+  )
 })
 </script>
 
@@ -111,7 +115,7 @@ const chartSummary = computed(() => {
   <Card class="min-w-0">
     <CardHeader class="gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div class="min-w-0">
-        <CardTitle>{{ metric.label }} over time</CardTitle>
+        <CardTitle>{{ title }} over time</CardTitle>
         <CardDescription>Current period compared with the previous period.</CardDescription>
       </div>
     </CardHeader>
@@ -124,6 +128,7 @@ const chartSummary = computed(() => {
       >
         <VisXYContainer :data="chartData" :x-domain="xDomain" :y-domain="yDomain">
           <VisArea
+            v-if="hasComparison"
             :data="chartData"
             :x="(d: ChartDatum) => d.index"
             :y="(d: ChartDatum) => d.previous"
@@ -176,12 +181,18 @@ const chartSummary = computed(() => {
           <ChartCrosshair
             :data="chartData"
             :x="(d: ChartDatum) => d.index"
-            :y="[(d: ChartDatum) => d.current, (d: ChartDatum) => d.previous]"
-            :color="[chartConfig.current.color, chartConfig.previous.color]"
+            :y="[
+              (d: ChartDatum) => d.current,
+              ...(hasComparison ? [(d: ChartDatum) => d.previous] : []),
+            ]"
+            :color="[
+              chartConfig.current.color,
+              ...(hasComparison ? [chartConfig.previous.color] : []),
+            ]"
             :template="tooltipTemplate"
           />
         </VisXYContainer>
-        <ChartLegendContent />
+        <ChartLegendContent v-if="hasComparison" />
       </ChartContainer>
       <p class="sr-only">{{ chartSummary }}</p>
     </CardContent>

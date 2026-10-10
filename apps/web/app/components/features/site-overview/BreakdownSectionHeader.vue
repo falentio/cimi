@@ -2,10 +2,10 @@
 import { HugeiconsIcon } from '@hugeicons/vue'
 import { Button } from '@/components/ui/button'
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { BreakdownTabChange, VisibleBreakdownSection } from './site-overview.types'
+import type { BreakdownTabChange, OverviewBreakdownSectionView } from './site-overview.types'
 
 const props = defineProps<{
-  readonly section: VisibleBreakdownSection
+  readonly section: OverviewBreakdownSectionView
 }>()
 
 const emit = defineEmits<{
