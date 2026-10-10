@@ -25,6 +25,13 @@ import {
   foldSessionRows,
   foldVisitorRows,
 } from './projection-fold.ts'
+import {
+  appendEventRows,
+  appendFactRows,
+  appendPropertyRows,
+  appendSessionRows,
+  appendVisitorRows,
+} from './fact-writer.ts'
 
 export {
   ANALYTICS_PROJECTION_VERSION,
@@ -401,97 +408,23 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
             await connection.run('DELETE FROM projection_checkpoints')
             await connection.run('DELETE FROM projection_gaps')
 
-            for (const event of projectedEvents) {
-              const eventProperties = propertiesByEvent.get(event.eventPk)
-              await connection.run(
-                `INSERT INTO events (
-               event_pk, site_id, event_id, event_kind, occurrence_time, receipt_time, late,
-                 visitor_id, anonymous_identity_id, identified_user_id, analytics_session_id,
-                 bot_policy_outcome, utm_source, utm_medium, utm_campaign, device, browser,
-                 operating_system, country, page_path, referrer, name, destination, value, unit,
-                 code, message, properties_json, policy_revision_id,
-                 replay_sequence, payload_fingerprint, projected_at
-              ) VALUES (?, ?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, CAST(? AS TIMESTAMP))`,
-                [
-                  event.eventPk,
-                  event.siteId,
-                  event.eventId,
-                  event.eventKind,
-                  timestamp(event.occurrenceTime),
-                  timestamp(event.receiptTime),
-                  Boolean(event.late),
-                  event.visitorId,
-                  event.anonymousIdentityId,
-                  event.identifiedUserId,
-                  event.analyticsSessionId,
-                  event.botPolicyOutcome,
-                  event.utmSource,
-                  event.utmMedium,
-                  event.utmCampaign,
-                  event.deviceType,
-                  event.browserType,
-                  event.operatingSystem,
-                  event.country,
-                  event.pagePath,
-                  event.referrer,
-                  event.name,
-                  event.destination,
-                  event.value,
-                  event.unit,
-                  event.code,
-                  event.message,
-                  eventProperties === undefined ? null : JSON.stringify(eventProperties),
-                  event.policyRevisionId,
-                  event.replaySequence,
-                  event.payloadFingerprint,
-                  timestamp(event.projectedAt),
-                ],
-              )
-            }
+            await appendFactRows(connection, 'events', projectedEvents, (appender, events) =>
+              appendEventRows(appender, events, propertiesByEvent),
+            )
 
-            for (const visitor of foldVisitorRows(factState)) {
-              await connection.run(
-                `INSERT INTO visitors (site_id, visitor_id, identity_kind, first_seen_at, last_seen_at, profile_id)
-             VALUES (?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?)`,
-                [
-                  visitor.siteId,
-                  visitor.visitorId,
-                  visitor.identityKind,
-                  timestamp(visitor.firstSeenAt),
-                  timestamp(visitor.lastSeenAt),
-                  visitor.profileId,
-                ],
-              )
-            }
+            await appendFactRows(
+              connection,
+              'visitors',
+              foldVisitorRows(factState),
+              appendVisitorRows,
+            )
 
-            for (const session of foldSessionRows(factState)) {
-              await connection.run(
-                `INSERT INTO analytics_sessions (
-               site_id, session_id, visitor_id, identified_user_id, started_at, ended_at,
-               entry_page, referrer, utm_source, utm_medium, utm_campaign, device, browser,
-               operating_system, country, region, city
-             ) VALUES (?, ?, ?, ?, CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                  session.siteId,
-                  session.sessionId,
-                  session.visitorId,
-                  session.identifiedUserId,
-                  timestamp(session.startedAt),
-                  timestamp(session.endedAt),
-                  session.entryPage,
-                  session.referrer,
-                  session.utmSource,
-                  session.utmMedium,
-                  session.utmCampaign,
-                  session.device,
-                  session.browser,
-                  session.operatingSystem,
-                  session.country,
-                  null,
-                  null,
-                ],
-              )
-            }
+            await appendFactRows(
+              connection,
+              'analytics_sessions',
+              foldSessionRows(factState),
+              appendSessionRows,
+            )
 
             for (const checkpoint of projected) {
               await connection.run(
@@ -540,21 +473,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
               )
             }
 
-            for (const property of properties) {
-              await connection.run(
-                `INSERT INTO event_properties (
-               site_id, event_id, property_key, value_type, string_value, number_value, boolean_value
-             ) SELECT site_id, event_id, ?, ?, ?, ?, ? FROM events WHERE event_pk = ?`,
-                [
-                  property.propertyKey,
-                  property.valueType,
-                  property.stringValue,
-                  property.numberValue,
-                  property.booleanValue === null ? null : Boolean(property.booleanValue),
-                  property.eventPk,
-                ],
-              )
-            }
+            await appendFactRows(connection, 'event_properties', properties, (appender, rows) =>
+              appendPropertyRows(appender, rows, projectedEvents),
+            )
 
             await connection.run('COMMIT')
           } catch (error) {
