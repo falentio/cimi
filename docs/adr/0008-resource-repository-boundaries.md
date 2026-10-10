@@ -61,6 +61,12 @@ The adapter stays owned by `site/`, so its ownership and its coupling are the
 same. If a future consumer needs a scope answer the adapter cannot give, add a
 port method to the adapter rather than reaching for the tables directly.
 
+The consumer set is enforced, not merely described.
+`resourceRepositoryBoundary.test.ts` asserts the exact list of production files
+that import `../site/scope.ts`. Adding a tenth consumer fails that test, which is
+the deliberate friction this issue asked for: the boundary rules live in code
+rather than in a paragraph that drifts.
+
 ## Repository joins
 
 Three repositories read tables another resource owns. These joins stay, because
@@ -98,7 +104,16 @@ cross-resource repository call.
 - `SiteRetentionBoundary`, `CleanupCheckpoint`, and `CleanupKind` live in
   `retention-policy/cleanup-payload.ts`, a module with no repository and no
   database in it. A `RetentionCleanupPort` implementer, and any test that names
-  those parameters, imports that module directly instead of a repository.
+  those parameters, imports that module directly instead of a repository. No
+  call site re-spells the union, so the picklist has one source.
+- `SiteIngestionPort` states its contract without promising to do the filtering
+  itself. `undefined` is the single answer for a Site that cannot accept traffic,
+  and the adapter inherits the active-and-live filter from
+  `SiteRepositoryDrizzle.findByIngestionIdentifier` rather than repeating it. The
+  adapter test pins that delegation: it asserts the repository is called once and
+  that a site the repository declines never reaches the projection. The
+  repository's own lifecycle test pins the filter underneath, so the chain holds
+  at both ends and the service needs no status check of its own.
 - Adding a cross-resource read means adding a port method to the provider, not an
   import to the consumer.
 

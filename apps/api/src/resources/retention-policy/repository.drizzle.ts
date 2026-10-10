@@ -5,7 +5,7 @@ import { generateId, resolveSiteLocalCutoff, resolveSiteLocalDay } from '@cimi/u
 import { parse } from 'valibot'
 import { ORPCError } from '@orpc/server'
 import { identityRedactionRequest } from '../event-ingestion/identity-redaction-transition.ts'
-import type { CleanupCheckpoint, SiteRetentionBoundary } from './cleanup-payload.ts'
+import type { CleanupCheckpoint, CleanupKind, SiteRetentionBoundary } from './cleanup-payload.ts'
 import type { RetentionPolicyRepository } from './repository.ts'
 
 export interface RetentionPolicyRepositoryDrizzleDependencies {
@@ -797,7 +797,7 @@ const CLEANUP_DATA_CLASSES = [
 function queueCleanupRun(
   tx: SqliteTransaction,
   boundary: SiteRetentionBoundary,
-  kind: 'derived' | 'backup',
+  kind: CleanupKind,
   now: Date,
 ): string {
   const active = tx

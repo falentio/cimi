@@ -20,8 +20,8 @@ grep -rnE "from ['\"][^'\"]*/[a-z-]+/repository(\.drizzle)?\.ts['\"]" "$ROOT" \
   | awk -F: '{print $1}' | sed "s|$ROOT/resources/||; s|/.*||" | sort | uniq -c | sort -rn
 
 echo
-echo "=== 3. site/scope consumers (documented as a shared scope adapter) ==="
-grep -rln "site/scope" "$ROOT" | sed "s|$ROOT/resources/||" | sort
+echo "=== 3. site/scope consumers (must match the enforced allowlist in the test) ==="
+grep -rln "site/scope" "$ROOT/resources" | sed "s|$ROOT/resources/||" | sort
 
 echo
 echo "=== 4. repositories that read tables another resource owns ==="

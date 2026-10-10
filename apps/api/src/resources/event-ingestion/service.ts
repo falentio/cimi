@@ -509,7 +509,7 @@ export class EventIngestionService {
     request: IngestionRequestContext = {},
   ): Promise<PreparedEvent> {
     const receipt = this.clock()
-    const retention = await this.retentionPolicy(site.id)
+    const retention = await this.retention.effective(site.id)
 
     const decision = await this.collectionPolicy.admit({
       siteId: site.id,
@@ -663,12 +663,6 @@ export class EventIngestionService {
       if (error instanceof ORPCError) throw error
       throw new ORPCError('TOO_MANY_REQUESTS', { status: 429 })
     }
-  }
-
-  private async retentionPolicy(siteId: string): Promise<{ readonly eventMonths: number }> {
-    const policy = await this.retention.effective(siteId)
-
-    return { eventMonths: policy.eventMonths }
   }
 
   private reserve(candidates: readonly ReservableCandidate[]): Promise<readonly Reservation[]> {

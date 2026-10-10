@@ -7,17 +7,14 @@ import {
   createCollectionPolicyFixture,
   createPolicyLayers,
 } from '../../collection-policy/fixture.ts'
-import type { IngestionSite, SiteIngestionPort } from '@cimi/guard'
+import type { SiteIngestionPort } from '@cimi/guard'
+import { createIngestionSite } from '../../site/fixture.ts'
 import type { IdentityProfileRepository } from '../repository.ts'
 import { IdentityProfileService } from '../service.ts'
 
 const now = new Date('2026-09-10T06:00:00.000Z')
 
-const ingestionSite: IngestionSite = {
-  id: 'ste_1',
-  hostname: 'example.com',
-  reportingTimezone: 'UTC',
-}
+const ingestionSite = createIngestionSite()
 
 const profileActivityCutoff = new Date('2026-09-10T06:01:00.000Z')
 

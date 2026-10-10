@@ -21,10 +21,12 @@ export interface SiteScopeGuardDependencies {
 }
 
 /**
- * Read-only view of the Sites that may accept ingestion traffic. Implementations
- * exclude Sites that are missing, not active, or tombstoned, so `undefined` is the
- * single answer for every not-ingestible case. Callers cannot re-check lifecycle
- * status, which keeps the active-and-live rule in one implementation.
+ * Read-only view of the Sites that may accept ingestion traffic. `undefined` is the
+ * single answer for a Site that cannot accept traffic, whether it is missing, not
+ * active, or tombstoned. Which of those it is stays with the implementation, and
+ * callers receive no status field, so they cannot re-check lifecycle status. Keeping
+ * the active-and-live rule inside the implementation is what allows one
+ * implementation of that rule.
  */
 export interface SiteIngestionPort {
   findActiveByIngestionIdentifier(

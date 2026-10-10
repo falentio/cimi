@@ -8,7 +8,8 @@ import {
 } from '@cimi/kernel'
 import { mock } from 'vitest-mock-extended'
 import type { MockProxy } from 'vitest-mock-extended'
-import type { IngestionSite, SiteIngestionPort } from '@cimi/guard'
+import type { SiteIngestionPort } from '@cimi/guard'
+import { createIngestionSite } from '../../site/fixture.ts'
 import { InMemoryRetentionResolver } from '@cimi/kernel'
 import { CollectionPolicyService } from '../../collection-policy/service.ts'
 import { createPolicyLayers } from '../../collection-policy/fixture.ts'
@@ -92,11 +93,7 @@ function event(overrides: Record<string, JsonValue> = {}) {
   }
 }
 
-const ingestionSite: IngestionSite = {
-  id: 'ste_1',
-  hostname: 'example.com',
-  reportingTimezone: 'UTC',
-}
+const ingestionSite = createIngestionSite()
 
 describe('EventIngestionService.flushFailureRetry', () => {
   it('releases reservations after a failed flush so the Event ID can be retried', async () => {

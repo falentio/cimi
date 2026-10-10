@@ -1,5 +1,6 @@
 import {
   InMemorySiteScopePort,
+  type IngestionSite,
   type InMemorySiteMembership,
   type InMemorySiteRecord,
 } from '@cimi/guard'
@@ -62,6 +63,10 @@ export function createSite(overrides: Partial<SiteRepository.Site> = {}): SiteRe
     updatedAt,
     ...overrides,
   }
+}
+
+export function createIngestionSite(overrides: Partial<IngestionSite> = {}): IngestionSite {
+  return { id: 'ste_1', hostname: 'example.com', reportingTimezone: 'UTC', ...overrides }
 }
 
 export function createSiteRecord(
