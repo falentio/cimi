@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@pinia/colada'
 import type { CimiOrpc } from '~/plugins/orpc'
+import { ADMIN_ROLE } from '../utils/auth-guard'
 import type { WorkspaceSite, WorkspaceTeam } from '@/components/features/app-shell/workspace'
 
 const PAGE_SIZE = 100
@@ -22,10 +23,32 @@ type Organization = Awaited<
 
 type Site = Awaited<ReturnType<CimiOrpc['site']['listSites']['call']>>['items'][number]
 
+export interface WorkspaceClient {
+  readonly installation: {
+    readonly ensureInstallation: Pick<CimiOrpc['installation']['ensureInstallation'], 'call'>
+  }
+  readonly organization: {
+    readonly ensurePersonalOrganization: Pick<
+      CimiOrpc['organization']['ensurePersonalOrganization'],
+      'call'
+    >
+    readonly listOrganizations: Pick<CimiOrpc['organization']['listOrganizations'], 'call'>
+  }
+  readonly site: {
+    readonly listSites: Pick<CimiOrpc['site']['listSites'], 'call'>
+  }
+}
+
 export function useWorkspaceData() {
   const { session } = useAuth()
   const orpc = useOrpc()
   const enabled = computed(() => session.value.status === 'authenticated')
+
+  const isAdmin = computed(() => {
+    const state = session.value
+
+    return state.status === 'authenticated' && state.session.user.role === ADMIN_ROLE
+  })
 
   const queryKey = computed(() => [
     'workspace',
@@ -36,7 +59,7 @@ export function useWorkspaceData() {
   const query = useQuery<WorkspaceData>({
     key: queryKey,
     enabled,
-    query: ({ signal }) => loadWorkspaceData(orpc, signal),
+    query: ({ signal }) => loadWorkspaceData(orpc, isAdmin.value, signal),
   })
 
   const teams = computed<readonly WorkspaceTeam[]>(() => {
@@ -56,7 +79,15 @@ export function useWorkspaceData() {
   }
 }
 
-async function loadWorkspaceData(orpc: CimiOrpc, signal: AbortSignal): Promise<WorkspaceData> {
+export async function loadWorkspaceData(
+  orpc: WorkspaceClient,
+  isAdmin: boolean,
+  signal: AbortSignal,
+): Promise<WorkspaceData> {
+  if (isAdmin) {
+    await orpc.installation.ensureInstallation.call({}, { signal }).catch(() => undefined)
+  }
+
   await orpc.organization.ensurePersonalOrganization.call({}, { signal })
 
   const organizations = await fetchAllPages((offset) =>
