@@ -81,14 +81,16 @@ test('an administrator session opens the admission gate by ensuring the installa
       ),
     )
 
-    return response.status
+    const body = await response.json()
+
+    return { status: response.status, code: body.code }
   }
 
   const owner = await signUpTestUser(app, 'ensure-acceptance@example.com', 'Ensure Acceptance')
 
   const beforeHealth = await app.fetch(new Request('http://localhost/api/system/health'))
   await expect(beforeHealth.json()).resolves.toMatchObject({ status: 'recovering' })
-  expect(await profiles(owner.cookie)).toBe(503)
+  expect(await profiles(owner.cookie)).toEqual({ status: 503, code: 'SERVICE_UNAVAILABLE' })
 
   const ensured = await app.fetch(
     new Request('http://localhost/api/installation/ensureInstallation', {
@@ -102,7 +104,7 @@ test('an administrator session opens the admission gate by ensuring the installa
 
   const afterHealth = await app.fetch(new Request('http://localhost/api/system/health'))
   await expect(afterHealth.json()).resolves.toMatchObject({ status: 'healthy' })
-  expect(await profiles(owner.cookie)).not.toBe(503)
+  expect(await profiles(owner.cookie)).toEqual({ status: 404, code: 'NOT_FOUND' })
 })
 
 test('system health maps installation and legacy states', async () => {
