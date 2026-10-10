@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import type Database from 'better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { closeDb, createDb, prepareControlDatabase, type Db } from './client.ts'
 import { bridgeLegacyControlDb, classifyControlLineage } from './legacy-bridge.ts'
@@ -90,6 +91,17 @@ export function validateBaseSchema(db: Db): void {
   if (missing.length > 0) {
     throw new Error(`Base control schema is missing tables: ${missing.join(', ')}`)
   }
+
+  const drift = describeControlSchemaDrift(db.$client)
+
+  if (drift.length > 0) {
+    throw new ControlMigrationIncompatibilityError(
+      `Control database schema is incompatible with this release: ${drift.join('; ')}. ` +
+        'A database that a partial drizzle-kit push or an interrupted rebuild left behind ' +
+        'diverges like this; recreate it from an empty file with ' +
+        '`vp run --filter @cimi/db migrate`',
+    )
+  }
 }
 
 export function migrateControlDbAtPath(path: string, options: ControlMigrationOptions = {}): void {
@@ -105,6 +117,77 @@ export function migrateControlDbAtPath(path: string, options: ControlMigrationOp
 }
 
 export { resolveControlDbPath } from './control-db-path.ts'
+
+let referenceColumnOrder: Map<string, string[]> | undefined
+
+/**
+ * Compares the live column layout of every user table against the layout the control migrations
+ * build, and names each divergence. The migrations are the reference rather than the schema
+ * module because they add columns with ALTER TABLE, which appends them at the end, so a table the
+ * migrations grew carries an order the module does not restate. A half-pushed database, whose
+ * rebuilt tables follow the module order while the rest keep the migration order, matches neither.
+ */
+function describeControlSchemaDrift(client: Database.Database): string[] {
+  const live = readLiveColumnOrder(client)
+  const reference = readReferenceColumnOrder()
+  const drift: string[] = []
+
+  for (const [table, columns] of reference) {
+    const liveColumns = live.get(table)
+
+    if (liveColumns === undefined) {
+      drift.push(`table ${table} is missing`)
+    } else if (liveColumns.join(', ') !== columns.join(', ')) {
+      drift.push(
+        `table ${table} holds (${liveColumns.join(', ')}) instead of (${columns.join(', ')})`,
+      )
+    }
+  }
+
+  for (const table of live.keys()) {
+    if (!reference.has(table)) {
+      drift.push(`table ${table} is not built by the control migrations`)
+    }
+  }
+
+  return drift
+}
+
+function readLiveColumnOrder(client: Database.Database): Map<string, string[]> {
+  // SAFETY: better-sqlite3 returns any; single name column selected below.
+  const tables = client
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+    .all() as Array<{ name: string }>
+
+  const columns = new Map<string, string[]>()
+
+  for (const { name } of tables) {
+    // SAFETY: better-sqlite3 returns any; row shape fixed by the PRAGMA table_info columns.
+    const rows = client.prepare(`PRAGMA table_info(${name})`).all() as Array<{ name: string }>
+
+    columns.set(
+      name,
+      rows.map((row) => row.name),
+    )
+  }
+
+  return columns
+}
+
+function readReferenceColumnOrder(): Map<string, string[]> {
+  if (referenceColumnOrder !== undefined) return referenceColumnOrder
+
+  const reference = createDb({ path: ':memory:' })
+
+  try {
+    migrateControlDb(reference)
+    referenceColumnOrder = readLiveColumnOrder(reference.$client)
+  } finally {
+    closeDb(reference)
+  }
+
+  return referenceColumnOrder
+}
 
 let defaultControlMigrationManifest: readonly MigrationManifestEntry[] | undefined
 
