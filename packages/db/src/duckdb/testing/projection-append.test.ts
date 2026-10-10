@@ -396,6 +396,32 @@ describe('AnalyticsDb.appendProjectedEvents', () => {
     }
   })
 
+  it('stops instead of failing when a rebuild moves the cursor ahead mid-append', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analytics = await createTestAnalyticsDb()
+
+    try {
+      seedJournal(controlDb)
+
+      const appendPromise = analytics.appendProjectedEvents({
+        controlDb,
+        siteId: SITE_ID,
+        chunkRows: CHUNK_ROWS,
+      })
+
+      await analytics.rebuild({ controlDb })
+
+      await expect(appendPromise).resolves.toMatchObject({ chunkCount: expect.any(Number) })
+
+      const snapshot = await analytics.readProjectionSnapshot({ siteId: SITE_ID })
+
+      expect(snapshot.checkpoint?.projectedFactCardinality).toBe(snapshot.factCardinality)
+      expect(await analytics.ready()).toBe(true)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
   it('asserts the chunk size into the 2000 to 5000 band', async () => {
     const controlDb = createDb({ path: ':memory:' })
     const analytics = await createTestAnalyticsDb()

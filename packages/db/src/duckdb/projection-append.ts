@@ -167,11 +167,11 @@ export class AnalyticsProjectionAppender {
   ): Promise<ChunkOutcome> {
     const published = await readPublishedCheckpoint(transaction, input.siteId)
 
-    if (expectedCursor !== undefined && published.cursor !== expectedCursor) {
+    if (expectedCursor !== undefined && published.cursor < expectedCursor) {
       throw new Error(
         'Analytics projection cursor for Site ' +
           input.siteId +
-          ' moved from ' +
+          ' rewound from ' +
           expectedCursor +
           ' to ' +
           published.cursor +
