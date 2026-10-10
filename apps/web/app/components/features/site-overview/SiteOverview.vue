@@ -130,7 +130,8 @@ function handleFilterClear(): void {
       <OverviewToolbar
         :ranges="overviewRangeOptions"
         :selected-range="selectedRange"
-        :status-text="statusText || freshnessLine"
+        :status-text="statusText"
+        :freshness-text="freshnessLine"
         :comparison="comparison"
         @range-change="handleRangeChange"
         @comparison-change="handleComparisonChange"

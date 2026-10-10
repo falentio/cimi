@@ -19,6 +19,7 @@ const props = defineProps<{
   readonly ranges: readonly OverviewRangeOption[]
   readonly selectedRange: OverviewRange
   readonly statusText: string
+  readonly freshnessText: string
   readonly comparison: boolean
 }>()
 
@@ -90,6 +91,12 @@ function handleRangeChange(value: AcceptableValue): void {
         class="text-muted-foreground min-h-5 text-xs whitespace-nowrap"
       >
         {{ props.statusText }}
+      </span>
+      <span
+        v-if="props.freshnessText"
+        class="text-muted-foreground min-h-5 text-xs whitespace-nowrap"
+      >
+        {{ props.freshnessText }}
       </span>
     </div>
   </section>

@@ -60,10 +60,6 @@ function toTrendDates(
   }))
 }
 
-/**
- * Visitors is the only metric the contract trends, so the chart plots that one series while the
- * cards read the period totals. Nothing here adds a non-additive value across buckets.
- */
 export function toOverviewTrend(
   current: TrafficOverviewPeriod,
   comparison: TrafficOverviewPeriod | null,
@@ -139,6 +135,7 @@ function toBreakdownSection(
   section: OverviewBreakdownSectionDescriptor,
   tab: OverviewBreakdownTabDescriptor | undefined,
   page: TrafficBreakdownPage | undefined,
+  pageLimit: number | undefined,
 ): OverviewBreakdownSectionView {
   return {
     id: section.id,
@@ -148,9 +145,23 @@ function toBreakdownSection(
     tabs: overviewBreakdownTabViews(section),
     activeTab: tab?.id ?? '',
     rows: tab === undefined || page === undefined ? [] : toBreakdownRows(tab, page),
-    hasMore: page?.hasMore ?? false,
+    hasMore: canLoadMore(page, pageLimit),
     totalCount: page?.totalCount ?? 0,
+    status: page?.status ?? 'current',
   }
+}
+
+/**
+ * A section offers more rows only when the server says so and the page can still grow. At the
+ * contract's 100-row ceiling the button would be inert, so it is not offered.
+ */
+function canLoadMore(
+  page: TrafficBreakdownPage | undefined,
+  pageLimit: number | undefined,
+): boolean {
+  if (page === undefined || !page.hasMore) return false
+
+  return pageLimit === undefined || pageLimit < MAX_BREAKDOWN_PAGE
 }
 
 function toFreshness(period: TrafficOverviewPeriod): OverviewFreshnessView {
@@ -160,6 +171,9 @@ function toFreshness(period: TrafficOverviewPeriod): OverviewFreshnessView {
   }
 }
 
+/** The contract caps a breakdown page at 100 rows and a request at the same ceiling. */
+const MAX_BREAKDOWN_PAGE = 100
+
 export interface OverviewMappingInput {
   readonly range: OverviewRange
   readonly granularity: SiteTrafficView['granularity']
@@ -168,17 +182,14 @@ export interface OverviewMappingInput {
   /** Keyed by `<sectionId>:<tabId>`, one page per visible breakdown card. */
   readonly breakdowns: ReadonlyMap<string, TrafficBreakdownPage>
   readonly activeTabs: Readonly<Record<string, string>>
+  /** Per-section page size, keyed by section id. */
+  readonly pageLimits: Readonly<Record<string, number>>
 }
 
-/**
- * A Site with traffic has at least one count. Rates and ratios are derived from these three, so
- * they carry no independent signal about emptiness.
- */
 function hasTraffic(period: TrafficOverviewPeriod): boolean {
   return period.visitors > 0 || period.sessions > 0 || period.pageviews > 0
 }
 
-/** Assembles one render-ready view. Pure, so the acceptance rules are testable without a DOM. */
 export function toSiteTrafficView(input: OverviewMappingInput): SiteTrafficView {
   return {
     hasTraffic: hasTraffic(input.overview),
@@ -190,7 +201,12 @@ export function toSiteTrafficView(input: OverviewMappingInput): SiteTrafficView 
       const tabId = input.activeTabs[section.id] ?? section.tabs[0]?.id
       const tab = section.tabs.find((candidate) => candidate.id === tabId)
 
-      return toBreakdownSection(section, tab, input.breakdowns.get(section.id + ':' + tabId))
+      return toBreakdownSection(
+        section,
+        tab,
+        input.breakdowns.get(section.id + ':' + tabId),
+        input.pageLimits[section.id],
+      )
     }),
     freshness: toFreshness(input.overview),
   }

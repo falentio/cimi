@@ -91,11 +91,8 @@ function periodLengthDays(period: ResolvedPeriod): number {
 }
 
 /**
- * Resolves a range into the contract's date shape.
- *
- * The contract's isValidReportRange demands a comparison window that is the same length as the
- * current one and ends the day before it starts, so the comparison is derived from the resolved
- * current period instead of measured backwards from a fixed offset.
+ * Resolves a range into the contract's date shape. isValidReportRange demands a comparison window
+ * that is the same length as the current one and ends the day before it starts.
  */
 export function resolveOverviewRangeRequest(
   range: OverviewRange,

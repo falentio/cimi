@@ -33,8 +33,15 @@ const maxValue = computed(() =>
   Math.max(1, ...props.trend.current, ...(hasComparison.value ? props.trend.previous : [])),
 )
 
+/** True when the contract marks every bucket incomplete, so the whole series is a projection. */
+const allIncomplete = computed(() => props.trend.currentTailIndex < 0)
+
+/**
+ * Index of the last complete bucket, or -1 when there is none. Clamped only at the top, so the
+ * sentinel survives and the slice below can read it.
+ */
 const currentTailIndex = computed(() =>
-  Math.min(Math.max(props.trend.currentTailIndex, 0), Math.max(props.trend.labels.length - 1, 0)),
+  Math.min(props.trend.currentTailIndex, Math.max(props.trend.labels.length - 1, 0)),
 )
 
 const chartData = computed<ChartDatum[]>(() =>
@@ -46,9 +53,13 @@ const chartData = computed<ChartDatum[]>(() =>
   })),
 )
 
-const solidChartData = computed(() => chartData.value.slice(0, currentTailIndex.value + 1))
+const solidChartData = computed(() =>
+  allIncomplete.value ? [] : chartData.value.slice(0, currentTailIndex.value + 1),
+)
 
-const dottedChartData = computed(() => chartData.value.slice(currentTailIndex.value))
+const dottedChartData = computed(() =>
+  allIncomplete.value ? [...chartData.value] : chartData.value.slice(currentTailIndex.value),
+)
 
 const xDomain = computed<[number, number]>(() => [0, Math.max(chartData.value.length - 1, 1)])
 

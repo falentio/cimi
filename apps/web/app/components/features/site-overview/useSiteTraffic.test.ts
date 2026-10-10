@@ -292,6 +292,36 @@ describe('useSiteTraffic', () => {
     scope.stop()
   })
 
+  it('stops growing a page at the contract ceiling instead of requesting an invalid limit', async () => {
+    const { controller, scope } = await createHarness()
+
+    for (let click = 0; click < 10; click += 1) controller.loadMore('pages')
+
+    await settle()
+
+    const limits = getTrafficBreakdowns.mock.calls
+      .filter((call) => call[0].dimension === 'page')
+      .map((call) => call[0].limit)
+
+    expect(Math.max(...limits)).toBe(100)
+    expect(controller.load.value.status).toBe('ready')
+    scope.stop()
+  })
+
+  it('stops offering more rows on a section already at the ceiling', async () => {
+    const { controller, scope } = await createHarness()
+
+    for (let click = 0; click < 6; click += 1) controller.loadMore('pages')
+
+    await settle()
+
+    const sections = controller.view.value?.breakdowns ?? []
+    const pages = sections.find((section) => section.id === 'pages')
+
+    expect(pages?.hasMore).toBe(false)
+    scope.stop()
+  })
+
   it('clears tab and paging state when the Site changes so nothing leaks across Sites', async () => {
     const options = createOptions()
     const { controller, scope } = await createHarness({ siteId: options.siteId })

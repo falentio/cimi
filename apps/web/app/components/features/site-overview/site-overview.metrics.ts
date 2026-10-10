@@ -54,10 +54,7 @@ export const overviewMetricFormatters: Readonly<
   seconds: formatDuration,
 }
 
-/**
- * One row per metric the contract's overview period carries. Every contract field name the page
- * reads lives in this table, so a contract change surfaces here and nowhere else.
- */
+/** One row per metric the contract's overview period carries. */
 export const overviewMetrics: readonly OverviewMetricDescriptor[] = [
   {
     id: 'visitors',

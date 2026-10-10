@@ -20,6 +20,9 @@ import type {
 
 const BREAKDOWN_PAGE_SIZE = 20
 
+/** SPageSize caps a request at 100 rows, and a response carries at most 100 items. */
+const MAX_BREAKDOWN_PAGE = 100
+
 const TRAFFIC_QUERY_KEY = ['traffic'] as const
 
 const SITE_QUERY_KEY = ['site'] as const
@@ -237,6 +240,7 @@ export function useSiteTraffic(options: SiteTrafficOptions): SiteTrafficControll
       comparison: overview.comparison ?? null,
       breakdowns,
       activeTabs: activeTabs.value,
+      pageLimits: breakdownLimits.value,
     }
 
     return toSiteTrafficView(mapping)
@@ -257,7 +261,11 @@ export function useSiteTraffic(options: SiteTrafficOptions): SiteTrafficControll
   function loadMore(sectionId: string): void {
     const current = breakdownLimits.value[sectionId] ?? BREAKDOWN_PAGE_SIZE
 
-    breakdownLimits.value = { ...breakdownLimits.value, [sectionId]: current + BREAKDOWN_PAGE_SIZE }
+    if (current >= MAX_BREAKDOWN_PAGE) return
+
+    const next = Math.min(current + BREAKDOWN_PAGE_SIZE, MAX_BREAKDOWN_PAGE)
+
+    breakdownLimits.value = { ...breakdownLimits.value, [sectionId]: next }
   }
 
   function selectTab(sectionId: string, tabId: string): void {

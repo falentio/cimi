@@ -5,7 +5,11 @@ import {
   toOverviewTrend,
   toSiteTrafficView,
 } from './site-overview.mapper'
-import type { TrafficBreakdownPage, TrafficOverviewPeriod } from './site-overview.types'
+import type {
+  SiteTrafficView,
+  TrafficBreakdownPage,
+  TrafficOverviewPeriod,
+} from './site-overview.types'
 
 function period(overrides: Partial<TrafficOverviewPeriod> = {}): TrafficOverviewPeriod {
   return {
@@ -174,6 +178,82 @@ describe('toOverviewTrend', () => {
   })
 })
 
+describe('toSiteTrafficView breakdown freshness', () => {
+  function mapPage(status: 'current' | 'stale'): SiteTrafficView {
+    return toSiteTrafficView({
+      range: '30d',
+      granularity: 'day',
+      overview: period(),
+      comparison: null,
+      breakdowns: new Map([['pages:pages', { ...breakdownPage(), status }]]),
+      activeTabs: { pages: 'pages' },
+      pageLimits: { pages: 20 },
+    })
+  }
+
+  it('carries a current page through as current', () => {
+    expect(mapPage('current').breakdowns.at(0)?.status).toBe('current')
+  })
+
+  it('carries a stale page through as stale so it is not read as final data', () => {
+    expect(mapPage('stale').breakdowns.at(0)?.status).toBe('stale')
+  })
+
+  it('defaults a missing page to current rather than offering a bogus stale mark', () => {
+    const view = toSiteTrafficView({
+      range: '30d',
+      granularity: 'day',
+      overview: period(),
+      comparison: null,
+      breakdowns: new Map(),
+      activeTabs: {},
+      pageLimits: {},
+    })
+
+    expect(view.breakdowns.at(0)?.status).toBe('current')
+  })
+})
+
+describe('toSiteTrafficView paging ceiling', () => {
+  const page = breakdownPage()
+
+  function mapView(pageLimits: Record<string, number>) {
+    return toSiteTrafficView({
+      range: '30d',
+      granularity: 'day',
+      overview: period(),
+      comparison: null,
+      breakdowns: new Map([['pages:pages', page]]),
+      activeTabs: { pages: 'pages' },
+      pageLimits,
+    })
+  }
+
+  it('offers more rows when the server has them and the page can still grow', () => {
+    expect(mapView({ pages: 20 }).breakdowns.at(0)?.hasMore).toBe(true)
+  })
+
+  it('stops offering more rows at the contract page ceiling', () => {
+    expect(mapView({ pages: 100 }).breakdowns.at(0)?.hasMore).toBe(false)
+  })
+
+  it('offers nothing more when the server has nothing more', () => {
+    const lastPage = { ...page, hasMore: false }
+
+    const view = toSiteTrafficView({
+      range: '30d',
+      granularity: 'day',
+      overview: period(),
+      comparison: null,
+      breakdowns: new Map([['pages:pages', lastPage]]),
+      activeTabs: { pages: 'pages' },
+      pageLimits: { pages: 20 },
+    })
+
+    expect(view.breakdowns.at(0)?.hasMore).toBe(false)
+  })
+})
+
 describe('toSiteTrafficView emptiness', () => {
   const noTraffic = period({
     visitors: 0,
@@ -190,6 +270,7 @@ describe('toSiteTrafficView emptiness', () => {
       comparison: null,
       breakdowns: new Map(),
       activeTabs: {},
+      pageLimits: {},
     })
   }
 
@@ -215,6 +296,7 @@ describe('toSiteTrafficView', () => {
       comparison: null,
       breakdowns: new Map([['pages:pages', breakdownPage()]]),
       activeTabs: { pages: 'pages' },
+      pageLimits: { pages: 20 },
     })
 
     expect(view.breakdowns.map((section) => section.id)).toEqual([
@@ -237,6 +319,7 @@ describe('toSiteTrafficView', () => {
       comparison: null,
       breakdowns: new Map([['pages:pages', breakdownPage()]]),
       activeTabs: { pages: 'pages' },
+      pageLimits: { pages: 20 },
     })
 
     expect(view.breakdowns.at(0)?.rows.at(0)?.filter).toEqual({
@@ -255,6 +338,7 @@ describe('toSiteTrafficView', () => {
       comparison: null,
       breakdowns: new Map([['pages:pages', breakdownPage()]]),
       activeTabs: { pages: 'pages' },
+      pageLimits: { pages: 20 },
     })
 
     expect(view.breakdowns.at(0)?.rows.at(0)?.share).toBe(67.8)
@@ -268,6 +352,7 @@ describe('toSiteTrafficView', () => {
       comparison: null,
       breakdowns: new Map(),
       activeTabs: {},
+      pageLimits: {},
     })
 
     expect(view.freshness).toEqual({

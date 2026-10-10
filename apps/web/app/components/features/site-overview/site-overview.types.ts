@@ -28,7 +28,7 @@ export type TrafficBreakdownPage = Omit<
   'comparison'
 >
 
-/** Derived from the contract's trend variant, so a metric the contract drops vanishes here too. */
+/** Derived from the contract's trend variant. */
 export type OverviewMetricId = TrafficOverviewPeriod['trend'][number]['metric']
 
 export type ChangeKind = 'positive' | 'negative' | 'neutral'
@@ -117,6 +117,8 @@ export interface OverviewBreakdownRowView {
 
 export interface OverviewBreakdownSectionView {
   readonly id: string
+  /** The breakdown page's own freshness, which can differ from the overview period's. */
+  readonly status: 'current' | 'stale'
   readonly title: string
   readonly subtitle: string
   readonly icon: OverviewIcon
@@ -132,11 +134,8 @@ export interface OverviewFreshnessView {
   readonly coverageThrough: string | null
 }
 
-/**
- * Whether the Site has received any traffic in the range. The metric grid always renders all
- * six cards, so "no data" cannot be read off the card count.
- */
 export interface SiteTrafficView {
+  /** True once any of visitors, sessions, or pageviews is non-zero in the range. */
   readonly hasTraffic: boolean
   readonly range: OverviewRange
   readonly granularity: OverviewRangeGranularity

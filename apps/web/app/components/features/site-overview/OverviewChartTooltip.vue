@@ -59,7 +59,7 @@ const rows = computed(() => [
     key: 'previous',
     label: dates.value?.previous ?? '',
     value: props.payload.previous,
-    color: props.previous.color,
+    color: props.previousColor,
   },
 ])
 
