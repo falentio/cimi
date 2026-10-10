@@ -46,7 +46,7 @@ export interface DuckDbReportingQueryDependencies {
 
 type BoundValue = string | number | boolean | null
 
-interface RenderedFragment {
+export interface RenderedFragment {
   readonly sql: string
   readonly args: readonly BoundValue[]
 }

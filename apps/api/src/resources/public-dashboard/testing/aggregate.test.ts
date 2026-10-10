@@ -8,6 +8,8 @@ import {
   type ResolvedPeriod,
 } from '@cimi/kernel'
 import { PublicDashboardAggregatePlanner, type PublicDashboardAdmission } from '../aggregate.ts'
+import { closeDb, DuckDbPublicDashboardQuery } from '@cimi/db'
+import { createMigratedTestDb, createTestAnalyticsDb } from '@cimi/db/testing'
 
 const period: ResolvedPeriod = {
   key: 'current',
@@ -133,5 +135,36 @@ describe('PublicDashboardAggregatePlanner.preflight', () => {
       dimensionCount: 0,
       distinctCountOperations: 3,
     })
+  })
+
+  it('reaches DuckDB for a time dimension instead of failing the preflight', async () => {
+    const controlDb = createMigratedTestDb()
+    const analytics = await createTestAnalyticsDb()
+
+    try {
+      const admission: PublicDashboardAdmission = {
+        admit: async () => ticket,
+      }
+
+      const planner = new PublicDashboardAggregatePlanner({
+        admission,
+        query: new DuckDbPublicDashboardQuery({ analytics }),
+      })
+
+      const prepared = await planner.preflight({
+        siteId: 'ste_1',
+        fromDate: '2026-09-01',
+        toDate: '2026-09-01',
+        metric: 'visitors',
+        dimension: 'time',
+        filterPlan: filterPlan.plan,
+        filterCount: 0,
+      })
+
+      expect(prepared.totalDistinctVisitors).toBe(0)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
   })
 })

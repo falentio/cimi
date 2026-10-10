@@ -5,7 +5,11 @@ import {
 } from '@cimi/kernel'
 import type { AnalyticsDb } from './index.ts'
 import type { DuckDBValue } from '@duckdb/node-api'
-import { renderFilterPlan, type EventColumnOverrides } from './reporting-query.ts'
+import {
+  renderFilterPlan,
+  type EventColumnOverrides,
+  type RenderedFragment,
+} from './reporting-query.ts'
 import { isBigintValue, isNumberValue, isStringValue } from '@cimi/utils'
 
 export interface DuckDbPublicDashboardQueryDependencies {
@@ -15,6 +19,11 @@ export interface DuckDbPublicDashboardQueryDependencies {
 type BoundValue = string | number | boolean | null
 
 const PUBLIC_DIMENSION_KEY_MAX_LENGTH = 2_048
+
+interface PublicDashboardSql {
+  readonly sql: string
+  readonly args: readonly BoundValue[]
+}
 
 export class DuckDbPublicDashboardQuery implements PublicDashboardQueryPort {
   constructor(private readonly deps: DuckDbPublicDashboardQueryDependencies) {}
@@ -27,28 +36,18 @@ export class DuckDbPublicDashboardQuery implements PublicDashboardQueryPort {
         PUBLIC_EVENT_COLUMN_OVERRIDES,
       )
 
-      const grouped = publicDashboardGroupedCte(query)
-
-      const rows = await reader.read(
-        `WITH ${publicDashboardFilteredCte(predicate.sql)},
-session_stats AS (
-  SELECT analytics_session_id AS session_id,
-         count(*) AS event_count,
-         sum(CASE WHEN event_kind = 'page_view' THEN 1 ELSE 0 END) AS page_view_count,
-         sum(CASE WHEN event_kind = 'custom_event' THEN 1 ELSE 0 END) AS custom_event_count,
-         sum(CASE WHEN event_kind = 'outbound' THEN 1 ELSE 0 END) AS outbound_count,
-         max(epoch_ms(occurrence_time)) AS max_ms,
-         min(epoch_ms(occurrence_time)) AS min_ms
-  FROM events
-  WHERE site_id = ?
-  GROUP BY analytics_session_id
-),
-${grouped}
-SELECT count(DISTINCT group_key) AS total_count
+      const statement = publicDashboardWith(
+        [
+          publicDashboardFilteredCte(query, predicate),
+          publicDashboardSessionStatsCte(query),
+          publicDashboardGroupedCte(query),
+        ],
+        `SELECT count(DISTINCT group_key) AS total_count
 FROM grouped
 WHERE group_key IS NOT NULL AND trim(CAST(group_key AS VARCHAR)) <> ''`,
-        publicDashboardArgs(query, predicate.args, true),
       )
+
+      const rows = await reader.read(statement.sql, statement.args)
 
       return readCount(rows[0]?.['total_count'])
     })
@@ -62,12 +61,13 @@ WHERE group_key IS NOT NULL AND trim(CAST(group_key AS VARCHAR)) <> ''`,
         PUBLIC_EVENT_COLUMN_OVERRIDES,
       )
 
-      const rows = await reader.read(
-        `WITH ${publicDashboardFilteredCte(predicate.sql)}
-SELECT count(DISTINCT visitor_id) AS total_count
+      const statement = publicDashboardWith(
+        [publicDashboardFilteredCte(query, predicate)],
+        `SELECT count(DISTINCT visitor_id) AS total_count
 FROM filtered`,
-        publicDashboardArgs(query, predicate.args),
       )
+
+      const rows = await reader.read(statement.sql, statement.args)
 
       return readCount(rows[0]?.['total_count'])
     })
@@ -83,31 +83,21 @@ FROM filtered`,
         PUBLIC_EVENT_COLUMN_OVERRIDES,
       )
 
-      const grouped = publicDashboardGroupedCte(query)
-
-      const rows = await reader.read(
-        `WITH ${publicDashboardFilteredCte(predicate.sql)},
-session_stats AS (
-  SELECT analytics_session_id AS session_id,
-         count(*) AS event_count,
-         sum(CASE WHEN event_kind = 'page_view' THEN 1 ELSE 0 END) AS page_view_count,
-         sum(CASE WHEN event_kind = 'custom_event' THEN 1 ELSE 0 END) AS custom_event_count,
-         sum(CASE WHEN event_kind = 'outbound' THEN 1 ELSE 0 END) AS outbound_count,
-         max(epoch_ms(occurrence_time)) AS max_ms,
-         min(epoch_ms(occurrence_time)) AS min_ms
-  FROM events
-  WHERE site_id = ?
-  GROUP BY analytics_session_id
-),
-${grouped}
-SELECT group_key,
+      const statement = publicDashboardWith(
+        [
+          publicDashboardFilteredCte(query, predicate),
+          publicDashboardSessionStatsCte(query),
+          publicDashboardGroupedCte(query),
+        ],
+        `SELECT group_key,
        count(DISTINCT visitor_id) AS distinct_visitors,
        ${publicDashboardMetricExpression(query.metric)} AS metric_value
 FROM grouped
 GROUP BY group_key
 ORDER BY group_key`,
-        publicDashboardArgs(query, predicate.args, true),
       )
+
+      const rows = await reader.read(statement.sql, statement.args)
 
       return rows.flatMap((row) => {
         const groupKey = readGroupKey(row['group_key'])
@@ -126,8 +116,23 @@ ORDER BY group_key`,
   }
 }
 
-function publicDashboardFilteredCte(predicateSql: string): string {
-  return `filtered AS (
+function publicDashboardWith(
+  ctes: readonly PublicDashboardSql[],
+  selection: string,
+): PublicDashboardSql {
+  return {
+    sql: `WITH ${ctes.map((cte) => cte.sql).join(',\n')}
+${selection}`,
+    args: ctes.flatMap((cte) => cte.args),
+  }
+}
+
+function publicDashboardFilteredCte(
+  query: PublicDashboardAggregateQuery,
+  predicate: RenderedFragment,
+): PublicDashboardSql {
+  return {
+    sql: `filtered AS (
   SELECT e.event_kind,
          epoch_ms(e.occurrence_time) AS occurrence_ms,
          e.visitor_id,
@@ -152,11 +157,36 @@ function publicDashboardFilteredCte(predicateSql: string): string {
     ON visitor.site_id = e.site_id AND visitor.visitor_id = e.visitor_id
   WHERE e.site_id = ?
     AND e.occurrence_time >= CAST(? AS TIMESTAMP)
-    AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicateSql}
-)`
+    AND e.occurrence_time < CAST(? AS TIMESTAMP)${predicate.sql}
+)`,
+    args: [
+      query.siteId,
+      timestamp(query.period.interval.start),
+      timestamp(query.period.interval.endExclusive),
+      ...predicate.args,
+    ],
+  }
 }
 
-function publicDashboardGroupedCte(query: PublicDashboardAggregateQuery): string {
+function publicDashboardSessionStatsCte(query: PublicDashboardAggregateQuery): PublicDashboardSql {
+  return {
+    sql: `session_stats AS (
+  SELECT analytics_session_id AS session_id,
+         count(*) AS event_count,
+         sum(CASE WHEN event_kind = 'page_view' THEN 1 ELSE 0 END) AS page_view_count,
+         sum(CASE WHEN event_kind = 'custom_event' THEN 1 ELSE 0 END) AS custom_event_count,
+         sum(CASE WHEN event_kind = 'outbound' THEN 1 ELSE 0 END) AS outbound_count,
+         max(epoch_ms(occurrence_time)) AS max_ms,
+         min(epoch_ms(occurrence_time)) AS min_ms
+  FROM events
+  WHERE site_id = ?
+  GROUP BY analytics_session_id
+)`,
+    args: [query.siteId],
+  }
+}
+
+function publicDashboardGroupedCte(query: PublicDashboardAggregateQuery): PublicDashboardSql {
   if (query.dimension === 'time') {
     const starts = query.period.bucketStarts ?? []
 
@@ -164,7 +194,8 @@ function publicDashboardGroupedCte(query: PublicDashboardAggregateQuery): string
       .map(() => '(CAST(? AS BIGINT), CAST(? AS BIGINT), CAST(? AS BIGINT))')
       .join(', ')
 
-    return `buckets(bucket_index, start_ms, end_ms) AS (
+    return {
+      sql: `buckets(bucket_index, start_ms, end_ms) AS (
   VALUES ${values}
 ),
 grouped AS (
@@ -181,12 +212,19 @@ grouped AS (
     ON filtered.occurrence_ms >= buckets.start_ms
    AND filtered.occurrence_ms < buckets.end_ms
   LEFT JOIN session_stats ON session_stats.session_id = filtered.session_id
-)`
+)`,
+      args: starts.flatMap((start, index) => [
+        index,
+        start.at,
+        starts[index + 1]?.at ?? query.period.interval.endExclusive,
+      ]),
+    }
   }
 
   const value = publicDashboardDimensionExpression(query.dimension)
 
-  return `grouped AS (
+  return {
+    sql: `grouped AS (
   SELECT ${value} AS group_key,
          filtered.*,
          session_stats.event_count,
@@ -198,7 +236,9 @@ grouped AS (
   FROM filtered
   LEFT JOIN session_stats ON session_stats.session_id = filtered.session_id
   WHERE ${value} IS NOT NULL AND trim(CAST(${value} AS VARCHAR)) <> ''
-)`
+)`,
+    args: [],
+  }
 }
 
 function publicDashboardDimensionExpression(
@@ -263,33 +303,6 @@ function publicDashboardMetricExpression(metric: PublicDashboardAggregateQuery['
         THEN session_id END) AS DOUBLE)
         / NULLIF(count(DISTINCT CASE WHEN event_kind = 'page_view' THEN session_id END), 0)`
   }
-}
-
-function publicDashboardArgs(
-  query: PublicDashboardAggregateQuery,
-  predicateArgs: readonly BoundValue[],
-  includeSessionStats = false,
-): BoundValue[] {
-  const args: BoundValue[] = [
-    query.siteId,
-    timestamp(query.period.interval.start),
-    timestamp(query.period.interval.endExclusive),
-    ...predicateArgs,
-  ]
-
-  if (includeSessionStats) args.push(query.siteId)
-
-  if (query.dimension === 'time') {
-    const starts = query.period.bucketStarts ?? []
-
-    for (let index = 0; index < starts.length; index += 1) {
-      const start = starts[index]!
-      const end = starts[index + 1]?.at ?? query.period.interval.endExclusive
-      args.push(index, start.at, end)
-    }
-  }
-
-  return args
 }
 
 function readCount(value: DuckDBValue | undefined): number {
