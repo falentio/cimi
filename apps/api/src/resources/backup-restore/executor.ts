@@ -259,7 +259,7 @@ export class ConfiguredSqliteExecutor implements BackupRestoreExecutor {
   }
 
   async verifyStructuralReadiness(_input: { readonly operationId: string }): Promise<void> {
-    validateBaseSchema(this.db)
+    validateBaseSchema(this.db, { migrationsFolder: this.migrationsFolder })
 
     if (!(await this.analytics.ready())) throw new Error('Analytics database is not ready')
   }
