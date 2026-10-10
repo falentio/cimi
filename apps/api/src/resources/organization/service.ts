@@ -17,6 +17,7 @@ import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import { reportLogEvent } from '@cimi/logging'
+import type { DemoSeedResult } from '../demo-seed/service.ts'
 import type { OrganizationRepository, OrganizationRecord } from './repository.ts'
 
 export interface OrganizationMembershipReconciler {
@@ -25,7 +26,10 @@ export interface OrganizationMembershipReconciler {
 
 /** Background seeding of a personal organization's first site, off the ensure request path. */
 export interface PersonalOrganizationSeeder {
-  seed(input: { readonly organizationId: string; readonly ownerUserId: string }): Promise<void>
+  seed(input: {
+    readonly organizationId: string
+    readonly ownerUserId: string
+  }): Promise<DemoSeedResult>
 }
 
 export interface OrganizationServiceDependencies {
