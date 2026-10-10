@@ -55,6 +55,10 @@ export function resolveAuthDecision(
   return undefined
 }
 
+export function isAdminSession(state: AuthState): boolean {
+  return state.status === 'authenticated' && state.session.user.role === ADMIN_ROLE
+}
+
 /**
  * Turns an untrusted redirect query value into a destination. An absolute
  * same-origin path survives; every other shape, including an auth page,

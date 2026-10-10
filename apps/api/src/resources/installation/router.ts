@@ -16,5 +16,8 @@ export function installationRouter(service: InstallationService) {
     upgradeInstallation: adminInstallationApi.upgradeInstallation.handler(({ input, context }) =>
       service.upgrade(input, context.user),
     ),
+    ensureInstallation: adminInstallationApi.ensureInstallation.handler(({ context }) =>
+      service.ensureInstallation(context.user),
+    ),
   })
 }

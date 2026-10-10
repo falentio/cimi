@@ -69,6 +69,44 @@ test('system health reports live control and analytics stores', async () => {
   })
 })
 
+test('an administrator session opens the admission gate by ensuring the installation', async () => {
+  await using fixture = await createApiTestFixture()
+  const { app } = fixture
+
+  async function profiles(cookie: string) {
+    const response = await app.fetch(
+      new Request(
+        'http://localhost/api/identity-profile/listProfiles?siteId=ste_1&offset=0&limit=20',
+        { headers: { cookie } },
+      ),
+    )
+
+    const body = await response.json()
+
+    return { status: response.status, code: body.code }
+  }
+
+  const owner = await signUpTestUser(app, 'ensure-acceptance@example.com', 'Ensure Acceptance')
+
+  const beforeHealth = await app.fetch(new Request('http://localhost/api/system/health'))
+  await expect(beforeHealth.json()).resolves.toMatchObject({ status: 'recovering' })
+  expect(await profiles(owner.cookie)).toEqual({ status: 503, code: 'SERVICE_UNAVAILABLE' })
+
+  const ensured = await app.fetch(
+    new Request('http://localhost/api/installation/ensureInstallation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: owner.cookie },
+      body: '{}',
+    }),
+  )
+
+  expect(ensured.status).toBe(200)
+
+  const afterHealth = await app.fetch(new Request('http://localhost/api/system/health'))
+  await expect(afterHealth.json()).resolves.toMatchObject({ status: 'healthy' })
+  expect(await profiles(owner.cookie)).toEqual({ status: 404, code: 'NOT_FOUND' })
+})
+
 test('system health maps installation and legacy states', async () => {
   await using fixture = await createApiTestFixture()
   const { auth, db, analytics } = fixture

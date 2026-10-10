@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { RouteMeta } from 'vue-router'
+import type { AuthState } from '@/composables/useAuth'
 import {
   ADMIN_ROLE,
+  isAdminSession,
   resolveAuthDecision,
   resolvePostAuthDestination,
   toRouteLocation,
@@ -18,6 +20,22 @@ function localePathFactory(prefix = ''): LocalePath {
 
   return (path) =>
     path === 'login' ? resolve('/login') : path === 'index' ? resolve('/') : resolve(path)
+}
+
+function adminState(role: string): AuthState {
+  return {
+    status: 'authenticated',
+    session: {
+      user: {
+        id: 'usr_1',
+        name: 'Admin',
+        email: 'admin@example.com',
+        emailVerified: true,
+        image: null,
+        role,
+      },
+    },
+  }
 }
 
 describe('resolveAuthDecision', () => {
@@ -180,5 +198,28 @@ describe('toRouteLocation', () => {
     expect(
       toRouteLocation({ kind: 'path', path: '/org/org_1/home' }, localePathFactory('/fr')),
     ).toEqual({ path: '/org/org_1/home' })
+  })
+})
+
+describe('isAdminSession', () => {
+  it('accepts an authenticated admin session', () => {
+    expect(isAdminSession(adminState(ADMIN_ROLE))).toBe(true)
+  })
+
+  it('rejects an authenticated non-admin session', () => {
+    expect(isAdminSession(adminState('user'))).toBe(false)
+  })
+
+  it('rejects every unauthenticated session state', () => {
+    const states: AuthState[] = [
+      { status: 'idle' },
+      { status: 'loading' },
+      { status: 'unauthenticated' },
+      { status: 'error', error: { message: 'auth request failed' } },
+    ]
+
+    for (const state of states) {
+      expect(isAdminSession(state)).toBe(false)
+    }
   })
 })
