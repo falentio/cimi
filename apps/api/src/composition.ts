@@ -21,6 +21,8 @@ import {
 import { createInvitation } from './resources/invitation/index.ts'
 import { createMembership } from './resources/membership/index.ts'
 import { createOrganization } from './resources/organization/index.ts'
+import { createDemoSeed } from './resources/demo-seed/index.ts'
+import { AcceptanceSeedJournal } from './resources/event-ingestion/seed-journal.ts'
 import { createRetentionPolicy } from './resources/retention-policy/index.ts'
 import { createCollectionPolicy } from './resources/collection-policy/index.ts'
 import { CollectionPolicyReportingProfileFilter } from './resources/collection-policy/reporting-profile-filter.ts'
@@ -128,12 +130,6 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
   const authority = createOrganizationAuthority(deps.auth)
   const membership = createMembership({ db: deps.db, authority })
 
-  const organization = createOrganization({
-    db: deps.db,
-    authority,
-    membership: membership.service,
-  })
-
   const lock = deps.lock ?? getLifecycleLock(deps.db)
 
   const installation = createInstallation({
@@ -196,6 +192,24 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
       trustProxyHeaders: deps.eventIngestionTrustProxyHeaders,
       countryResolver: deps.eventIngestionCountryResolver,
     },
+  })
+
+  const demoSeed = createDemoSeed({
+    sites: site.service,
+    journal: new AcceptanceSeedJournal({
+      acceptance: eventIngestion.acceptanceRepository,
+      collectionPolicy: collectionPolicy.service,
+    }),
+    retention: retentionPolicy.resolver,
+    controlDb: deps.db,
+    analytics: deps.analytics,
+  })
+
+  const organization = createOrganization({
+    db: deps.db,
+    authority,
+    membership: membership.service,
+    demoSeed,
   })
 
   const identityProfile = createIdentityProfile({
