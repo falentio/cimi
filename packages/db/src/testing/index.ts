@@ -6,11 +6,11 @@ import { createAnalyticsDb, type AnalyticsDb } from '../duckdb/index.ts'
 import { closeDb, createDb, type Db } from '../client.ts'
 import { migrateControlDb } from '../migrate.ts'
 
-export function createMigratedTestDb(): Db {
+export function createMigratedTestDb(options: { migrationsFolder?: string | undefined } = {}): Db {
   const db = createDb({ path: ':memory:' })
 
   try {
-    migrateControlDb(db)
+    migrateControlDb(db, { migrationsFolder: options.migrationsFolder })
 
     return db
   } catch (error) {
@@ -59,9 +59,25 @@ const PROBE_MIGRATION_TAG = '9999_migration_probe'
 
 export const PROBE_MIGRATION_TABLE = 'migration_probe'
 
+const COLUMN_PROBE_MIGRATION_TAG = '9999_column_probe'
+
 const SOURCE_MIGRATIONS_FOLDER = fileURLToPath(new URL('../migrations', import.meta.url))
 
 export async function createProbeMigrationsFolder(): Promise<string> {
+  return createProbeMigrationsFolderWith(
+    PROBE_MIGRATION_TAG,
+    `CREATE TABLE ${PROBE_MIGRATION_TABLE} (id TEXT);\n`,
+  )
+}
+
+export async function createColumnProbeMigrationsFolder(): Promise<string> {
+  return createProbeMigrationsFolderWith(
+    COLUMN_PROBE_MIGRATION_TAG,
+    'ALTER TABLE installation ADD COLUMN readiness_probe INTEGER NOT NULL DEFAULT 0;\n',
+  )
+}
+
+async function createProbeMigrationsFolderWith(tag: string, sql: string): Promise<string> {
   const folder = await mkdtemp(join(tmpdir(), 'cimi-probe-migrations-'))
 
   try {
@@ -85,15 +101,11 @@ export async function createProbeMigrationsFolder(): Promise<string> {
       idx: last.idx + 1,
       version: '6',
       when: last.when + 1,
-      tag: PROBE_MIGRATION_TAG,
+      tag,
       breakpoints: true,
     })
     await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`, 'utf8')
-    await writeFile(
-      join(folder, `${PROBE_MIGRATION_TAG}.sql`),
-      `CREATE TABLE ${PROBE_MIGRATION_TABLE} (id TEXT);\n`,
-      'utf8',
-    )
+    await writeFile(join(folder, `${tag}.sql`), sql, 'utf8')
 
     return folder
   } catch (error) {
