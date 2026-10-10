@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
-import type { OrganizationMembershipReconciler } from '../service.ts'
+import type { OrganizationMembershipReconciler, PersonalOrganizationSeeder } from '../service.ts'
 import {
   createAuthorityMember,
   createAuthorityOrganization,
@@ -28,6 +28,17 @@ const winner = createOrganizationRecord({
   authorityOrganizationId: authorityOrganization.id,
   isPersonal: true,
 })
+
+function createDemoSeed() {
+  const demoSeed = mock<PersonalOrganizationSeeder>()
+  demoSeed.seed.mockResolvedValue(undefined)
+
+  return demoSeed
+}
+
+function flushDeferredWork(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
 
 describe('OrganizationService.ensurePersonal', () => {
   it('rejects an authority Personal Organization with multiple Owners', async () => {
@@ -104,5 +115,79 @@ describe('OrganizationService.ensurePersonal', () => {
       expect.objectContaining({ ownerUserId: 'user_1', isPersonal: true }),
       expect.objectContaining({ userId: 'user_1' }),
     )
+  })
+})
+
+describe('OrganizationService.ensurePersonal demo seeding', () => {
+  const createdPersonal = () =>
+    createOrganizationRecord({
+      name: "Ada's Organization",
+      authorityOrganizationId: 'authority_1',
+      isPersonal: true,
+    })
+
+  function arrange() {
+    const demoSeed = createDemoSeed()
+    const fixture = createOrganizationFixture({ demoSeed })
+    const personal = createdPersonal()
+
+    fixture.repository.findPersonalByOwner.mockResolvedValue(undefined)
+    fixture.repository.insertWithOwner.mockResolvedValue(personal)
+    fixture.authority.getOrganizationBySlug.mockResolvedValue(undefined)
+    fixture.authority.createOrganization.mockResolvedValue({
+      organization: authorityOrganization,
+      member: members[0]!,
+    })
+    fixture.authority.listAllMembers.mockResolvedValue([members[0]!])
+
+    return { demoSeed, fixture, personal }
+  }
+
+  it('schedules the demo seed after the insert succeeds, off the request path', async () => {
+    const { demoSeed, fixture, personal } = arrange()
+    const service = fixture.service
+
+    await expect(
+      service.ensurePersonal({}, { id: 'user_1', name: 'Ada' }, new Headers()),
+    ).resolves.toMatchObject({ id: personal.id })
+    expect(demoSeed.seed).not.toHaveBeenCalled()
+
+    await flushDeferredWork()
+
+    expect(demoSeed.seed).toHaveBeenCalledWith({
+      organizationId: personal.id,
+      ownerUserId: 'user_1',
+    })
+  })
+
+  it('does not schedule the demo seed when the personal organization is reused', async () => {
+    const demoSeed = createDemoSeed()
+    const { repository, service } = createOrganizationFixture({ demoSeed })
+    repository.findPersonalByOwner.mockResolvedValue(winner)
+    repository.hasPendingGovernanceOperation.mockResolvedValue(false)
+    repository.isOwnerInvariantValid.mockResolvedValue(true)
+
+    await expect(
+      service.ensurePersonal({}, { id: 'user_1', name: 'Ada' }, new Headers()),
+    ).resolves.toMatchObject({ id: winner.id })
+    await flushDeferredWork()
+
+    expect(demoSeed.seed).not.toHaveBeenCalled()
+  })
+
+  it('swallows a demo seed failure out of the ensure response', async () => {
+    const { demoSeed, fixture, personal } = arrange()
+    const service = fixture.service
+    demoSeed.seed.mockRejectedValue(new Error('seeding failed'))
+
+    await expect(
+      service.ensurePersonal({}, { id: 'user_1', name: 'Ada' }, new Headers()),
+    ).resolves.toMatchObject({ id: personal.id })
+    await flushDeferredWork()
+
+    expect(demoSeed.seed).toHaveBeenCalledWith({
+      organizationId: personal.id,
+      ownerUserId: 'user_1',
+    })
   })
 })
