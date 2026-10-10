@@ -37,7 +37,9 @@ const allDefinitions = computed<readonly SCohort[]>(() => {
 const editing = computed<SCohort | undefined>(() => {
   const id = editingId.value
 
-  return id === undefined ? undefined : allDefinitions.value.find((item) => item.id === id)
+  return id === undefined || id === null
+    ? undefined
+    : allDefinitions.value.find((item) => item.id === id)
 })
 
 const editorDraft = computed<CohortDraft>(() =>
@@ -52,12 +54,8 @@ const definitionsFailure = computed(() =>
   state.value.status === 'definitions-error' ? state.value.failure : undefined,
 )
 
-const reportFailure = computed(() =>
-  state.value.status === 'report-error' ? state.value.failure : undefined,
-)
-
 function create(): void {
-  editingId.value = undefined
+  editingId.value = null
 }
 
 function edit(cohortId: string): void {
@@ -65,7 +63,7 @@ function edit(cohortId: string): void {
 }
 
 function closeEditor(): void {
-  editingId.value = null
+  editingId.value = undefined
 }
 
 async function submit(draft: CohortDraft): Promise<void> {
@@ -124,8 +122,6 @@ async function archive(cohortId: string): Promise<void> {
       @clear-filters="controller.clearFilters"
       @retry="controller.retryReport"
     />
-
-    <CohortStatusLine :failure="reportFailure" />
 
     <CohortDefinitionEditor
       v-if="state.status !== 'idle'"

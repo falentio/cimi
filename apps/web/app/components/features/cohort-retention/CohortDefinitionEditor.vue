@@ -62,9 +62,6 @@ function submit(): void {
     <div class="flex flex-col gap-2">
       <Label for="cohort-name">Name</Label>
       <Input id="cohort-name" v-model="draft.name" placeholder="Trial to paid" />
-      <p v-if="problems.fields.has('name-required')" class="text-destructive text-xs">
-        {{ COHORT_DRAFT_PROBLEM_LABELS['name-required'] }}
-      </p>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
@@ -74,6 +71,9 @@ function submit(): void {
           <option value="visitor">Visitors</option>
           <option value="identified_user">Identified users</option>
         </NativeSelect>
+        <p class="text-muted-foreground text-xs">
+          One population per cohort. Visitor and Identified User results never combine.
+        </p>
       </div>
 
       <div class="flex flex-col gap-2">
@@ -87,13 +87,14 @@ function submit(): void {
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
-      <CohortActionEditor v-model="entryAction" />
-      <CohortActionEditor v-model="retentionAction" />
+      <CohortActionEditor v-model="entryAction" slot="entry" />
+      <CohortActionEditor v-model="retentionAction" slot="retention" />
     </div>
 
     <ul
       v-if="problems.fields.size > 0 || problems.form !== null"
       class="text-destructive flex flex-col gap-1 text-xs"
+      role="alert"
     >
       <li v-for="problem in problems.fields" :key="problem">
         {{ COHORT_DRAFT_PROBLEM_LABELS[problem] }}
@@ -104,7 +105,7 @@ function submit(): void {
     </ul>
 
     <p class="text-muted-foreground text-xs">
-      The entry and retention actions must differ. A report covers at most twelve periods.
+      A report covers at most twelve periods. An over-long range is rejected rather than shortened.
     </p>
 
     <div class="flex justify-end gap-2">

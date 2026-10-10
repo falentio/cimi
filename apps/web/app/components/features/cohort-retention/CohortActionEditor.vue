@@ -8,6 +8,10 @@ import type { CohortActionDraft } from './cohort-retention.types'
 
 const action = defineModel<CohortActionDraft>({ required: true })
 
+const slot = defineModel<string>('slot', { default: 'action' })
+
+const slotLabel = computed(() => (slot.value === 'retention' ? 'Retention action' : 'Entry action'))
+
 const KIND_OPTIONS: readonly {
   readonly value: CohortActionDraft['kind']
   readonly label: string
@@ -19,9 +23,9 @@ const KIND_OPTIONS: readonly {
   { value: 'error', label: 'Error' },
 ]
 
-const nameFieldId = computed(() => `action-name-${action.value.kind}`)
+const nameFieldId = computed(() => 'action-name-' + slot.value + '-' + action.value.kind)
 
-const kindFieldId = computed(() => `action-kind-${action.value.kind}`)
+const kindFieldId = computed(() => 'action-kind-' + slot.value + '-' + action.value.kind)
 
 const hasName = computed(() => action.value.kind !== 'page_view')
 
@@ -40,14 +44,10 @@ const kind = computed<CohortActionDraft['kind']>({
 
     if (next === undefined) return
 
-    setAction(next.value === 'page_view' ? { kind: 'page_view' } : { kind: next.value, name: '' })
+    action.value =
+      next.value === 'page_view' ? { kind: 'page_view' } : { kind: next.value, name: '' }
   },
 })
-
-// SAFETY: the union is rebuilt whole, so no partial action can survive the write.
-function setAction(next: CohortActionDraft): void {
-  action.value = next
-}
 
 function onNameChange(value: string | number): void {
   if (!isStringValue(value)) return
@@ -60,7 +60,7 @@ function onNameChange(value: string | number): void {
 
 <template>
   <div class="flex min-w-0 flex-col gap-2">
-    <Label :for="kindFieldId">Action kind</Label>
+    <Label :for="kindFieldId">{{ slotLabel }}</Label>
     <NativeSelect :id="kindFieldId" v-model="kind">
       <option v-for="option in KIND_OPTIONS" :key="option.value" :value="option.value">
         {{ option.label }}
