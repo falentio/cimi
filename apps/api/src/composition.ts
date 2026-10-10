@@ -87,6 +87,7 @@ export interface CreateApiAppDependencies {
   eventIngestionCountryResolver?: ((headers: Headers) => string | undefined) | undefined
   eventIdentitySession?: IdentitySessionResolver | undefined
   startRetentionCleanupWorker?: boolean | undefined
+  startDemoSeed?: boolean | undefined
   retentionCleanupIntervalMs?: number | undefined
   wrapRetentionCleanup?: ((cleanup: RetentionCleanupPort) => RetentionCleanupPort) | undefined
 }
@@ -209,7 +210,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     db: deps.db,
     authority,
     membership: membership.service,
-    demoSeed,
+    demoSeed: deps.startDemoSeed === false ? undefined : demoSeed,
   })
 
   const identityProfile = createIdentityProfile({

@@ -37,6 +37,8 @@ export async function createApiTestFixture(
     backupRestoreExecutor?: BackupRestoreExecutor
     analyticsReady?: () => boolean
     eventIngestionProtection?: IngestionProtection
+    demoSeed?: boolean
+    wrapAnalytics?: ((analytics: AnalyticsDb) => AnalyticsDb) | undefined
     eventIngestionTrustProxyHeaders?: boolean
     logging?: LoggingConfig
     lifecycle?: HealthLifecycle
@@ -49,6 +51,11 @@ export async function createApiTestFixture(
     const analytics = await createTestAnalyticsDb()
 
     try {
+      const analyticsForApp =
+        options.analyticsReady === undefined
+          ? analytics
+          : withAnalyticsReady(analytics, options.analyticsReady)
+
       const auth = createAuth({
         db,
         schema: schema.betterAuthSchema,
@@ -59,10 +66,7 @@ export async function createApiTestFixture(
       const app = createApiApp({
         db,
         auth,
-        analytics:
-          options.analyticsReady === undefined
-            ? analytics
-            : withAnalyticsReady(analytics, options.analyticsReady),
+        analytics: options.wrapAnalytics?.(analyticsForApp) ?? analyticsForApp,
         baseUrl: 'http://localhost',
         dataDirectoryReady: true,
         controlDatabasePath: ':memory:',
@@ -71,6 +75,7 @@ export async function createApiTestFixture(
         upgradeExecutor: options.upgradeExecutor ?? createFakeUpgradeExecutor(),
         eventIngestionTrustProxyHeaders: options.eventIngestionTrustProxyHeaders,
         startRetentionCleanupWorker: false,
+        startDemoSeed: options.demoSeed ?? false,
         ...(options.lifecycle !== undefined && { lifecycle: options.lifecycle }),
         ...(options.lock !== undefined && { lock: options.lock }),
         ...(options.eventIngestionProtection !== undefined && {
