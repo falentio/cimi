@@ -16,6 +16,15 @@ function base(eventId: string) {
     visitorId: 'ste_1-v3',
     analyticsSessionId: 'ste_1-s7',
     properties: {},
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    utmSource: 'google',
+    utmMedium: 'cpc',
+    utmCampaign: 'spring-sale',
+    deviceType: 'desktop',
+    browser: 'Chrome',
+    os: 'Windows',
+    country: 'US',
   }
 }
 
@@ -117,13 +126,13 @@ describe('AcceptanceSeedJournal.appendGenerated', () => {
           identifiedUserId: null,
           anonymousIdentityId: null,
           properties: {},
-          utmSource: null,
-          utmMedium: null,
-          utmCampaign: null,
-          deviceType: null,
-          browser: null,
-          os: null,
-          country: null,
+          utmSource: 'google',
+          utmMedium: 'cpc',
+          utmCampaign: 'spring-sale',
+          deviceType: 'desktop',
+          browser: 'Chrome',
+          os: 'Windows',
+          country: 'US',
           botPolicyOutcome: 'included',
           pageViewId: 'ste_1-pv0',
           pagePath: '/pricing',
@@ -140,6 +149,26 @@ describe('AcceptanceSeedJournal.appendGenerated', () => {
     ])
   })
 
+  it('carries the session attribution onto the candidate instead of nulls', async () => {
+    const repository = mock<AcceptanceRepository>()
+    repository.lastReplaySequence.mockResolvedValue(0)
+    repository.append.mockResolvedValue([{ status: 'accepted' }])
+    const journal = createJournal(repository)
+
+    await journal.appendGenerated({ siteId: 'ste_1', events: [pageView()] })
+
+    const event = candidatesOf(repository)[0]?.[0]?.event
+
+    expect(event).toMatchObject({
+      utmSource: 'google',
+      utmMedium: 'cpc',
+      utmCampaign: 'spring-sale',
+      deviceType: 'desktop',
+      browser: 'Chrome',
+      os: 'Windows',
+      country: 'US',
+    })
+  })
   it('stamps a receipt time now, so a ninety-day-old event is late', async () => {
     const repository = mock<AcceptanceRepository>()
     repository.append.mockResolvedValue([{ status: 'accepted' }])

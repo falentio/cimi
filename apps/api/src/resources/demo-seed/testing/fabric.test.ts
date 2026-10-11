@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { parseUserAgent } from '@cimi/utils'
 import { EVENT_KINDS, type EventKind } from '@cimi/utils'
 import type { DemoSeedEvent } from '../ports.ts'
 import { generateEventFabric } from '../fabric.ts'
@@ -170,4 +171,73 @@ describe('generateEventFabric', () => {
   it('returns an empty fabric for an empty window', () => {
     expect(generateEventFabric({ siteId, from: to, to: from })).toEqual([])
   })
+
+  it('stays deterministic with the attribution, and a different seed picks a different one', () => {
+    const events = fabric()
+
+    expect(fabric()).toEqual(events)
+    expect(
+      generateEventFabric({ siteId: 'ste_other', from, to }).map((event) => attributionOf(event)),
+    ).not.toEqual(events.map((event) => attributionOf(event)))
+  })
+
+  it('gives every event in a session the one attribution the session arrived with', () => {
+    for (const session of sessionsOf(fabric())) {
+      const first = attributionOf(session[0]!)
+
+      for (const event of session) {
+        expect(attributionOf(event)).toEqual(first)
+      }
+    }
+  })
+
+  it('never leaves an attribution field the breakdowns read empty', () => {
+    for (const event of fabric()) {
+      expect(event.utmSource.length, `${event.eventId} utm source`).toBeGreaterThan(0)
+      expect(event.utmMedium.length, `${event.eventId} utm medium`).toBeGreaterThan(0)
+      expect(event.deviceType.length, `${event.eventId} device`).toBeGreaterThan(0)
+      expect(event.browser.length, `${event.eventId} browser`).toBeGreaterThan(0)
+      expect(event.os.length, `${event.eventId} os`).toBeGreaterThan(0)
+      expect(event.country.length, `${event.eventId} country`).toBeGreaterThan(0)
+    }
+  })
+
+  it('leaves the utm campaign off some sessions, so the utm breakdown varies', () => {
+    const campaigns = fabric().map((event) => event.utmCampaign)
+
+    expect(campaigns.some((campaign) => campaign !== null)).toBe(true)
+    expect(campaigns.some((campaign) => campaign === null)).toBe(true)
+  })
+
+  it('derives device, browser and os from parseUserAgent, not from hardcoded strings', () => {
+    for (const event of fabric()) {
+      const parsed = parseUserAgent(event.userAgent)
+
+      expect(event.deviceType).toBe(parsed.device.type ?? 'desktop')
+      expect(event.browser).toBe(parsed.browser.name)
+      expect(event.os).toBe(parsed.os.name)
+    }
+  })
+
+  it('spreads the sessions over more than one device, browser and operating system', () => {
+    const events = fabric()
+
+    expect(new Set(events.map((event) => event.deviceType)).size).toBeGreaterThan(1)
+    expect(new Set(events.map((event) => event.browser)).size).toBeGreaterThan(1)
+    expect(new Set(events.map((event) => event.os)).size).toBeGreaterThan(1)
+    expect(new Set(events.map((event) => event.country)).size).toBeGreaterThan(1)
+  })
 })
+
+function attributionOf(event: DemoSeedEvent) {
+  return {
+    userAgent: event.userAgent,
+    utmSource: event.utmSource,
+    utmMedium: event.utmMedium,
+    utmCampaign: event.utmCampaign,
+    deviceType: event.deviceType,
+    browser: event.browser,
+    os: event.os,
+    country: event.country,
+  }
+}

@@ -1,5 +1,6 @@
 import { EVENT_KINDS, type EventKind } from '@cimi/utils'
 import type { ScalarValue } from '../collection-policy/evaluator.ts'
+import { pickSessionAttribution, type SessionAttribution } from './attribution.ts'
 import type { DemoSeedEvent } from './ports.ts'
 
 const MS_PER_DAY = 86_400_000
@@ -143,6 +144,7 @@ export function generateEventFabric(input: EventFabricInput): readonly DemoSeedE
       const visitorId = `${input.siteId}-v${pickVisitor(random, visitorPool)}`
       const analyticsSessionId = `${input.siteId}-s${sessionCount}`
       sessionCount += 1
+      const attribution = pickSessionAttribution(random)
 
       const span = day.end - day.start
       const duration = Math.min(randomDuration(random), span)
@@ -161,6 +163,7 @@ export function generateEventFabric(input: EventFabricInput): readonly DemoSeedE
             occurredAt: startedAt + offset,
             visitorId,
             analyticsSessionId,
+            attribution,
             random,
           }),
         )
@@ -265,6 +268,7 @@ function createEvent(input: {
   readonly occurredAt: number
   readonly visitorId: string
   readonly analyticsSessionId: string
+  readonly attribution: SessionAttribution
   readonly random: () => number
 }): DemoSeedEvent {
   const common = {
@@ -273,6 +277,7 @@ function createEvent(input: {
     occurrenceTime: new Date(input.occurredAt).toISOString(),
     visitorId: input.visitorId,
     analyticsSessionId: input.analyticsSessionId,
+    ...input.attribution,
   }
 
   switch (input.kind) {

@@ -20,6 +20,14 @@ interface DemoSeedEventCommon {
   readonly visitorId: string
   readonly analyticsSessionId: string
   readonly properties: Readonly<Record<string, ScalarValue>>
+  readonly userAgent: string
+  readonly utmSource: string
+  readonly utmMedium: string
+  readonly utmCampaign: string | null
+  readonly deviceType: string
+  readonly browser: string
+  readonly os: string
+  readonly country: string
 }
 
 export type DemoSeedEvent = DemoSeedEventCommon &

@@ -24,6 +24,15 @@ function common(eventId: string) {
     visitorId: 'ste_1-v1',
     analyticsSessionId: 'ste_1-s1',
     properties: {},
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    utmSource: 'google',
+    utmMedium: 'organic',
+    utmCampaign: null,
+    deviceType: 'desktop',
+    browser: 'Chrome',
+    os: 'Windows',
+    country: 'US',
   }
 }
 
