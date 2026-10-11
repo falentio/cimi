@@ -31,7 +31,7 @@ const winner = createOrganizationRecord({
 
 function createDemoSeed() {
   const demoSeed = mock<PersonalOrganizationSeeder>()
-  demoSeed.seed.mockResolvedValue(undefined)
+  demoSeed.seed.mockResolvedValue({ siteId: 'ste-1', appendedEventCount: 0 })
 
   return demoSeed
 }
