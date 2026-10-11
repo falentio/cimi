@@ -16,27 +16,40 @@ import {
 import { generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
+import { reportLogEvent } from '@cimi/logging'
+import type { DemoSeedResult } from '../demo-seed/service.ts'
 import type { OrganizationRepository, OrganizationRecord } from './repository.ts'
 
 export interface OrganizationMembershipReconciler {
   reconcile(organizationId: string, headers?: Headers, currentUserId?: string): Promise<void>
 }
 
+/** Background seeding of a personal organization's first site, off the ensure request path. */
+export interface PersonalOrganizationSeeder {
+  seed(input: {
+    readonly organizationId: string
+    readonly ownerUserId: string
+  }): Promise<DemoSeedResult>
+}
+
 export interface OrganizationServiceDependencies {
   readonly repository: OrganizationRepository
   readonly authority: OrganizationAuthority
   readonly membership?: OrganizationMembershipReconciler | undefined
+  readonly demoSeed?: PersonalOrganizationSeeder | undefined
 }
 
 export class OrganizationService {
   private readonly repository: OrganizationRepository
   private readonly authority: OrganizationAuthority
   private readonly membership: OrganizationMembershipReconciler | undefined
+  private readonly demoSeed: PersonalOrganizationSeeder | undefined
 
-  constructor({ repository, authority, membership }: OrganizationServiceDependencies) {
+  constructor({ repository, authority, membership, demoSeed }: OrganizationServiceDependencies) {
     this.repository = repository
     this.authority = authority
     this.membership = membership
+    this.demoSeed = demoSeed
   }
 
   async list(
@@ -159,6 +172,8 @@ export class OrganizationService {
         { userId: user.id, now: new Date() },
       )
 
+      this.scheduleDemoSeed(organization.id, user.id)
+
       return toOrganization(organization)
     } catch (error) {
       const winner = await this.repository.findPersonalByOwner(user.id)
@@ -168,6 +183,27 @@ export class OrganizationService {
       if (isConstraintError(error)) throw new ORPCError('CONFLICT')
       throw error
     }
+  }
+
+  /**
+   * Seeding runs after the ensure response, so a dashboard-open request never waits on it and a
+   * seeding failure cannot reach the caller. An organization that already exists is never seeded.
+   */
+  private scheduleDemoSeed(organizationId: string, ownerUserId: string): void {
+    const demoSeed = this.demoSeed
+
+    if (demoSeed === undefined) return
+
+    setTimeout(() => {
+      void demoSeed.seed({ organizationId, ownerUserId }).catch((cause: unknown) => {
+        reportLogEvent({
+          kind: 'operation.failure',
+          operation: 'demo-seed',
+          stage: 'record-failure',
+          error: cause,
+        })
+      })
+    }, 0)
   }
 
   private async reusePersonal(

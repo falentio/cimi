@@ -1,18 +1,26 @@
 import type { AuthorityMember, AuthorityOrganization, OrganizationAuthority } from '@cimi/auth'
 import { mock } from 'vitest-mock-extended'
 import type { OrganizationRecord, OrganizationRepository } from './repository.ts'
-import { OrganizationService, type OrganizationMembershipReconciler } from './service.ts'
+import {
+  OrganizationService,
+  type OrganizationMembershipReconciler,
+  type PersonalOrganizationSeeder,
+} from './service.ts'
 
 const createdAt = new Date('2026-08-31T00:00:00.000Z')
 
 export interface OrganizationFixtureOptions {
   readonly membership?: OrganizationMembershipReconciler | undefined
+  readonly demoSeed?: PersonalOrganizationSeeder | undefined
 }
 
-export function createOrganizationFixture({ membership }: OrganizationFixtureOptions = {}) {
+export function createOrganizationFixture({
+  membership,
+  demoSeed,
+}: OrganizationFixtureOptions = {}) {
   const repository = mock<OrganizationRepository>()
   const authority = mock<OrganizationAuthority>()
-  const service = new OrganizationService({ repository, authority, membership })
+  const service = new OrganizationService({ repository, authority, membership, demoSeed })
 
   return { repository, authority, service }
 }

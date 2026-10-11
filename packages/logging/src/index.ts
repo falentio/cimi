@@ -27,6 +27,7 @@ export type LogOperation =
   | 'site.lifecycle'
   | 'installation.upgrade'
   | 'event-ingestion.flush'
+  | 'demo-seed'
 
 export type LogStage =
   | 'admission'
@@ -360,6 +361,8 @@ function operationCategory(operation: LogOperation): readonly string[] {
       return ['cimi', 'api', 'worker', 'installation']
     case 'event-ingestion.flush':
       return ['cimi', 'api', 'worker', 'event-ingestion']
+    case 'demo-seed':
+      return ['cimi', 'api', 'worker', 'demo-seed']
   }
 }
 

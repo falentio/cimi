@@ -17,6 +17,15 @@ import type { InferOutput } from 'valibot'
 import type { SiteRepository } from './repository.ts'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
 
+const DEMO_SITE_NAME = 'Demo Site'
+
+const DEMO_SITE_HOSTNAME = 'demo.example.com'
+
+export interface DemoSiteInput {
+  readonly organizationId: string
+  readonly ownerUserId: string
+}
+
 export interface SiteServiceDependencies {
   repository: SiteRepository
   scope: SiteScopeGuardDependencies
@@ -99,6 +108,33 @@ export class SiteService {
       missingCode: 'NOT_FOUND',
     })
 
+    return this.insertSite({
+      organizationId: input.organizationId,
+      name: input.name,
+      hostname: input.hostname,
+    })
+  }
+
+  /**
+   * Seeding runs behind the request, where there is no user and no headers, so the demo site is
+   * written through the repository without the membership reconcile and role assertions the
+   * request path owes.
+   */
+  async createDemoSite({ organizationId }: DemoSiteInput): Promise<{ readonly siteId: string }> {
+    const site = await this.insertSite({
+      organizationId,
+      name: DEMO_SITE_NAME,
+      hostname: DEMO_SITE_HOSTNAME,
+    })
+
+    return { siteId: site.id }
+  }
+
+  private async insertSite(input: {
+    organizationId: string
+    name: string
+    hostname: string
+  }): Promise<SiteRepository.Site> {
     try {
       return await this.repository.insert({
         id: generateId('ste'),
@@ -113,8 +149,59 @@ export class SiteService {
       })
     } catch (error) {
       if (isConstraintError(error)) throw new ORPCError('CONFLICT', { status: 409 })
+
       throw error
     }
+  }
+  /**
+   * A seed that fails after the site insert takes its own site back. The request path cannot own
+   * this: seeding runs behind the request with no user and no headers, and the site still has to
+   * go, or the personal organization keeps a site row it can never be deleted through.
+   */
+  async releaseDemoSite({
+    siteId,
+    onPurgedSite,
+  }: {
+    readonly siteId: string
+    readonly onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined
+  }): Promise<void> {
+    const requestedAt = new Date()
+
+    await this.withLifecycleLease('site_deletion', async () => {
+      const begun = await this.repository.beginDelete({
+        siteId,
+        operationId: generateId('sop'),
+        requestedAt,
+      })
+
+      if (begun.status !== 'accepted') return
+
+      const completed = await this.repository.completeDelete({
+        siteId,
+        operationId: begun.operationId,
+        completedAt: requestedAt,
+      })
+
+      if (completed.status !== 'completed') return
+
+      const deletion = await this.repository.getDeletionStatus(siteId)
+
+      // Nobody has seen this site, so it does not wait out the recovery window the request path owes.
+      if (deletion === undefined || deletion.purgeAt === null) return
+
+      const purgedAt = new Date(deletion.purgeAt)
+
+      await this.repository.purge({
+        siteId,
+        operationId: generateId('sop'),
+        requestedAt: purgedAt,
+      })
+
+      // The lifecycle worker cannot reach this site: its purge candidate scan reads the control
+      // store, and the repository purge already removed the site row, so nothing would call the
+      // projection purge the worker normally fires on a purge it owns.
+      await onPurgedSite?.({ siteId, now: purgedAt })
+    })
   }
 
   async update(
@@ -175,7 +262,6 @@ export class SiteService {
       return { accepted: true, status: 'deleting', operationId: result.operationId }
     })
   }
-
   async recover(
     input: InferOutput<typeof schema.SSiteRecoverInput>,
     user: Pick<AuthUser, 'id'>,
