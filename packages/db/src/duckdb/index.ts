@@ -279,7 +279,9 @@ export async function createAnalyticsDb(options: CreateAnalyticsDbOptions): Prom
         const versionRow = versionReader.getRowObjects()[0]
 
         return Number(versionRow?.['stale_count']) === 0
-      } catch {
+      } catch (error) {
+        console.error('Analytics readiness probe failed', error)
+
         return false
       }
     },
