@@ -1,5 +1,4 @@
-import { configureSync, type LogRecord, type Sink } from '@logtape/logtape'
-import { createLoggingConfiguration } from '../index.ts'
+import { configureSync, getConfig, resetSync, type LogRecord, type Sink } from '@logtape/logtape'
 
 export interface CapturedLogRecord {
   readonly message: string
@@ -17,6 +16,7 @@ export interface LogCapture {
  */
 export function captureLogEvents(): LogCapture {
   const records: CapturedLogRecord[] = []
+  const previous = getConfig()
 
   const sink: Sink = (record: LogRecord) => {
     records.push({
@@ -34,7 +34,13 @@ export function captureLogEvents(): LogCapture {
   return {
     records,
     stop() {
-      configureSync({ reset: true, ...createLoggingConfiguration() })
+      if (previous === null) {
+        resetSync()
+
+        return
+      }
+
+      configureSync({ ...previous, reset: true })
     },
   }
 }
