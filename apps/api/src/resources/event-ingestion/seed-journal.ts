@@ -1,3 +1,4 @@
+import { reportLogEvent } from '@cimi/logging'
 import type { CollectionPolicyService } from '../collection-policy/service.ts'
 import type { DemoSeedEvent, DemoSeedJournalPort } from '../demo-seed/ports.ts'
 import type { AcceptanceCandidate, AcceptanceRepository, AppendOutcome } from './repository.ts'
@@ -28,6 +29,8 @@ export class AcceptanceSeedJournal implements DemoSeedJournalPort {
   }): Promise<number> {
     const policyRevisionId = await this.#collectionPolicy.effectiveRevisionId(input.siteId)
 
+    let appended = 0
+
     for (let replans = 0; ; replans += 1) {
       const highWater = await this.#acceptance.lastReplaySequence()
 
@@ -43,9 +46,25 @@ export class AcceptanceSeedJournal implements DemoSeedJournalPort {
         ),
       )
 
-      const appended = outcomes.filter((outcome) => outcome.status !== 'conflict').length
+      appended += outcomes.filter((outcome) => outcome.status !== 'conflict').length
 
-      if (!outcomes.some(isConflict) || replans >= MAX_REPLANS) return appended
+      if (!outcomes.some(isConflict)) return appended
+
+      if (replans < MAX_REPLANS) continue
+
+      if (appended < input.events.length) {
+        reportLogEvent({
+          kind: 'operation.failure',
+          operation: 'demo-seed',
+          stage: 'flush',
+          siteId: input.siteId,
+          error: new Error(
+            'Demo seed journal appended ' + appended + ' of ' + input.events.length + ' events',
+          ),
+        })
+      }
+
+      return appended
     }
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mock, type MockProxy } from 'vitest-mock-extended'
+import { captureLogEvents } from '@cimi/logging/testing'
 import type { CollectionPolicyService } from '../../collection-policy/service.ts'
 import type { DemoSeedEvent } from '../../demo-seed/ports.ts'
 import { AcceptanceSeedJournal } from '../seed-journal.ts'
@@ -250,21 +251,67 @@ describe('AcceptanceSeedJournal.appendGenerated', () => {
     ])
   })
 
-  it('gives up after the second re-plan and reports what landed', async () => {
+  it('gives up after the second re-plan and counts every event that landed', async () => {
     const repository = mock<AcceptanceRepository>()
+    const capture = captureLogEvents()
     repository.lastReplaySequence.mockResolvedValue(0)
-    repository.append.mockResolvedValue([{ status: 'conflict' }, { status: 'accepted' }])
+    repository.append
+      .mockResolvedValueOnce([{ status: 'conflict' }, { status: 'accepted' }])
+      .mockResolvedValueOnce([{ status: 'accepted' }, { status: 'conflict' }])
+      .mockResolvedValue([{ status: 'conflict' }, { status: 'conflict' }])
     const journal = createJournal(repository)
 
-    await expect(
-      journal.appendGenerated({
-        siteId: 'ste_1',
-        events: [
-          pageView({ eventId: 'ste_1-e0' }),
-          pageView({ eventId: 'ste_1-e1', pageViewId: 'ste_1-pv1' }),
-        ],
-      }),
-    ).resolves.toBe(1)
-    expect(repository.append).toHaveBeenCalledTimes(3)
+    try {
+      await expect(
+        journal.appendGenerated({
+          siteId: 'ste_1',
+          events: [
+            pageView({ eventId: 'ste_1-e0' }),
+            pageView({ eventId: 'ste_1-e1', pageViewId: 'ste_1-pv1' }),
+          ],
+        }),
+      ).resolves.toBe(2)
+      expect(repository.append).toHaveBeenCalledTimes(3)
+      expect(capture.records).toEqual([])
+    } finally {
+      capture.stop()
+    }
+  })
+
+  it('reports a short batch rather than a silent success', async () => {
+    const repository = mock<AcceptanceRepository>()
+    const capture = captureLogEvents()
+    repository.lastReplaySequence.mockResolvedValue(0)
+    repository.append
+      .mockResolvedValueOnce([{ status: 'conflict' }, { status: 'accepted' }])
+      .mockResolvedValue([{ status: 'conflict' }, { status: 'conflict' }])
+    const journal = createJournal(repository)
+
+    try {
+      await expect(
+        journal.appendGenerated({
+          siteId: 'ste_1',
+          events: [
+            pageView({ eventId: 'ste_1-e0' }),
+            pageView({ eventId: 'ste_1-e1', pageViewId: 'ste_1-pv1' }),
+          ],
+        }),
+      ).resolves.toBe(1)
+      expect(capture.records).toEqual([
+        {
+          message: 'Operation failed',
+          properties: expect.objectContaining({
+            operation: 'demo-seed',
+            stage: 'flush',
+            siteId: 'ste_1',
+            error: expect.objectContaining({
+              message: 'Demo seed journal appended 1 of 2 events',
+            }),
+          }),
+        },
+      ])
+    } finally {
+      capture.stop()
+    }
   })
 })
