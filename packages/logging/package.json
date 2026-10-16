@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./level": "./src/level.ts",
-    "./node": "./src/node.ts"
+    "./node": "./src/node.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
