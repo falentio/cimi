@@ -149,7 +149,7 @@ export async function appendEventRows(
     appendText(appender, event.eventKind)
     appendTimestamp(appender, event.occurrenceTime)
     appendTimestamp(appender, event.receiptTime)
-    appendBoolean(appender, Boolean(event.late))
+    appender.appendBoolean(Boolean(event.late))
     appendText(appender, event.visitorId)
     appendText(appender, event.identifiedUserId)
     appendText(appender, event.analyticsSessionId)
@@ -279,10 +279,6 @@ function appendNullableBoolean(appender: FactAppender, value: number | null): vo
   }
 
   appender.appendBoolean(Boolean(value))
-}
-
-function appendBoolean(appender: FactAppender, value: boolean): void {
-  appender.appendBoolean(value)
 }
 
 function appendTimestamp(appender: FactAppender, value: number | null): void {
