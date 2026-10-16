@@ -21,9 +21,7 @@ export function createDemoSeedFixture({ policy, retention }: DemoSeedFixtureOpti
   const journal = mock<DemoSeedJournalPort>()
   journal.appendGenerated.mockResolvedValue(0)
 
-  const resolved =
-    retention ??
-    (policy === undefined ? new InMemoryRetentionResolver() : new InMemoryRetentionResolver(policy))
+  const resolved = retention ?? new InMemoryRetentionResolver(policy)
 
   const controlDb = mock<Db>()
   const analytics = mock<AnalyticsDb>()
