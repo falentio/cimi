@@ -258,6 +258,39 @@ describe('AnalyticsDb.appendProjectedEvents', () => {
     }
   })
 
+  it('answers ready() true for every probe issued during an append', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analytics = await createTestAnalyticsDb()
+
+    try {
+      seedVolume(controlDb, INTERLEAVED_EVENTS)
+
+      let appending = true
+
+      const appendPromise = analytics
+        .appendProjectedEvents({ controlDb, siteId: SITE_ID, chunkRows: CHUNK_ROWS })
+        .finally(() => {
+          appending = false
+        })
+
+      const probes: boolean[] = []
+
+      while (appending) {
+        probes.push(await analytics.ready())
+      }
+
+      await appendPromise
+
+      const falseProbes = probes.filter((value) => !value)
+
+      expect(probes.length).toBeGreaterThan(1)
+      expect(falseProbes.length, falseProbes.length + ' of ' + probes.length + ' probes').toBe(0)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
   it('serializes a read issued mid-append behind the append, not inside its transaction', async () => {
     const controlDb = createDb({ path: ':memory:' })
     const interleaved = await createTestAnalyticsDb()

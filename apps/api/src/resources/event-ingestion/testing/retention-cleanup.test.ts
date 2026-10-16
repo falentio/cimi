@@ -299,6 +299,58 @@ describe('AcceptanceRetentionCleanup', () => {
     })
   })
 
+  it('skips the analytics rebuild when no profile redaction is pending', async () => {
+    using fixture = createSiteDrizzleFixture()
+    await using analyticsFixture = await createAnalyticsFixture()
+
+    const rebuildCalls: number[] = []
+
+    const analytics: typeof analyticsFixture.analytics = {
+      ...analyticsFixture.analytics,
+      rebuild: async (input) => {
+        rebuildCalls.push(Date.now())
+
+        await analyticsFixture.analytics.rebuild(input)
+      },
+    }
+
+    const cleanup = new AcceptanceRetentionCleanup({
+      acceptance: mock<AcceptanceRepository>(),
+      analytics,
+      db: fixture.db,
+      dataDirectoryPath: tmpdir(),
+    })
+
+    await cleanup.runDerived({
+      runId: 'run_1',
+      siteId: 'ste_1',
+      now,
+      boundary: boundary(),
+      checkpoints: [
+        {
+          id: 'checkpoint_1',
+          dataClass: 'profiles',
+          stage: 'derived',
+          cursor: null,
+          processedThrough: null,
+          status: 'running',
+          updatedAt: now,
+        },
+        {
+          id: 'checkpoint_2',
+          dataClass: 'identity-projections',
+          stage: 'derived',
+          cursor: null,
+          processedThrough: null,
+          status: 'running',
+          updatedAt: now,
+        },
+      ],
+    })
+
+    expect(rebuildCalls).toEqual([])
+  })
+
   it('keeps derived cleanup pending when rebuilding analytics fails', async () => {
     using fixture = createSiteDrizzleFixture()
     fixture.db
