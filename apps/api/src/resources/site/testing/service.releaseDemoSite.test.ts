@@ -21,7 +21,8 @@ describe('SiteService.releaseDemoSite', () => {
             operation: 'site.lifecycle',
             stage: 'site-delete',
             siteId: 'ste_1',
-            error: expect.objectContaining({ message: expect.stringContaining('deleted') }),
+            siteStatus: 'deleted',
+            error: expect.objectContaining({ message: 'Demo site release stopped' }),
           }),
         },
       ])
@@ -47,7 +48,8 @@ describe('SiteService.releaseDemoSite', () => {
             operation: 'site.lifecycle',
             stage: 'site-purge',
             siteId: 'ste_1',
-            error: expect.objectContaining({ message: expect.stringContaining('missing') }),
+            siteStatus: 'missing',
+            error: expect.objectContaining({ message: 'Demo site release stopped' }),
           }),
         },
       ])
