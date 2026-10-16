@@ -185,4 +185,22 @@ describe.concurrent('SiteRepositoryDrizzle.purge', () => {
       cleanup: { status: 'failed', errorCode: 'CLEANUP_FAILED' },
     })
   })
+  it('purges an unseen site at the time it was released, before its deadline', async () => {
+    using fixture = createSiteDrizzleFixture()
+    const repo = new SiteRepositoryDrizzle({ db: fixture.db })
+    await createDeletedSite(repo)
+
+    await expect(
+      repo.purge({ siteId: 'ste_1', operationId: 'sop_purge_1', requestedAt, unseen: true }),
+    ).resolves.toEqual({ status: 'completed' })
+
+    const tombstone = fixture.db.select().from(schema.TSiteTombstone).all()[0]
+
+    expect(tombstone?.purgedAt).toEqual(requestedAt)
+    expect(tombstone?.createdAt).toEqual(requestedAt)
+    await expect(repo.getDeletionStatus('ste_1')).resolves.toMatchObject({
+      requestedAt: requestedAt.toISOString(),
+      purgeAt: requestedAt.toISOString(),
+    })
+  })
 })
