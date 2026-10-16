@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseUserAgent } from '@cimi/utils'
-import { pickSessionAttribution } from './attribution.ts'
+import { pickSessionAttribution } from '../attribution.ts'
 
 const REGISTRY_SIZE = 640
 
