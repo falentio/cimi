@@ -428,7 +428,7 @@ describe('AnalyticsDb.appendProjectedEvents', () => {
       expect(snapshotSecond.checkpoint?.projectedAcceptanceSequence).toBe(
         snapshotFirst.checkpoint?.projectedAcceptanceSequence,
       )
-      expect(second.projectionGeneration).toBe(first.projectionGeneration + 1)
+      expect(second.projectionGeneration).toBe(first.projectionGeneration)
     } finally {
       await analytics.close()
       closeDb(controlDb)

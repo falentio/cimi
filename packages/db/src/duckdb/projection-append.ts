@@ -88,7 +88,10 @@ export interface AnalyticsProjectionAppenderDependencies {
 }
 
 interface PublishedCheckpoint {
+  readonly exists: boolean
   readonly cursor: number
+  readonly factCardinality: number | null
+  readonly generation: number
   readonly occurrenceCoveredFrom: number | null
   readonly occurrenceCoveredThrough: number | null
   readonly effectiveRetentionFrom: number | null
@@ -106,7 +109,10 @@ interface ChunkOutcome {
 }
 
 const EMPTY_CHECKPOINT: PublishedCheckpoint = {
+  exists: false,
   cursor: 0,
+  factCardinality: null,
+  generation: 0,
   occurrenceCoveredFrom: null,
   occurrenceCoveredThrough: null,
   effectiveRetentionFrom: null,
@@ -180,6 +186,20 @@ export class AnalyticsProjectionAppender {
       afterReplaySequence: published.cursor,
       limit: this.#chunkRows,
     })
+
+    // Nothing new to project: republishing the checkpoint would move the generation with no rows.
+    if (events.length === 0 && published.exists) {
+      return {
+        complete: true,
+        appendedEventCount: 0,
+        appendedPropertyCount: 0,
+        appendedVisitorCount: 0,
+        appendedSessionCount: 0,
+        projectedReplaySequence: published.cursor,
+        projectedFactCardinality: published.factCardinality ?? 0,
+        projectionGeneration: published.generation,
+      }
+    }
 
     const identities = this.#source.readIdentities(input.controlDb)
 
@@ -277,6 +297,8 @@ async function readPublishedCheckpoint(
 ): Promise<PublishedCheckpoint> {
   const rows = await transaction.read(
     `SELECT projected_replay_sequence,
+            projected_fact_cardinality,
+            projection_generation,
             epoch_ms(occurrence_covered_from) AS occurrence_covered_from,
             epoch_ms(occurrence_covered_through) AS occurrence_covered_through,
             epoch_ms(effective_retention_from) AS effective_retention_from
@@ -289,7 +311,13 @@ async function readPublishedCheckpoint(
   if (row === undefined) return EMPTY_CHECKPOINT
 
   return {
+    exists: true,
     cursor: Number(row['projected_replay_sequence'] ?? 0),
+    factCardinality:
+      row['projected_fact_cardinality'] === null || row['projected_fact_cardinality'] === undefined
+        ? null
+        : Number(row['projected_fact_cardinality']),
+    generation: Number(row['projection_generation'] ?? 0),
     occurrenceCoveredFrom: readMs(row['occurrence_covered_from']),
     occurrenceCoveredThrough: readMs(row['occurrence_covered_through']),
     effectiveRetentionFrom: readMs(row['effective_retention_from']),
