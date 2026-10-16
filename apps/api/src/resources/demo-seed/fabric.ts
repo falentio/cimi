@@ -1,4 +1,9 @@
-import { EVENT_KINDS, type EventKind } from '@cimi/utils'
+import {
+  createXoroshiro128PlusPlus,
+  EVENT_KINDS,
+  seedFromString,
+  type EventKind,
+} from '@cimi/utils'
 import type { ScalarValue } from '../collection-policy/evaluator.ts'
 import { pickSessionAttribution, type SessionAttribution } from './attribution.ts'
 import type { DemoSeedEvent } from './ports.ts'
@@ -215,11 +220,6 @@ function planSessions(
 ): readonly PlannedSession[] {
   const sessions: PlannedSession[] = []
 
-  const extras = EVENT_KINDS.filter((kind) => kind !== 'page_view').reduce(
-    (total, kind) => total + counts[kind],
-    0,
-  )
-
   for (
     let index = 0;
     index < Math.floor(counts.page_view / SINGLE_PAGE_VIEW_DENOMINATOR);
@@ -242,7 +242,7 @@ function planSessions(
     pageViewsLeft -= session.pageViews
   }
 
-  const kinds = shuffle(expandKinds(extras, random), random)
+  const kinds = shuffle(expandKinds(counts), random)
 
   kinds.forEach((kind, index) => {
     multi[index % multi.length]?.extras.push(kind)
@@ -251,11 +251,13 @@ function planSessions(
   return sessions
 }
 
-function expandKinds(total: number, random: () => number): EventKind[] {
+function expandKinds(counts: Readonly<Record<EventKind, number>>): EventKind[] {
   const kinds: EventKind[] = []
 
-  for (let index = 0; index < total; index += 1) {
-    kinds.push(EVENT_KINDS[integerInRange(random, 1, EVENT_KINDS.length - 1)]!)
+  for (const kind of EVENT_KINDS) {
+    if (kind === 'page_view') continue
+
+    for (let index = 0; index < counts[kind]; index += 1) kinds.push(kind)
   }
 
   return kinds
@@ -360,25 +362,7 @@ function pick<T>(random: () => number, values: readonly T[]): T {
 }
 
 function createRandom(seed: string): () => number {
-  let state = hashSeed(seed)
+  const generator = createXoroshiro128PlusPlus({ seed: seedFromString(seed) })
 
-  return () => {
-    state = (state + 0x6d2b79f5) | 0
-    let mixed = state
-    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1)
-    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61)
-
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296
-  }
-}
-
-function hashSeed(seed: string): number {
-  let hash = 0x811c9dc5
-
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index)
-    hash = Math.imul(hash, 0x01000193)
-  }
-
-  return hash >>> 0
+  return () => generator.nextDouble()
 }
