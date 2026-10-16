@@ -189,12 +189,13 @@ export class SiteService {
       // Nobody has seen this site, so it does not wait out the recovery window the request path owes.
       if (deletion === undefined || deletion.purgeAt === null) return
 
-      const purgedAt = new Date(deletion.purgeAt)
+      const purgedAt = new Date()
 
       await this.repository.purge({
         siteId,
         operationId: generateId('sop'),
         requestedAt: purgedAt,
+        unseen: true,
       })
 
       // The lifecycle worker cannot reach this site: its purge candidate scan reads the control

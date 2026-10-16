@@ -28,7 +28,7 @@ describe('SiteService.releaseDemoSite', () => {
       expect.objectContaining({ siteId: 'ste_1', operationId: 'sop_1' }),
     )
     expect(repository.purge).toHaveBeenCalledWith(
-      expect.objectContaining({ siteId: 'ste_1', requestedAt: purgeAt }),
+      expect.objectContaining({ siteId: 'ste_1', requestedAt: expect.any(Date), unseen: true }),
     )
     expect(repository.purge.mock.calls[0]?.[0].operationId).toMatch(/^sop_/)
   })
@@ -75,7 +75,7 @@ describe('SiteService.releaseDemoSite', () => {
     ).resolves.toBeUndefined()
 
     expect(onPurgedSite).toHaveBeenCalledTimes(1)
-    expect(onPurgedSite).toHaveBeenCalledWith({ siteId: 'ste_1', now: purgeAt })
+    expect(onPurgedSite).toHaveBeenCalledWith({ siteId: 'ste_1', now: expect.any(Date) })
 
     const stopped = createSiteFixture()
     stopped.repository.beginDelete.mockResolvedValue({

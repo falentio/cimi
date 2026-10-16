@@ -661,7 +661,7 @@ export class SiteRepositoryDrizzle implements SiteRepository {
         site.deletedAt === null ||
         site.recoveryDeadline === null ||
         site.purgeAt === null ||
-        input.requestedAt < site.purgeAt
+        (input.unseen !== true && input.requestedAt < site.purgeAt)
       ) {
         return { status: 'conflict', currentStatus: site.status }
       }
