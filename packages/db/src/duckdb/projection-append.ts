@@ -25,6 +25,7 @@ import {
   type EventRow,
   type Identities,
   type ProjectedEventRow,
+  type ProjectionEventScope,
   type PropertyRow,
   timestamp,
 } from './projection-source.ts'
@@ -61,12 +62,6 @@ export interface ProjectionAppendSource {
   readEvents(db: Db, scope: ProjectionEventScope): readonly EventRow[]
   readProperties(db: Db, eventPks: readonly number[]): readonly PropertyRow[]
   readIdentities(db: Db): Identities
-}
-
-export interface ProjectionEventScope {
-  readonly siteId?: string
-  readonly afterReplaySequence?: number
-  readonly limit?: number
 }
 
 export interface AnalyticsProjectionAppendResult {
