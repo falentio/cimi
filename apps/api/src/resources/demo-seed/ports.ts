@@ -2,10 +2,9 @@ import type { EventKind } from '@cimi/utils'
 import type { ScalarValue } from '../collection-policy/evaluator.ts'
 
 export interface DemoSitePort {
-  createDemoSite(input: {
-    readonly organizationId: string
-    readonly ownerUserId: string
-  }): Promise<{ readonly siteId: string }>
+  createDemoSite(input: { readonly organizationId: string }): Promise<{
+    readonly siteId: string
+  }>
   releaseDemoSite(input: {
     readonly siteId: string
     readonly onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined

@@ -26,10 +26,7 @@ export interface OrganizationMembershipReconciler {
 
 /** Background seeding of a personal organization's first site, off the ensure request path. */
 export interface PersonalOrganizationSeeder {
-  seed(input: {
-    readonly organizationId: string
-    readonly ownerUserId: string
-  }): Promise<DemoSeedResult>
+  seed(input: { readonly organizationId: string }): Promise<DemoSeedResult>
 }
 
 export interface OrganizationServiceDependencies {
@@ -172,7 +169,7 @@ export class OrganizationService {
         { userId: user.id, now: new Date() },
       )
 
-      this.scheduleDemoSeed(organization.id, user.id)
+      this.scheduleDemoSeed(organization.id)
 
       return toOrganization(organization)
     } catch (error) {
@@ -189,13 +186,13 @@ export class OrganizationService {
    * Seeding runs after the ensure response, so a dashboard-open request never waits on it and a
    * seeding failure cannot reach the caller. An organization that already exists is never seeded.
    */
-  private scheduleDemoSeed(organizationId: string, ownerUserId: string): void {
+  private scheduleDemoSeed(organizationId: string): void {
     const demoSeed = this.demoSeed
 
     if (demoSeed === undefined) return
 
     setTimeout(() => {
-      void demoSeed.seed({ organizationId, ownerUserId }).catch((cause: unknown) => {
+      void demoSeed.seed({ organizationId }).catch((cause: unknown) => {
         reportLogEvent({
           kind: 'operation.failure',
           operation: 'demo-seed',

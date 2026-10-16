@@ -22,7 +22,6 @@ export interface DemoSeedServiceDependencies {
 
 export interface DemoSeedInput {
   readonly organizationId: string
-  readonly ownerUserId: string
 }
 
 export interface DemoSeedResult {
@@ -57,10 +56,7 @@ export class DemoSeedService {
   async seed(input: DemoSeedInput): Promise<DemoSeedResult> {
     const now = this.#clock()
 
-    const site = await this.#sites.createDemoSite({
-      organizationId: input.organizationId,
-      ownerUserId: input.ownerUserId,
-    })
+    const site = await this.#sites.createDemoSite({ organizationId: input.organizationId })
 
     try {
       const policy = await this.#retention.effective(site.siteId)

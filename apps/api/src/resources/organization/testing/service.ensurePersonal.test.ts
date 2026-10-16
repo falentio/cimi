@@ -154,10 +154,7 @@ describe('OrganizationService.ensurePersonal demo seeding', () => {
 
     await flushDeferredWork()
 
-    expect(demoSeed.seed).toHaveBeenCalledWith({
-      organizationId: personal.id,
-      ownerUserId: 'user_1',
-    })
+    expect(demoSeed.seed).toHaveBeenCalledWith({ organizationId: personal.id })
   })
 
   it('does not schedule the demo seed when the personal organization is reused', async () => {
@@ -185,9 +182,6 @@ describe('OrganizationService.ensurePersonal demo seeding', () => {
     ).resolves.toMatchObject({ id: personal.id })
     await flushDeferredWork()
 
-    expect(demoSeed.seed).toHaveBeenCalledWith({
-      organizationId: personal.id,
-      ownerUserId: 'user_1',
-    })
+    expect(demoSeed.seed).toHaveBeenCalledWith({ organizationId: personal.id })
   })
 })

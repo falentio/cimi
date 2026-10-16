@@ -8,12 +8,12 @@ describe('DemoSeedService.seed', () => {
     const { sites, journal, controlDb, analytics, service } = createDemoSeedFixture()
     journal.appendGenerated.mockResolvedValue(3)
 
-    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).resolves.toEqual(
-      { siteId: 'ste_1', appendedEventCount: 3 },
-    )
+    await expect(service.seed({ organizationId: 'org_1' })).resolves.toEqual({
+      siteId: 'ste_1',
+      appendedEventCount: 3,
+    })
     expect(sites.createDemoSite).toHaveBeenCalledWith({
       organizationId: 'org_1',
-      ownerUserId: 'user_1',
     })
     expect(journal.appendGenerated).toHaveBeenCalledWith({
       siteId: 'ste_1',
@@ -34,7 +34,7 @@ describe('DemoSeedService.seed', () => {
   it('spans ninety days back to the site creation date', async () => {
     const { journal, service } = createDemoSeedFixture()
 
-    await service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })
+    await service.seed({ organizationId: 'org_1' })
 
     const times = seededEvents(journal).map((event) => new Date(event.occurrenceTime).getTime())
 
@@ -51,7 +51,7 @@ describe('DemoSeedService.seed', () => {
       policy: { eventMonths: 1, profileMonths: 1, replayMonths: null },
     })
 
-    await service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })
+    await service.seed({ organizationId: 'org_1' })
 
     const times = seededEvents(journal).map((event) => new Date(event.occurrenceTime).getTime())
 
@@ -67,7 +67,7 @@ describe('DemoSeedService.seed', () => {
     retention.effective.mockResolvedValue(GOLDEN_POLICY)
     const { service } = createDemoSeedFixture({ retention })
 
-    await service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })
+    await service.seed({ organizationId: 'org_1' })
 
     expect(retention.effective).toHaveBeenCalledWith('ste_1')
   })
@@ -76,18 +76,14 @@ describe('DemoSeedService.seed', () => {
     const { journal, analytics, service } = createDemoSeedFixture()
     journal.appendGenerated.mockRejectedValue(new Error('journal closed'))
 
-    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
-      'journal closed',
-    )
+    await expect(service.seed({ organizationId: 'org_1' })).rejects.toThrow('journal closed')
     expect(analytics.appendProjectedEvents).not.toHaveBeenCalled()
   })
 
   it('releases the site and rethrows when the retention horizon throws', async () => {
     const { sites, service } = createDemoSeedFixture({ retention: failingRetention() })
 
-    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
-      'horizon down',
-    )
+    await expect(service.seed({ organizationId: 'org_1' })).rejects.toThrow('horizon down')
     expect(sites.releaseDemoSite).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'ste_1' }))
     expect(sites.releaseDemoSite.mock.calls[0]?.[0].onPurgedSite).toBeTypeOf('function')
   })
@@ -96,9 +92,7 @@ describe('DemoSeedService.seed', () => {
     const { sites, journal, service } = createDemoSeedFixture()
     journal.appendGenerated.mockRejectedValue(new Error('journal closed'))
 
-    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
-      'journal closed',
-    )
+    await expect(service.seed({ organizationId: 'org_1' })).rejects.toThrow('journal closed')
     expect(sites.releaseDemoSite).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'ste_1' }))
   })
 
@@ -106,9 +100,7 @@ describe('DemoSeedService.seed', () => {
     const { sites, analytics, service } = createDemoSeedFixture()
     analytics.appendProjectedEvents.mockRejectedValue(new Error('projection down'))
 
-    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
-      'projection down',
-    )
+    await expect(service.seed({ organizationId: 'org_1' })).rejects.toThrow('projection down')
     expect(sites.releaseDemoSite).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'ste_1' }))
   })
 
@@ -117,20 +109,16 @@ describe('DemoSeedService.seed', () => {
     analytics.appendProjectedEvents.mockRejectedValue(new Error('projection down'))
     sites.releaseDemoSite.mockRejectedValue(new Error('release down'))
 
-    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).rejects.toThrow(
-      'projection down',
-    )
+    await expect(service.seed({ organizationId: 'org_1' })).rejects.toThrow('projection down')
   })
 
   it('leaves the site in place when the seed succeeds', async () => {
     const { sites, service } = createDemoSeedFixture()
 
-    await expect(service.seed({ organizationId: 'org_1', ownerUserId: 'user_1' })).resolves.toEqual(
-      {
-        siteId: 'ste_1',
-        appendedEventCount: 0,
-      },
-    )
+    await expect(service.seed({ organizationId: 'org_1' })).resolves.toEqual({
+      siteId: 'ste_1',
+      appendedEventCount: 0,
+    })
     expect(sites.releaseDemoSite).not.toHaveBeenCalled()
   })
 })
