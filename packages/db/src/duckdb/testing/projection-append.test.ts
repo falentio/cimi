@@ -218,6 +218,34 @@ describe('AnalyticsDb.appendProjectedEvents', () => {
     }
   })
 
+  it('does not publish a checkpoint when a chunk reads no new events', async () => {
+    const controlDb = createDb({ path: ':memory:' })
+    const analytics = await createTestAnalyticsDb()
+
+    try {
+      seedVolume(controlDb, CHUNK_ROWS)
+
+      const result = await analytics.appendProjectedEvents({
+        controlDb,
+        siteId: SITE_ID,
+        chunkRows: CHUNK_ROWS,
+      })
+
+      const snapshot = await analytics.readProjectionSnapshot({ siteId: SITE_ID })
+
+      expect(result).toMatchObject({
+        appendedEventCount: CHUNK_ROWS,
+        chunkCount: 2,
+        projectionGeneration: 1,
+      })
+      expect(snapshot.checkpoint?.projectionGeneration).toBe(1)
+      expect(snapshot.checkpoint?.projectedFactCardinality).toBe(CHUNK_ROWS)
+    } finally {
+      await analytics.close()
+      closeDb(controlDb)
+    }
+  })
+
   it('keeps the store ready before, during and after the append', async () => {
     const controlDb = createDb({ path: ':memory:' })
     const analytics = await createTestAnalyticsDb()
