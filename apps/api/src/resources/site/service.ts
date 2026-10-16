@@ -420,7 +420,8 @@ function reportDemoReleaseStop(input: {
     operation: 'site.lifecycle',
     stage: input.stage,
     siteId: input.siteId,
-    error: new Error('Demo site release stopped: ' + input.status),
+    siteStatus: input.status,
+    error: new Error('Demo site release stopped'),
   })
 }
 

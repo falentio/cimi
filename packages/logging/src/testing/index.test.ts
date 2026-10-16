@@ -143,6 +143,26 @@ describe('log event contract', () => {
     ).not.toHaveProperty('referrer')
   })
 
+  it('carries a stopped lifecycle status as a structured property', () => {
+    expect(
+      toLogProperties({
+        kind: 'operation.failure',
+        operation: 'site.lifecycle',
+        stage: 'site-purge',
+        siteId: 'ste_1',
+        siteStatus: 'deleted',
+        error: new Error('Demo site release stopped'),
+      }),
+    ).toEqual({
+      schemaVersion: 1,
+      operation: 'site.lifecycle',
+      stage: 'site-purge',
+      siteId: 'ste_1',
+      siteStatus: 'deleted',
+      error: { name: 'Error', message: 'Demo site release stopped', stack: expect.any(String) },
+    })
+  })
+
   it('normalizes request IDs before they enter logging context', () => {
     expect(normalizeRequestId(' request\n1 ')).toBe('request 1')
     expect(normalizeRequestId('   ')).toBeNull()

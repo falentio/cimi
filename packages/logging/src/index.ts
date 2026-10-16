@@ -60,6 +60,7 @@ export interface LogOperationContext {
   readonly operationId?: string | undefined
   readonly runId?: string | undefined
   readonly siteId?: string | undefined
+  readonly siteStatus?: string | undefined
   readonly batchSize?: number | undefined
 }
 
@@ -246,6 +247,7 @@ export interface OperationFailureLogProperties {
   readonly operationId?: string
   readonly runId?: string
   readonly siteId?: string
+  readonly siteStatus?: string
   readonly batchSize?: number
   readonly error: LogError
   readonly [key: string]: string | number | LogError | undefined
@@ -298,6 +300,7 @@ export function toLogProperties(event: LogEvent) {
         ...(event.operationId !== undefined && { operationId: safeField(event.operationId) }),
         ...(event.runId !== undefined && { runId: safeField(event.runId) }),
         ...(event.siteId !== undefined && { siteId: safeField(event.siteId) }),
+        ...(event.siteStatus !== undefined && { siteStatus: safeField(event.siteStatus) }),
         ...(event.batchSize !== undefined && { batchSize: safeBatchSize(event.batchSize) }),
         error: toLogError(event.error),
       }
