@@ -191,22 +191,38 @@ export function readEvents(db: Db, scope?: ProjectionEventScope): EventRow[] {
   })
 }
 
+const PROPERTY_SELECT = `SELECT
+   event_pk AS eventPk, property_key AS propertyKey, value_type AS valueType,
+   string_value AS stringValue, number_value AS numberValue, boolean_value AS booleanValue
+ FROM event_property`
+
+const PROPERTY_PK_CHUNK = 900
+
 export function readProperties(db: Db, eventPks: readonly number[]): PropertyRow[] {
   if (eventPks.length === 0) return []
 
-  const placeholders = eventPks.map(() => '?').join(', ')
+  const sortedPks = [...new Set(eventPks)].sort((left, right) => left - right)
+  const rows: PropertyRow[] = []
 
-  // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
-  return db.$client
-    .prepare(
-      `SELECT
-         event_pk AS eventPk, property_key AS propertyKey, value_type AS valueType,
-         string_value AS stringValue, number_value AS numberValue, boolean_value AS booleanValue
-       FROM event_property
-       WHERE event_pk IN (${placeholders})
-       ORDER BY event_pk, property_key`,
+  // SQLite caps bound variables per statement, so an installation-wide pk list cannot be one
+  // statement; 900 stays under the cap even for a client built with the legacy 999 default.
+  for (let start = 0; start < sortedPks.length; start += PROPERTY_PK_CHUNK) {
+    const chunk = sortedPks.slice(start, start + PROPERTY_PK_CHUNK)
+    const placeholders = chunk.map(() => '?').join(', ')
+
+    // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
+    rows.push(
+      ...(db.$client
+        .prepare(
+          `${PROPERTY_SELECT}
+           WHERE event_pk IN (${placeholders})
+           ORDER BY event_pk, property_key`,
+        )
+        .all(...chunk) as PropertyRow[]),
     )
-    .all(...eventPks) as PropertyRow[]
+  }
+
+  return rows
 }
 
 export function readIdentities(db: Db): Identities {
