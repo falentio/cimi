@@ -17,6 +17,24 @@ export type Xoroshiro128PlusPlusOptions =
   | { readonly seed: bigint; readonly state?: never }
   | { readonly state: Xoroshiro128PlusPlusState; readonly seed?: never }
 
+const FNV1A_64_OFFSET_BASIS = 0xcbf29ce484222325n
+
+const FNV1A_64_PRIME = 0x100000001b3n
+
+/**
+ * Turns a name into a generator seed. FNV-1a over UTF-16 code units, so the same
+ * text seeds the same stream in every process and runtime.
+ */
+export function seedFromString(value: string): bigint {
+  let hash = FNV1A_64_OFFSET_BASIS
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash ^ BigInt(value.charCodeAt(index))) * FNV1A_64_PRIME) & MASK_64
+  }
+
+  return hash
+}
+
 export interface Xoroshiro128PlusPlus {
   nextUint64(): bigint
   nextDouble(): number
