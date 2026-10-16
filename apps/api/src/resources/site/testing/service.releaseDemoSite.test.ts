@@ -1,9 +1,60 @@
 import { describe, expect, it, vi } from 'vitest'
+import { captureLogEvents } from '@cimi/logging/testing'
 import { createSiteFixture } from '../fixture.ts'
 
 const purgeAt = new Date('2026-10-31T00:00:00.000Z')
 
 describe('SiteService.releaseDemoSite', () => {
+  it('reports the status a release that never reached the deletion stage stopped at', async () => {
+    const { repository, service } = createSiteFixture()
+    const capture = captureLogEvents()
+
+    try {
+      repository.beginDelete.mockResolvedValue({ status: 'conflict', currentStatus: 'deleted' })
+
+      await expect(service.releaseDemoSite({ siteId: 'ste_1' })).resolves.toBeUndefined()
+
+      expect(capture.records).toEqual([
+        {
+          message: 'Operation failed',
+          properties: expect.objectContaining({
+            operation: 'site.lifecycle',
+            stage: 'site-delete',
+            siteId: 'ste_1',
+            error: expect.objectContaining({ message: expect.stringContaining('deleted') }),
+          }),
+        },
+      ])
+    } finally {
+      capture.stop()
+    }
+  })
+
+  it('reports the status a release stopped at when the deletion carries no deadline', async () => {
+    const { repository, service } = createSiteFixture()
+    const capture = captureLogEvents()
+    repository.beginDelete.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
+    repository.completeDelete.mockResolvedValue({ status: 'completed' })
+
+    try {
+      await expect(service.releaseDemoSite({ siteId: 'ste_1' })).resolves.toBeUndefined()
+
+      expect(capture.records).toEqual([
+        {
+          message: 'Operation failed',
+          properties: expect.objectContaining({
+            operation: 'site.lifecycle',
+            stage: 'site-purge',
+            siteId: 'ste_1',
+            error: expect.objectContaining({ message: expect.stringContaining('missing') }),
+          }),
+        },
+      ])
+    } finally {
+      capture.stop()
+    }
+  })
+
   it('drives a released demo site to its purge through the site lifecycle', async () => {
     const { repository, service } = createSiteFixture()
     repository.beginDelete.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
