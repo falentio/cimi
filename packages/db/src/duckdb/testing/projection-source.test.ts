@@ -90,7 +90,7 @@ describe('readProperties', () => {
     }
   })
 
-  it('reads properties for a pk list longer than the SQLite bound-variable cap', () => {
+  it('reads a property from every chunk past the SQLite bound-variable cap', () => {
     const controlDb = createDb({ path: ':memory:' })
 
     try {
@@ -98,16 +98,9 @@ describe('readProperties', () => {
 
       const eventPks = seedEventsPastBoundVariableCap(controlDb)
 
-      expect(readProperties(controlDb, eventPks)).toEqual([
-        {
-          eventPk: eventPks[eventPks.length - 1],
-          propertyKey: 'plan',
-          valueType: 'string',
-          stringValue: 'overflow',
-          numberValue: null,
-          booleanValue: null,
-        },
-      ])
+      expect(readProperties(controlDb, eventPks).map((property) => property.eventPk)).toEqual(
+        eventPks,
+      )
     } finally {
       closeDb(controlDb)
     }
@@ -124,7 +117,6 @@ function seedEventsPastBoundVariableCap(controlDb: ReturnType<typeof createDb>):
   )
 
   const eventPks = Array.from({ length: BOUND_VARIABLE_CAP + 1 }, (_, index) => index + 5)
-  const lastEventPk = eventPks[eventPks.length - 1] ?? 0
 
   controlDb.$client.transaction(() => {
     for (const eventPk of eventPks) {
@@ -145,7 +137,7 @@ function seedEventsPastBoundVariableCap(controlDb: ReturnType<typeof createDb>):
       )
     }
 
-    insertProperty.run(lastEventPk, 'plan', 'string', 'overflow')
+    for (const eventPk of eventPks) insertProperty.run(eventPk, 'plan', 'string', 'overflow')
   })()
 
   return eventPks
