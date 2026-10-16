@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { closeDb, createDb, migrateControlDb, schema } from '@cimi/db'
+import { closeDb, createDb, migrateControlDb, schema, type Db } from '@cimi/db'
 import { createTestAnalyticsDb } from '@cimi/db/testing'
 import { mock } from 'vitest-mock-extended'
 import type { SiteRetentionBoundary } from '../../retention-policy/cleanup-payload.ts'
@@ -50,6 +50,25 @@ function boundary(): SiteRetentionBoundary {
     effectiveAt: now,
     updatedAt: now,
   }
+}
+
+async function seedRestoredRetentionBoundary(db: Db): Promise<void> {
+  await new InstallationRepositoryDrizzle({ db }).insert(createInstallationInsertInput())
+  db.insert(schema.TRetentionEffectiveCutoff)
+    .values({
+      siteId: 'ste_1',
+      installationId: 'ins_1',
+      policyId: 'rtn_1',
+      reportingTimezone: 'UTC',
+      localDay: '2026-09-05',
+      eventOccurrenceCutoffAt: new Date('2026-03-05T00:00:00.000Z'),
+      rawReceiptCutoffAt: new Date('2026-03-05T00:00:00.000Z'),
+      profileActivityCutoffAt: new Date('2026-06-05T00:00:00.000Z'),
+      replayReceiptCutoffAt: null,
+      effectiveAt: now,
+      updatedAt: now,
+    })
+    .run()
 }
 
 describe('AcceptanceRetentionCleanup', () => {
@@ -718,6 +737,106 @@ describe('AcceptanceRetentionCleanup', () => {
       siteId: 'ste_1',
       receiptCutoff: replayCutoff,
     })
+  })
+
+  it('skips the rebuild when a restored installation has no pending redaction', async () => {
+    using fixture = createSiteDrizzleFixture()
+    await seedRestoredRetentionBoundary(fixture.db)
+
+    const acceptance = mock<AcceptanceRepository>()
+    await using analyticsFixture = await createAnalyticsFixture()
+    const rebuild = vi.spyOn(analyticsFixture.analytics, 'rebuild')
+
+    const cleanup = new AcceptanceBackupRestoreCleanup({
+      acceptance,
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      dataDirectoryPath: tmpdir(),
+      clock: () => now,
+    })
+
+    await cleanup.runDerived({ operationId: 'bop_restore' })
+
+    expect(rebuild).not.toHaveBeenCalled()
+    expect(acceptance.deleteExpired).toHaveBeenCalledWith({
+      siteId: 'ste_1',
+      receiptCutoff: new Date('2026-03-05T00:00:00.000Z'),
+    })
+  })
+
+  it('rebuilds when a pending redaction crossed the restore', async () => {
+    using fixture = createSiteDrizzleFixture()
+    await seedRestoredRetentionBoundary(fixture.db)
+    fixture.db
+      .insert(schema.TIdentityProfile)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        status: 'deletion-requested',
+        profileEpoch: 1,
+        traits: { plan: 'pro' },
+        firstSeenAt: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityProfileEpoch)
+      .values({
+        profileId: 'profile_1',
+        siteId: 'ste_1',
+        identifiedUserId: 'user_1',
+        epoch: 1,
+        status: 'active',
+        startedAt: now,
+        endedAt: null,
+        redactedAt: null,
+      })
+      .run()
+    fixture.db
+      .insert(schema.TIdentityRedaction)
+      .values({
+        id: 'redaction_1',
+        siteId: 'ste_1',
+        profileId: 'profile_1',
+        identifiedUserId: 'user_1',
+        profileEpoch: 1,
+        reason: 'explicit',
+        status: 'requested',
+        requestedAt: now,
+        appliedAt: null,
+        derivedCleanupStatus: 'pending',
+        backupCleanupStatus: 'pending',
+        derivedCleanupUpdatedAt: now,
+        backupCleanupUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    const acceptance = mock<AcceptanceRepository>()
+    await using analyticsFixture = await createAnalyticsFixture()
+    const rebuild = vi.spyOn(analyticsFixture.analytics, 'rebuild')
+
+    const cleanup = new AcceptanceBackupRestoreCleanup({
+      acceptance,
+      analytics: analyticsFixture.analytics,
+      db: fixture.db,
+      dataDirectoryPath: tmpdir(),
+      clock: () => now,
+    })
+
+    await cleanup.runDerived({ operationId: 'bop_restore' })
+
+    expect(rebuild).toHaveBeenCalledTimes(1)
+    expect(
+      fixture.db
+        .select({ derivedCleanupStatus: schema.TIdentityRedaction.derivedCleanupStatus })
+        .from(schema.TIdentityRedaction)
+        .all(),
+    ).toEqual([{ derivedCleanupStatus: 'complete' }])
   })
 
   it('cleans every effective boundary after a restore', async () => {
