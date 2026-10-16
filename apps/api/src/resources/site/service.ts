@@ -20,11 +20,13 @@ import type { OrganizationMembershipReconciler } from '../organization/service.t
 
 const DEMO_SITE_NAME = 'Demo Site'
 
-const DEMO_SITE_HOSTNAME = 'demo.example.com'
+/** Each organization's demo site advertises its own hostname, so two demo sites never claim one. */
+function demoSiteHostname(organizationId: string): string {
+  return 'demo-' + organizationId.replaceAll('_', '-') + '.example.com'
+}
 
 export interface DemoSiteInput {
   readonly organizationId: string
-  readonly ownerUserId: string
 }
 
 export interface SiteServiceDependencies {
@@ -125,7 +127,7 @@ export class SiteService {
     const site = await this.insertSite({
       organizationId,
       name: DEMO_SITE_NAME,
-      hostname: DEMO_SITE_HOSTNAME,
+      hostname: demoSiteHostname(organizationId),
     })
 
     return { siteId: site.id }
