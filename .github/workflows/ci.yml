@@ -35,6 +35,9 @@ jobs:
         run: vp test scripts/benchmark-api-logging.test.mjs
 
       - name: API E2E
+        # Runs the demo-seed projection e2e at the acceptance volume, not its cheap default window.
+        env:
+          CIMI_DEMO_SEED_HISTORY_DAYS: '90'
         run: vp run --filter ./apps/api test:e2e:ci
 
       - name: Check for leaked API E2E roots
