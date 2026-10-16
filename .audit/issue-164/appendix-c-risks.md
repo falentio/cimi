@@ -55,6 +55,37 @@ with a median latency of 6 ms and a max of 13.3 s. `ready()` is therefore
 trustworthy about the store being unusable, but it is not a latency-free probe
 during a seed.
 
+## A chunk checkpoint publishes `ready` with a partial cardinality
+
+The append publishes a checkpoint per chunk, so between chunks a site reads
+`readiness: ready` with a partial `projectedFactCardinality`. Measured at this head
+on the acceptance run: 13.2 s into the seed the site's checkpoint read `ready` with
+cardinality 2,500 while the control store already held 27,649 accepted events, and
+the live DuckDB count read 2,500 in the same snapshot, so the checkpoint and the
+facts it describes agree at every instant a read can observe them.
+
+That is Unit 2's prescribed per-chunk publication, and it is the better of the two
+available behaviours. A read admitted inside the window sees a site that is
+internally consistent but not yet complete, and the next chunk publishes the rest;
+holding `ready` back until the last chunk would instead refuse every read for the
+whole length of the append, which is the state the incremental append exists to
+remove. The window is bounded by one chunk, and the installation gate compares the
+checkpoint's cardinality against the cardinality it reads in the same snapshot, so
+the gate is never shown a mismatch.
+
+## Readiness during the append, round 2
+
+The section above was written from a single instrumented seed. A second, independent
+pass at this head measured the append window again and attributed every false
+`ready()` sample to the readiness gate: a retention derived drain rebuilt the whole
+installation because the site's checkpoint vocabulary names a profile data class,
+even with no redaction prepared. The rebuild held the `rebuilding` latch for the
+length of a full projection, and every analytics read answered 503 while it did.
+The drain now rebuilds only when a redaction is pending, so a seed raised no rebuild
+at all: 0 false samples out of 103, and the 90-day query returned 200. `ready()`
+itself still answers outside the serial chain, and a false answer now names the
+caught error.
+
 ## The `--exclude e2e` in the api test script does not exclude
 
 Vitest 4 treats the bare `e2e` as a literal glob, so `vp test` in `apps/api` runs
