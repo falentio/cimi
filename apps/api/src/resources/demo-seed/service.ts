@@ -17,6 +17,7 @@ export interface DemoSeedServiceDependencies {
   readonly retention: RetentionResolver
   readonly controlDb: Db
   readonly analytics: AnalyticsDb
+  readonly historyDays?: number | undefined
   readonly clock?: () => Date
 }
 
@@ -35,6 +36,7 @@ export class DemoSeedService {
   readonly #retention: RetentionResolver
   readonly #controlDb: Db
   readonly #analytics: AnalyticsDb
+  readonly #historyDays: number
   readonly #clock: () => Date
 
   constructor({
@@ -43,6 +45,7 @@ export class DemoSeedService {
     retention,
     controlDb,
     analytics,
+    historyDays,
     clock,
   }: DemoSeedServiceDependencies) {
     this.#sites = sites
@@ -50,6 +53,7 @@ export class DemoSeedService {
     this.#retention = retention
     this.#controlDb = controlDb
     this.#analytics = analytics
+    this.#historyDays = historyDays ?? DEMO_HISTORY_DAYS
     this.#clock = clock ?? (() => new Date())
   }
 
@@ -69,7 +73,7 @@ export class DemoSeedService {
 
       const events = generateEventFabric({
         siteId: site.siteId,
-        from: new Date(Math.max(now.getTime() - DEMO_HISTORY_DAYS * MS_PER_DAY, horizon.getTime())),
+        from: new Date(Math.max(now.getTime() - this.#historyDays * MS_PER_DAY, horizon.getTime())),
         to: now,
       })
 

@@ -15,6 +15,7 @@ export interface CreateDemoSeedDependencies {
   readonly retention: RetentionResolver
   readonly controlDb: Db
   readonly analytics: AnalyticsDb
+  readonly historyDays?: number | undefined
 }
 
 export function createDemoSeed(dependencies: CreateDemoSeedDependencies): DemoSeedService {

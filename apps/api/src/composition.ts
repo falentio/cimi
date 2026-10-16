@@ -88,6 +88,7 @@ export interface CreateApiAppDependencies {
   eventIdentitySession?: IdentitySessionResolver | undefined
   startRetentionCleanupWorker?: boolean | undefined
   startDemoSeed?: boolean | undefined
+  demoSeedHistoryDays?: number | undefined
   retentionCleanupIntervalMs?: number | undefined
   wrapRetentionCleanup?: ((cleanup: RetentionCleanupPort) => RetentionCleanupPort) | undefined
 }
@@ -204,6 +205,7 @@ export function createApiComposition(deps: CreateApiAppDependencies): ApiComposi
     retention: retentionPolicy.resolver,
     controlDb: deps.db,
     analytics: deps.analytics,
+    ...(deps.demoSeedHistoryDays !== undefined && { historyDays: deps.demoSeedHistoryDays }),
   })
 
   const organization = createOrganization({
