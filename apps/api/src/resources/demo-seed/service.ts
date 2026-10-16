@@ -99,7 +99,7 @@ export class DemoSeedService {
         reportLogEvent({
           kind: 'operation.failure',
           operation: 'demo-seed',
-          stage: 'site-delete',
+          stage: 'release',
           siteId: site.siteId,
           error: releaseError,
         })
