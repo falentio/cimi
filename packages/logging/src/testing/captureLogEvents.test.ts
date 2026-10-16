@@ -1,3 +1,4 @@
+import { configureSync, type Sink } from '@logtape/logtape'
 import { describe, expect, it } from 'vitest'
 import { reportLogEvent } from '../index.ts'
 import { captureLogEvents } from './index.ts'
@@ -44,5 +45,45 @@ describe('captureLogEvents', () => {
     })
 
     expect(capture.records).toEqual([])
+  })
+
+  it('restores the configuration it replaced', () => {
+    const outer: string[] = []
+
+    const sink: Sink = (record) => {
+      outer.push(record.message.map((part) => String(part)).join(''))
+    }
+
+    configureSync({
+      reset: true,
+      sinks: { outer: sink },
+      loggers: [{ category: 'cimi', sinks: ['outer'], lowestLevel: 'debug' }],
+    })
+
+    const capture = captureLogEvents()
+
+    try {
+      reportLogEvent({
+        kind: 'operation.failure',
+        operation: 'demo-seed',
+        stage: 'record-failure',
+        error: new Error('seed failed'),
+      })
+
+      expect(outer).toEqual([])
+      expect(capture.records).toHaveLength(1)
+    } finally {
+      capture.stop()
+    }
+
+    reportLogEvent({
+      kind: 'operation.failure',
+      operation: 'demo-seed',
+      stage: 'record-failure',
+      error: new Error('seed failed'),
+    })
+
+    expect(outer).toEqual(['Operation failed'])
+    expect(capture.records).toHaveLength(1)
   })
 })
