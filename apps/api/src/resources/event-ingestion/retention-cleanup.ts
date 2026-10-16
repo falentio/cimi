@@ -218,10 +218,10 @@ export class AcceptanceBackupRestoreCleanup implements BackupRestoreCleanupPort 
 
     for (const boundary of boundaries) prepareExpiredProfiles({ db: this.db, boundary, now })
 
-    if (!hasPendingIdentityRedactions(this.db) && boundaries.length === 0) return
-    await this.analytics.rebuild({ controlDb: this.db })
-
+    // The restore already rebuilt analytics from the restored control database. A second rebuild
+    // is only needed to project the redactions this drain prepared.
     if (hasPendingIdentityRedactions(this.db)) {
+      await this.analytics.rebuild({ controlDb: this.db })
       preparePendingIdentityRedactions({ db: this.db, now })
       markProfileDerivedCleanupComplete({ db: this.db, now })
     }
