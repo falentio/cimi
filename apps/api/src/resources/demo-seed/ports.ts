@@ -1,4 +1,3 @@
-import type { RetentionResolver } from '@cimi/kernel'
 import type { EventKind } from '@cimi/utils'
 import type { ScalarValue } from '../collection-policy/evaluator.ts'
 
@@ -64,5 +63,3 @@ export interface DemoSeedJournalPort {
     readonly events: readonly DemoSeedEvent[]
   }): Promise<number>
 }
-
-export type DemoSeedRetentionPort = RetentionResolver

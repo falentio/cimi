@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mock } from 'vitest-mock-extended'
-import type { DemoSeedRetentionPort } from '../ports.ts'
+import type { RetentionResolver } from '@cimi/kernel'
 import { createDemoSeedFixture, seededEvents } from '../fixture.ts'
 
 describe('DemoSeedService.seed', () => {
@@ -63,7 +63,7 @@ describe('DemoSeedService.seed', () => {
   })
 
   it('reads the retention boundary for the created site, not the organization', async () => {
-    const retention = mock<DemoSeedRetentionPort>()
+    const retention = mock<RetentionResolver>()
     retention.effective.mockResolvedValue(GOLDEN_POLICY)
     const { service } = createDemoSeedFixture({ retention })
 
@@ -143,8 +143,8 @@ const GOLDEN_POLICY = {
   replayMonths: null,
 }
 
-function failingRetention(): DemoSeedRetentionPort {
-  const retention = mock<DemoSeedRetentionPort>()
+function failingRetention(): RetentionResolver {
+  const retention = mock<RetentionResolver>()
   retention.effective.mockRejectedValue(new Error('horizon down'))
 
   return retention

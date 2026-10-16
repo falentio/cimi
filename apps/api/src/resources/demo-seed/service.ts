@@ -1,8 +1,9 @@
 import type { AnalyticsDb, Db } from '@cimi/db'
+import type { RetentionResolver } from '@cimi/kernel'
 import { reportLogEvent } from '@cimi/logging'
 import { resolveSiteLocalCutoff } from '@cimi/utils'
 import { generateEventFabric, MS_PER_DAY } from './fabric.ts'
-import type { DemoSitePort, DemoSeedJournalPort, DemoSeedRetentionPort } from './ports.ts'
+import type { DemoSitePort, DemoSeedJournalPort } from './ports.ts'
 
 /** The demo window reaches back to the site creation date, which is the end of the window. */
 const DEMO_HISTORY_DAYS = 90
@@ -13,7 +14,7 @@ const DEMO_REPORTING_TIMEZONE = 'UTC'
 export interface DemoSeedServiceDependencies {
   readonly sites: DemoSitePort
   readonly journal: DemoSeedJournalPort
-  readonly retention: DemoSeedRetentionPort
+  readonly retention: RetentionResolver
   readonly controlDb: Db
   readonly analytics: AnalyticsDb
   readonly clock?: () => Date
@@ -32,7 +33,7 @@ export interface DemoSeedResult {
 export class DemoSeedService {
   readonly #sites: DemoSitePort
   readonly #journal: DemoSeedJournalPort
-  readonly #retention: DemoSeedRetentionPort
+  readonly #retention: RetentionResolver
   readonly #controlDb: Db
   readonly #analytics: AnalyticsDb
   readonly #clock: () => Date

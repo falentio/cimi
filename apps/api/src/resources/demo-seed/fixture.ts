@@ -1,19 +1,18 @@
 import type { AnalyticsDb, Db } from '@cimi/db'
-import { InMemoryRetentionResolver, type RetentionPolicy } from '@cimi/kernel'
+import {
+  InMemoryRetentionResolver,
+  type RetentionPolicy,
+  type RetentionResolver,
+} from '@cimi/kernel'
 import { mock, type MockProxy } from 'vitest-mock-extended'
-import type {
-  DemoSeedEvent,
-  DemoSitePort,
-  DemoSeedJournalPort,
-  DemoSeedRetentionPort,
-} from './ports.ts'
+import type { DemoSeedEvent, DemoSitePort, DemoSeedJournalPort } from './ports.ts'
 import { DemoSeedService } from './service.ts'
 
 const now = new Date('2026-04-01T12:00:00.000Z')
 
 export interface DemoSeedFixtureOptions {
   readonly policy?: RetentionPolicy
-  readonly retention?: DemoSeedRetentionPort
+  readonly retention?: RetentionResolver
 }
 
 export function createDemoSeedFixture({ policy, retention }: DemoSeedFixtureOptions = {}) {
