@@ -35,6 +35,7 @@ describe('SiteService.releaseDemoSite', () => {
     const capture = captureLogEvents()
     repository.beginDelete.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
     repository.completeDelete.mockResolvedValue({ status: 'completed' })
+    repository.purge.mockResolvedValue({ status: 'completed' })
 
     try {
       await expect(service.releaseDemoSite({ siteId: 'ste_1' })).resolves.toBeUndefined()
@@ -59,6 +60,7 @@ describe('SiteService.releaseDemoSite', () => {
     const { repository, service } = createSiteFixture()
     repository.beginDelete.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
     repository.completeDelete.mockResolvedValue({ status: 'completed' })
+    repository.purge.mockResolvedValue({ status: 'completed' })
     repository.getDeletionStatus.mockResolvedValue({
       siteId: 'ste_1',
       status: 'deleted',
@@ -108,6 +110,7 @@ describe('SiteService.releaseDemoSite', () => {
     const { repository, service } = createSiteFixture()
     repository.beginDelete.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
     repository.completeDelete.mockResolvedValue({ status: 'completed' })
+    repository.purge.mockResolvedValue({ status: 'completed' })
     repository.getDeletionStatus.mockResolvedValue({
       siteId: 'ste_1',
       status: 'deleted',
@@ -147,6 +150,7 @@ describe('SiteService.releaseDemoSite', () => {
     const { repository, service } = createSiteFixture()
     repository.beginDelete.mockResolvedValue({ status: 'accepted', operationId: 'sop_1' })
     repository.completeDelete.mockResolvedValue({ status: 'completed' })
+    repository.purge.mockResolvedValue({ status: 'completed' })
 
     await expect(service.releaseDemoSite({ siteId: 'ste_1' })).resolves.toBeUndefined()
 

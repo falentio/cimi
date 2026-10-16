@@ -11,6 +11,7 @@ import type {
   LifecycleOperationStatusReader,
   PersistedLifecycleOperationKind,
 } from '@cimi/kernel'
+import { reportLogEvent } from '@cimi/logging'
 import { canonicalizeHostname, generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
@@ -174,7 +175,15 @@ export class SiteService {
         requestedAt,
       })
 
-      if (begun.status !== 'accepted') return
+      if (begun.status !== 'accepted') {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-delete',
+          status: begun.status === 'conflict' ? begun.currentStatus : begun.status,
+        })
+
+        return
+      }
 
       const completed = await this.repository.completeDelete({
         siteId,
@@ -182,21 +191,47 @@ export class SiteService {
         completedAt: requestedAt,
       })
 
-      if (completed.status !== 'completed') return
+      if (completed.status !== 'completed') {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-delete',
+          status: completed.status === 'conflict' ? completed.currentStatus : completed.status,
+        })
+
+        return
+      }
 
       const deletion = await this.repository.getDeletionStatus(siteId)
 
       // Nobody has seen this site, so it does not wait out the recovery window the request path owes.
-      if (deletion === undefined || deletion.purgeAt === null) return
+      if (deletion === undefined || deletion.purgeAt === null) {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-purge',
+          status: deletion?.status ?? 'missing',
+        })
+
+        return
+      }
 
       const purgedAt = new Date()
 
-      await this.repository.purge({
+      const purged = await this.repository.purge({
         siteId,
         operationId: generateId('sop'),
         requestedAt: purgedAt,
         unseen: true,
       })
+
+      if (purged.status !== 'completed') {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-purge',
+          status: purged.status === 'conflict' ? purged.currentStatus : purged.status,
+        })
+
+        return
+      }
 
       // The lifecycle worker cannot reach this site: its purge candidate scan reads the control
       // store, and the repository purge already removed the site row, so nothing would call the
@@ -371,6 +406,20 @@ function toPublicSite(site: SiteRepository.SiteRecord): SiteRepository.Site {
     createdAt: site.createdAt,
     updatedAt: site.updatedAt,
   }
+}
+
+function reportDemoReleaseStop(input: {
+  readonly siteId: string
+  readonly stage: 'site-delete' | 'site-purge'
+  readonly status: string
+}): void {
+  reportLogEvent({
+    kind: 'operation.failure',
+    operation: 'site.lifecycle',
+    stage: input.stage,
+    siteId: input.siteId,
+    error: new Error('Demo site release stopped: ' + input.status),
+  })
 }
 
 function isConstraintError(cause: unknown): cause is Error {

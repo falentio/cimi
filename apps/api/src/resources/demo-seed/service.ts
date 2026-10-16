@@ -1,4 +1,5 @@
 import type { AnalyticsDb, Db } from '@cimi/db'
+import { reportLogEvent } from '@cimi/logging'
 import { resolveSiteLocalCutoff } from '@cimi/utils'
 import { generateEventFabric } from './fabric.ts'
 import type { DemoSitePort, DemoSeedJournalPort, DemoSeedRetentionPort } from './ports.ts'
@@ -95,8 +96,14 @@ export class DemoSeedService {
           onPurgedSite: ({ siteId: purgedSiteId }) =>
             this.#analytics.purgeSite({ siteId: purgedSiteId }),
         })
-      } catch {
-        // The original failure is the one worth reporting; a release that also fails adds nothing.
+      } catch (releaseError) {
+        reportLogEvent({
+          kind: 'operation.failure',
+          operation: 'demo-seed',
+          stage: 'site-delete',
+          siteId: site.siteId,
+          error: releaseError,
+        })
       }
 
       throw error
