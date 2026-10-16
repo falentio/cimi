@@ -58,7 +58,7 @@ function recordingAnalytics(appends: AppendInput[]) {
     })
 }
 
-describe('ensurePersonal seeds the demo site', () => {
+describe('DemoSeedService.seed on the ensure path', () => {
   it('writes the seeded fabric off the ensure request and asks to project it', async () => {
     const appends: AppendInput[] = []
 
