@@ -1,6 +1,6 @@
 import type { DuckDBValue } from '@duckdb/node-api'
 import { getNestedMapValue, setNestedMapValue } from '@cimi/utils'
-import type { ProjectedEventRow } from './projection-source.ts'
+import { placeholders, type ProjectedEventRow } from './projection-source.ts'
 
 export interface VisitorRow {
   siteId: string
@@ -224,10 +224,6 @@ function sessionSeedSql(idCount: number): string {
     placeholders(idCount) +
     ') ORDER BY session_id'
   )
-}
-
-function placeholders(count: number): string {
-  return Array.from({ length: count }, () => '?').join(', ')
 }
 
 function nullableText(value: DuckDBValue | undefined): string | null {

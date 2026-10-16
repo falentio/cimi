@@ -1,13 +1,11 @@
 import type { AnalyticsDb, Db } from '@cimi/db'
 import { reportLogEvent } from '@cimi/logging'
 import { resolveSiteLocalCutoff } from '@cimi/utils'
-import { generateEventFabric } from './fabric.ts'
+import { generateEventFabric, MS_PER_DAY } from './fabric.ts'
 import type { DemoSitePort, DemoSeedJournalPort, DemoSeedRetentionPort } from './ports.ts'
 
 /** The demo window reaches back to the site creation date, which is the end of the window. */
 const DEMO_HISTORY_DAYS = 90
-
-const MS_PER_DAY = 86_400_000
 
 /** The demo site is written with a UTC reporting timezone, so the horizon resolves in UTC. */
 const DEMO_REPORTING_TIMEZONE = 'UTC'

@@ -20,6 +20,7 @@ import {
   type VisitorRow,
 } from './projection-fold.ts'
 import {
+  placeholders,
   propertyValue,
   projectEventIdentity,
   type EventRow,
@@ -359,10 +360,6 @@ async function deleteDerivedFacts(
       ')',
     [siteId, ...ids],
   )
-}
-
-function placeholders(count: number): string {
-  return Array.from({ length: count }, () => '?').join(', ')
 }
 
 function groupProperties(

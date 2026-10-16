@@ -8,7 +8,7 @@ import type { ScalarValue } from '../collection-policy/evaluator.ts'
 import { pickSessionAttribution, type SessionAttribution } from './attribution.ts'
 import type { DemoSeedEvent } from './ports.ts'
 
-const MS_PER_DAY = 86_400_000
+export const MS_PER_DAY = 86_400_000
 
 const MIN_EVENTS_PER_KIND_PER_DAY = 20
 

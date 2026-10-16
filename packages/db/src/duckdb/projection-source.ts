@@ -198,6 +198,10 @@ const PROPERTY_SELECT = `SELECT
 
 const PROPERTY_PK_CHUNK = 900
 
+export function placeholders(count: number): string {
+  return Array.from({ length: count }, () => '?').join(', ')
+}
+
 export function readProperties(db: Db, eventPks: readonly number[]): PropertyRow[] {
   if (eventPks.length === 0) return []
 
@@ -208,14 +212,13 @@ export function readProperties(db: Db, eventPks: readonly number[]): PropertyRow
   // statement; 900 stays under the cap even for a client built with the legacy 999 default.
   for (let start = 0; start < sortedPks.length; start += PROPERTY_PK_CHUNK) {
     const chunk = sortedPks.slice(start, start + PROPERTY_PK_CHUNK)
-    const placeholders = chunk.map(() => '?').join(', ')
 
     // SAFETY: raw SQL via drizzle returns untyped rows; shape fixed by the static SELECT above.
     rows.push(
       ...(db.$client
         .prepare(
           `${PROPERTY_SELECT}
-           WHERE event_pk IN (${placeholders})
+           WHERE event_pk IN (${placeholders(chunk.length)})
            ORDER BY event_pk, property_key`,
         )
         .all(...chunk) as PropertyRow[]),
