@@ -10,3 +10,6 @@ Both files were produced by a second actor, not by the branch author.
   and the minor findings.
 
 The fixes, their red tests and their SHAs are in the commits after `8c332b64` on this branch.
+
+The review and the independent verification that answer this round’s findings, plus this
+round’s measurements, live in `../verification-round-3/`.
