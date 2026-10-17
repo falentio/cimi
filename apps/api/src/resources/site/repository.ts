@@ -103,6 +103,11 @@ export declare namespace SiteRepository {
     siteId: string
     operationId: string
     requestedAt: Date
+    /**
+     * A Site the system created and no user has seen is released without waiting out the recovery
+     * window a deletion a user asked for owes.
+     */
+    unseen?: boolean | undefined
   }
 
   export interface LifecycleOperation {

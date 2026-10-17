@@ -33,6 +33,7 @@ export async function createTestAnalyticsDb(): Promise<AnalyticsDb> {
     return {
       ready: () => analytics.ready(),
       rebuild: (input) => analytics.rebuild(input),
+      appendProjectedEvents: (input) => analytics.appendProjectedEvents(input),
       deleteExpired: (input) => analytics.deleteExpired(input),
       purgeSite: (input) => analytics.purgeSite(input),
       readProjectionSnapshot: (input) => analytics.readProjectionSnapshot(input),

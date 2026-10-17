@@ -1,0 +1,263 @@
+{
+  "question": "Inserting N analytics events from the SQLite journal into the DuckDB projection: which incremental append strategy is fastest and safe, and how much does a read behind the append chain observe?",
+  "measuredAt": "2026-10-10T13:59:25.307Z",
+  "environment": {
+    "node": "v24.21.0",
+    "duckdbPackage": "@duckdb/node-api",
+    "duckdbFilePerStrategy": true,
+    "freshFilePerRepetition": true,
+    "threads": 1,
+    "memoryLimit": "512MB",
+    "controlDatabase": "sqlite :memory:, migrated with migrateControlDb",
+    "journalAppend": "AcceptanceRepositoryDrizzle.append, batches of 500 candidates",
+    "eventsSeeded": 3000,
+    "appendChunkRows": 2000,
+    "statementRows": 250,
+    "rebuildingFlag": "never set by any append strategy",
+    "timestampBinding": "ISO strings for SQL parameters, DuckDBTimestampValue micros for the appender"
+  },
+  "results": {
+    "seeded": {
+      "acceptedEvents": 3000,
+      "projectedEvents": 3000,
+      "siteId": "ste-proof",
+      "kinds": {
+        "page_view": 600,
+        "custom_event": 600,
+        "outbound": 600,
+        "performance": 600,
+        "error": 600
+      },
+      "distinctVisitors": 600,
+      "distinctSessions": 1200,
+      "spanDays": 90.94
+    },
+    "repetitions": {
+      "baselineRebuild": 3,
+      "appendStrategies": 3
+    },
+    "baselineRebuild": {
+      "strategy": "BASELINE_REBUILD",
+      "rows": 3000,
+      "repetitions": 3,
+      "wallMilliseconds": 35265.033,
+      "wallMillisecondsSamples": [
+        34542.219,
+        36315.291,
+        35265.033
+      ],
+      "bestWallMilliseconds": 34542.219,
+      "worstWallMilliseconds": 36315.291,
+      "rowsPerSecond": 85.1,
+      "bestRowsPerSecond": 86.9,
+      "worstRowsPerSecond": 82.6,
+      "events": 3000,
+      "visitors": 600,
+      "analyticsSessions": 1200,
+      "projectionCheckpoints": 1
+    },
+    "multiRow": {
+      "strategy": "MULTIROW",
+      "rows": 3000,
+      "repetitions": 3,
+      "wallMilliseconds": 1786.005,
+      "wallMillisecondsSamples": [
+        1786.005,
+        1917.201,
+        1759.54
+      ],
+      "bestWallMilliseconds": 1759.54,
+      "worstWallMilliseconds": 1917.201,
+      "rowsPerSecond": 1679.7,
+      "bestRowsPerSecond": 1705,
+      "worstRowsPerSecond": 1564.8,
+      "events": 3000,
+      "chunkRows": 2000,
+      "statementRows": 250,
+      "transactionPerChunk": true
+    },
+    "appender": {
+      "strategy": "APPENDER",
+      "rows": 3000,
+      "repetitions": 3,
+      "wallMilliseconds": 92.584,
+      "wallMillisecondsSamples": [
+        260.371,
+        92.584,
+        89.332
+      ],
+      "bestWallMilliseconds": 89.332,
+      "worstWallMilliseconds": 260.371,
+      "rowsPerSecond": 32403,
+      "bestRowsPerSecond": 33582.6,
+      "worstRowsPerSecond": 11522,
+      "chunkRows": 2000,
+      "columnsAppended": 32,
+      "jsonColumn": "appendVarchar on the JSON column",
+      "transactionBoundary": "BEGIN/COMMIT wrapping the whole append"
+    },
+    "setBasedDerived": {
+      "strategy": "SETBASED_DERIVED",
+      "derivedFrom": "events written by APPENDER",
+      "repetitions": 3,
+      "wallMilliseconds": 57.253,
+      "wallMillisecondsSamples": [
+        46.738,
+        57.253,
+        67.727
+      ],
+      "bestWallMilliseconds": 46.738,
+      "sourceEvents": 3000,
+      "visitors": [
+        600,
+        600,
+        600
+      ],
+      "analyticsSessions": [
+        1200,
+        1200,
+        1200
+      ],
+      "projectionCheckpoints": [
+        1,
+        1,
+        1
+      ],
+      "baselineVisitors": 600,
+      "baselineAnalyticsSessions": 1200,
+      "baselineProjectionCheckpoints": 1,
+      "countsMatch": {
+        "visitors": true,
+        "analytics_sessions": true,
+        "projection_checkpoints": true
+      }
+    },
+    "readInterleave": [
+      {
+        "strategy": "READ_INTERLEAVE",
+        "rows": 3000,
+        "repetitions": 1,
+        "wallMilliseconds": 1755.736,
+        "wallMillisecondsSamples": [
+          1755.736
+        ],
+        "bestWallMilliseconds": 1755.736,
+        "worstWallMilliseconds": 1755.736,
+        "rowsPerSecond": 1708.7,
+        "bestRowsPerSecond": 1708.7,
+        "worstRowsPerSecond": 1708.7,
+        "readCall": "readProjectionSnapshot query set",
+        "chunkRows": 2000,
+        "serialEnqueueChain": true,
+        "idleReadsCompleted": 10,
+        "idleP50Milliseconds": 4.019,
+        "idleMaxMilliseconds": 6.009,
+        "readsCompleted": 4,
+        "p50Milliseconds": 7.133,
+        "p95Milliseconds": 1176.149,
+        "maxMilliseconds": 1176.149,
+        "eventsAfterAppend": 3000
+      },
+      {
+        "strategy": "READ_INTERLEAVE",
+        "rows": 3000,
+        "repetitions": 1,
+        "wallMilliseconds": 2117.148,
+        "wallMillisecondsSamples": [
+          2117.148
+        ],
+        "bestWallMilliseconds": 2117.148,
+        "worstWallMilliseconds": 2117.148,
+        "rowsPerSecond": 1417,
+        "bestRowsPerSecond": 1417,
+        "worstRowsPerSecond": 1417,
+        "readCall": "readProjectionSnapshot query set",
+        "chunkRows": 2000,
+        "serialEnqueueChain": true,
+        "idleReadsCompleted": 10,
+        "idleP50Milliseconds": 6.86,
+        "idleMaxMilliseconds": 6.997,
+        "readsCompleted": 4,
+        "p50Milliseconds": 7.083,
+        "p95Milliseconds": 1369.272,
+        "maxMilliseconds": 1369.272,
+        "eventsAfterAppend": 3000
+      },
+      {
+        "strategy": "READ_INTERLEAVE",
+        "rows": 3000,
+        "repetitions": 1,
+        "wallMilliseconds": 1845.118,
+        "wallMillisecondsSamples": [
+          1845.118
+        ],
+        "bestWallMilliseconds": 1845.118,
+        "worstWallMilliseconds": 1845.118,
+        "rowsPerSecond": 1625.9,
+        "bestRowsPerSecond": 1625.9,
+        "worstRowsPerSecond": 1625.9,
+        "readCall": "readProjectionSnapshot query set",
+        "chunkRows": 2000,
+        "serialEnqueueChain": true,
+        "idleReadsCompleted": 10,
+        "idleP50Milliseconds": 4.837,
+        "idleMaxMilliseconds": 5.711,
+        "readsCompleted": 4,
+        "p50Milliseconds": 6.028,
+        "p95Milliseconds": 1185.42,
+        "maxMilliseconds": 1185.42,
+        "eventsAfterAppend": 3000
+      }
+    ],
+    "readInterleaveSummary": {
+      "readsCompleted": [
+        4,
+        4,
+        4
+      ],
+      "totalReads": 12,
+      "p50Milliseconds": 7.083,
+      "maxMilliseconds": 1369.272,
+      "idleP50Milliseconds": 4.837
+    },
+    "multiRowRatio": 19.74,
+    "appenderRatio": 380.76,
+    "dataFidelity": {
+      "comparedAgainst": "BASELINE_REBUILD",
+      "sample": "every events row of the site, keyed columns plus parsed properties_json",
+      "multiRow": {
+        "matches": true,
+        "rowCounts": {
+          "baseline": 3000,
+          "strategy": 3000
+        },
+        "mismatches": []
+      },
+      "appender": {
+        "matches": true,
+        "rowCounts": {
+          "baseline": 3000,
+          "strategy": 3000
+        },
+        "mismatches": []
+      },
+      "readInterleave": {
+        "matches": true,
+        "rowCounts": {
+          "baseline": 3000,
+          "strategy": 3000
+        },
+        "mismatches": []
+      }
+    }
+  },
+  "recommendation": {
+    "strategy": "APPENDER",
+    "rowsPerSecond": 32403,
+    "ratioVsBaselineRebuild": 380.76,
+    "setBasedDerivedWallMilliseconds": 57.253,
+    "readP50Milliseconds": 7.083,
+    "readMaxMilliseconds": 1369.272,
+    "readsCompleted": 12
+  }
+}

@@ -163,6 +163,17 @@ export class CollectionPolicyService {
     return resolvePolicy({ siteId, layers }).effective.values.profileFilterKeys
   }
 
+  /**
+   * The revision the ingestion gate would admit under, resolved through the same layer read and
+   * resolvePolicy call admit uses, so a caller stamping an accepted event cannot diverge from
+   * the gate that admitted it.
+   */
+  async effectiveRevisionId(siteId: string): Promise<string> {
+    const layers = await this.repository.loadLayers(siteId)
+
+    return resolvePolicy({ siteId, layers }).effective.revision.id
+  }
+
   private async assertNoActiveLifecycleOperation(): Promise<void> {
     const active = await this.lifecycle.getActiveOperation()
 

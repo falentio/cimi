@@ -136,6 +136,7 @@ export {
 
 export {
   createXoroshiro128PlusPlus,
+  seedFromString,
   type Xoroshiro128PlusPlus,
   type Xoroshiro128PlusPlusOptions,
   type Xoroshiro128PlusPlusState,

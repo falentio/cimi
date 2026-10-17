@@ -1,0 +1,179 @@
+{
+  "sourcePayload": "normal-site-window.json",
+  "sampleCount": 2084,
+  "sampleIntervalMs": 20,
+  "siteCreatedAtMsAfterFirstSample": 481,
+  "firstSampleAt": 1792166621642,
+  "siteCreatedAtComputed": 1792166622123,
+  "cleanupPendingWithAnalyticsReadySamples": 33,
+  "ofWhichPostPolicy": 0,
+  "window": {
+    "statuses": [
+      "degraded"
+    ],
+    "analyticsStores": [
+      "ready"
+    ],
+    "stages": {
+      "derived-running": 4,
+      "backup-pending": 28,
+      "row-not-pending-lagging-health": 1
+    },
+    "startAtMsAfterSiteCreate": 153,
+    "endAtMsAfterSiteCreate": 7292,
+    "durationMs": 7139,
+    "rowAtStart": {
+      "derivedCleanupStatus": "running",
+      "backupCleanupStatus": "pending",
+      "rowCleanupPending": 1,
+      "healthStatus": "degraded",
+      "healthCleanupPending": true,
+      "analyticsStore": "ready",
+      "atMsAfterSiteCreate": 153,
+      "atMsAfterPolicy": -72941
+    },
+    "rowAtEnd": {
+      "derivedCleanupStatus": "completed",
+      "backupCleanupStatus": "completed",
+      "rowCleanupPending": 0,
+      "healthStatus": "healthy",
+      "healthCleanupPending": false,
+      "analyticsStore": "ready",
+      "atMsAfterSiteCreate": 7292,
+      "atMsAfterPolicy": -65802
+    }
+  },
+  "windowStatuses": [
+    "degraded"
+  ],
+  "probes": [
+    {
+      "tag": "in-window-post-site",
+      "status": 503,
+      "code": "SERVICE_UNAVAILABLE",
+      "ms": 22.87312600000041
+    },
+    {
+      "tag": "in-window-post-site",
+      "status": 503,
+      "code": "SERVICE_UNAVAILABLE",
+      "ms": 29.216198000000077
+    },
+    {
+      "tag": "baseline-pre-policy",
+      "status": 422,
+      "code": "QUERY_LIMIT_EXCEEDED",
+      "ms": 2647.9724769999884
+    },
+    {
+      "tag": "just-after-policy-call",
+      "status": 422,
+      "code": "QUERY_LIMIT_EXCEEDED",
+      "ms": 2102.9252479999996
+    }
+  ],
+  "windowProbes503": [
+    {
+      "tag": "in-window-post-site",
+      "status": 503,
+      "code": "SERVICE_UNAVAILABLE",
+      "ms": 22.87312600000041
+    },
+    {
+      "tag": "in-window-post-site",
+      "status": 503,
+      "code": "SERVICE_UNAVAILABLE",
+      "ms": 29.216198000000077
+    }
+  ],
+  "cleanupPortWindows": [
+    {
+      "kind": "derived",
+      "enterAtMsAfterPolicy": -72977,
+      "exitAtMsAfterPolicy": -72692,
+      "durationMs": 285,
+      "outcome": "resolved:completed=true"
+    },
+    {
+      "kind": "backup",
+      "enterAtMsAfterPolicy": -68642,
+      "exitAtMsAfterPolicy": -68641,
+      "durationMs": 1,
+      "outcome": "resolved:completed=true"
+    }
+  ],
+  "anchors": {
+    "siteCreatedAtMsAfterFirstSample": 481,
+    "installationRowAfterSiteCreate": {
+      "derived": "not_applicable",
+      "backup": "not_applicable",
+      "pending": 0
+    },
+    "installationRowAfterIngestion": {
+      "derived": "completed",
+      "backup": "completed",
+      "pending": 0
+    },
+    "installationRowBeforePolicy": {
+      "derived": "completed",
+      "backup": "completed",
+      "pending": 0
+    },
+    "installationRowAfterPolicy": {
+      "derived": "completed",
+      "backup": "completed",
+      "pending": 0
+    }
+  },
+  "ingestion": {
+    "ms": 70444,
+    "accepted": 1700,
+    "failedBatches": 13,
+    "first503": {
+      "index": 1,
+      "status": 503,
+      "atMsAfterIngestionStart": 125
+    },
+    "last503": {
+      "index": 13,
+      "status": 503,
+      "atMsAfterIngestionStart": 384
+    },
+    "firstOkAfter": {
+      "index": 14,
+      "status": 200,
+      "atMsAfterIngestionStart": 4413
+    }
+  },
+  "policy": {
+    "httpStatus": 200,
+    "returnedAtMsAfterPolicy": 128,
+    "rowAfter": {
+      "derived": "completed",
+      "backup": "completed",
+      "pending": 0
+    },
+    "cleanupInResponse": {
+      "pending": false,
+      "derived": {
+        "status": "completed",
+        "startedAt": "2026-10-16T16:03:42.134Z",
+        "completedAt": "2026-10-16T16:03:42.134Z",
+        "errorCode": null
+      },
+      "backup": {
+        "status": "completed",
+        "startedAt": "2026-10-16T16:03:46.568Z",
+        "completedAt": "2026-10-16T16:03:46.568Z",
+        "errorCode": null
+      }
+    }
+  },
+  "finalInstallationRow": {
+    "derived": "completed",
+    "backup": "completed",
+    "pending": 0
+  },
+  "consoleAdmissionUnavailableStacks": 2,
+  "consoleIngestionLeaseStacks": 13
+}

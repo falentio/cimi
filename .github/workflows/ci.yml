@@ -37,6 +37,11 @@ jobs:
       - name: API E2E
         run: vp run --filter ./apps/api test:e2e:ci
 
+      - name: API E2E acceptance volume
+        # The task runner does not forward its caller's environment, so the window is set on the
+        # command itself. This is the 27,000-event shape acceptance criteria 2 and 3 are about.
+        run: CIMI_DEMO_SEED_HISTORY_DAYS=90 vp test run apps/api/e2e/demo-seed-projection.e2e.test.ts --pool forks --no-file-parallelism --maxWorkers=1
+
       - name: Check for leaked API E2E roots
         if: always()
         run: |

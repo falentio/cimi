@@ -117,7 +117,14 @@ export class AcceptanceRetentionCleanup implements RetentionCleanupPort {
       })
     }
 
-    if (needsProfileCleanup && this.analytics !== undefined && this.db !== undefined) {
+    // A rebuild projects the prepared redactions. Rebuilding with none pending takes the whole
+    // installation's analytics offline for the length of a full projection and changes nothing.
+    if (
+      needsProfileCleanup &&
+      this.analytics !== undefined &&
+      this.db !== undefined &&
+      hasPendingIdentityRedactions(this.db, input.siteId)
+    ) {
       await this.analytics.rebuild({ controlDb: this.db })
       markProfileDerivedCleanupComplete({
         db: this.db,
@@ -211,10 +218,10 @@ export class AcceptanceBackupRestoreCleanup implements BackupRestoreCleanupPort 
 
     for (const boundary of boundaries) prepareExpiredProfiles({ db: this.db, boundary, now })
 
-    if (!hasPendingIdentityRedactions(this.db) && boundaries.length === 0) return
-    await this.analytics.rebuild({ controlDb: this.db })
-
+    // The restore already rebuilt analytics from the restored control database. A second rebuild
+    // is only needed to project the redactions this drain prepared.
     if (hasPendingIdentityRedactions(this.db)) {
+      await this.analytics.rebuild({ controlDb: this.db })
       preparePendingIdentityRedactions({ db: this.db, now })
       markProfileDerivedCleanupComplete({ db: this.db, now })
     }
@@ -391,18 +398,20 @@ function prepareProfileRedaction(db: Db, profile: IdentityProfileCleanupRow, now
     .run(now.getTime(), profile.profileId)
 }
 
-export function hasPendingIdentityRedactions(db: Db): boolean {
+export function hasPendingIdentityRedactions(db: Db, siteId?: string): boolean {
+  const siteClause = siteId === undefined ? '' : ' AND r.site_id = ?'
+
   // SAFETY: better-sqlite3 returns any; row shape fixed by the static SQL selecting pending identity redaction check.
   const row = db.$client
     .prepare(
       `SELECT 1 AS pending
        FROM identity_redaction r
        JOIN identity_profile p ON p.profile_id = r.profile_id
-       WHERE r.derived_cleanup_status = 'pending'
-          OR (r.derived_cleanup_status = 'complete' AND p.status = 'deleting')
+       WHERE (r.derived_cleanup_status = 'pending'
+          OR (r.derived_cleanup_status = 'complete' AND p.status = 'deleting'))${siteClause}
        LIMIT 1`,
     )
-    .get() as { readonly pending: number } | undefined
+    .get(...(siteId === undefined ? [] : [siteId])) as { readonly pending: number } | undefined
 
   return row !== undefined
 }

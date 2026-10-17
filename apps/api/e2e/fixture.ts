@@ -5,13 +5,15 @@ import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createAuth, type Auth, type AuthUser } from '@cimi/auth/server'
 import {
+  type AnalyticsDb,
+  type AnalyticsProjectionSnapshot,
+  type AnalyticsWindowReader,
+  type Db,
   closeDb,
   createAnalyticsDb,
   createDb,
   migrateControlDb,
   schema,
-  type AnalyticsDb,
-  type Db,
 } from '@cimi/db'
 import { eq } from 'drizzle-orm'
 import { isStringValue, generateId, isRecord } from '@cimi/utils'
@@ -140,6 +142,9 @@ export type ApiE2eRouter = Pick<
 
 export interface E2eAnalyticsCapability {
   rebuild(): Promise<void>
+  ready(): Promise<boolean>
+  readProjectionSnapshot(input: { siteId: string }): Promise<AnalyticsProjectionSnapshot>
+  readWindowed<T>(work: (reader: AnalyticsWindowReader) => Promise<T>): Promise<T>
 }
 
 export interface E2eUser {
@@ -188,6 +193,7 @@ export interface DatabaseManagementFixtureOptions {
   readonly timeoutMs?: number
   readonly intervalMs?: number
   readonly startRetentionCleanupWorker?: boolean
+  readonly demoSeedHistoryDays?: number | undefined
   readonly retentionCleanupIntervalMs?: number
   readonly backupLeaseAcquisitionTimeoutMs?: number
   readonly migrationsFolder?: string | undefined
@@ -345,6 +351,9 @@ export async function createApiE2eFixture(
         controlDatabasePath: paths.controlDatabasePath,
         dataDirectoryPath: paths.dataDirectoryPath,
         startRetentionCleanupWorker: options.startRetentionCleanupWorker ?? false,
+        ...(options.demoSeedHistoryDays !== undefined && {
+          demoSeedHistoryDays: options.demoSeedHistoryDays,
+        }),
         retentionCleanupIntervalMs: options.retentionCleanupIntervalMs,
         ...(options.backupLeaseAcquisitionTimeoutMs !== undefined && {
           backupLeaseAcquisitionTimeoutMs: options.backupLeaseAcquisitionTimeoutMs,
@@ -934,6 +943,15 @@ export async function createApiE2eFixture(
       async rebuild() {
         const generation = requireOpenForMutation()
         await generation.analytics.rebuild({ controlDb: generation.db })
+      },
+      ready() {
+        return requireGeneration().analytics.ready()
+      },
+      readProjectionSnapshot(input) {
+        return requireGeneration().analytics.readProjectionSnapshot(input)
+      },
+      readWindowed(work) {
+        return requireGeneration().analytics.readWindowed(work)
       },
     },
     async createUser(email, name) {

@@ -11,11 +11,23 @@ import type {
   LifecycleOperationStatusReader,
   PersistedLifecycleOperationKind,
 } from '@cimi/kernel'
+import { reportLogEvent } from '@cimi/logging'
 import { canonicalizeHostname, generateId } from '@cimi/utils'
 import { ORPCError } from '@orpc/server'
 import type { InferOutput } from 'valibot'
 import type { SiteRepository } from './repository.ts'
 import type { OrganizationMembershipReconciler } from '../organization/service.ts'
+
+const DEMO_SITE_NAME = 'Demo Site'
+
+/** Each organization's demo site advertises its own hostname, so two demo sites never claim one. */
+function demoSiteHostname(organizationId: string): string {
+  return 'demo-' + organizationId.replaceAll('_', '-') + '.example.com'
+}
+
+export interface DemoSiteInput {
+  readonly organizationId: string
+}
 
 export interface SiteServiceDependencies {
   repository: SiteRepository
@@ -99,6 +111,33 @@ export class SiteService {
       missingCode: 'NOT_FOUND',
     })
 
+    return this.insertSite({
+      organizationId: input.organizationId,
+      name: input.name,
+      hostname: input.hostname,
+    })
+  }
+
+  /**
+   * Seeding runs behind the request, where there is no user and no headers, so the demo site is
+   * written through the repository without the membership reconcile and role assertions the
+   * request path owes.
+   */
+  async createDemoSite({ organizationId }: DemoSiteInput): Promise<{ readonly siteId: string }> {
+    const site = await this.insertSite({
+      organizationId,
+      name: DEMO_SITE_NAME,
+      hostname: demoSiteHostname(organizationId),
+    })
+
+    return { siteId: site.id }
+  }
+
+  private async insertSite(input: {
+    organizationId: string
+    name: string
+    hostname: string
+  }): Promise<SiteRepository.Site> {
     try {
       return await this.repository.insert({
         id: generateId('ste'),
@@ -113,8 +152,94 @@ export class SiteService {
       })
     } catch (error) {
       if (isConstraintError(error)) throw new ORPCError('CONFLICT', { status: 409 })
+
       throw error
     }
+  }
+  /**
+   * A seed that fails after the site insert takes its own site back. The request path cannot own
+   * this: seeding runs behind the request with no user and no headers, and the site still has to
+   * go, or the personal organization keeps a site row it can never be deleted through.
+   */
+  async releaseDemoSite({
+    siteId,
+    onPurgedSite,
+  }: {
+    readonly siteId: string
+    readonly onPurgedSite?: ((input: { siteId: string; now: Date }) => Promise<void>) | undefined
+  }): Promise<void> {
+    const requestedAt = new Date()
+
+    await this.withLifecycleLease('site_deletion', async () => {
+      const begun = await this.repository.beginDelete({
+        siteId,
+        operationId: generateId('sop'),
+        requestedAt,
+      })
+
+      if (begun.status !== 'accepted') {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-delete',
+          status: begun.status === 'conflict' ? begun.currentStatus : begun.status,
+        })
+
+        return
+      }
+
+      const completed = await this.repository.completeDelete({
+        siteId,
+        operationId: begun.operationId,
+        completedAt: requestedAt,
+      })
+
+      if (completed.status !== 'completed') {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-delete',
+          status: completed.status === 'conflict' ? completed.currentStatus : completed.status,
+        })
+
+        return
+      }
+
+      const deletion = await this.repository.getDeletionStatus(siteId)
+
+      // Nobody has seen this site, so it does not wait out the recovery window the request path owes.
+      if (deletion === undefined || deletion.purgeAt === null) {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-purge',
+          status: deletion?.status ?? 'missing',
+        })
+
+        return
+      }
+
+      const purgedAt = new Date()
+
+      const purged = await this.repository.purge({
+        siteId,
+        operationId: generateId('sop'),
+        requestedAt: purgedAt,
+        unseen: true,
+      })
+
+      if (purged.status !== 'completed') {
+        reportDemoReleaseStop({
+          siteId,
+          stage: 'site-purge',
+          status: purged.status === 'conflict' ? purged.currentStatus : purged.status,
+        })
+
+        return
+      }
+
+      // The lifecycle worker cannot reach this site: its purge candidate scan reads the control
+      // store, and the repository purge already removed the site row, so nothing would call the
+      // projection purge the worker normally fires on a purge it owns.
+      await onPurgedSite?.({ siteId, now: purgedAt })
+    })
   }
 
   async update(
@@ -175,7 +300,6 @@ export class SiteService {
       return { accepted: true, status: 'deleting', operationId: result.operationId }
     })
   }
-
   async recover(
     input: InferOutput<typeof schema.SSiteRecoverInput>,
     user: Pick<AuthUser, 'id'>,
@@ -284,6 +408,21 @@ function toPublicSite(site: SiteRepository.SiteRecord): SiteRepository.Site {
     createdAt: site.createdAt,
     updatedAt: site.updatedAt,
   }
+}
+
+function reportDemoReleaseStop(input: {
+  readonly siteId: string
+  readonly stage: 'site-delete' | 'site-purge'
+  readonly status: string
+}): void {
+  reportLogEvent({
+    kind: 'operation.failure',
+    operation: 'site.lifecycle',
+    stage: input.stage,
+    siteId: input.siteId,
+    siteStatus: input.status,
+    error: new Error('Demo site release stopped'),
+  })
 }
 
 function isConstraintError(cause: unknown): cause is Error {

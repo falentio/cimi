@@ -1,0 +1,82 @@
+{
+  "startedAt": "2026-10-16T10:28:02.951Z",
+  "on": {
+    "runs": 5,
+    "values": [
+      30,
+      36,
+      33,
+      33,
+      36
+    ],
+    "median": 33,
+    "min": 30,
+    "max": 36
+  },
+  "off": {
+    "runs": 5,
+    "values": [
+      60,
+      41,
+      33,
+      37,
+      34
+    ],
+    "median": 37,
+    "min": 33,
+    "max": 60
+  },
+  "deltaMedianMs": -4,
+  "pairs": [
+    {
+      "run": 1,
+      "on": 30,
+      "off": 60,
+      "order": "plain-first",
+      "siteCreatedAfterResponseMs": null,
+      "seededAccepted": 26639,
+      "seededMaxSequence": 26639,
+      "seedCompleteMs": 13979
+    },
+    {
+      "run": 2,
+      "on": 36,
+      "off": 60,
+      "order": "seeded-first",
+      "siteCreatedAfterResponseMs": null,
+      "seededAccepted": 26922,
+      "seededMaxSequence": 26922,
+      "seedCompleteMs": 13020
+    },
+    {
+      "run": 3,
+      "on": 33,
+      "off": 33,
+      "order": "plain-first",
+      "siteCreatedAfterResponseMs": null,
+      "seededAccepted": 27385,
+      "seededMaxSequence": 27385,
+      "seedCompleteMs": 13376
+    },
+    {
+      "run": 4,
+      "on": 33,
+      "off": 33,
+      "order": "seeded-first",
+      "siteCreatedAfterResponseMs": null,
+      "seededAccepted": 27792,
+      "seededMaxSequence": 27792,
+      "seedCompleteMs": 14063
+    },
+    {
+      "run": 5,
+      "on": 36,
+      "off": 34,
+      "order": "plain-first",
+      "siteCreatedAfterResponseMs": null,
+      "seededAccepted": 27157,
+      "seededMaxSequence": 27157,
+      "seedCompleteMs": 15236
+    }
+  ]
+}

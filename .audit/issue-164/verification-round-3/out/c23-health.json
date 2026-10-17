@@ -1,0 +1,1129 @@
+{
+  "startedAt": "2026-10-16T14:29:36.574Z",
+  "siteId": "ste_kedhfxnbpv4v4ao25apkduroeq",
+  "ensure": {
+    "status": 200,
+    "ms": 43
+  },
+  "seed": {
+    "wallMs": 26360,
+    "accepted": 26914,
+    "duplicates": 0,
+    "occurrenceSpanDays": 89.96099993055556
+  },
+  "readiness": {
+    "samples": 222,
+    "falseSamples": 0,
+    "falseInsideAppend": 0,
+    "maxProbeMs": 12030.023908,
+    "probeErrors": [],
+    "finalReady": true
+  },
+  "appendWindows": [
+    {
+      "startOffsetMs": 12005,
+      "endOffsetMs": 20663,
+      "outcome": "resolved"
+    }
+  ],
+  "rebuildWindows": [],
+  "consoleErrors": [
+    "{\"@timestamp\":\"2026-10-16T14:29:49.345Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"47ee75f1-a054-49b8-8e48-959ac789c2ec\",\"method\":\"GET\",\"path\":\"/api/traffic-report/getTrafficOverview\",\"schemaVersion\":1,\"procedure\":\"trafficReport.getTrafficOverview\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"The service is temporarily unavailable.\",\"stack\":\"Error: The service is temporarily unavailable.     at admissionUnavailable (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:413:10)     at __vite_ssr_import_2__.OpenAPIHandler.clientInterceptors (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:108:60)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}"
+  ],
+  "midSeedQueries": [
+    {
+      "attempt": 1,
+      "atMsAfterSeedStart": 12443,
+      "appendOpenBefore": true,
+      "appendOpenAfter": true,
+      "acceptedAtQuery": 26914,
+      "checkpointReadiness": "ready",
+      "healthBefore": {
+        "httpStatus": 200,
+        "status": "degraded",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": true,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:49.307Z"
+      },
+      "healthAfter": {
+        "httpStatus": 200,
+        "status": "degraded",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": true,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:49.363Z"
+      },
+      "readyNow": true,
+      "status": 503,
+      "ms": 47.02509099999952,
+      "body": "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+    },
+    {
+      "attempt": 2,
+      "atMsAfterSeedStart": 15231,
+      "appendOpenBefore": true,
+      "appendOpenAfter": true,
+      "acceptedAtQuery": 26914,
+      "checkpointReadiness": "ready",
+      "healthBefore": {
+        "httpStatus": 200,
+        "status": "healthy",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": false,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:49.957Z"
+      },
+      "healthAfter": {
+        "httpStatus": 200,
+        "status": "healthy",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": false,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:52.150Z"
+      },
+      "readyNow": true,
+      "status": 200,
+      "ms": 2086.2172820000014,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1092,\"sessions\":1715,\"eligibleSessions\":1715,\"sessionsWithValidDuration\":1328,\"pageviews\":1978,\"bounceRate\":0.22565597667638485,\"pagesPerSessi"
+    },
+    {
+      "attempt": 3,
+      "atMsAfterSeedStart": 17675,
+      "appendOpenBefore": true,
+      "appendOpenAfter": true,
+      "acceptedAtQuery": 26914,
+      "checkpointReadiness": "ready",
+      "healthBefore": {
+        "httpStatus": 200,
+        "status": "healthy",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": false,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:52.476Z"
+      },
+      "healthAfter": {
+        "httpStatus": 200,
+        "status": "healthy",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": false,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:54.594Z"
+      },
+      "readyNow": true,
+      "status": 200,
+      "ms": 2012.7131050000025,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1488,\"sessions\":2993,\"eligibleSessions\":2993,\"sessionsWithValidDuration\":2320,\"pageviews\":3456,\"bounceRate\":0.2248580020046776,\"pagesPerSessio"
+    },
+    {
+      "attempt": 4,
+      "atMsAfterSeedStart": 20446,
+      "appendOpenBefore": true,
+      "appendOpenAfter": true,
+      "acceptedAtQuery": 26914,
+      "checkpointReadiness": "ready",
+      "healthBefore": {
+        "httpStatus": 200,
+        "status": "healthy",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": false,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:54.921Z"
+      },
+      "healthAfter": {
+        "httpStatus": 200,
+        "status": "healthy",
+        "controlStore": "ready",
+        "analyticsStore": "ready",
+        "cleanupPending": false,
+        "ingestion": {
+          "queueDepth": 0,
+          "activeBatchSize": 0,
+          "pendingQueueSize": 0,
+          "flushCount": 0,
+          "committedCandidates": 0,
+          "queueWaitMsTotal": 0,
+          "commitLatencyMsTotal": 0,
+          "responseLatencyMsTotal": 0,
+          "responseCount": 0,
+          "saturationCount": 0,
+          "failureCount": 0,
+          "lastSafeSequence": 0,
+          "walBytes": 51034472
+        },
+        "version": "0.0.1",
+        "checkedAt": "2026-10-16T14:29:57.366Z"
+      },
+      "readyNow": true,
+      "status": 200,
+      "ms": 2326.839919000002,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1746,\"sessions\":4316,\"eligibleSessions\":4316,\"sessionsWithValidDuration\":3353,\"pageviews\":4975,\"bounceRate\":0.2231232622798888,\"pagesPerSessio"
+    }
+  ],
+  "checkpoint": {
+    "projectedAcceptanceSequence": 26914,
+    "projectedFactCardinality": 26914,
+    "projectionGeneration": 12,
+    "occurrenceCoveredFrom": "2026-07-18T14:46:50.441Z",
+    "occurrenceCoveredThrough": "2026-10-16T13:50:40.835Z",
+    "statisticsRefreshedAt": "2026-10-16T21:29:57.353Z",
+    "readiness": "ready"
+  },
+  "factCardinality": 26914,
+  "openGaps": 0,
+  "duck": {
+    "events": 26914,
+    "duplicateEventIdGroups": 0,
+    "gaps": 0
+  },
+  "boundary": {
+    "event_occurrence": 1760572800000,
+    "profile_activity": 1760572800000,
+    "replay_receipt": null
+  },
+  "trafficQuery": {
+    "status": 200,
+    "ms": 2609.512488999997,
+    "trendLength": 90,
+    "completeBuckets": 89,
+    "body": {
+      "fromDate": "2026-07-19",
+      "toDate": "2026-10-16",
+      "visitors": 1798,
+      "sessions": 4607,
+      "eligibleSessions": 4607,
+      "sessionsWithValidDuration": 3576,
+      "pageviews": 5328,
+      "bounceRate": 0.2237898849576731,
+      "pagesPerSession": 1.1565009767744736,
+      "averageSessionDurationSeconds": 460.26953551454136,
+      "trend": [
+        {
+          "at": "2026-07-19T00:00:00.000Z",
+          "value": 50,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-20T00:00:00.000Z",
+          "value": 60,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-21T00:00:00.000Z",
+          "value": 20,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-22T00:00:00.000Z",
+          "value": 18,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-23T00:00:00.000Z",
+          "value": 23,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-24T00:00:00.000Z",
+          "value": 44,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-25T00:00:00.000Z",
+          "value": 31,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-26T00:00:00.000Z",
+          "value": 58,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-27T00:00:00.000Z",
+          "value": 32,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-28T00:00:00.000Z",
+          "value": 51,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-29T00:00:00.000Z",
+          "value": 19,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-30T00:00:00.000Z",
+          "value": 27,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-07-31T00:00:00.000Z",
+          "value": 47,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-01T00:00:00.000Z",
+          "value": 61,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-02T00:00:00.000Z",
+          "value": 33,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-03T00:00:00.000Z",
+          "value": 81,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-04T00:00:00.000Z",
+          "value": 72,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-05T00:00:00.000Z",
+          "value": 70,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-06T00:00:00.000Z",
+          "value": 81,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-07T00:00:00.000Z",
+          "value": 89,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-08T00:00:00.000Z",
+          "value": 60,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-09T00:00:00.000Z",
+          "value": 71,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-10T00:00:00.000Z",
+          "value": 17,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-11T00:00:00.000Z",
+          "value": 53,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-12T00:00:00.000Z",
+          "value": 84,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-13T00:00:00.000Z",
+          "value": 78,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-14T00:00:00.000Z",
+          "value": 41,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-15T00:00:00.000Z",
+          "value": 41,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-16T00:00:00.000Z",
+          "value": 84,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-17T00:00:00.000Z",
+          "value": 61,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-18T00:00:00.000Z",
+          "value": 27,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-19T00:00:00.000Z",
+          "value": 66,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-20T00:00:00.000Z",
+          "value": 25,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-21T00:00:00.000Z",
+          "value": 22,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-22T00:00:00.000Z",
+          "value": 41,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-23T00:00:00.000Z",
+          "value": 47,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-24T00:00:00.000Z",
+          "value": 83,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-25T00:00:00.000Z",
+          "value": 66,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-26T00:00:00.000Z",
+          "value": 70,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-27T00:00:00.000Z",
+          "value": 42,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-28T00:00:00.000Z",
+          "value": 18,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-29T00:00:00.000Z",
+          "value": 22,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-30T00:00:00.000Z",
+          "value": 75,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-08-31T00:00:00.000Z",
+          "value": 26,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-01T00:00:00.000Z",
+          "value": 70,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-02T00:00:00.000Z",
+          "value": 57,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-03T00:00:00.000Z",
+          "value": 42,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-04T00:00:00.000Z",
+          "value": 52,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-05T00:00:00.000Z",
+          "value": 84,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-06T00:00:00.000Z",
+          "value": 30,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-07T00:00:00.000Z",
+          "value": 36,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-08T00:00:00.000Z",
+          "value": 27,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-09T00:00:00.000Z",
+          "value": 60,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-10T00:00:00.000Z",
+          "value": 32,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-11T00:00:00.000Z",
+          "value": 52,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-12T00:00:00.000Z",
+          "value": 27,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-13T00:00:00.000Z",
+          "value": 53,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-14T00:00:00.000Z",
+          "value": 79,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-15T00:00:00.000Z",
+          "value": 33,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-16T00:00:00.000Z",
+          "value": 21,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-17T00:00:00.000Z",
+          "value": 50,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-18T00:00:00.000Z",
+          "value": 79,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-19T00:00:00.000Z",
+          "value": 80,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-20T00:00:00.000Z",
+          "value": 25,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-21T00:00:00.000Z",
+          "value": 65,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-22T00:00:00.000Z",
+          "value": 55,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-23T00:00:00.000Z",
+          "value": 48,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-24T00:00:00.000Z",
+          "value": 43,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-25T00:00:00.000Z",
+          "value": 20,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-26T00:00:00.000Z",
+          "value": 29,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-27T00:00:00.000Z",
+          "value": 68,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-28T00:00:00.000Z",
+          "value": 75,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-29T00:00:00.000Z",
+          "value": 74,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-09-30T00:00:00.000Z",
+          "value": 25,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-01T00:00:00.000Z",
+          "value": 25,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-02T00:00:00.000Z",
+          "value": 64,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-03T00:00:00.000Z",
+          "value": 22,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-04T00:00:00.000Z",
+          "value": 21,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-05T00:00:00.000Z",
+          "value": 70,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-06T00:00:00.000Z",
+          "value": 40,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-07T00:00:00.000Z",
+          "value": 63,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-08T00:00:00.000Z",
+          "value": 54,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-09T00:00:00.000Z",
+          "value": 76,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-10T00:00:00.000Z",
+          "value": 72,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-11T00:00:00.000Z",
+          "value": 17,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-12T00:00:00.000Z",
+          "value": 80,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-13T00:00:00.000Z",
+          "value": 60,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-14T00:00:00.000Z",
+          "value": 74,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-15T00:00:00.000Z",
+          "value": 22,
+          "complete": true,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        },
+        {
+          "at": "2026-10-16T00:00:00.000Z",
+          "value": 29,
+          "complete": false,
+          "metric": "visitors",
+          "grain": "visitor",
+          "unit": "count",
+          "denominator": null
+        }
+      ],
+      "projectedAcceptanceSequence": 26914,
+      "occurrenceTimeCoverageThrough": "2026-10-16T13:50:40.835Z",
+      "status": "stale"
+    }
+  }
+}

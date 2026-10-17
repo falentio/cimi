@@ -1,0 +1,740 @@
+{
+ "startedAt": "2026-10-16T16:03:41.642Z",
+ "configuration": {
+  "demoSeed": false,
+  "ensurePersonalOrganization": false,
+  "retentionCleanupIntervalMs": 250,
+  "sampleIntervalMs": 20,
+  "maxRunMs": 60000,
+  "requestedEvents": 3000
+ },
+ "ids": {
+  "organizationId": "org_kedcnx5iai55ncmdkjqqlb6nyi",
+  "siteId": "ste_kedluiiy5ceezdqvesuineoceu",
+  "ownerUserId": "0LUeZPFxcxxC81rHV54broxXaEE3w8nr"
+ },
+ "ingestion": {
+  "ms": 70444,
+  "batches": 30,
+  "nonOkStatuses": [
+   503,
+   503,
+   503,
+   503,
+   503,
+   503,
+   503,
+   503,
+   503,
+   503,
+   503,
+   503,
+   503
+  ],
+  "errorBodies": [
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}",
+   "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+  ],
+  "batchTimeline": [
+   {
+    "index": 1,
+    "status": 503,
+    "atMsAfterIngestionStart": 125
+   },
+   {
+    "index": 2,
+    "status": 503,
+    "atMsAfterIngestionStart": 140
+   },
+   {
+    "index": 3,
+    "status": 503,
+    "atMsAfterIngestionStart": 158
+   },
+   {
+    "index": 4,
+    "status": 503,
+    "atMsAfterIngestionStart": 180
+   },
+   {
+    "index": 5,
+    "status": 503,
+    "atMsAfterIngestionStart": 197
+   },
+   {
+    "index": 6,
+    "status": 503,
+    "atMsAfterIngestionStart": 248
+   },
+   {
+    "index": 7,
+    "status": 503,
+    "atMsAfterIngestionStart": 277
+   },
+   {
+    "index": 8,
+    "status": 503,
+    "atMsAfterIngestionStart": 297
+   },
+   {
+    "index": 9,
+    "status": 503,
+    "atMsAfterIngestionStart": 313
+   },
+   {
+    "index": 10,
+    "status": 503,
+    "atMsAfterIngestionStart": 331
+   },
+   {
+    "index": 11,
+    "status": 503,
+    "atMsAfterIngestionStart": 349
+   },
+   {
+    "index": 12,
+    "status": 503,
+    "atMsAfterIngestionStart": 370
+   },
+   {
+    "index": 13,
+    "status": 503,
+    "atMsAfterIngestionStart": 384
+   },
+   {
+    "index": 14,
+    "status": 200,
+    "atMsAfterIngestionStart": 4413
+   },
+   {
+    "index": 15,
+    "status": 200,
+    "atMsAfterIngestionStart": 8302
+   },
+   {
+    "index": 16,
+    "status": 200,
+    "atMsAfterIngestionStart": 12306
+   },
+   {
+    "index": 17,
+    "status": 200,
+    "atMsAfterIngestionStart": 16189
+   },
+   {
+    "index": 18,
+    "status": 200,
+    "atMsAfterIngestionStart": 20098
+   },
+   {
+    "index": 19,
+    "status": 200,
+    "atMsAfterIngestionStart": 24084
+   },
+   {
+    "index": 20,
+    "status": 200,
+    "atMsAfterIngestionStart": 28116
+   },
+   {
+    "index": 21,
+    "status": 200,
+    "atMsAfterIngestionStart": 32341
+   },
+   {
+    "index": 22,
+    "status": 200,
+    "atMsAfterIngestionStart": 36529
+   },
+   {
+    "index": 23,
+    "status": 200,
+    "atMsAfterIngestionStart": 40782
+   },
+   {
+    "index": 24,
+    "status": 200,
+    "atMsAfterIngestionStart": 44832
+   },
+   {
+    "index": 25,
+    "status": 200,
+    "atMsAfterIngestionStart": 49341
+   },
+   {
+    "index": 26,
+    "status": 200,
+    "atMsAfterIngestionStart": 53649
+   },
+   {
+    "index": 27,
+    "status": 200,
+    "atMsAfterIngestionStart": 57791
+   },
+   {
+    "index": 28,
+    "status": 200,
+    "atMsAfterIngestionStart": 62016
+   },
+   {
+    "index": 29,
+    "status": 200,
+    "atMsAfterIngestionStart": 66157
+   },
+   {
+    "index": 30,
+    "status": 200,
+    "atMsAfterIngestionStart": 70444
+   }
+  ],
+  "acceptedCount": 1700
+ },
+ "policy": {
+  "request": {
+   "scope": "installation",
+   "policy": {
+    "eventMonths": 12,
+    "profileMonths": 12,
+    "replayMonths": null
+   }
+  },
+  "issuedAtMsAfterPolicy": 0,
+  "returnedAtMsAfterPolicy": 128,
+  "httpStatus": 200,
+  "responseBody": "{\"scope\":\"installation\",\"installationDefault\":{\"eventMonths\":12,\"profileMonths\":12,\"replayMonths\":null},\"siteOverride\":null,\"effectivePolicy\":{\"eventMonths\":12,\"profileMonths\":12,\"replayMonths\":null},\"cleanup\":{\"pending\":false,\"derived\":{\"status\":\"completed\",\"startedAt\":\"2026-10-16T16:03:42.134Z\",\"completedAt\":\"2026-10-16T16:03:42.134Z\",\"errorCode\":null},\"backup\":{\"status\":\"completed\",\"startedAt\":\"2026-10-16T16:03:46.568Z\",\"completedAt\":\"2026-10-16T16:03:46.568Z\",\"errorCode\":null}},\"updatedAt\":\"2026-10-16T16:04:55.234Z\"}",
+  "installationRowBeforePolicy": {
+   "derived": "completed",
+   "backup": "completed",
+   "pending": 0
+  },
+  "installationRowAfterPolicy": {
+   "derived": "completed",
+   "backup": "completed",
+   "pending": 0
+  },
+  "healthSampleBeforePolicy": {
+   "at": 1792166695152,
+   "phase": "pre-policy",
+   "httpStatus": 200,
+   "status": "healthy",
+   "cleanupPending": false,
+   "analyticsStore": "ready",
+   "controlStore": "ready",
+   "derivedCleanupStatus": "completed",
+   "backupCleanupStatus": "completed",
+   "rowCleanupPending": 0
+  }
+ },
+ "anchors": {
+  "siteCreatedAtMsAfterFirstSample": 481,
+  "installationRowAfterSiteCreate": {
+   "derived": "not_applicable",
+   "backup": "not_applicable",
+   "pending": 0
+  },
+  "installationRowAfterIngestion": {
+   "derived": "completed",
+   "backup": "completed",
+   "pending": 0
+  },
+  "installationRowBeforePolicy": {
+   "derived": "completed",
+   "backup": "completed",
+   "pending": 0
+  },
+  "installationRowAfterPolicy": {
+   "derived": "completed",
+   "backup": "completed",
+   "pending": 0
+  }
+ },
+ "sampling": {
+  "sampleCount": 2084,
+  "sampleIntervalMs": 20,
+  "cleanupPendingWithAnalyticsReadySamples": 33,
+  "siteCreationWindow": {
+   "samples": [
+    {
+     "atMsAfterSiteCreate": 153,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "running",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 216,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "running",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 318,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "running",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 358,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "running",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 398,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3445,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3477,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3508,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3542,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3575,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3609,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3641,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3675,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3710,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3742,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3776,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3809,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3842,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3875,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3909,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3941,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 3973,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4005,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4038,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4070,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4103,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4135,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4167,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4198,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4231,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4263,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4296,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "pending",
+     "rowCleanupPending": 1
+    },
+    {
+     "atMsAfterSiteCreate": 4329,
+     "httpStatus": 200,
+     "status": "degraded",
+     "cleanupPending": true,
+     "analyticsStore": "ready",
+     "derivedCleanupStatus": "completed",
+     "backupCleanupStatus": "completed",
+     "rowCleanupPending": 0
+    }
+   ],
+   "statuses": [
+    "degraded"
+   ],
+   "analyticsStores": [
+    "ready"
+   ],
+   "stages": {
+    "derived-running": 4,
+    "backup-pending": 28,
+    "row-not-pending-lagging-health": 1
+   },
+   "startAtMsAfterSiteCreate": 153,
+   "endAtMsAfterSiteCreate": 7292,
+   "durationMs": 7139,
+   "rowAtStart": {
+    "derivedCleanupStatus": "running",
+    "backupCleanupStatus": "pending",
+    "rowCleanupPending": 1,
+    "healthStatus": "degraded",
+    "healthCleanupPending": true,
+    "analyticsStore": "ready",
+    "atMsAfterSiteCreate": 153,
+    "atMsAfterPolicy": -72941
+   },
+   "rowAtEnd": {
+    "derivedCleanupStatus": "completed",
+    "backupCleanupStatus": "completed",
+    "rowCleanupPending": 0,
+    "healthStatus": "healthy",
+    "healthCleanupPending": false,
+    "analyticsStore": "ready",
+    "atMsAfterSiteCreate": 7292,
+    "atMsAfterPolicy": -65802
+   }
+  },
+  "policyWindow": {
+   "samples": 0,
+   "statuses": [],
+   "startAtMsAfterPolicy": null,
+   "endAtMsAfterPolicy": null
+  },
+  "postPolicySamples": 1622,
+  "derivedCleanupRunningSamples": 5,
+  "samples": "elided: 2084 samples at 20 ms; see normal-site-window-derived.json"
+ },
+ "probes": [
+  {
+   "tag": "in-window-post-site",
+   "phase": "post-site",
+   "at": 1792166622318,
+   "msAfterPolicy": null,
+   "status": 503,
+   "ms": 22.87312600000041,
+   "code": "SERVICE_UNAVAILABLE",
+   "body": "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+  },
+  {
+   "tag": "in-window-post-site",
+   "phase": "post-site",
+   "at": 1792166622417,
+   "msAfterPolicy": null,
+   "status": 503,
+   "ms": 29.216198000000077,
+   "code": "SERVICE_UNAVAILABLE",
+   "body": "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+  },
+  {
+   "tag": "baseline-pre-policy",
+   "phase": "pre-policy",
+   "at": 1792166695217,
+   "msAfterPolicy": null,
+   "status": 422,
+   "ms": 2647.9724769999884,
+   "code": "QUERY_LIMIT_EXCEEDED",
+   "body": "{\"defined\":true,\"code\":\"QUERY_LIMIT_EXCEEDED\",\"status\":422,\"message\":\"The requested query exceeds the available data or work budget.\"}"
+  },
+  {
+   "tag": "just-after-policy-call",
+   "phase": "post-policy",
+   "at": 1792166697448,
+   "msAfterPolicy": 2231,
+   "status": 422,
+   "ms": 2102.9252479999996,
+   "code": "QUERY_LIMIT_EXCEEDED",
+   "body": "{\"defined\":true,\"code\":\"QUERY_LIMIT_EXCEEDED\",\"status\":422,\"message\":\"The requested query exceeds the available data or work budget.\"}"
+  }
+ ],
+ "probe503Count": 2,
+ "cleanupPortWindows": [
+  {
+   "kind": "derived",
+   "enterAtMsAfterPolicy": -72977,
+   "exitAtMsAfterPolicy": -72692,
+   "durationMs": 285,
+   "outcome": "resolved:completed=true"
+  },
+  {
+   "kind": "backup",
+   "enterAtMsAfterPolicy": -68642,
+   "exitAtMsAfterPolicy": -68641,
+   "durationMs": 1,
+   "outcome": "resolved:completed=true"
+  }
+ ],
+ "finalState": {
+  "health": {
+   "at": 1792166755194,
+   "phase": "post-policy",
+   "httpStatus": 200,
+   "status": "healthy",
+   "cleanupPending": false,
+   "analyticsStore": "ready",
+   "controlStore": "ready",
+   "derivedCleanupStatus": "completed",
+   "backupCleanupStatus": "completed",
+   "rowCleanupPending": 0
+  },
+  "installationRow": {
+   "derived": "completed",
+   "backup": "completed",
+   "pending": 0
+  },
+  "acceptedCount": 1700
+ },
+ "consoleErrors": [
+  "{\"@timestamp\":\"2026-10-16T16:03:42.248Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"e5798687-c393-4d7f-9e10-c45dd2317ff0\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.264Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"2aa2deaa-0fcc-4984-b735-7ddde9ffc1d4\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.281Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"d5628c66-2e91-45df-aa04-ab0fc764a4df\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.303Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"bfbd2aa4-b48b-468a-820b-1162f3990382\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.317Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"5fbeafed-c49a-4fba-b945-5f8e06c84954\",\"method\":\"GET\",\"path\":\"/api/traffic-report/getTrafficOverview\",\"schemaVersion\":1,\"procedure\":\"trafficReport.getTrafficOverview\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"The service is temporarily unavailable.\",\"stack\":\"Error: The service is temporarily unavailable.     at admissionUnavailable (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:413:10)     at __vite_ssr_import_2__.OpenAPIHandler.clientInterceptors (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:108:60)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.320Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"8e0aa77f-b179-414f-bf07-a42f780a2e99\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.371Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"f79e0eea-949c-4176-98f0-616984340e44\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.399Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"24a7f583-cc92-4303-8325-f9f1e61871d9\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.416Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"d51d2572-44e4-4ee3-bae4-ee9713102989\",\"method\":\"GET\",\"path\":\"/api/traffic-report/getTrafficOverview\",\"schemaVersion\":1,\"procedure\":\"trafficReport.getTrafficOverview\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"The service is temporarily unavailable.\",\"stack\":\"Error: The service is temporarily unavailable.     at admissionUnavailable (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:413:10)     at __vite_ssr_import_2__.OpenAPIHandler.clientInterceptors (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:108:60)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.420Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"ad6b05f2-cd29-4c17-b483-83400cfa5423\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.436Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"8806024b-3060-4b77-a920-e33bdab35a4c\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.454Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"52d7a3b6-b215-4225-8f0d-4420981c1a11\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.472Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"63dd610a-1531-4f1c-bada-10e6c9e3c499\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.493Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"fc7755b1-488a-48d4-87f8-c8f0b6ea7a96\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}",
+  "{\"@timestamp\":\"2026-10-16T16:03:42.507Z\",\"level\":\"ERROR\",\"message\":\"API request failed\",\"logger\":\"cimi.api\",\"properties\":{\"requestId\":\"ece8ef12-0a7e-464c-bc73-2b249a0b454f\",\"method\":\"POST\",\"path\":\"/api/event-ingestion/collectEvents\",\"schemaVersion\":1,\"procedure\":\"eventIngestion.collectEvents\",\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"error\":{\"name\":\"Error\",\"message\":\"Service Unavailable\",\"stack\":\"Error: Service Unavailable     at EventIngestionService.withAdmissionLease (/home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/resources/event-ingestion/service.ts:685:13)     at next (file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:229:9)     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:85:18     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.DEBcqOjg.mjs:111:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:82:34     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+openapi@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/openapi/dist/plugins/index.mjs:107:19     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+shared@1.15.0/node_modules/@orpc/shared/dist/index.mjs:490:14     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/shared/server.CMf4nKky.mjs:47:22     at file:///home/kevin/Repositories/cimi/.worktrees/verify-issue-164/node_modules/.pnpm/@orpc+server@1.15.0_crossws@0.3.5_ws@8.21.3/node_modules/@orpc/server/dist/adapters/fetch/index.mjs:156:24     at /home/kevin/Repositories/cimi/.worktrees/verify-issue-164/apps/api/src/http-app.ts:274:35\"}}}"
+ ]
+}

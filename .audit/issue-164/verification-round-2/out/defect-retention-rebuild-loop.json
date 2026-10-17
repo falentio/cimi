@@ -1,0 +1,81 @@
+{
+  "startedAt": "2026-10-16T10:36:07.758Z",
+  "firstSite": {
+    "siteId": "ste_kedp4oesrbtdhklmbgyy72cahy",
+    "accepted": 27509,
+    "maxSequence": 27509,
+    "duckEvents": 27509,
+    "readiness": "ready",
+    "checkpointSequence": 27509,
+    "checkpointCardinality": 27509,
+    "liveFactCardinality": 27509,
+    "converged": true
+  },
+  "secondSiteId": "ste_kedp4oesrbtdhklmbgyy72cahy",
+  "secondProjectionReady": true,
+  "secondState": {
+    "siteId": "ste_kedp4oesrbtdhklmbgyy72cahy",
+    "accepted": 27509,
+    "maxSequence": 27509,
+    "duckEvents": 27509,
+    "readiness": "ready",
+    "checkpointSequence": 27509,
+    "checkpointCardinality": 27509,
+    "liveFactCardinality": 27509,
+    "converged": true
+  },
+  "totalAccepted": 54999,
+  "totalDuckEvents": 45009,
+  "loop": {
+    "rejectedAttempts": 6,
+    "totalAttempts": 9,
+    "distinctMessages": [
+      "too many SQL variables"
+    ],
+    "firstRejectedAt": "2026-10-16T10:36:38.618Z",
+    "lastRejectedAt": "2026-10-16T10:36:47.455Z",
+    "attemptDurationMs": [
+      1476,
+      1536,
+      1494
+    ]
+  },
+  "readiness": {
+    "samples": 68,
+    "falseSamples": 46,
+    "samplesDuringLoop": 32,
+    "falseDuringLoop": 26,
+    "falseFractionDuringLoop": 0.8125
+  },
+  "reads": [
+    {
+      "rebuildOpen": true,
+      "readyNow": false,
+      "status": 503,
+      "body": "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+    },
+    {
+      "rebuildOpen": true,
+      "readyNow": false,
+      "status": 503,
+      "body": "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+    },
+    {
+      "rebuildOpen": true,
+      "readyNow": false,
+      "status": 503,
+      "body": "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+    },
+    {
+      "rebuildOpen": true,
+      "readyNow": false,
+      "status": 503,
+      "body": "{\"defined\":true,\"code\":\"SERVICE_UNAVAILABLE\",\"status\":503,\"message\":\"The service is temporarily unavailable.\"}"
+    }
+  ],
+  "health": {
+    "status": 404,
+    "body": "Not Found"
+  },
+  "sawFailure": true
+}

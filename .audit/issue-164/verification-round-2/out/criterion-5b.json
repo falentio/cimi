@@ -1,0 +1,54 @@
+{
+  "startedAt": "2026-10-16T10:05:32.045Z",
+  "marks": {
+    "appendCalls": 2,
+    "purgeCalls": 0,
+    "failedAfterProjection": true
+  },
+  "interrupted": false,
+  "afterInterruption": {
+    "controlSites": 1,
+    "controlAccepted": 27603,
+    "lingeringDuckDbSites": [
+      {
+        "siteId": "ste_kedb432yr5vkzrypcehrp6xoty",
+        "events": 27603
+      }
+    ]
+  },
+  "rerun": {
+    "converged": false,
+    "accepted": 27079,
+    "replaySequence": {
+      "min": 27604,
+      "max": 54682,
+      "count": 27079
+    },
+    "duplicateGroups": 0
+  },
+  "checkpoint": {
+    "projectedAcceptanceSequence": 54682,
+    "projectedFactCardinality": 27079,
+    "projectionGeneration": 11,
+    "occurrenceCoveredFrom": "2026-07-18T10:11:13.356Z",
+    "occurrenceCoveredThrough": "2026-10-16T09:46:01.147Z",
+    "statisticsRefreshedAt": "2026-10-16T17:09:04.765Z",
+    "readiness": "ready"
+  },
+  "duck": {
+    "eventsForSecond": 27079,
+    "duplicateGroups": 0,
+    "gaps": 0,
+    "checkpoints": 2
+  },
+  "traffic": {
+    "status": 503,
+    "trendLength": 0,
+    "body": {
+      "defined": true,
+      "code": "SERVICE_UNAVAILABLE",
+      "status": 503,
+      "message": "The service is temporarily unavailable."
+    }
+  }
+}

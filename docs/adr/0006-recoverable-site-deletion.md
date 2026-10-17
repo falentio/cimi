@@ -45,6 +45,12 @@ deleted -> recovering -> active
   then removes all live Site data, including configuration, acceptance Events,
   identities, derived analytics, definitions, and public configuration, while
   retaining only minimal tombstone/audit metadata needed to reject resurrection.
+- A Site the installation created for itself and that no user has seen does not
+  wait out that window. Its release is an explicit repository operation, not a
+  shortcut through the deadline: the release records the time it ran, so the
+  tombstone and the lifecycle operation report the purge that happened rather
+  than the deadline it skipped. The demo seed, whose cleanup runs behind a
+  failed request and has no user to recover the Site, is the only caller.
 - Backup payloads are not synchronously purged by Site deletion. They follow
   normal backup retention, and restore always honors the canonical deletion
   tombstone so an older backup cannot reactivate a deleted or purged Site. A

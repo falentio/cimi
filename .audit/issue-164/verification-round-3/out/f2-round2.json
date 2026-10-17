@@ -1,0 +1,150 @@
+{
+  "startedAt": "2026-10-16T15:25:47.170Z",
+  "firstSite": {
+    "siteId": "ste_kedl7rcoq5vxen3tdttyveqvyy",
+    "accepted": 28125,
+    "maxSequence": 28125,
+    "duckEvents": 28125,
+    "readiness": "ready",
+    "checkpointSequence": 28125,
+    "checkpointCardinality": 28125,
+    "liveFactCardinality": 28125,
+    "converged": true
+  },
+  "secondSiteId": "ste_kedazsxcafburfw5hetqquaigi",
+  "secondProjectionReady": true,
+  "secondState": {
+    "siteId": "ste_kedazsxcafburfw5hetqquaigi",
+    "accepted": 26979,
+    "maxSequence": 55104,
+    "duckEvents": 15000,
+    "readiness": "ready",
+    "checkpointSequence": 40625,
+    "checkpointCardinality": 12500,
+    "liveFactCardinality": 12500,
+    "converged": false
+  },
+  "totalAccepted": 55104,
+  "totalDuckEvents": 55104,
+  "loop": {
+    "rejectedAttempts": 0,
+    "totalAttempts": 0,
+    "distinctMessages": [],
+    "firstRejectedAt": "2026-10-16T15:27:20.766Z",
+    "lastRejectedAt": "2026-10-16T15:27:20.766Z",
+    "attemptDurationMs": []
+  },
+  "readiness": {
+    "samples": 670,
+    "falseSamples": 57,
+    "samplesDuringLoop": 0,
+    "falseDuringLoop": 0,
+    "falseFractionDuringLoop": null
+  },
+  "directRebuild": {
+    "outcome": "resolved",
+    "ms": 5475,
+    "message": null
+  },
+  "consoleErrors": [],
+  "allSites": [
+    {
+      "id": "ste_kedl7rcoq5vxen3tdttyveqvyy",
+      "organization_id": "org_kedh3zebasbti66y5ibnvnfqoi",
+      "created_at": 1792164347579
+    },
+    {
+      "id": "ste_kedazsxcafburfw5hetqquaigi",
+      "organization_id": "org_kednrhvetqas6kug4tkzhe2hp4",
+      "created_at": 1792164366755
+    }
+  ],
+  "sitesAtEnd": [
+    {
+      "id": "ste_kedl7rcoq5vxen3tdttyveqvyy",
+      "organization_id": "org_kedh3zebasbti66y5ibnvnfqoi"
+    },
+    {
+      "id": "ste_kedazsxcafburfw5hetqquaigi",
+      "organization_id": "org_kednrhvetqas6kug4tkzhe2hp4"
+    }
+  ],
+  "preRebuildReads": [
+    {
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounce"
+    },
+    {
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounce"
+    },
+    {
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounce"
+    },
+    {
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounce"
+    }
+  ],
+  "postRebuildReads": [
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    },
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    },
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    },
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    },
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    },
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    },
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    },
+    {
+      "rebuildOpen": false,
+      "readyNow": true,
+      "status": 200,
+      "body": "{\"fromDate\":\"2026-07-19\",\"toDate\":\"2026-10-16\",\"visitors\":1773,\"sessions\":4543,\"eligibleSessions\":4543,\"sessionsWithValidDuration\":3536,\"pageviews\":5227,\"bounceRate\":0.22165969623596743,\"pagesPerSessi"
+    }
+  ],
+  "readinessOutsideRebuild": {
+    "samples": 532,
+    "falseSamples": 0
+  },
+  "health": {
+    "status": 404,
+    "body": "Not Found"
+  },
+  "sawFailure": false,
+  "loopObservationMs": 25222
+}

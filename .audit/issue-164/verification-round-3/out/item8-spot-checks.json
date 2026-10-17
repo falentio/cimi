@@ -1,0 +1,37 @@
+{
+  "startedAt": "2026-10-16T15:31:20.206Z",
+  "appendCalls": 1,
+  "tombstone": {
+    "siteId": "ste_kedjqcdwhqgdobkybcm3ofrldi",
+    "purgedAt": "2026-10-16T15:31:33.826Z",
+    "purgedAtMs": 1792164693826
+  },
+  "purgedAtBounds": {
+    "releaseNotBefore": 1792164680533,
+    "observedAt": 1792164694443,
+    "inPast": true,
+    "afterReleaseStart": true
+  },
+  "remainingSites": [],
+  "acceptedRows": 0,
+  "acceptedForReleasedSite": 0,
+  "duckForReleasedSite": 0,
+  "stoppedRelease": {
+    "purgedStop": {
+      "message": "Operation failed",
+      "operation": "site.lifecycle",
+      "stage": "site-delete",
+      "siteId": "ste_kedjqcdwhqgdobkybcm3ofrldi",
+      "errorMessage": "Demo site release stopped: purged"
+    },
+    "missingStop": {
+      "message": "Operation failed",
+      "operation": "site.lifecycle",
+      "stage": "site-delete",
+      "siteId": "ste_missing_item8",
+      "errorMessage": "Demo site release stopped: not-found"
+    },
+    "stopCallError": null,
+    "capturedRecords": 2
+  }
+}
